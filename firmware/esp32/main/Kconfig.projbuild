@@ -1,0 +1,9 @@
+menu "IoTKit Configuration"
+
+    config IOTKIT_LED_PIN
+        int "Onboard LED GPIO Pin"
+        default 2
+        help
+            GPIO pin number for the onboard LED
+
+endmenu

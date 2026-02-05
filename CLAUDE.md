@@ -1,0 +1,124 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Build & Development Commands
+
+```bash
+# Setup (requires nvm)
+export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
+
+# Build everything (Turbo handles dependency order: core → cli/api/simulation → dashboard/website)
+pnpm build
+
+# Build a single package
+pnpm build --filter @devicesdk/api
+
+# Dev servers
+pnpm dev --filter @devicesdk/api          # Wrangler dev on port 9000
+pnpm dev --filter @devicesdk/dashboard    # Quasar dev server
+pnpm dev --filter @devicesdk/simulation   # Next.js on port 9002
+
+# Tests
+pnpm test --filter @devicesdk/api         # 63 integration tests (vitest + cloudflare workers pool)
+
+# Run a single API test file or test name
+cd apps/api && npx vitest run --config tests/vitest.config.mts tests/integration/devices.test.ts
+cd apps/api && npx vitest run --config tests/vitest.config.mts -t "should create a new device"
+
+# Type checking
+pnpm check-types --filter @devicesdk/api
+pnpm check-types --filter @devicesdk/dashboard   # uses vue-tsc
+
+# Linting
+pnpm lint --filter @devicesdk/api         # Biome
+pnpm lint --filter @devicesdk/dashboard   # ESLint
+
+# D1 database migrations
+cd apps/api && npx wrangler d1 migrations apply DB --local
+cd apps/api && npx wrangler d1 migrations apply DB --remote
+```
+
+## Monorepo Architecture
+
+This is a pnpm + Turborepo monorepo for the DeviceSDK IoT platform. The platform lets users write TypeScript device scripts, deploy them to the cloud, and flash firmware onto microcontrollers that connect via WebSocket.
+
+### Workspace Packages (12 total)
+
+**`packages/core`** (`@devicesdk/core`) — Shared TypeScript types and device abstractions. Published to npm. Exports `"."`, `"./i2c"`, `"./devices/pico"`. Has no runtime dependencies — pure type definitions.
+
+**`packages/cli`** (`@devicesdk/cli`) — CLI tool (`devicesdk` binary). Commands: `login`, `init`, `build`, `dev`, `deploy`, `flash`. Uses esbuild to bundle user device scripts, workerd for local simulation. Build copies Next.js static export from `apps/simulation/out` into `dist/simulator/assets/`.
+
+**`packages/typescript-config`** (`@repo/typescript-config`) — Shared `base.json` tsconfig extended by `core` and `cli`.
+
+**`apps/api`** (`@devicesdk/api`) — Cloudflare Workers API using Hono + Chanfana (auto-generates OpenAPI schema). Uses D1 (SQLite) via `workers-qb`, R2 for script/firmware storage, Durable Objects for WebSocket device connections. Depends on `@devicesdk/core` via `workspace:*`.
+
+**`apps/dashboard`** (`@devicesdk/dashboard`) — Vue 3 + Quasar SPA. Google OAuth login, project/device/token management. Deployed to `dash.devicesdk.com`. Requires `shamefully-hoist=true` in `.npmrc` for Quasar compatibility. Runs `quasar prepare` on postinstall.
+
+**`apps/simulation`** (`@devicesdk/simulation`) — Next.js app for device simulation UI. Static export (`out/`) is consumed by the CLI package at build time.
+
+**`apps/website`** (`@devicesdk/website`) — Hugo + Tailwind static site. Build requires Playwright browsers for OG image generation (`pnpm exec playwright install`).
+
+**`firmware/esp32`**, **`firmware/pico`** — C/C++ firmware for ESP32 (ESP-IDF) and Raspberry Pi Pico (Pico SDK + CMake). Wrapper `package.json` files gracefully skip builds when toolchains aren't installed.
+
+**`examples/basic`**, **`examples/temperature-to-discord`** — Example projects using `@devicesdk/cli` and `@devicesdk/core`.
+
+### Dependency Graph
+
+```
+@repo/typescript-config
+  ↓ (extends tsconfig)
+@devicesdk/core ──────────→ @devicesdk/api
+  ↓                              ↓
+@devicesdk/cli ←── @devicesdk/simulation
+  ↓
+examples/*
+```
+
+### API Architecture (apps/api)
+
+- **Router**: `src/index.ts` — Hono app with chanfana OpenAPI wrapper. Pre-auth routes (OAuth, CLI auth start) are mounted before `authenticateUser` middleware; everything else requires auth.
+- **Endpoints**: `src/endpoints/{resource}/router.ts` defines routes, individual files extend `OpenAPIRoute` with Zod schemas.
+- **Auth**: `src/foundation/auth.ts` — checks Bearer token → session cookie → API token (prefix `dsdk_`). User available via `c.get("user")`, query builder via `c.get("qb")`.
+- **Durable Objects**: `src/durableObjects/lib/device.ts` — `BaseDevice` handles WebSocket device connections.
+- **Bindings**: `DB` (D1), `SCRIPTS`/`FIRMWARES` (R2), `DEVICE` (Durable Object), `LOADER` (Worker Loader for sandboxed user scripts).
+- **Response format**: `{ "success": true, "result": ... }` or `{ "success": false, "error": "..." }`.
+
+### API Testing
+
+Tests use `@cloudflare/vitest-pool-workers` which runs tests inside a real Cloudflare Workers runtime. The API **requires `vitest` as an explicit devDependency** (not just the peer from the pool-workers package) to avoid version conflicts in the monorepo.
+
+```typescript
+import { SELF, env } from "cloudflare:test";
+import { TEST_SESSION_TOKEN } from "../setup-test-data";
+
+const resp = await SELF.fetch("http://localhost/v1/...", {
+  headers: { Authorization: `Bearer ${TEST_SESSION_TOKEN}` }
+});
+```
+
+- `tests/apply-migrations.ts` — applies D1 migrations before tests
+- `tests/setup-test-data.ts` — seeds users, projects, sessions
+- `tests/vitest.config.mts` — configures pool-workers with wrangler bindings
+
+### CLI Architecture (packages/cli)
+
+- **Commands**: `src/commands/{build,dev,deploy,flash,login,logout,init,whoami}.ts`
+- **Config**: `src/config.ts` — parses `devicesdk.ts` project config
+- **Build**: Uses esbuild (ESM, es2022) to bundle user device scripts into `.devicesdk/build`
+- **Dev**: Starts workerd-based local simulator with live reload
+- **Flash**: Downloads firmware UF2, copies to Pico in BOOTSEL mode (looks for `RPI-RP2` or `RP2350` volumes)
+
+### Firmware (firmware/pico, firmware/esp32)
+
+- **Pico**: C++ with lwIP raw TCP WebSocket client. Single-threaded polling loop. HAL for GPIO/PWM/ADC/I2C. Virtual pin 99 = onboard LED.
+- **ESP32**: ESP-IDF based. Similar WebSocket architecture.
+- Both embed Wi-Fi credentials and API tokens at compile-time via CMake definitions.
+
+## Key Configuration Details
+
+- `shamefully-hoist=true` in root `.npmrc` is **required** by Quasar's `@quasar/app-vite`
+- `packageManager: pnpm@9.15.4` in root `package.json`
+- Node >= 20 required (using v22 via nvm)
+- Turbo `^build` ensures dependency-ordered builds
+- `examples/basic` has a pre-existing TS syntax error in `src/devices/device.ts:58`

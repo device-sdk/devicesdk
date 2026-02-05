@@ -1,0 +1,53 @@
+import { OpenAPIRoute, contentJson } from "chanfana";
+import { z } from "zod";
+import type { AppContext } from "../../types";
+import { ApiException } from "chanfana";
+
+export class DeleteApiToken extends OpenAPIRoute {
+	public schema = {
+		tags: ["Tokens"],
+		summary: "Delete an API token",
+		operationId: "tokens-delete",
+		request: {
+			params: z.object({
+				tokenId: z.string(),
+			}),
+		},
+		responses: {
+			"200": {
+				description: "Token deleted successfully",
+				...contentJson(
+					z.object({
+						success: z.boolean(),
+					}),
+				),
+			},
+			"404": {
+				description: "Token not found",
+			},
+		},
+	};
+
+	public async handle(c: AppContext) {
+		const user = c.get("user");
+		const qb = c.get("qb");
+		const data = await this.getValidatedData<typeof this.schema>();
+		const { tokenId } = data.params;
+
+		const { success } = await qb
+			.delete({
+				tableName: "tokens",
+				where: {
+					conditions: ["user_id = ?1", "id = ?2"],
+					params: [user.id, tokenId],
+				},
+			})
+			.execute();
+
+		if (!success) {
+			return c.json({ success: false, error: "Token not found" }, 404);
+		}
+
+		return c.json({ success: true }, 200);
+	}
+}

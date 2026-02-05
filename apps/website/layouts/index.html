@@ -1,0 +1,465 @@
+{{ define "main" }}
+<!-- Hero Section -->
+<section class="pt-16 pb-16 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center max-w-4xl mx-auto">
+            <!-- Announcement Banner -->
+            <div class="w-full bg-gradient-to-r from-blue-600 via-blue-500 to-purple-600 text-white py-4 px-5 mb-6 rounded-lg shadow-lg flex items-center justify-center gap-3">
+                <svg class="w-5 h-5 flex-shrink-0 animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zm-11-1a1 1 0 11-2 0 1 1 0 012 0z" clip-rule="evenodd"/>
+                </svg>
+                <div class="text-center">
+                    <p class="text-sm sm:text-base font-semibold">🚀 We're in Private Beta</p>
+                    <p class="text-xs sm:text-sm text-blue-100 mt-1">Public beta launching soon - <a href="https://forms.gle/mHZy1XSmT6NM7XSG8" class="underline font-semibold hover:text-white transition-colors">Request early access</a></p>
+                </div>
+            </div>
+            <h1 class="text-[2.75rem] sm:text-6xl lg:text-7xl font-bold text-gray-900 tracking-tight leading-[1.1]">
+                Build IoT applications<br/>
+                <span class="gradient-text">with TypeScript</span>
+            </h1>
+            <p class="mt-6 text-[17px] sm:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                Deploy code to your devices in minutes. Control hardware from anywhere. Update firmware over-the-air. All with the tools you already know.
+            </p>
+            <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+                <a href="{{ .Site.Params.dashboardUrl }}" class="btn-primary h-11 px-6">
+                    Start Building
+                    <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                </a>
+                <a href="{{ .Site.Params.docsUrl }}" class="btn-secondary h-11 px-6">
+                    Documentation
+                </a>
+            </div>
+        </div>
+
+        <!-- Code Preview -->
+        <div class="mt-20 max-w-4xl mx-auto fade-up">
+            <div class="code-block">
+                <div class="flex items-center px-4 py-2.5 bg-[#1e293b]/50 border-b border-gray-700/50">
+                    <div class="flex space-x-1.5">
+                        <div class="w-2.5 h-2.5 rounded-full bg-red-500/80"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-green-500/80"></div>
+                    </div>
+                    <span class="ml-4 text-[13px] text-gray-500 font-mono">src/devices/sensor.ts</span>
+                </div>
+                <pre><code><span class="text-purple-400">import</span> { DeviceEntrypoint } <span class="text-purple-400">from</span> <span class="text-green-400">"@devicesdk/runtime"</span>;
+
+<span class="text-purple-400">export default class</span> <span class="text-yellow-300">Sensor</span> <span class="text-purple-400">extends</span> <span class="text-yellow-300">DeviceEntrypoint</span> {
+  <span class="text-purple-400">async</span> <span class="text-blue-300">onDeviceConnect</span>() {
+    <span class="text-gray-500">// Monitor temperature sensor every 5 minutes</span>
+    <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.configureAdcMonitoring(<span class="text-orange-400">26</span>, {
+      interval: <span class="text-orange-400">300000</span>
+    });
+    <span class="text-blue-300">this</span>.env.logger.info(<span class="text-green-400">"Sensor monitoring started"</span>);
+  }
+
+  <span class="text-purple-400">async</span> <span class="text-blue-300">onMessage</span>(message) {
+    <span class="text-purple-400">if</span> (message.type === <span class="text-green-400">"adc_reading"</span>) {
+      <span class="text-purple-400">const</span> temp = <span class="text-blue-300">this</span>.convertToTemperature(message.payload.value);
+      <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.kv.put(<span class="text-green-400">"temperature"</span>, temp);
+    }
+  }
+}</code></pre>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- What You Can Build -->
+<section class="py-24 px-4 sm:px-6 lg:px-8 bg-gray-50/50">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-12 fade-up">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">What you can build</h2>
+            <p class="mt-3 text-[17px] text-gray-600 max-w-2xl mx-auto">From simple sensors to complex automation systems</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="group p-5 bg-white border border-gray-200/60 rounded-lg card-hover fade-up">
+                <div class="w-10 h-10 flex items-center justify-center bg-blue-50 rounded-lg mb-4 group-hover:bg-blue-100 transition-colors">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                </div>
+                <h3 class="text-base font-semibold text-gray-900">Remote Device Control</h3>
+                <p class="mt-2 text-[15px] text-gray-600 leading-relaxed">Control hardware from anywhere with real-time WebSocket connections. Instant command execution.</p>
+                <a href="/examples/" class="mt-3 inline-flex items-center text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors">
+                    See examples <svg class="ml-1 w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            </div>
+
+            <div class="group p-5 bg-white border border-gray-200/60 rounded-lg card-hover fade-up">
+                <div class="w-10 h-10 flex items-center justify-center bg-purple-50 rounded-lg mb-4 group-hover:bg-purple-100 transition-colors">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                </div>
+                <h3 class="text-base font-semibold text-gray-900">Fleet Management</h3>
+                <p class="mt-2 text-[15px] text-gray-600 leading-relaxed">Deploy code to hundreds of devices instantly. Per-device versioning with safe rollback capabilities.</p>
+                <a href="/solutions/" class="mt-3 inline-flex items-center text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors">
+                    Learn more <svg class="ml-1 w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            </div>
+
+            <div class="group p-5 bg-white border border-gray-200/60 rounded-lg card-hover fade-up">
+                <div class="w-10 h-10 flex items-center justify-center bg-green-50 rounded-lg mb-4 group-hover:bg-green-100 transition-colors">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </div>
+                <h3 class="text-base font-semibold text-gray-900">Real-Time Monitoring</h3>
+                <p class="mt-2 text-[15px] text-gray-600 leading-relaxed">Track device status and telemetry live. Monitor sensor data and get instant alerts.</p>
+                <a href="/examples/" class="mt-3 inline-flex items-center text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors">
+                    See examples <svg class="ml-1 w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            </div>
+
+            <div class="group p-5 bg-white border border-gray-200/60 rounded-lg card-hover fade-up">
+                <div class="w-10 h-10 flex items-center justify-center bg-orange-50 rounded-lg mb-4 group-hover:bg-orange-100 transition-colors">
+                    <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </div>
+                <h3 class="text-base font-semibold text-gray-900">Over-the-Air Updates</h3>
+                <p class="mt-2 text-[15px] text-gray-600 leading-relaxed">Push firmware updates remotely. Update device scripts without touching hardware.</p>
+                <a href="/product/" class="mt-3 inline-flex items-center text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors">
+                    Learn more <svg class="ml-1 w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            </div>
+
+            <div class="group p-5 bg-white border border-gray-200/60 rounded-lg card-hover fade-up">
+                <div class="w-10 h-10 flex items-center justify-center bg-yellow-50 rounded-lg mb-4 group-hover:bg-yellow-100 transition-colors">
+                    <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <h3 class="text-base font-semibold text-gray-900">IoT Automation</h3>
+                <p class="mt-2 text-[15px] text-gray-600 leading-relaxed">Build workflows that respond to events. Trigger actions based on sensor data.</p>
+                <a href="/examples/" class="mt-3 inline-flex items-center text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors">
+                    See examples <svg class="ml-1 w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            </div>
+
+            <div class="group p-5 bg-white border border-gray-200/60 rounded-lg card-hover fade-up">
+                <div class="w-10 h-10 flex items-center justify-center bg-indigo-50 rounded-lg mb-4 group-hover:bg-indigo-100 transition-colors">
+                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                </div>
+                <h3 class="text-base font-semibold text-gray-900">Sensor Networks</h3>
+                <p class="mt-2 text-[15px] text-gray-600 leading-relaxed">Collect data from distributed devices. Process and analyze telemetry in real-time.</p>
+                <a href="/solutions/" class="mt-3 inline-flex items-center text-[13px] font-medium text-gray-900 hover:text-gray-600 transition-colors">
+                    Learn more <svg class="ml-1 w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Platform Overview -->
+<section class="py-24 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-12 fade-up">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">The complete platform</h2>
+            <p class="mt-3 text-[17px] text-gray-600 max-w-2xl mx-auto">Everything you need from development to production</p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-lg border border-gray-200/60 fade-up shadow-sm">
+                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-5">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Build Locally</h3>
+                <ul class="mt-4 space-y-2.5">
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">TypeScript-first development</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">Local simulator for testing</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">Fast iteration with hot reload</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">Powerful CLI tools</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg border border-gray-200/60 fade-up shadow-sm">
+                <div class="w-12 h-12 flex items-center justify-center bg-purple-50 rounded-lg mb-5">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Deploy Instantly</h3>
+                <ul class="mt-4 space-y-2.5">
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">One command deployment</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">Global infrastructure</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">Per-device versioning</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">Instant rollback</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg border border-gray-200/60 fade-up shadow-sm">
+                <div class="w-12 h-12 flex items-center justify-center bg-green-50 rounded-lg mb-5">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Manage Everything</h3>
+                <ul class="mt-4 space-y-2.5">
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">Web dashboard</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">Device monitoring</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">Script version history</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-4 h-4 text-green-600 mr-2.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-[15px] text-gray-600">API tokens & auth</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Developer Experience -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-16 fade-up">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Developer experience first</h2>
+            <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Get started in minutes with tools you already know</p>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+            <div class="space-y-8 fade-up">
+                <div class="flex gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary-100 text-primary-700 rounded-lg font-semibold">1</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Install the CLI</h3>
+                        <p class="mt-1 text-gray-600">One command to get all the tools you need</p>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary-100 text-primary-700 rounded-lg font-semibold">2</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Initialize your project</h3>
+                        <p class="mt-1 text-gray-600">Scaffold with TypeScript config and starter files</p>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary-100 text-primary-700 rounded-lg font-semibold">3</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Develop locally</h3>
+                        <p class="mt-1 text-gray-600">Test with the built-in simulator, no hardware needed</p>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary-100 text-primary-700 rounded-lg font-semibold">4</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Deploy to devices</h3>
+                        <p class="mt-1 text-gray-600">One command pushes your code to production</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fade-up">
+                <div class="code-block shadow-xl">
+                    <div class="flex items-center px-4 py-3 bg-gray-800 border-b border-gray-700">
+                        <div class="flex space-x-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <span class="ml-4 text-sm text-gray-400">Terminal</span>
+                    </div>
+                    <pre><code><span class="text-gray-500">$</span> npm install -g @devicesdk/cli
+
+<span class="text-gray-500">$</span> devicesdk login
+<span class="text-green-400">✓</span> Logged in as you@example.com
+
+<span class="text-gray-500">$</span> devicesdk init my-project
+<span class="text-green-400">✓</span> Created devicesdk.ts
+<span class="text-green-400">✓</span> Created src/devices/device.ts
+
+<span class="text-gray-500">$</span> devicesdk dev
+<span class="text-blue-400">▶</span> Starting local simulator...
+<span class="text-green-400">✓</span> Simulator running at http://localhost:8181
+
+<span class="text-gray-500">$</span> devicesdk deploy
+<span class="text-green-400">✓</span> Built device.ts
+<span class="text-green-400">✓</span> Deployed to 3 devices</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing Preview -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-7xl mx-auto">
+        <div class="max-w-3xl mx-auto text-center fade-up">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Simple, usage-based pricing</h2>
+            <p class="mt-4 text-lg text-gray-600">Pay only for messages sent and received. Better code = lower costs.</p>
+
+            <div class="mt-10 grid sm:grid-cols-2 gap-6">
+                <div class="p-6 bg-white rounded-xl border border-gray-200">
+                    <div class="text-4xl font-bold text-gray-900">500</div>
+                    <div class="mt-1 text-gray-600">free messages per day</div>
+                </div>
+                <div class="p-6 bg-white rounded-xl border border-gray-200">
+                    <div class="text-4xl font-bold text-gray-900">$3</div>
+                    <div class="mt-1 text-gray-600">per million messages</div>
+                </div>
+            </div>
+
+            <p class="mt-8 text-gray-500">No uptime charges. No hidden fees.</p>
+
+            <a href="/pricing/" class="mt-6 inline-flex items-center text-primary-600 font-medium hover:text-primary-700">
+                View full pricing <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Security -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-16 fade-up">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Secure by default</h2>
+            <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Enterprise-grade security built into every layer</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 fade-up">
+            <div class="p-5 bg-white border border-gray-100 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
+                        <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                    </div>
+                    <h3 class="font-semibold text-gray-900">OAuth Authentication</h3>
+                </div>
+                <p class="mt-3 text-sm text-gray-600">Secure Google sign-in with session management</p>
+            </div>
+
+            <div class="p-5 bg-white border border-gray-100 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
+                        <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <h3 class="font-semibold text-gray-900">Device Tokens</h3>
+                </div>
+                <p class="mt-3 text-sm text-gray-600">Per-device credentials with API key management</p>
+            </div>
+
+            <div class="p-5 bg-white border border-gray-100 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
+                        <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <h3 class="font-semibold text-gray-900">Encrypted Connections</h3>
+                </div>
+                <p class="mt-3 text-sm text-gray-600">TLS encryption for all WebSocket traffic</p>
+            </div>
+
+            <div class="p-5 bg-white border border-gray-100 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
+                        <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    </div>
+                    <h3 class="font-semibold text-gray-900">Isolated Execution</h3>
+                </div>
+                <p class="mt-3 text-sm text-gray-600">Scripts run in isolated environments</p>
+            </div>
+
+            <div class="p-5 bg-white border border-gray-100 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
+                        <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                    </div>
+                    <h3 class="font-semibold text-gray-900">Version History</h3>
+                </div>
+                <p class="mt-3 text-sm text-gray-600">Automatic backups and rollback protection</p>
+            </div>
+
+            <div class="p-5 bg-white border border-gray-100 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
+                        <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    </div>
+                    <h3 class="font-semibold text-gray-900">Audit Logging</h3>
+                </div>
+                <p class="mt-3 text-sm text-gray-600">Track all deployments and changes</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Final CTA -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 gradient-bg">
+    <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white">Start building today</h2>
+        <p class="mt-4 text-lg text-white/80">Join developers shipping IoT applications worldwide</p>
+        <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{{ .Site.Params.dashboardUrl }}" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-primary-600 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+                Sign up free
+                <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </a>
+            <a href="{{ .Site.Params.docsUrl }}/quickstart" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white border-2 border-white/30 rounded-lg hover:bg-white/10 transition-colors">
+                Read quickstart
+            </a>
+        </div>
+        <p class="mt-6 text-sm text-white/60">No credit card required • 500 free messages daily</p>
+    </div>
+</section>
+
+<!-- Community & Resources -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-12 fade-up">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Resources & Community</h2>
+            <p class="mt-4 text-lg text-gray-600">Everything you need to succeed</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 fade-up">
+            <a href="{{ .Site.Params.docsUrl }}" class="p-6 bg-white border border-gray-100 rounded-xl card-hover group">
+                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4 group-hover:bg-blue-100 transition-colors">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">Documentation</h3>
+                <p class="mt-2 text-sm text-gray-600">Guides, tutorials, and API reference</p>
+            </a>
+
+            <a href="{{ .Site.Params.githubUrl }}" target="_blank" rel="noopener" class="p-6 bg-white border border-gray-100 rounded-xl card-hover group">
+                <div class="w-12 h-12 flex items-center justify-center bg-gray-100 rounded-lg mb-4 group-hover:bg-gray-200 transition-colors">
+                    <svg class="w-6 h-6 text-gray-700" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">GitHub</h3>
+                <p class="mt-2 text-sm text-gray-600">Examples and open source tools</p>
+            </a>
+
+            <a href="{{ .Site.Params.discordUrl }}" target="_blank" rel="noopener" class="p-6 bg-white border border-gray-100 rounded-xl card-hover group">
+                <div class="w-12 h-12 flex items-center justify-center bg-indigo-50 rounded-lg mb-4 group-hover:bg-indigo-100 transition-colors">
+                    <svg class="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">Discord</h3>
+                <p class="mt-2 text-sm text-gray-600">Join the community</p>
+            </a>
+
+            <a href="https://devicesdk.com/docs/changelog" target="_blank" rel="noopener" class="p-6 bg-white border border-gray-100 rounded-xl card-hover group">
+                <div class="w-12 h-12 flex items-center justify-center bg-orange-50 rounded-lg mb-4 group-hover:bg-orange-100 transition-colors">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">Changelog</h3>
+                <p class="mt-2 text-sm text-gray-600">Latest updates, fixes, and releases</p>
+            </a>
+        </div>
+    </div>
+</section>
+{{ end }}

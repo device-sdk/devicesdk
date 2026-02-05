@@ -1,0 +1,10 @@
+{
+  "name": "@devicesdk/firmware-esp32",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "command -v idf.py >/dev/null 2>&1 && idf.py build || echo 'Skipping ESP32 build (ESP-IDF not found)'",
+    "test": "command -v pytest >/dev/null 2>&1 && pytest test_*.py -v || echo 'Skipping ESP32 tests'",
+    "clean": "rm -rf build"
+  }
+}

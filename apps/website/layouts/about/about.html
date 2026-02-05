@@ -1,0 +1,278 @@
+{{ define "main" }}
+<!-- Hero -->
+<section class="pt-16 pb-16 px-4 sm:px-6 lg:px-8 gradient-bg-subtle">
+    <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">
+            Building the future of<br/>
+            <span class="gradient-text">IoT development</span>
+        </h1>
+        <p class="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
+            Making hardware programming as easy as web development.
+        </p>
+    </div>
+</section>
+
+<!-- Mission -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="fade-up">
+            <h2 class="text-3xl font-bold text-gray-900">Our mission</h2>
+            <p class="mt-6 text-lg text-gray-600 leading-relaxed">
+                We believe building IoT applications shouldn't require deep embedded systems knowledge. By bringing TypeScript and modern development workflows to hardware, we're empowering web developers to build physical products.
+            </p>
+            <p class="mt-4 text-lg text-gray-600 leading-relaxed">
+                DeviceSDK makes it possible to write device code in TypeScript, test locally without hardware, and deploy to real devices with a single command. The same developer experience you expect from modern web frameworks, now for IoT.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Problem/Solution -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-6xl mx-auto">
+        <div class="grid md:grid-cols-2 gap-12">
+            <div class="fade-up">
+                <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-red-700 bg-red-50 rounded-full mb-4">
+                    The Problem
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Current IoT development is hard</h3>
+                <ul class="mt-6 space-y-4">
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span class="text-gray-600">Complex C/C++ firmware development</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span class="text-gray-600">No local testing without hardware</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span class="text-gray-600">Manual firmware flashing processes</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span class="text-gray-600">Difficult remote updates</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span class="text-gray-600">Expensive cloud platforms</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="fade-up">
+                <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-green-700 bg-green-50 rounded-full mb-4">
+                    Our Solution
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">We're making it easy</h3>
+                <ul class="mt-6 space-y-4">
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-gray-600">Write TypeScript, not C++</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-gray-600">Test locally in simulator</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-gray-600">One-command deployment</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-gray-600">Over-the-air updates</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span class="text-gray-600">Pay only for what you use</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="text-center mb-16 fade-up">
+            <h2 class="text-3xl font-bold text-gray-900">How it works</h2>
+            <p class="mt-4 text-lg text-gray-600">Simple architecture for powerful applications.</p>
+        </div>
+
+        <div class="space-y-8 fade-up">
+            <div class="flex items-start gap-6">
+                <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-primary-100 text-primary-700 rounded-xl font-bold text-lg">1</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Write device code in TypeScript</h3>
+                    <p class="mt-2 text-gray-600">Use the DeviceEntrypoint class to define how your device behaves. Handle connections, messages, GPIO, sensors, and more.</p>
+                </div>
+            </div>
+
+            <div class="flex items-start gap-6">
+                <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-primary-100 text-primary-700 rounded-xl font-bold text-lg">2</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Test with the built-in simulator</h3>
+                    <p class="mt-2 text-gray-600">Run your code locally without hardware. The simulator mimics device behavior so you can iterate quickly.</p>
+                </div>
+            </div>
+
+            <div class="flex items-start gap-6">
+                <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-primary-100 text-primary-700 rounded-xl font-bold text-lg">3</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Deploy with one command</h3>
+                    <p class="mt-2 text-gray-600">Run <code class="px-2 py-1 bg-gray-100 rounded text-sm">devicesdk deploy</code> to push your code to production. Updates roll out instantly.</p>
+                </div>
+            </div>
+
+            <div class="flex items-start gap-6">
+                <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-primary-100 text-primary-700 rounded-xl font-bold text-lg">4</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Devices connect and run your code</h3>
+                    <p class="mt-2 text-gray-600">Physical devices connect via WebSocket, receive your code, and execute it. Real-time communication, zero latency.</p>
+                </div>
+            </div>
+
+            <div class="flex items-start gap-6">
+                <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-primary-100 text-primary-700 rounded-xl font-bold text-lg">5</div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Update anytime, instantly</h3>
+                    <p class="mt-2 text-gray-600">Need to change behavior? Deploy again. Devices pick up updates automatically with version control and rollback.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Why DeviceSDK -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-16 fade-up">
+            <h2 class="text-3xl font-bold text-gray-900">Why DeviceSDK?</h2>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-8 fade-up">
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto flex items-center justify-center bg-blue-100 rounded-2xl mb-6">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">For Developers</h3>
+                <ul class="mt-4 space-y-2 text-gray-600 text-sm">
+                    <li>Familiar tools and languages</li>
+                    <li>Fast iteration with hot reload</li>
+                    <li>Great TypeScript DX</li>
+                    <li>Test without hardware</li>
+                </ul>
+            </div>
+
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto flex items-center justify-center bg-green-100 rounded-2xl mb-6">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">For Businesses</h3>
+                <ul class="mt-4 space-y-2 text-gray-600 text-sm">
+                    <li>Lower costs with pay-per-message</li>
+                    <li>Faster time to market</li>
+                    <li>Scale from prototype to production</li>
+                    <li>No infrastructure management</li>
+                </ul>
+            </div>
+
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto flex items-center justify-center bg-purple-100 rounded-2xl mb-6">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">For Makers</h3>
+                <ul class="mt-4 space-y-2 text-gray-600 text-sm">
+                    <li>Start without deep hardware knowledge</li>
+                    <li>Free tier for hobbyists</li>
+                    <li>Active community support</li>
+                    <li>Learn by building</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Technology -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="text-center mb-16 fade-up">
+            <h2 class="text-3xl font-bold text-gray-900">Built with modern technology</h2>
+            <p class="mt-4 text-lg text-gray-600">Industry-standard tools and practices.</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-6 fade-up">
+            <div class="p-6 bg-white border border-gray-200 rounded-xl">
+                <h3 class="font-semibold text-gray-900 mb-2">TypeScript throughout</h3>
+                <p class="text-sm text-gray-600">Type safety from CLI to device code. Better tooling, fewer bugs.</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-200 rounded-xl">
+                <h3 class="font-semibold text-gray-900 mb-2">Modern build tools</h3>
+                <p class="text-sm text-gray-600">Fast compilation with esbuild. Hot reload for rapid development.</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-200 rounded-xl">
+                <h3 class="font-semibold text-gray-900 mb-2">Open standards</h3>
+                <p class="text-sm text-gray-600">WebSocket, HTTP/REST, OAuth. No proprietary lock-in.</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-200 rounded-xl">
+                <h3 class="font-semibold text-gray-900 mb-2">Industry-standard security</h3>
+                <p class="text-sm text-gray-600">OAuth authentication, TLS encryption, secure credential management.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-4xl mx-auto text-center fade-up">
+        <h2 class="text-3xl font-bold text-gray-900">Get in touch</h2>
+        <p class="mt-4 text-lg text-gray-600">We'd love to hear from you.</p>
+
+        <div class="mt-10 grid sm:grid-cols-3 gap-6">
+            <a href="mailto:hello@devicesdk.com" class="p-6 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
+                <div class="w-12 h-12 mx-auto flex items-center justify-center bg-gray-100 rounded-xl mb-4">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">General</h3>
+                <p class="mt-1 text-sm text-gray-600">hello@devicesdk.com</p>
+            </a>
+
+            <a href="mailto:support@devicesdk.com" class="p-6 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
+                <div class="w-12 h-12 mx-auto flex items-center justify-center bg-gray-100 rounded-xl mb-4">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">Support</h3>
+                <p class="mt-1 text-sm text-gray-600">support@devicesdk.com</p>
+            </a>
+
+            <a href="mailto:sales@devicesdk.com" class="p-6 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
+                <div class="w-12 h-12 mx-auto flex items-center justify-center bg-gray-100 rounded-xl mb-4">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">Sales</h3>
+                <p class="mt-1 text-sm text-gray-600">sales@devicesdk.com</p>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 gradient-bg">
+    <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white">Start building with DeviceSDK</h2>
+        <p class="mt-4 text-lg text-white/80">Join developers shipping IoT applications worldwide.</p>
+        <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{{ .Site.Params.dashboardUrl }}" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-primary-600 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+                Sign up free
+            </a>
+            <a href="mailto:support@devicesdk.com" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white border-2 border-white/30 rounded-lg hover:bg-white/10 transition-colors">
+                Contact us
+            </a>
+        </div>
+    </div>
+</section>
+{{ end }}

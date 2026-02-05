@@ -1,0 +1,11 @@
+{
+  "name": "@devicesdk/firmware-pico",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "command -v cmake >/dev/null 2>&1 && make build || echo 'Skipping Pico build (cmake not found)'",
+    "flash": "make flash",
+    "test": "echo 'No automated tests' && exit 0",
+    "clean": "make clean"
+  }
+}

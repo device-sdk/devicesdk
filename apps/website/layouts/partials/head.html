@@ -1,0 +1,176 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ .Site.Params.description }}{{ end }}">
+<title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} | DeviceSDK{{ end }}</title>
+
+{{/* Open Graph / Twitter cards: only set image if social_image is defined */}}
+{{- $base := (strings.TrimRight "/" .Site.BaseURL) -}}
+{{- $og := .Params.social_image -}}
+{{- $absOG := "" -}}
+{{- if $og }}{{- $absOG = printf "%s%s" $base $og -}}{{ end -}}
+
+<meta property="og:title" content="{{ .Title }}">
+{{ with .Params.description }}<meta property="og:description" content="{{ . }}">{{ end }}
+<meta property="og:type" content="article">
+<meta property="og:url" content="{{ .Permalink }}">
+{{ if $og }}<meta property="og:image" content="{{ $absOG }}">{{ end }}
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ .Title }}">
+{{ with .Params.description }}<meta name="twitter:description" content="{{ . }}">{{ end }}
+{{ if $og }}<meta name="twitter:image" content="{{ $absOG }}">{{ end }}
+
+<link href="/styles.css" rel="stylesheet">
+
+<style>
+    /* Modern shadcn-inspired design system */
+    :root {
+        --radius: 0.5rem;
+    }
+
+    .fade-up {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    .fade-up.animate-in {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Refined gradient text */
+    .gradient-text {
+        background: linear-gradient(to right, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    /* Subtle gradient backgrounds */
+    .gradient-bg {
+        background: linear-gradient(135deg, #000000 0%, #1e293b 100%);
+    }
+    .gradient-bg-subtle {
+        background: linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%);
+    }
+
+    /* Modern code blocks */
+    .code-block {
+        background: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .code-block pre {
+        margin: 0;
+        padding: 1.5rem;
+        overflow-x: auto;
+    }
+    .code-block code {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+        line-height: 1.7;
+        color: #e2e8f0;
+    }
+
+    /* Refined card hover effect */
+    .card-hover {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        border-color: #e5e7eb;
+    }
+
+    /* Modern primary button - shadcn style */
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.625rem 1.5rem;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: white;
+        background: #18181b;
+        border: 1px solid #27272a;
+        border-radius: var(--radius);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .btn-primary:hover {
+        background: #27272a;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transform: translateY(-1px);
+    }
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+    /* Modern secondary button */
+    .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.625rem 1.5rem;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: #18181b;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: var(--radius);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .btn-secondary:hover {
+        background: #f9fafb;
+        border-color: #d1d5db;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Navigation enhancement */
+    nav {
+        border-bottom: 1px solid #f1f5f9;
+        background: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Prevent horizontal overflow on mobile */
+    html, body {
+        width: 100%;
+        overflow-x: hidden;
+    }
+    main {
+        overflow-x: hidden;
+    }
+    .code-block pre {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    /* Refined input/form styling */
+    input, select, textarea {
+        border-radius: var(--radius);
+    }
+
+    /* Badge/pill styling */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        border-radius: 9999px;
+        border: 1px solid;
+    }
+
+    /* Refined shadows */
+    .shadow-refined {
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
+    .shadow-refined-lg {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+</style>
+
+<link rel="icon" href="/logo.svg" sizes="any" type="image/svg+xml">

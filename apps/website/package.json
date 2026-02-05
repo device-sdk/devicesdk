@@ -1,0 +1,26 @@
+{
+  "name": "@devicesdk/website",
+  "version": "0.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build-tailwind": "npx @tailwindcss/cli -i ./src/input.css -o ./static/styles.css",
+    "build": "rm -rf public && pnpm run build-tailwind && node generate-og.js && hugo",
+    "dev": "hugo server -D",
+    "deploy": "wrangler pages deploy",
+    "clean": "rm -rf public resources/_gen"
+  },
+  "dependencies": {
+    "wrangler": "^4.45.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.18",
+    "glob": "^13.0.0",
+    "gray-matter": "^4.0.3",
+    "playwright": "^1.57.0",
+    "tailwindcss": "^4.1.18"
+  }
+}

@@ -1,0 +1,361 @@
+{{ define "main" }}
+<!-- Hero -->
+<section class="pt-16 pb-16 px-4 sm:px-6 lg:px-8 gradient-bg-subtle">
+    <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">
+            Everything you need to build<br/>
+            <span class="gradient-text">production IoT applications</span>
+        </h1>
+        <p class="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
+            A complete platform for building, deploying, and managing IoT devices with TypeScript.
+        </p>
+    </div>
+</section>
+
+<!-- CLI Tools -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+            <div class="fade-up">
+                <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-700 bg-blue-50 rounded-full mb-4">
+                    CLI Tools
+                </div>
+                <h2 class="text-3xl font-bold text-gray-900">Powerful command-line interface</h2>
+                <p class="mt-4 text-lg text-gray-600">
+                    Everything you need for the entire development workflow in one tool.
+                </p>
+                <ul class="mt-8 space-y-4">
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">Project initialization</span>
+                            <p class="text-gray-600">Scaffold new projects instantly with templates</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">Local development</span>
+                            <p class="text-gray-600">Built-in simulator for testing without hardware</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">One-command deployment</span>
+                            <p class="text-gray-600">Build and push to production in seconds</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">Firmware flashing</span>
+                            <p class="text-gray-600">Direct Raspberry Pi Pico support</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="fade-up">
+                <div class="code-block shadow-xl">
+                    <div class="flex items-center px-4 py-3 bg-gray-800 border-b border-gray-700">
+                        <div class="flex space-x-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <span class="ml-4 text-sm text-gray-400">Terminal</span>
+                    </div>
+                    <pre><code><span class="text-gray-500"># Initialize a new project</span>
+<span class="text-gray-500">$</span> devicesdk init sensor-network
+<span class="text-green-400">✓</span> Created devicesdk.ts
+<span class="text-green-400">✓</span> Created src/devices/device.ts
+
+<span class="text-gray-500"># Start local development</span>
+<span class="text-gray-500">$</span> devicesdk dev --port 8181
+<span class="text-blue-400">▶</span> Simulator running...
+
+<span class="text-gray-500"># Deploy to production</span>
+<span class="text-gray-500">$</span> devicesdk deploy --device temp-sensor
+<span class="text-green-400">✓</span> Deployed version 1.2.0
+
+<span class="text-gray-500"># Flash firmware to device</span>
+<span class="text-gray-500">$</span> devicesdk flash pico-1
+<span class="text-green-400">✓</span> Firmware flashed successfully</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Runtime Environment -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-7xl mx-auto">
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+            <div class="order-2 lg:order-1 fade-up">
+                <div class="code-block shadow-xl">
+                    <div class="flex items-center px-4 py-3 bg-gray-800 border-b border-gray-700">
+                        <div class="flex space-x-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <span class="ml-4 text-sm text-gray-400">src/devices/thermostat.ts</span>
+                    </div>
+                    <pre><code><span class="text-purple-400">import</span> { DeviceEntrypoint } <span class="text-purple-400">from</span> <span class="text-green-400">"@devicesdk/runtime"</span>;
+
+<span class="text-purple-400">export default class</span> <span class="text-yellow-300">Thermostat</span> <span class="text-purple-400">extends</span> <span class="text-yellow-300">DeviceEntrypoint</span> {
+  <span class="text-purple-400">async</span> <span class="text-blue-300">onDeviceConnect</span>() {
+    <span class="text-gray-500">// Monitor temperature sensor</span>
+    <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.configureAdcMonitoring(<span class="text-orange-400">26</span>, {
+      interval: <span class="text-orange-400">60000</span>, <span class="text-gray-500">// Every minute</span>
+      onChange: <span class="text-orange-400">true</span>
+    });
+  }
+
+  <span class="text-purple-400">async</span> <span class="text-blue-300">onMessage</span>(message) {
+    <span class="text-purple-400">if</span> (message.type === <span class="text-green-400">"adc_reading"</span>) {
+      <span class="text-purple-400">const</span> temp = <span class="text-blue-300">this</span>.toTemperature(message.payload.value);
+
+      <span class="text-gray-500">// Store in device KV</span>
+      <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.kv.put(<span class="text-green-400">"temp"</span>, temp);
+
+      <span class="text-gray-500">// Control heating based on temp</span>
+      <span class="text-purple-400">if</span> (temp < <span class="text-orange-400">20</span>) {
+        <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.setGpioState(<span class="text-orange-400">15</span>, <span class="text-green-400">"high"</span>);
+      }
+    }
+  }
+}</code></pre>
+                </div>
+            </div>
+            <div class="order-1 lg:order-2 fade-up">
+                <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-purple-700 bg-purple-50 rounded-full mb-4">
+                    Runtime
+                </div>
+                <h2 class="text-3xl font-bold text-gray-900">TypeScript runtime for devices</h2>
+                <p class="mt-4 text-lg text-gray-600">
+                    Write device logic in TypeScript with a simple, familiar API.
+                </p>
+                <ul class="mt-8 space-y-4">
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">DeviceEntrypoint class</span>
+                            <p class="text-gray-600">Simple lifecycle hooks: onDeviceConnect, onMessage</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">GPIO control</span>
+                            <p class="text-gray-600">Digital I/O, analog inputs, PWM output</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">I2C & SPI support</span>
+                            <p class="text-gray-600">Talk to sensors and peripherals</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">Device KV storage</span>
+                            <p class="text-gray-600">Persistent state management per device</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Web Dashboard -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-16 fade-up">
+            <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-green-700 bg-green-50 rounded-full mb-4">
+                Dashboard
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900">Manage your entire fleet</h2>
+            <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                A powerful web dashboard for managing projects, devices, scripts, and deployments.
+            </p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 fade-up">
+            <div class="p-6 bg-white border border-gray-100 rounded-xl">
+                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Project Management</h3>
+                <p class="mt-2 text-gray-600">Organize devices by project with full CRUD operations.</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-100 rounded-xl">
+                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Device Inventory</h3>
+                <p class="mt-2 text-gray-600">See all devices, their status, and last connection time.</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-100 rounded-xl">
+                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Script Deployment</h3>
+                <p class="mt-2 text-gray-600">Upload and deploy code directly from the browser.</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-100 rounded-xl">
+                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Version History</h3>
+                <p class="mt-2 text-gray-600">Full deployment history with one-click rollback.</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-100 rounded-xl">
+                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">API Tokens</h3>
+                <p class="mt-2 text-gray-600">Create and manage API tokens for automation.</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-100 rounded-xl">
+                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Real-Time Status</h3>
+                <p class="mt-2 text-gray-600">Live online/offline indicators for all devices.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- API Platform -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-7xl mx-auto">
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+            <div class="fade-up">
+                <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-orange-700 bg-orange-50 rounded-full mb-4">
+                    API
+                </div>
+                <h2 class="text-3xl font-bold text-gray-900">RESTful API for everything</h2>
+                <p class="mt-4 text-lg text-gray-600">
+                    Full programmatic control over your devices and deployments.
+                </p>
+                <ul class="mt-8 space-y-4">
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">Device management</span>
+                            <p class="text-gray-600">CRUD operations for all devices</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">Script deployment</span>
+                            <p class="text-gray-600">Upload and deploy programmatically</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-medium text-gray-900">OAuth & token auth</span>
+                            <p class="text-gray-600">Secure authentication flows</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="fade-up">
+                <div class="code-block shadow-xl">
+                    <div class="flex items-center px-4 py-3 bg-gray-800 border-b border-gray-700">
+                        <div class="flex space-x-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <span class="ml-4 text-sm text-gray-400">API Example</span>
+                    </div>
+                    <pre><code><span class="text-gray-500"># List all devices</span>
+<span class="text-green-400">GET</span> /v1/projects/my-project/devices
+
+<span class="text-gray-500"># Deploy a script</span>
+<span class="text-yellow-400">PUT</span> /v1/projects/my-project/devices/sensor-1/script
+Content-Type: multipart/form-data
+Authorization: Bearer $TOKEN
+
+<span class="text-gray-500"># Download firmware</span>
+<span class="text-purple-400">POST</span> /v1/projects/my-project/devices/pico-1/firmware</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Hardware Support -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-16 fade-up">
+            <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-red-700 bg-red-50 rounded-full mb-4">
+                Hardware
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900">Supported hardware</h2>
+            <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                Start building with popular microcontrollers, with more coming soon.
+            </p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto fade-up">
+            <div class="p-8 bg-white border border-gray-200 rounded-2xl text-center">
+                <div class="w-20 h-20 mx-auto bg-green-50 rounded-2xl flex items-center justify-center mb-6">
+                    <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Raspberry Pi Pico W</h3>
+                <p class="mt-2 text-gray-600">RP2040 with WiFi</p>
+                <span class="inline-flex items-center mt-4 px-3 py-1 text-sm font-medium text-green-700 bg-green-50 rounded-full">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    Supported
+                </span>
+            </div>
+
+            <div class="p-8 bg-white border border-gray-200 rounded-2xl text-center">
+                <div class="w-20 h-20 mx-auto bg-green-50 rounded-2xl flex items-center justify-center mb-6">
+                    <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Raspberry Pi Pico 2 W</h3>
+                <p class="mt-2 text-gray-600">RP2350 with WiFi</p>
+                <span class="inline-flex items-center mt-4 px-3 py-1 text-sm font-medium text-green-700 bg-green-50 rounded-full">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    Supported
+                </span>
+            </div>
+        </div>
+
+        <div class="mt-12 text-center fade-up">
+            <p class="text-gray-500">More hardware support coming soon, including ESP32 family.</p>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 gradient-bg">
+    <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white">Ready to build?</h2>
+        <p class="mt-4 text-lg text-white/80">Start building IoT applications in minutes.</p>
+        <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{{ .Site.Params.dashboardUrl }}" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-primary-600 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+                Get started free
+            </a>
+            <a href="{{ .Site.Params.docsUrl }}" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white border-2 border-white/30 rounded-lg hover:bg-white/10 transition-colors">
+                Read documentation
+            </a>
+        </div>
+    </div>
+</section>
+{{ end }}

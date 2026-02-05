@@ -1,0 +1,484 @@
+#include "core1_worker.h"
+#include "shared_buffers.h"
+#include "hal.h"
+#include "pico/stdlib.h"
+#include "hardware/watchdog.h"
+#include <string.h>
+#include <stdio.h>
+#include <map>
+#include <vector>
+
+// Local state for GPIO monitoring
+static std::map<uint8_t, bool> s_monitored_pins;
+static std::map<uint8_t, bool> s_gpio_states;
+static uint32_t s_last_gpio_poll_time = 0;
+
+// Local framebuffer for display operations
+static std::vector<uint8_t> s_framebuffer;
+
+// Forward declarations
+static worker_response_t execute_command(const worker_command_t* cmd);
+static void poll_gpio_pins(void);
+
+void core1_worker_init(void) {
+    s_monitored_pins.clear();
+    s_gpio_states.clear();
+    s_last_gpio_poll_time = 0;
+}
+
+void core1_add_monitored_pin(uint8_t pin) {
+    s_monitored_pins[pin] = true;
+}
+
+void core1_remove_monitored_pin(uint8_t pin) {
+    s_monitored_pins.erase(pin);
+    s_gpio_states.erase(pin);
+}
+
+void core1_entry(void) {
+    while (true) {
+        worker_command_t cmd;
+
+        // Process queued commands (non-blocking check)
+        if (queue_try_remove(&g_command_queue, &cmd)) {
+            worker_response_t response = execute_command(&cmd);
+            queue_add_blocking(&g_response_queue, &response);
+        }
+
+        // Poll GPIO pins every 50ms
+        uint32_t now = to_ms_since_boot(get_absolute_time());
+        if (now - s_last_gpio_poll_time >= 50) {
+            s_last_gpio_poll_time = now;
+            poll_gpio_pins();
+        }
+
+        // Small sleep to prevent busy-waiting
+        sleep_us(100);
+    }
+}
+
+static void poll_gpio_pins(void) {
+    for (auto& entry : s_monitored_pins) {
+        uint8_t pin = entry.first;
+        bool current_state = hal_get_gpio_digital(pin);
+
+        auto it = s_gpio_states.find(pin);
+        if (it != s_gpio_states.end() && it->second != current_state) {
+            // State changed - send notification
+            gpio_notification_t notification;
+            notification.pin = pin;
+            notification.state = current_state;
+            queue_try_add(&g_gpio_notification_queue, &notification);
+            s_gpio_states[pin] = current_state;
+        } else if (it == s_gpio_states.end()) {
+            // First read - just store state
+            s_gpio_states[pin] = current_state;
+        }
+    }
+}
+
+// Helper to set error response
+static void set_error(worker_response_t* resp, const char* msg) {
+    resp->status = RESPONSE_ERROR;
+    strncpy(resp->error_msg, msg, MAX_ERROR_MSG_LEN - 1);
+    resp->error_msg[MAX_ERROR_MSG_LEN - 1] = '\0';
+}
+
+// === Command handlers ===
+
+static void handle_gpio_set(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t pin = cmd->payload.gpio.pin;
+    gpio_state_t state = (cmd->payload.gpio.state == WORKER_GPIO_HIGH)
+                          ? GPIO_STATE_HIGH : GPIO_STATE_LOW;
+    hal_set_gpio(pin, state);
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.gpio.pin = pin;
+}
+
+static void handle_gpio_get_digital(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t pin = cmd->payload.gpio.pin;
+    bool value = hal_get_gpio_digital(pin);
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.gpio.pin = pin;
+    resp->data.gpio.digital_value = value;
+    resp->data.gpio.mode = "digital";
+}
+
+static void handle_gpio_get_analog(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t pin = cmd->payload.gpio.pin;
+    uint16_t value = hal_get_gpio_analog(pin);
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.gpio.pin = pin;
+    resp->data.gpio.analog_value = value;
+    resp->data.gpio.mode = "analog";
+}
+
+static void handle_gpio_configure_input(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t pin = cmd->payload.gpio.pin;
+    gpio_pull_t pull;
+    switch (cmd->payload.gpio.pull) {
+        case WORKER_PULL_UP: pull = GPIO_PULL_UP; break;
+        case WORKER_PULL_DOWN: pull = GPIO_PULL_DOWN; break;
+        default: pull = GPIO_PULL_NONE; break;
+    }
+    hal_configure_gpio_input(pin, pull);
+    core1_add_monitored_pin(pin);
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.gpio.pin = pin;
+}
+
+static void handle_pwm_set(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t pin = cmd->payload.pwm.pin;
+    uint32_t freq = cmd->payload.pwm.frequency;
+    float duty = cmd->payload.pwm.duty_cycle;
+    hal_set_pwm(pin, freq, duty);
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_i2c_configure(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t bus = cmd->payload.i2c_configure.bus;
+    uint8_t sda = cmd->payload.i2c_configure.sda_pin;
+    uint8_t scl = cmd->payload.i2c_configure.scl_pin;
+    uint32_t freq = cmd->payload.i2c_configure.frequency;
+
+    if (!hal_i2c_validate_pins(bus, sda, scl)) {
+        set_error(resp, "Invalid I2C pin configuration");
+        return;
+    }
+
+    if (!hal_i2c_configure(bus, sda, scl, freq)) {
+        set_error(resp, "Failed to configure I2C");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.i2c_configure.bus = bus;
+    resp->data.i2c_configure.sda_pin = sda;
+    resp->data.i2c_configure.scl_pin = scl;
+    resp->data.i2c_configure.frequency = freq;
+}
+
+static void handle_i2c_scan(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t bus = cmd->payload.i2c_scan.bus;
+
+    if (bus > 1) {
+        set_error(resp, "Invalid bus number");
+        return;
+    }
+
+    i2c_scan_result_t result = hal_i2c_scan(bus);
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.i2c_scan.bus = bus;
+    resp->data.i2c_scan.count = result.count;
+    memcpy(resp->data.i2c_scan.addresses, result.addresses, result.count);
+}
+
+static void handle_i2c_write(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t bus = cmd->payload.i2c_write.bus;
+    uint8_t addr = cmd->payload.i2c_write.address;
+    const uint8_t* data = cmd->payload.i2c_write.data;
+    size_t len = cmd->payload.i2c_write.data_len;
+
+    if (bus > 1) {
+        set_error(resp, "Invalid bus number");
+        return;
+    }
+
+    if (!hal_i2c_write(bus, addr, data, len)) {
+        set_error(resp, "I2C write failed");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_i2c_read(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t bus = cmd->payload.i2c_read.bus;
+    uint8_t addr = cmd->payload.i2c_read.address;
+    size_t len = cmd->payload.i2c_read.length;
+    int reg = cmd->payload.i2c_read.reg;
+
+    if (bus > 1) {
+        set_error(resp, "Invalid bus number");
+        return;
+    }
+
+    if (len > MAX_I2C_READ_DATA) {
+        set_error(resp, "Read length too large");
+        return;
+    }
+
+    int result = hal_i2c_read(bus, addr, resp->data.i2c_read.data, len, reg);
+    if (result < 0) {
+        set_error(resp, "I2C read failed");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.i2c_read.bus = bus;
+    resp->data.i2c_read.address = addr;
+    resp->data.i2c_read.data_len = (size_t)result;
+}
+
+// Display controller constants
+#define SSD1306_CMD_DISPLAY_OFF          0xAE
+#define SSD1306_CMD_DISPLAY_ON           0xAF
+#define SSD1306_CMD_SET_CLOCK_DIV        0xD5
+#define SSD1306_CMD_SET_MUX_RATIO        0xA8
+#define SSD1306_CMD_SET_DISPLAY_OFFSET   0xD3
+#define SSD1306_CMD_SET_START_LINE       0x40
+#define SSD1306_CMD_CHARGE_PUMP          0x8D
+#define SSD1306_CMD_SET_MEMORY_MODE      0x20
+#define SSD1306_CMD_SEG_REMAP            0xA1
+#define SSD1306_CMD_COM_SCAN_DEC         0xC8
+#define SSD1306_CMD_SET_COM_PINS         0xDA
+#define SSD1306_CMD_SET_CONTRAST         0x81
+#define SSD1306_CMD_SET_PRECHARGE        0xD9
+#define SSD1306_CMD_SET_VCOM_DESELECT    0xDB
+#define SSD1306_CMD_DISPLAY_RAM          0xA4
+#define SSD1306_CMD_NORMAL_DISPLAY       0xA6
+#define SSD1306_CMD_SET_COL_ADDR         0x21
+#define SSD1306_CMD_SET_PAGE_ADDR        0x22
+
+#define CONTROL_BYTE_CMD    0x00
+#define CONTROL_BYTE_DATA   0x40
+
+static bool send_cmd(uint8_t bus, uint8_t addr, uint8_t cmd) {
+    uint8_t data[2] = { CONTROL_BYTE_CMD, cmd };
+    return hal_i2c_write(bus, addr, data, 2);
+}
+
+static bool send_cmd2(uint8_t bus, uint8_t addr, uint8_t cmd, uint8_t arg) {
+    uint8_t data[3] = { CONTROL_BYTE_CMD, cmd, arg };
+    return hal_i2c_write(bus, addr, data, 3);
+}
+
+static bool send_cmd3(uint8_t bus, uint8_t addr, uint8_t cmd, uint8_t arg1, uint8_t arg2) {
+    uint8_t data[4] = { CONTROL_BYTE_CMD, cmd, arg1, arg2 };
+    return hal_i2c_write(bus, addr, data, 4);
+}
+
+static bool init_display_ssd1306(uint8_t bus, uint8_t addr, uint8_t width, uint8_t height) {
+    if (!send_cmd(bus, addr, SSD1306_CMD_DISPLAY_OFF)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_CLOCK_DIV, 0x80)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_MUX_RATIO, height - 1)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_DISPLAY_OFFSET, 0x00)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_SET_START_LINE)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_CHARGE_PUMP, 0x14)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_MEMORY_MODE, 0x00)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_SEG_REMAP)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_COM_SCAN_DEC)) return false;
+    uint8_t com_pins = (height == 64) ? 0x12 : 0x02;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_COM_PINS, com_pins)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_CONTRAST, 0xCF)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_PRECHARGE, 0xF1)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_VCOM_DESELECT, 0x40)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_DISPLAY_RAM)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_NORMAL_DISPLAY)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_DISPLAY_ON)) return false;
+    return true;
+}
+
+static bool init_display_sh1106(uint8_t bus, uint8_t addr, uint8_t width, uint8_t height) {
+    if (!send_cmd(bus, addr, SSD1306_CMD_DISPLAY_OFF)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_CLOCK_DIV, 0x80)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_MUX_RATIO, height - 1)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_DISPLAY_OFFSET, 0x00)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_SET_START_LINE)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_CHARGE_PUMP, 0x14)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_MEMORY_MODE, 0x02)) return false;  // Page mode for SH1106
+    if (!send_cmd(bus, addr, SSD1306_CMD_SEG_REMAP)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_COM_SCAN_DEC)) return false;
+    uint8_t com_pins = (height == 64) ? 0x12 : 0x02;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_COM_PINS, com_pins)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_CONTRAST, 0xCF)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_PRECHARGE, 0xF1)) return false;
+    if (!send_cmd2(bus, addr, SSD1306_CMD_SET_VCOM_DESELECT, 0x40)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_DISPLAY_RAM)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_NORMAL_DISPLAY)) return false;
+    if (!send_cmd(bus, addr, SSD1306_CMD_DISPLAY_ON)) return false;
+    return true;
+}
+
+static bool write_fb_ssd1306(uint8_t bus, uint8_t addr, uint8_t width, uint8_t height,
+                              const uint8_t* buffer, size_t buf_len) {
+    uint8_t pages = height / 8;
+    if (!send_cmd3(bus, addr, SSD1306_CMD_SET_COL_ADDR, 0x00, width - 1)) return false;
+    if (!send_cmd3(bus, addr, SSD1306_CMD_SET_PAGE_ADDR, 0x00, pages - 1)) return false;
+
+    // Write in 32-byte chunks
+    size_t chunk_size = 32;
+    size_t offset = 0;
+    uint8_t chunk[33];  // 1 control byte + 32 data
+
+    while (offset < buf_len) {
+        size_t remaining = buf_len - offset;
+        size_t to_send = (remaining > chunk_size) ? chunk_size : remaining;
+
+        chunk[0] = CONTROL_BYTE_DATA;
+        memcpy(&chunk[1], &buffer[offset], to_send);
+
+        if (!hal_i2c_write(bus, addr, chunk, to_send + 1)) {
+            return false;
+        }
+        offset += to_send;
+    }
+    return true;
+}
+
+static bool write_fb_sh1106(uint8_t bus, uint8_t addr, uint8_t width, uint8_t height,
+                             const uint8_t* buffer, size_t buf_len) {
+    uint8_t pages = height / 8;
+    uint8_t page_data[129];  // 1 control byte + 128 data max
+
+    for (uint8_t page = 0; page < pages; page++) {
+        if (!send_cmd(bus, addr, 0xB0 + page)) return false;
+        if (!send_cmd(bus, addr, 0x02)) return false;  // Column offset 2
+        if (!send_cmd(bus, addr, 0x10)) return false;
+
+        size_t page_offset = page * width;
+        page_data[0] = CONTROL_BYTE_DATA;
+        memcpy(&page_data[1], &buffer[page_offset], width);
+
+        if (!hal_i2c_write(bus, addr, page_data, width + 1)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void handle_display_update(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t bus = cmd->payload.display.bus;
+    uint8_t addr = cmd->payload.display.address;
+    uint8_t width = cmd->payload.display.width;
+    uint8_t height = cmd->payload.display.height;
+    bool is_ssd1306 = (cmd->payload.display.controller == 0);
+    bool do_init = cmd->payload.display.init;
+
+    if (bus > 1) {
+        set_error(resp, "Invalid bus number");
+        return;
+    }
+
+    size_t fb_size = (size_t)width * height / 8;
+
+    // Read framebuffer from shared buffer
+    uint8_t fb_data[MAX_DISPLAY_BUFFER_SIZE];
+    size_t fb_len = 0;
+    display_segment_t segments[MAX_DISPLAY_SEGMENTS];
+    size_t segment_count = 0;
+
+    if (!shared_display_buffer_read(fb_data, &fb_len, segments, &segment_count)) {
+        set_error(resp, "No display data available");
+        return;
+    }
+
+    // Resize local framebuffer if needed
+    if (s_framebuffer.size() != fb_size) {
+        s_framebuffer.resize(fb_size, 0);
+    }
+
+    // Apply segments to local framebuffer
+    size_t total_written = 0;
+    for (size_t i = 0; i < segment_count; i++) {
+        size_t offset = segments[i].offset;
+        size_t len = segments[i].length;
+        if (offset + len <= fb_size && offset + len <= fb_len) {
+            memcpy(&s_framebuffer[offset], &fb_data[offset], len);
+            total_written += len;
+        }
+    }
+
+    // If no segments, treat entire buffer as one segment
+    if (segment_count == 0 && fb_len <= fb_size) {
+        memcpy(s_framebuffer.data(), fb_data, fb_len);
+        total_written = fb_len;
+    }
+
+    // Initialize display if requested
+    if (do_init) {
+        bool init_ok = is_ssd1306
+            ? init_display_ssd1306(bus, addr, width, height)
+            : init_display_sh1106(bus, addr, width, height);
+        if (!init_ok) {
+            set_error(resp, "Failed to initialize display");
+            return;
+        }
+    }
+
+    // Write framebuffer
+    bool write_ok = is_ssd1306
+        ? write_fb_ssd1306(bus, addr, width, height, s_framebuffer.data(), s_framebuffer.size())
+        : write_fb_sh1106(bus, addr, width, height, s_framebuffer.data(), s_framebuffer.size());
+
+    if (!write_ok) {
+        set_error(resp, "Failed to write framebuffer");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.display.width = width;
+    resp->data.display.height = height;
+    resp->data.display.controller = is_ssd1306 ? "ssd1306" : "sh1106";
+    resp->data.display.segments_count = segment_count;
+    resp->data.display.bytes_written = total_written;
+}
+
+static void handle_reboot(const worker_command_t* cmd, worker_response_t* resp) {
+    (void)cmd;
+    resp->status = RESPONSE_SUCCESS;
+    // Note: actual reboot happens after response is sent (handled by Core 0)
+}
+
+static worker_response_t execute_command(const worker_command_t* cmd) {
+    worker_response_t resp = {0};
+    resp.sequence_id = cmd->sequence_id;
+    strncpy(resp.message_id, cmd->message_id, MAX_MESSAGE_ID_LEN - 1);
+    resp.original_cmd = cmd->type;
+    resp.status = RESPONSE_SUCCESS;
+
+    switch (cmd->type) {
+        case CMD_GPIO_SET:
+            handle_gpio_set(cmd, &resp);
+            break;
+        case CMD_GPIO_GET_DIGITAL:
+            handle_gpio_get_digital(cmd, &resp);
+            break;
+        case CMD_GPIO_GET_ANALOG:
+            handle_gpio_get_analog(cmd, &resp);
+            break;
+        case CMD_GPIO_CONFIGURE_INPUT:
+            handle_gpio_configure_input(cmd, &resp);
+            break;
+        case CMD_PWM_SET:
+            handle_pwm_set(cmd, &resp);
+            break;
+        case CMD_I2C_CONFIGURE:
+            handle_i2c_configure(cmd, &resp);
+            break;
+        case CMD_I2C_SCAN:
+            handle_i2c_scan(cmd, &resp);
+            break;
+        case CMD_I2C_WRITE:
+            handle_i2c_write(cmd, &resp);
+            break;
+        case CMD_I2C_READ:
+            handle_i2c_read(cmd, &resp);
+            break;
+        case CMD_I2C_BATCH_WRITE:
+            // TODO: implement batch write
+            set_error(&resp, "Batch write not yet implemented");
+            break;
+        case CMD_DISPLAY_UPDATE:
+            handle_display_update(cmd, &resp);
+            break;
+        case CMD_REBOOT:
+            handle_reboot(cmd, &resp);
+            break;
+        default:
+            set_error(&resp, "Unknown command type");
+            break;
+    }
+
+    return resp;
+}

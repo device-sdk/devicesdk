@@ -1,0 +1,8 @@
+build
+build-test
+!.vscode/*
+.env
+.idea
+dist
+node_modules
+scripts/node_modules

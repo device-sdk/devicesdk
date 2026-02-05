@@ -1,0 +1,89 @@
+baseURL = 'https://devicesdk.com/'
+languageCode = 'en-us'
+title = 'DeviceSDK - Build IoT Applications with TypeScript'
+enableRobotsTXT = true
+disableKinds = ["taxonomy", "term"]
+[outputs]
+  home = ["HTML"]
+
+[params]
+  description = "Build, deploy, and manage IoT devices with TypeScript. From prototype to production in minutes."
+  dashboardUrl = "/early-access/"
+  docsUrl = "https://devicesdk.com/docs"
+  githubUrl = "https://github.com/device-sdk"
+  discordUrl = "https://discord.gg/WuNhbXGsBy"
+  twitterUrl = "https://x.com/devicesdk"
+
+[menu]
+  [[menu.main]]
+    name = "Product"
+    url = "/product/"
+    weight = 1
+  [[menu.main]]
+    name = "Pricing"
+    url = "/pricing/"
+    weight = 2
+  [[menu.main]]
+    name = "Solutions"
+    url = "/solutions/"
+    weight = 3
+  [[menu.main]]
+    name = "Examples"
+    url = "/examples/"
+    weight = 4
+  [[menu.main]]
+    name = "Docs"
+    url = "/docs/"
+    weight = 5
+  [[menu.main]]
+    name = "Community"
+    url = "/community/"
+    weight = 6
+
+  [[menu.footer_product]]
+    name = "Documentation"
+    url = "/docs/"
+    weight = 1
+  [[menu.footer_product]]
+    name = "Dashboard"
+    url = "/early-access/"
+    weight = 2
+  [[menu.footer_product]]
+    name = "Pricing"
+    url = "/pricing/"
+    weight = 3
+  [[menu.footer_product]]
+    name = "Examples"
+    url = "/examples/"
+    weight = 4
+
+  [[menu.footer_company]]
+    name = "About"
+    url = "/about/"
+    weight = 1
+  [[menu.footer_company]]
+    name = "Changelog"
+    url = "/docs/resources/changelog/"
+    weight = 2
+
+  [[menu.footer_community]]
+    name = "GitHub"
+    url = "https://github.com/device-sdk"
+    weight = 1
+  [[menu.footer_community]]
+    name = "X"
+    url = "https://x.com/devicesdk"
+    weight = 2
+  [[menu.footer_community]]
+    name = "Discord"
+    url = "https://discord.gg/WuNhbXGsBy"
+    weight = 3
+
+  [[menu.footer_legal]]
+    name = "Terms of Service"
+    url = "/terms/"
+    weight = 1
+  [[menu.footer_legal]]
+    name = "Privacy Policy"
+    url = "/privacy/"
+    weight = 2

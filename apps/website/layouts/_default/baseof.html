@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="{{ .Site.LanguageCode }}" class="scroll-smooth">
+<head>
+    {{- partial "head.html" . -}}
+</head>
+<body class="font-sans antialiased bg-white text-gray-900">
+    {{- partial "header.html" . -}}
+
+    <main class="pt-14">
+        {{- block "main" . }}{{- end }}
+    </main>
+
+    {{- partial "footer.html" . -}}
+
+    <script src="/jquery-3.7.1.min.js"></script>
+    {{- block "scripts" . }}{{- end }}
+    <script>
+        $(document).ready(function() {
+            // Mobile menu toggle
+            $('#mobile-menu-button').click(function() {
+                $('#mobile-menu').toggleClass('hidden');
+            });
+
+            // Scroll animations
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('animate-in');
+                    }
+                });
+            }, observerOptions);
+
+            $('.fade-up').each(function() {
+                observer.observe(this);
+            });
+
+            // Navbar scroll effect
+            $(window).scroll(function() {
+                if ($(this).scrollTop() > 10) {
+                    $('nav').addClass('shadow-sm');
+                } else {
+                    $('nav').removeClass('shadow-sm');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

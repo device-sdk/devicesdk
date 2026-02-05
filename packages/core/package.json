@@ -1,0 +1,39 @@
+{
+  "name": "@devicesdk/core",
+  "version": "0.0.3",
+  "description": "CLI tool for developing and deploying DeviceSDK IoT applications.",
+  "author": "",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./i2c": {
+      "types": "./dist/i2c/index.d.ts",
+      "import": "./dist/i2c/index.js"
+    },
+    "./devices/pico": {
+      "types": "./dist/devices/pico.d.ts",
+      "import": "./dist/devices/pico.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "check-types": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "tsx": "^4.20.5",
+    "typescript": "^5.3.3"
+  }
+}

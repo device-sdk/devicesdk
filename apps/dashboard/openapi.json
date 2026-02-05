@@ -1,0 +1,1894 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DeviceSDK API",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {},
+    "parameters": {}
+  },
+  "paths": {
+    "/v1/auth/google": {
+      "get": {
+        "operationId": "get_handleGoogleCallback",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/v1/cli/auth/start": {
+      "post": {
+        "operationId": "post_startAuth",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/v1/cli/auth/poll": {
+      "post": {
+        "operationId": "post_pollAuth",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/v1/cli/auth/refresh": {
+      "post": {
+        "operationId": "post_refreshToken",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/cli/auth": {
+      "get": {
+        "operationId": "get_getApprovalPage",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_handleApproval",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/v1/cli/auth/revoke": {
+      "post": {
+        "operationId": "post_revokeToken",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "post_handleLogout",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/v1/user/me": {
+      "get": {
+        "tags": [
+          "User"
+        ],
+        "summary": "Get details on the user profile",
+        "operationId": "users-me",
+        "responses": {
+          "200": {
+            "description": "Returns the user details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "picture": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "verified_email": {
+                          "type": "integer"
+                        },
+                        "created_at": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "verified_email",
+                        "created_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "List all projects",
+        "operationId": "projects-list",
+        "responses": {
+          "200": {
+            "description": "Returns a list of projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "project_slug": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "project_slug",
+                          "created_at"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Create a new project",
+        "operationId": "projects-create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "project_slug": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[a-z][a-z0-9-]{0,35}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "project_slug"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Returns the created project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "project_slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "project_slug",
+                        "name",
+                        "description",
+                        "created_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid project_slug format"
+          },
+          "409": {
+            "description": "Project already exists"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Get a single project by ID",
+        "operationId": "projects-get",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a single project with its devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "project_slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "number"
+                        },
+                        "device_count": {
+                          "type": "number"
+                        },
+                        "devices": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "device_id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "last_connected_at": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "device_id",
+                              "name",
+                              "status",
+                              "last_connected_at"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "project_slug",
+                        "name",
+                        "description",
+                        "created_at",
+                        "device_count",
+                        "devices"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Update a project",
+        "operationId": "projects-update",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns the updated project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "project_slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "updated_at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "project_slug",
+                        "name",
+                        "description",
+                        "updated_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Delete a project and all its devices",
+        "operationId": "projects-delete",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "deleted": {
+                          "type": "boolean"
+                        },
+                        "project_slug": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "deleted",
+                        "project_slug"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    },
+    "/v1/tokens": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "List all API tokens",
+        "operationId": "tokens-list",
+        "responses": {
+          "200": {
+            "description": "Returns a list of API tokens (excluding the token value for security)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "number"
+                          },
+                          "last_four": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "created_at",
+                          "last_four"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Create a new API token",
+        "operationId": "tokens-create",
+        "responses": {
+          "201": {
+            "description": "Returns the new API token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "token": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "token",
+                        "created_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          }
+        }
+      }
+    },
+    "/v1/tokens/{tokenId}": {
+      "delete": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Delete an API token",
+        "operationId": "tokens-delete",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "tokenId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Token not found"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/devices": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "List all devices in a project",
+        "operationId": "devices-list",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a list of devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "device_id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "current_version_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "last_connected_at": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "number"
+                          },
+                          "updated_at": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "device_id",
+                          "name",
+                          "description",
+                          "current_version_id",
+                          "last_connected_at",
+                          "created_at",
+                          "updated_at"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Register a new device in a project",
+        "operationId": "devices-create",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[a-z][a-z0-9-]{0,35}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "device_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Returns the created device",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "device_id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "device_id",
+                        "name",
+                        "description",
+                        "created_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid device_id format"
+          },
+          "404": {
+            "description": "Project not found"
+          },
+          "409": {
+            "description": "Device already exists"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/devices/{deviceId}": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Get a single device by ID",
+        "operationId": "devices-get",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a single device",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "device_id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "current_version_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "last_connected_at": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "number"
+                        },
+                        "updated_at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "device_id",
+                        "name",
+                        "description",
+                        "current_version_id",
+                        "last_connected_at",
+                        "created_at",
+                        "updated_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project or device not found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Update a device",
+        "operationId": "devices-update",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns the updated device",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "device_id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "updated_at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "device_id",
+                        "name",
+                        "description",
+                        "updated_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project or device not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Delete a device",
+        "operationId": "devices-delete",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Device deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "deleted": {
+                          "type": "boolean"
+                        },
+                        "device_id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "deleted",
+                        "device_id"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project or device not found"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/devices/{deviceId}/connect/websocket": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Connect to a given device via WebSocket",
+        "operationId": "devices-connect",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": false,
+            "name": "versionId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Upgrades connection to a WebSocket"
+          },
+          "400": {
+            "description": "Bad request - missing required parameters"
+          },
+          "404": {
+            "description": "Project or device not found"
+          },
+          "426": {
+            "description": "Upgrade required - WebSocket upgrade header expected"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/devices/{deviceId}/firmware": {
+      "post": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Download device firmware",
+        "operationId": "devices-firmware-download",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ssid": {
+                    "type": "string",
+                    "maxLength": 32
+                  },
+                  "pass": {
+                    "type": "string",
+                    "maxLength": 63
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Firmware file"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/devices/{deviceId}/script": {
+      "get": {
+        "tags": [
+          "Scripts"
+        ],
+        "summary": "Get the current deployed script for a device",
+        "operationId": "scripts-get",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns the current script",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "version_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "script": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "version_id",
+                        "script"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project, device, or script not found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Scripts"
+        ],
+        "summary": "Upload a new script version for a device",
+        "operationId": "scripts-upload",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "script": {
+                    "type": "string",
+                    "maxLength": 1048576
+                  },
+                  "entrypoint": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "script",
+                  "entrypoint"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Returns the created script version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "version_id": {
+                          "type": "string"
+                        },
+                        "device_id": {
+                          "type": "string"
+                        },
+                        "entrypoint": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "version_id",
+                        "device_id",
+                        "entrypoint",
+                        "message",
+                        "created_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - script validation failed"
+          },
+          "404": {
+            "description": "Project or device not found"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/devices/{deviceId}/script/versions": {
+      "get": {
+        "tags": [
+          "Scripts"
+        ],
+        "summary": "List all script versions for a device",
+        "operationId": "scripts-versions-list",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a list of script versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "version_id": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "is_current": {
+                            "type": "boolean"
+                          },
+                          "created_at": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "version_id",
+                          "message",
+                          "is_current",
+                          "created_at"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project or device not found"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/devices/{deviceId}/script/versions/{versionId}": {
+      "get": {
+        "tags": [
+          "Scripts"
+        ],
+        "summary": "Get a specific script version",
+        "operationId": "scripts-version-get",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "versionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns the script content for the specified version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "version_id": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "script": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "version_id",
+                        "message",
+                        "script",
+                        "created_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project, device, or version not found"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/devices/{deviceId}/script/versions/{versionId}/deploy": {
+      "post": {
+        "tags": [
+          "Scripts"
+        ],
+        "summary": "Deploy a specific script version (rollback)",
+        "operationId": "scripts-deploy",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "deviceId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "versionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version deployed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "version_id": {
+                          "type": "string"
+                        },
+                        "device_id": {
+                          "type": "string"
+                        },
+                        "deployed_at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "version_id",
+                        "device_id",
+                        "deployed_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project, device, or version not found"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/scripts": {
+      "put": {
+        "tags": [
+          "Scripts"
+        ],
+        "summary": "Upload scripts for multiple devices at once",
+        "operationId": "scripts-batch-upload",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "devices": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "script": {
+                          "type": "string",
+                          "maxLength": 1048576
+                        },
+                        "entrypoint": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "script",
+                        "entrypoint"
+                      ]
+                    }
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "devices"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Returns the created script versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "versions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "device_id": {
+                                "type": "string"
+                              },
+                              "version_id": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "success",
+                                  "created"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "device_id",
+                              "version_id",
+                              "status"
+                            ]
+                          }
+                        },
+                        "message": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "versions",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - validation failed"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

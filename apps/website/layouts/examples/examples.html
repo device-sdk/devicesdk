@@ -1,0 +1,376 @@
+{{ define "main" }}
+<!-- Hero -->
+<section class="pt-16 pb-16 px-4 sm:px-6 lg:px-8 gradient-bg-subtle">
+    <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">
+            Real examples,<br/>
+            <span class="gradient-text">ready to deploy</span>
+        </h1>
+        <p class="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
+            Copy, paste, and customize these examples for your projects.
+        </p>
+    </div>
+</section>
+
+<!-- Basic Examples -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-12 fade-up">
+            <h2 class="text-2xl font-bold text-gray-900">Basic Examples</h2>
+            <p class="mt-2 text-gray-600">Get started with these foundational examples.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Blink LED -->
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover fade-up">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 flex items-center justify-center bg-yellow-50 rounded-lg">
+                            <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Blink LED</h3>
+                            <span class="text-xs text-gray-500">Beginner</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">The "Hello World" of hardware. Toggle an LED on and off.</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Hardware:</strong> LED + resistor</p>
+                        <p><strong>Messages:</strong> ~5,000/day</p>
+                    </div>
+                </div>
+                <div class="code-block rounded-none border-t border-gray-700">
+                    <pre class="text-xs"><code><span class="text-purple-400">async</span> <span class="text-blue-300">onDeviceConnect</span>() {
+  setInterval(<span class="text-purple-400">async</span> () => {
+    <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.setGpioState(<span class="text-orange-400">25</span>, <span class="text-green-400">"high"</span>);
+    <span class="text-purple-400">await</span> sleep(<span class="text-orange-400">500</span>);
+    <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.setGpioState(<span class="text-orange-400">25</span>, <span class="text-green-400">"low"</span>);
+  }, <span class="text-orange-400">1000</span>);
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- Button Press -->
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover fade-up">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 flex items-center justify-center bg-blue-50 rounded-lg">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Button Input</h3>
+                            <span class="text-xs text-gray-500">Beginner</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">React to button presses with debouncing and LED feedback.</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Hardware:</strong> Button + LED</p>
+                        <p><strong>Messages:</strong> Event-based (~10/day)</p>
+                    </div>
+                </div>
+                <div class="code-block rounded-none border-t border-gray-700">
+                    <pre class="text-xs"><code><span class="text-purple-400">async</span> <span class="text-blue-300">onDeviceConnect</span>() {
+  <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.configureGpioInputMonitoring(
+    <span class="text-orange-400">20</span>, <span class="text-orange-400">true</span>
+  );
+}
+
+<span class="text-purple-400">async</span> <span class="text-blue-300">onMessage</span>(msg) {
+  <span class="text-purple-400">if</span> (msg.payload.state === <span class="text-green-400">"high"</span>) {
+    <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.toggleLed();
+  }
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- Temperature Monitor -->
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover fade-up">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 flex items-center justify-center bg-red-50 rounded-lg">
+                            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Temperature Monitor</h3>
+                            <span class="text-xs text-gray-500">Beginner</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Read analog temperature sensor and store readings.</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Hardware:</strong> TMP36 sensor</p>
+                        <p><strong>Messages:</strong> ~1,440/day (1/min)</p>
+                    </div>
+                </div>
+                <div class="code-block rounded-none border-t border-gray-700">
+                    <pre class="text-xs"><code><span class="text-purple-400">async</span> <span class="text-blue-300">onDeviceConnect</span>() {
+  <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.configureAdcMonitoring(<span class="text-orange-400">26</span>, {
+    interval: <span class="text-orange-400">60000</span>
+  });
+}
+
+<span class="text-purple-400">async</span> <span class="text-blue-300">onMessage</span>(msg) {
+  <span class="text-purple-400">const</span> temp = <span class="text-blue-300">this</span>.toTemp(msg.payload.value);
+  <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.kv.put(<span class="text-green-400">"temp"</span>, temp);
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Sensor Examples -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-12 fade-up">
+            <h2 class="text-2xl font-bold text-gray-900">Sensor Examples</h2>
+            <p class="mt-2 text-gray-600">Work with various sensors and communication protocols.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- BME280 -->
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover fade-up">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 flex items-center justify-center bg-green-50 rounded-lg">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">BME280 Environmental</h3>
+                            <span class="text-xs text-gray-500">Intermediate</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Read temperature, humidity, and pressure via I2C.</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Protocol:</strong> I2C</p>
+                        <p><strong>Messages:</strong> ~4,320/day (3/min)</p>
+                    </div>
+                </div>
+                <div class="px-6 pb-6">
+                    <a href="{{ .Site.Params.githubUrl }}/examples" target="_blank" class="text-sm font-medium text-primary-600 hover:text-primary-700">
+                        View on GitHub →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Motion Detector -->
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover fade-up">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 flex items-center justify-center bg-purple-50 rounded-lg">
+                            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Motion Detector</h3>
+                            <span class="text-xs text-gray-500">Intermediate</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">PIR motion sensor with event-based alerts.</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Hardware:</strong> PIR sensor</p>
+                        <p><strong>Messages:</strong> Event-based</p>
+                    </div>
+                </div>
+                <div class="px-6 pb-6">
+                    <a href="{{ .Site.Params.githubUrl }}/examples" target="_blank" class="text-sm font-medium text-primary-600 hover:text-primary-700">
+                        View on GitHub →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Light Monitor -->
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover fade-up">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 flex items-center justify-center bg-yellow-50 rounded-lg">
+                            <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Light Level Monitor</h3>
+                            <span class="text-xs text-gray-500">Beginner</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Track ambient light with a photoresistor.</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Hardware:</strong> Photoresistor + ADC</p>
+                        <p><strong>Messages:</strong> ~288/day (1/5min)</p>
+                    </div>
+                </div>
+                <div class="px-6 pb-6">
+                    <a href="{{ .Site.Params.githubUrl }}/examples" target="_blank" class="text-sm font-medium text-primary-600 hover:text-primary-700">
+                        View on GitHub →
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Integration Examples -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-12 fade-up">
+            <h2 class="text-2xl font-bold text-gray-900">Integration Examples</h2>
+            <p class="mt-2 text-gray-600">Connect your devices to external services.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Discord Alerts -->
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover fade-up">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 flex items-center justify-center bg-indigo-50 rounded-lg">
+                            <svg class="w-5 h-5 text-indigo-600" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Discord Alerts</h3>
+                            <span class="text-xs text-gray-500">Intermediate</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Send sensor data and alerts to a Discord channel.</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Integration:</strong> Discord Webhook</p>
+                        <p><strong>Use case:</strong> Team notifications</p>
+                    </div>
+                </div>
+                <div class="code-block rounded-none border-t border-gray-700">
+                    <pre class="text-xs"><code><span class="text-purple-400">async</span> <span class="text-blue-300">sendAlert</span>(message) {
+  <span class="text-purple-400">await</span> fetch(DISCORD_WEBHOOK, {
+    method: <span class="text-green-400">"POST"</span>,
+    headers: { <span class="text-green-400">"Content-Type"</span>: <span class="text-green-400">"application/json"</span> },
+    body: JSON.stringify({
+      content: <span class="text-green-400">`🚨 Alert: </span>${message}<span class="text-green-400">`</span>
+    })
+  });
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- Email Alerts -->
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover fade-up">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 flex items-center justify-center bg-blue-50 rounded-lg">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Email Notifications</h3>
+                            <span class="text-xs text-gray-500">Intermediate</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Send email alerts when thresholds are exceeded.</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Integration:</strong> Resend / SendGrid</p>
+                        <p><strong>Use case:</strong> Critical alerts</p>
+                    </div>
+                </div>
+                <div class="px-6 pb-6">
+                    <a href="{{ .Site.Params.githubUrl }}/examples" target="_blank" class="text-sm font-medium text-primary-600 hover:text-primary-700">
+                        View on GitHub →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Data Logger -->
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover fade-up">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
+                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Data Logger</h3>
+                            <span class="text-xs text-gray-500">Intermediate</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Log all sensor readings to a database for analysis.</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Integration:</strong> Database API</p>
+                        <p><strong>Use case:</strong> Historical data</p>
+                    </div>
+                </div>
+                <div class="px-6 pb-6">
+                    <a href="{{ .Site.Params.githubUrl }}/examples" target="_blank" class="text-sm font-medium text-primary-600 hover:text-primary-700">
+                        View on GitHub →
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Advanced Examples -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-12 fade-up">
+            <h2 class="text-2xl font-bold text-gray-900">Advanced Examples</h2>
+            <p class="mt-2 text-gray-600">Complex projects for production deployments.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="bg-white border border-gray-200 rounded-xl p-6 card-hover fade-up">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 flex items-center justify-center bg-orange-50 rounded-lg">
+                        <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Multi-Device System</h3>
+                        <span class="text-xs text-gray-500">Advanced</span>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Coordinate multiple devices working together as a fleet.</p>
+                <a href="{{ .Site.Params.githubUrl }}/examples" target="_blank" class="text-sm font-medium text-primary-600 hover:text-primary-700">
+                    View on GitHub →
+                </a>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-xl p-6 card-hover fade-up">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 flex items-center justify-center bg-red-50 rounded-lg">
+                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Smart Thermostat</h3>
+                        <span class="text-xs text-gray-500">Advanced</span>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Temperature control with relay and scheduling logic.</p>
+                <a href="{{ .Site.Params.githubUrl }}/examples" target="_blank" class="text-sm font-medium text-primary-600 hover:text-primary-700">
+                    View on GitHub →
+                </a>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-xl p-6 card-hover fade-up">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 flex items-center justify-center bg-emerald-50 rounded-lg">
+                        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Plant Watering</h3>
+                        <span class="text-xs text-gray-500">Advanced</span>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Automated irrigation based on soil moisture levels.</p>
+                <a href="{{ .Site.Params.githubUrl }}/examples" target="_blank" class="text-sm font-medium text-primary-600 hover:text-primary-700">
+                    View on GitHub →
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 gradient-bg">
+    <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white">Ready to try these examples?</h2>
+        <p class="mt-4 text-lg text-white/80">Sign up and start building in minutes.</p>
+        <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{{ .Site.Params.dashboardUrl }}" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-primary-600 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+                Start building
+            </a>
+            <a href="{{ .Site.Params.githubUrl }}" target="_blank" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white border-2 border-white/30 rounded-lg hover:bg-white/10 transition-colors">
+                View on GitHub
+            </a>
+        </div>
+    </div>
+</section>
+{{ end }}

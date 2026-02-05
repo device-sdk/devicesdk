@@ -1,0 +1,19 @@
+{
+  "name": "@devicesdk/example-basic",
+  "private": true,
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "dev": "devicesdk dev",
+    "build": "devicesdk build",
+    "deploy": "devicesdk deploy"
+  },
+  "dependencies": {
+    "@devicesdk/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@devicesdk/cli": "workspace:*",
+    "typescript": "^5.3.3"
+  }
+}

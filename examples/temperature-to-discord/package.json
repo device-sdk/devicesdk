@@ -1,0 +1,14 @@
+{
+  "name": "@devicesdk/example-temperature",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+  },
+  "dependencies": {
+    "@devicesdk/cli": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}

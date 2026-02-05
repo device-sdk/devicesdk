@@ -1,0 +1,55 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test_build:
+    name: Build client
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential ninja-build
+
+      - name: Restore pico-sdk cache
+        id: restore-pico-sdk
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.PICO_SDK_PATH }}
+          key: pico-sdk-${{ hashFiles('pico_sdk_import.cmake') }}
+
+      - name: Install pico-sdk
+        if: steps.restore-pico-sdk.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/raspberrypi/pico-sdk ${PICO_SDK_PATH}
+          git -C ${PICO_SDK_PATH} submodule update --init
+
+      - name: Save pico-sdk cache
+        if: steps.restore-pico-sdk.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.PICO_SDK_PATH }}
+          key: pico-sdk-${{ hashFiles('pico_sdk_import.cmake') }}
+
+      - name: Publish artifacts
+        run: make publish
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: iotkit-client
+          path: dist/devicesdk-pico-w-client.uf2 | dist/devicesdk-pico2-w-client.uf2
+          if-no-files-found: error

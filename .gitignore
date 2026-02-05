@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Turbo
+.turbo/
+
+# Build outputs
+dist/
+.next/
+out/
+.quasar/
+build/
+
+# Cloudflare
+.wrangler/
+.dev.vars
+
+# Hugo
+public/
+resources/_gen/
+
+# Firmware builds
+firmware/esp32/build/
+firmware/pico/build/
+
+# IDE files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS files
+.DS_Store
+.thumbs.db
+
+# Environment files
+.env
+.env.local*
+*.local
+
+# Old lock files (pnpm-lock.yaml is the only lock file)
+package-lock.json
+yarn.lock
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# DeviceSDK CLI
+.devicesdk/
+
+# Quasar
+/quasar.config.*.temporary.compiled*

@@ -1,0 +1,195 @@
+{{ define "main" }}
+<!-- Hero -->
+<section class="pt-16 pb-16 px-4 sm:px-6 lg:px-8 gradient-bg-subtle">
+    <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">
+            Built for real-world<br/>
+            <span class="gradient-text">IoT applications</span>
+        </h1>
+        <p class="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
+            See what developers are building with DeviceSDK across industries.
+        </p>
+    </div>
+</section>
+
+<!-- Solutions Grid -->
+<section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="grid lg:grid-cols-2 gap-8">
+            <!-- Environmental Monitoring -->
+            <div class="p-8 bg-white border border-gray-200 rounded-2xl fade-up">
+                <div class="w-14 h-14 flex items-center justify-center bg-green-50 rounded-xl mb-6">
+                    <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Environmental Monitoring</h3>
+                <p class="mt-3 text-gray-600">Track temperature, humidity, and air quality across multiple locations in real-time.</p>
+                <div class="mt-6 space-y-2">
+                    <p class="text-sm text-gray-500"><strong>Use cases:</strong> Facilities, agriculture, greenhouses, server rooms</p>
+                    <p class="text-sm text-gray-500"><strong>Example:</strong> 10 sensors × 5 min intervals = ~72K messages/month</p>
+                    <p class="text-sm font-medium text-green-600">Estimated cost: ~$0,17/month</p>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Temperature</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Humidity</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Alerts</span>
+                </div>
+            </div>
+
+            <!-- Industrial Automation -->
+            <div class="p-8 bg-white border border-gray-200 rounded-2xl fade-up">
+                <div class="w-14 h-14 flex items-center justify-center bg-orange-50 rounded-xl mb-6">
+                    <svg class="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Industrial Automation</h3>
+                <p class="mt-3 text-gray-600">Control machinery, monitor production lines, and automate workflows remotely.</p>
+                <div class="mt-6 space-y-2">
+                    <p class="text-sm text-gray-500"><strong>Use cases:</strong> Manufacturing, warehouses, factories</p>
+                    <p class="text-sm text-gray-500"><strong>Example:</strong> 5 machines × 1 min status = ~216K messages/month</p>
+                    <p class="text-sm font-medium text-green-600">Estimated cost: ~$0,6/month</p>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Machine Control</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Status</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Emergency Stop</span>
+                </div>
+            </div>
+
+            <!-- Smart Home -->
+            <div class="p-8 bg-white border border-gray-200 rounded-2xl fade-up">
+                <div class="w-14 h-14 flex items-center justify-center bg-blue-50 rounded-xl mb-6">
+                    <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Smart Home & Building</h3>
+                <p class="mt-3 text-gray-600">Automate lighting, HVAC, and security systems with custom logic.</p>
+                <div class="mt-6 space-y-2">
+                    <p class="text-sm text-gray-500"><strong>Use cases:</strong> Home automation, building management</p>
+                    <p class="text-sm text-gray-500"><strong>Example:</strong> 20 event-based sensors = ~20K messages/month</p>
+                    <p class="text-sm font-medium text-green-600">Estimated cost: Free (under daily limit)</p>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Motion</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Lighting</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Energy</span>
+                </div>
+            </div>
+
+            <!-- Fleet Management -->
+            <div class="p-8 bg-white border border-gray-200 rounded-2xl fade-up">
+                <div class="w-14 h-14 flex items-center justify-center bg-purple-50 rounded-xl mb-6">
+                    <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Fleet Management</h3>
+                <p class="mt-3 text-gray-600">Track and control distributed devices across multiple locations.</p>
+                <div class="mt-6 space-y-2">
+                    <p class="text-sm text-gray-500"><strong>Use cases:</strong> Logistics, delivery, asset tracking</p>
+                    <p class="text-sm text-gray-500"><strong>Example:</strong> 100 devices × 10 min = ~4.32M messages/month</p>
+                    <p class="text-sm font-medium text-green-600">Estimated cost: ~$12,92/month</p>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Location</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Status</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Batch Updates</span>
+                </div>
+            </div>
+
+            <!-- Research & Education -->
+            <div class="p-8 bg-white border border-gray-200 rounded-2xl fade-up">
+                <div class="w-14 h-14 flex items-center justify-center bg-red-50 rounded-xl mb-6">
+                    <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Research & Education</h3>
+                <p class="mt-3 text-gray-600">Quick prototyping for science experiments, classroom projects, and research.</p>
+                <div class="mt-6 space-y-2">
+                    <p class="text-sm text-gray-500"><strong>Use cases:</strong> Universities, labs, students</p>
+                    <p class="text-sm text-gray-500"><strong>Example:</strong> 5 experimental devices = ~10K messages/month</p>
+                    <p class="text-sm font-medium text-green-600">Estimated cost: Free (under daily limit)</p>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Prototyping</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Data Collection</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Collaboration</span>
+                </div>
+            </div>
+
+            <!-- Agriculture -->
+            <div class="p-8 bg-white border border-gray-200 rounded-2xl fade-up">
+                <div class="w-14 h-14 flex items-center justify-center bg-emerald-50 rounded-xl mb-6">
+                    <svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900">Agriculture Tech</h3>
+                <p class="mt-3 text-gray-600">Monitor soil conditions, automate irrigation, and track crop health.</p>
+                <div class="mt-6 space-y-2">
+                    <p class="text-sm text-gray-500"><strong>Use cases:</strong> Farms, greenhouses, precision agriculture</p>
+                    <p class="text-sm text-gray-500"><strong>Example:</strong> 15 sensors × 15 min = ~648K messages/month</p>
+                    <p class="text-sm font-medium text-green-600">Estimated cost: ~$1,90/month</p>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Soil Moisture</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Irrigation</span>
+                    <span class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">Weather</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Integration Examples -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-16 fade-up">
+            <h2 class="text-3xl font-bold text-gray-900">Integrates with everything</h2>
+            <p class="mt-4 text-lg text-gray-600">Connect your devices to any service with HTTP APIs.</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 fade-up">
+            <div class="p-6 bg-white rounded-xl border border-gray-200 text-center">
+                <div class="w-12 h-12 mx-auto bg-indigo-100 rounded-xl flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-indigo-600" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">Discord</h3>
+                <p class="mt-1 text-sm text-gray-600">Send alerts to channels</p>
+            </div>
+
+            <div class="p-6 bg-white rounded-xl border border-gray-200 text-center">
+                <div class="w-12 h-12 mx-auto bg-purple-100 rounded-xl flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">Slack</h3>
+                <p class="mt-1 text-sm text-gray-600">Team notifications</p>
+            </div>
+
+            <div class="p-6 bg-white rounded-xl border border-gray-200 text-center">
+                <div class="w-12 h-12 mx-auto bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">Email</h3>
+                <p class="mt-1 text-sm text-gray-600">Alert notifications</p>
+            </div>
+
+            <div class="p-6 bg-white rounded-xl border border-gray-200 text-center">
+                <div class="w-12 h-12 mx-auto bg-gray-100 rounded-xl flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                </div>
+                <h3 class="font-semibold text-gray-900">Databases</h3>
+                <p class="mt-1 text-sm text-gray-600">Store telemetry data</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 gradient-bg">
+    <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white">What will you build?</h2>
+        <p class="mt-4 text-lg text-white/80">Start building your IoT solution today.</p>
+        <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{{ .Site.Params.dashboardUrl }}" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-primary-600 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+                Start building
+            </a>
+            <a href="/examples/" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white border-2 border-white/30 rounded-lg hover:bg-white/10 transition-colors">
+                See examples
+            </a>
+        </div>
+    </div>
+</section>
+{{ end }}

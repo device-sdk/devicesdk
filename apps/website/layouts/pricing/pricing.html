@@ -1,320 +1,281 @@
 {{ define "main" }}
 <!-- Hero -->
-<section class="pt-16 pb-16 px-4 sm:px-6 lg:px-8 gradient-bg-subtle">
-    <div class="max-w-7xl mx-auto text-center">
-        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">
-            Pay only for messages<br/>
-            <span class="gradient-text">sent and received</span>
+<section class="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto text-center">
+        <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
+            Simple, usage-based<br/>
+            <span class="text-emerald-500">pricing</span>
         </h1>
-        <p class="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
-            No uptime charges. No hidden fees. Write better code, pay less.
+        <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
+            Pay only for messages sent and received. No uptime charges. No hidden fees.
         </p>
     </div>
 </section>
 
 <!-- Pricing Cards -->
-<section class="py-20 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-5xl mx-auto">
-        <div class="grid md:grid-cols-2 gap-8">
-            <!-- Free Tier -->
-            <div class="p-8 bg-white border-2 border-gray-200 rounded-2xl fade-up">
-                <h3 class="text-lg font-semibold text-gray-900">Free Tier</h3>
+<section class="pb-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="grid md:grid-cols-2 gap-6 fade-up">
+            <!-- Free -->
+            <div class="card p-8">
+                <h3 class="text-lg font-semibold text-zinc-50">Free</h3>
                 <div class="mt-4">
-                    <span class="text-5xl font-bold text-gray-900">$0</span>
-                    <span class="text-gray-500">/month</span>
+                    <span class="text-4xl font-bold text-zinc-50">$0</span>
+                    <span class="text-zinc-500 ml-1">/month</span>
                 </div>
-                <p class="mt-4 text-gray-600">Perfect for hobbyists and prototypes.</p>
-                <ul class="mt-8 space-y-4">
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700"><strong>500 messages</strong> per day free</span>
+                <p class="mt-3 text-sm text-zinc-500">Perfect for prototyping and hobby projects</p>
+                <ul class="mt-6 space-y-3">
+                    <li class="flex items-center gap-2 text-sm text-zinc-300">
+                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        500 messages per day
                     </li>
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700">Unlimited devices</span>
+                    <li class="flex items-center gap-2 text-sm text-zinc-300">
+                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Unlimited devices
                     </li>
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700">Unlimited projects</span>
+                    <li class="flex items-center gap-2 text-sm text-zinc-300">
+                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        KV storage included
                     </li>
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700">Full dashboard access</span>
-                    </li>
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700">Community support</span>
+                    <li class="flex items-center gap-2 text-sm text-zinc-300">
+                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Full CLI + dashboard access
                     </li>
                 </ul>
-                <a href="{{ .Site.Params.dashboardUrl }}" class="mt-8 block w-full btn-secondary text-center">
-                    Get started free
-                </a>
+                <a href="{{ .Site.Params.dashboardUrl }}" class="mt-8 btn-secondary w-full h-10">Get started</a>
             </div>
 
-            <!-- Pay As You Go -->
-            <div class="p-8 bg-white border-2 border-primary-500 rounded-2xl relative fade-up">
-                <div class="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary-500 text-white text-sm font-medium rounded-full">
-                    Most Popular
-                </div>
-                <h3 class="text-lg font-semibold text-gray-900">Pay As You Go</h3>
+            <!-- Pay as you go -->
+            <div class="card p-8 border-emerald-500/30">
+                <h3 class="text-lg font-semibold text-zinc-50">Pay as you go</h3>
                 <div class="mt-4">
-                    <span class="text-5xl font-bold text-gray-900">Starting at $5</span>
-                    <span class="text-gray-500">/month</span>
+                    <span class="text-4xl font-bold text-zinc-50">$3</span>
+                    <span class="text-zinc-500 ml-1">/ million messages</span>
                 </div>
-                <p class="mt-4 text-gray-600">Includes 5 million messages. $3 per million for additional messages.</p>
-                <ul class="mt-8 space-y-4">
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700"><strong>5 million messages</strong> per month included</span>
+                <p class="mt-3 text-sm text-zinc-500">For production workloads that exceed the free tier</p>
+                <ul class="mt-6 space-y-3">
+                    <li class="flex items-center gap-2 text-sm text-zinc-300">
+                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Everything in Free
                     </li>
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700">Unlimited devices</span>
+                    <li class="flex items-center gap-2 text-sm text-zinc-300">
+                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Unlimited messages
                     </li>
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700">Unlimited projects</span>
+                    <li class="flex items-center gap-2 text-sm text-zinc-300">
+                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Priority support
                     </li>
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700">Full dashboard access</span>
-                    </li>
-                    <li class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="text-gray-700">Email support</span>
+                    <li class="flex items-center gap-2 text-sm text-zinc-300">
+                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        500 free messages/day included
                     </li>
                 </ul>
-                <a href="{{ .Site.Params.dashboardUrl }}" class="mt-8 block w-full btn-primary text-center">
-                    Start building
-                </a>
+                <a href="{{ .Site.Params.dashboardUrl }}" class="mt-8 btn-primary w-full h-10">Start building</a>
             </div>
         </div>
 
         <!-- Enterprise -->
-        <div class="mt-8 p-8 bg-gray-50 border border-gray-200 rounded-2xl fade-up">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                <div>
-                    <h3 class="text-xl font-semibold text-gray-900">Enterprise</h3>
-                    <p class="mt-2 text-gray-600">Volume discounts, custom SLA, priority support, and dedicated account management.</p>
-                </div>
-                <a href="mailto:support@devicesdk.com" class="btn-secondary whitespace-nowrap">
-                    Contact sales
-                </a>
+        <div class="mt-6 card p-6 flex flex-col sm:flex-row items-center justify-between gap-4 fade-up">
+            <div>
+                <h3 class="font-semibold text-zinc-50">Enterprise</h3>
+                <p class="text-sm text-zinc-500 mt-1">Volume discounts, SLAs, dedicated support, and custom integrations.</p>
+            </div>
+            <a href="mailto:sales@devicesdk.com" class="btn-secondary h-9 px-4 text-sm whitespace-nowrap">Contact sales</a>
+        </div>
+    </div>
+</section>
+
+<!-- Cost Calculator -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-2xl mx-auto fade-up">
+        <div class="text-center mb-10">
+            <h2 class="text-2xl font-bold tracking-tight">Estimate your cost</h2>
+            <p class="mt-2 text-zinc-500">Drag the slider to see your monthly estimate</p>
+        </div>
+
+        <div class="card p-8">
+            <div class="flex justify-between items-center mb-4">
+                <label class="text-sm text-zinc-400">Messages per day</label>
+                <span id="calc-messages" class="text-sm font-mono text-emerald-400">500</span>
+            </div>
+            <input
+                type="range"
+                id="calc-slider"
+                min="0"
+                max="100000"
+                value="500"
+                step="100"
+                class="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+            />
+            <div class="flex justify-between text-xs text-zinc-600 mt-2">
+                <span>0</span>
+                <span>100,000</span>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-zinc-800 text-center">
+                <div class="text-sm text-zinc-500 mb-1">Estimated monthly cost</div>
+                <div id="calc-cost" class="text-3xl font-bold text-zinc-50">$0</div>
+                <div id="calc-note" class="text-xs text-zinc-600 mt-1">Within free tier</div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- What Counts as a Message -->
-<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
-    <div class="max-w-4xl mx-auto">
-        <div class="text-center mb-16 fade-up">
-            <h2 class="text-3xl font-bold text-gray-900">What counts as a message?</h2>
-            <p class="mt-4 text-lg text-gray-600">Simple, predictable billing based on device communication.</p>
-        </div>
-
-        <div class="grid md:grid-cols-2 gap-8 fade-up">
-            <div class="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 class="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"/></svg>
-                    From your code to device
-                </h3>
-                <ul class="space-y-3 text-gray-600">
-                    <li class="flex items-start gap-2">
-                        <span class="text-gray-400">•</span>
-                        <span>Asking device to monitor a GPIO pin: <strong class="text-gray-900">1 message</strong></span>
+<!-- What counts as a message -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-4xl mx-auto fade-up">
+        <h2 class="text-2xl font-bold tracking-tight text-center mb-10">What counts as a message?</h2>
+        <div class="grid md:grid-cols-2 gap-8">
+            <div>
+                <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Inbound (device to cloud)</h3>
+                <ul class="space-y-2 text-sm text-zinc-300">
+                    <li class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        GPIO state changes
                     </li>
-                    <li class="flex items-start gap-2">
-                        <span class="text-gray-400">•</span>
-                        <span>Setting a GPIO pin state: <strong class="text-gray-900">1 message</strong></span>
+                    <li class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        ADC sensor readings
                     </li>
-                    <li class="flex items-start gap-2">
-                        <span class="text-gray-400">•</span>
-                        <span>Requesting sensor data: <strong class="text-gray-900">1 message</strong></span>
+                    <li class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        I2C data transfers
                     </li>
-                    <li class="flex items-start gap-2">
-                        <span class="text-gray-400">•</span>
-                        <span>Any command sent to device: <strong class="text-gray-900">1 message</strong></span>
+                    <li class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        Device heartbeats
                     </li>
                 </ul>
             </div>
-
-            <div class="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 class="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-                    From device to your code
-                </h3>
-                <ul class="space-y-3 text-gray-600">
-                    <li class="flex items-start gap-2">
-                        <span class="text-gray-400">•</span>
-                        <span>GPIO state change notification: <strong class="text-gray-900">1 message</strong></span>
+            <div>
+                <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Outbound (cloud to device)</h3>
+                <ul class="space-y-2 text-sm text-zinc-300">
+                    <li class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                        GPIO output commands
                     </li>
-                    <li class="flex items-start gap-2">
-                        <span class="text-gray-400">•</span>
-                        <span>Sensor reading: <strong class="text-gray-900">1 message</strong></span>
+                    <li class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                        Display render commands
                     </li>
-                    <li class="flex items-start gap-2">
-                        <span class="text-gray-400">•</span>
-                        <span>Any data sent from device: <strong class="text-gray-900">1 message</strong></span>
+                    <li class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                        Configuration updates
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                        PWM/ADC monitoring setup
                     </li>
                 </ul>
             </div>
         </div>
-
-        <div class="mt-8 p-6 bg-blue-50 border border-blue-100 rounded-xl fade-up">
-            <h3 class="font-semibold text-blue-900 mb-2">Currently free (pricing TBD)</h3>
-            <ul class="text-blue-800 space-y-1">
-                <li>• Logs</li>
-                <li>• KV storage</li>
-                <li>• Metrics and monitoring</li>
-            </ul>
-            <p class="mt-3 text-sm text-blue-700">We'll announce pricing for these features with plenty of advance notice.</p>
-        </div>
-    </div>
-</section>
-
-<!-- Example Costs -->
-<section class="py-20 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-4xl mx-auto">
-        <div class="text-center mb-16 fade-up">
-            <h2 class="text-3xl font-bold text-gray-900">Example costs</h2>
-            <p class="mt-4 text-lg text-gray-600">See how much your project might cost.</p>
-        </div>
-
-        <div class="overflow-x-auto fade-up">
-            <table class="w-full">
-                <thead>
-                    <tr class="border-b border-gray-200">
-                        <th class="text-left py-4 px-4 font-semibold text-gray-900">Usage</th>
-                        <th class="text-right py-4 px-4 font-semibold text-gray-900">Monthly Cost</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    <tr>
-                        <td class="py-4 px-4 text-gray-600">500 messages/day</td>
-                        <td class="py-4 px-4 text-right">
-                            <span class="font-semibold text-green-600">Free</span>
-                            <span class="text-gray-400 text-sm ml-1">(under daily limit)</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="py-4 px-4 text-gray-600">10,000 messages/day</td>
-                        <td class="py-4 px-4 text-right font-semibold text-gray-900">~$0.90/month</td>
-                    </tr>
-                    <tr>
-                        <td class="py-4 px-4 text-gray-600">100,000 messages/day</td>
-                        <td class="py-4 px-4 text-right font-semibold text-gray-900">~$9/month</td>
-                    </tr>
-                    <tr>
-                        <td class="py-4 px-4 text-gray-600">1,000,000 messages/day</td>
-                        <td class="py-4 px-4 text-right font-semibold text-gray-900">~$90/month</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <p class="mt-6 text-sm text-gray-500 text-center">* Minimum charge of $5/month includes 5 million messages. Additional messages charged at $3 per million.</p>
-    </div>
-</section>
-
-<!-- Optimization Tips -->
-<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
-    <div class="max-w-4xl mx-auto">
-        <div class="text-center mb-16 fade-up">
-            <h2 class="text-3xl font-bold text-gray-900">Write efficient code, save money</h2>
-            <p class="mt-4 text-lg text-gray-600">Better code means lower costs. Here's how to optimize.</p>
-        </div>
-
-        <div class="space-y-6 fade-up">
-            <div class="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 class="font-semibold text-gray-900 mb-3">Use time-based monitoring wisely</h3>
-                <p class="text-gray-600 mb-4">Check values at appropriate intervals instead of constantly polling.</p>
-                <div class="code-block">
-                    <pre><code><span class="text-gray-500">// Check temperature every 5 minutes instead of every second</span>
-<span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.configureAdcMonitoring(<span class="text-orange-400">26</span>, {
-  interval: <span class="text-orange-400">300000</span> <span class="text-gray-500">// 5 minutes = ~288 messages/day</span>
-});</code></pre>
-                </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 class="font-semibold text-gray-900 mb-3">Use event-based monitoring</h3>
-                <p class="text-gray-600 mb-4">Only send messages when values actually change.</p>
-                <div class="code-block">
-                    <pre><code><span class="text-gray-500">// Only notify when GPIO state changes</span>
-<span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.configureGpioInputMonitoring(<span class="text-orange-400">20</span>, <span class="text-orange-400">true</span>);
-<span class="text-gray-500">// Messages only sent on actual button presses</span></code></pre>
-                </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 class="font-semibold text-gray-900 mb-3">Use smart thresholds</h3>
-                <p class="text-gray-600 mb-4">Only alert when values cross important thresholds.</p>
-                <div class="code-block">
-                    <pre><code><span class="text-gray-500">// Only send alert when temperature is out of range</span>
-<span class="text-purple-400">if</span> (temp > <span class="text-orange-400">30</span> || temp < <span class="text-orange-400">10</span>) {
-  <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.sendAlert(temp); <span class="text-gray-500">// Only when necessary</span>
-}</code></pre>
-                </div>
-            </div>
-        </div>
+        <p class="mt-8 text-sm text-zinc-500 text-center">KV storage reads/writes, logs, and dashboard API calls are currently free.</p>
     </div>
 </section>
 
 <!-- FAQ -->
-<section class="py-20 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-3xl mx-auto">
-        <div class="text-center mb-16 fade-up">
-            <h2 class="text-3xl font-bold text-gray-900">Frequently asked questions</h2>
-        </div>
+<section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-2xl mx-auto fade-up">
+        <h2 class="text-2xl font-bold tracking-tight text-center mb-10">Frequently asked questions</h2>
 
-        <div class="space-y-6 fade-up">
-            <div class="p-6 bg-white border border-gray-200 rounded-xl">
-                <h3 class="font-semibold text-gray-900">Do I pay for devices that are offline?</h3>
-                <p class="mt-2 text-gray-600">No! You only pay when messages are sent or received. Offline devices cost nothing.</p>
+        <div class="space-y-0 border border-zinc-800 rounded-xl overflow-hidden" id="faq">
+            <div class="border-b border-zinc-800">
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                    <span class="font-medium text-zinc-50">What happens if I exceed 500 messages/day on the free tier?</span>
+                    <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="accordion-content px-5 pb-5">
+                    <p class="text-sm text-zinc-400">Messages beyond 500/day are queued until the next day or until you upgrade to pay-as-you-go. Your device stays connected but won't receive new commands.</p>
+                </div>
             </div>
-
-            <div class="p-6 bg-white border border-gray-200 rounded-xl">
-                <h3 class="font-semibold text-gray-900">What if I go over 500 messages on the free tier?</h3>
-                <p class="mt-2 text-gray-600">Any messages past 500 in a day are dropped unless you upgrade.</p>
+            <div class="border-b border-zinc-800">
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                    <span class="font-medium text-zinc-50">Do I pay for device connections?</span>
+                    <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="accordion-content px-5 pb-5">
+                    <p class="text-sm text-zinc-400">No. Connections, device registration, and uptime are free. You only pay for messages — the actual data sent between your devices and the cloud.</p>
+                </div>
             </div>
-
-            <div class="p-6 bg-white border border-gray-200 rounded-xl">
-                <h3 class="font-semibold text-gray-900">Can I set spending limits?</h3>
-                <p class="mt-2 text-gray-600">Yes! You can set daily and monthly spending limits in the dashboard to avoid surprises.</p>
+            <div class="border-b border-zinc-800">
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                    <span class="font-medium text-zinc-50">How do I reduce my message count?</span>
+                    <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="accordion-content px-5 pb-5">
+                    <p class="text-sm text-zinc-400">Use longer polling intervals for sensor monitoring, use the <code class="font-mono text-xs bg-zinc-800 px-1 rounded">onChange</code> flag to only send readings when values change, and batch operations where possible.</p>
+                </div>
             </div>
-
-            <div class="p-6 bg-white border border-gray-200 rounded-xl">
-                <h3 class="font-semibold text-gray-900">Do failed messages count?</h3>
-                <p class="mt-2 text-gray-600">No, only successfully delivered messages count toward your usage.</p>
+            <div class="border-b border-zinc-800">
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                    <span class="font-medium text-zinc-50">Is KV storage free?</span>
+                    <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="accordion-content px-5 pb-5">
+                    <p class="text-sm text-zinc-400">Yes. KV storage, logs, metrics, and dashboard access are all included at no additional cost. Only WebSocket messages are metered.</p>
+                </div>
             </div>
-
-            <div class="p-6 bg-white border border-gray-200 rounded-xl">
-                <h3 class="font-semibold text-gray-900">Can I get a volume discount?</h3>
-                <p class="mt-2 text-gray-600">Yes! Contact us for Enterprise pricing with volume discounts for high-usage applications.</p>
+            <div>
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                    <span class="font-medium text-zinc-50">Can I self-host?</span>
+                    <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="accordion-content px-5 pb-5">
+                    <p class="text-sm text-zinc-400">Not currently. DeviceSDK is a managed platform with globally distributed infrastructure. Enterprise plans include dedicated infrastructure options.</p>
+                </div>
             </div>
-
-            <div class="p-6 bg-white border border-gray-200 rounded-xl">
-                <h3 class="font-semibold text-gray-900">When does the free allowance reset?</h3>
-                <p class="mt-2 text-gray-600">Your 500 free daily messages reset at midnight UTC every day.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- CTA -->
-<section class="py-20 px-4 sm:px-6 lg:px-8 gradient-bg">
-    <div class="max-w-4xl mx-auto text-center">
-        <h2 class="text-3xl sm:text-4xl font-bold text-white">Start with 500 free messages per day</h2>
-        <p class="mt-4 text-lg text-white/80">No credit card required to get started.</p>
-        <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="{{ .Site.Params.dashboardUrl }}" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-primary-600 bg-white rounded-lg hover:bg-gray-50 transition-colors">
-                Sign up free
-            </a>
-            <a href="mailto:support@devicesdk.com" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white border-2 border-white/30 rounded-lg hover:bg-white/10 transition-colors">
-                Contact sales
-            </a>
         </div>
     </div>
 </section>
+{{ end }}
+
+{{ define "scripts" }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cost calculator
+        var slider = document.getElementById('calc-slider');
+        var msgEl = document.getElementById('calc-messages');
+        var costEl = document.getElementById('calc-cost');
+        var noteEl = document.getElementById('calc-note');
+
+        if (slider) {
+            slider.addEventListener('input', function() {
+                var daily = parseInt(this.value);
+                msgEl.textContent = daily.toLocaleString();
+
+                var freeDaily = 500;
+                var billable = Math.max(0, daily - freeDaily) * 30;
+                var cost = billable * 0.000003;
+
+                if (cost === 0) {
+                    costEl.textContent = '$0';
+                    noteEl.textContent = 'Within free tier';
+                } else {
+                    costEl.textContent = '$' + cost.toFixed(2);
+                    noteEl.textContent = (billable).toLocaleString() + ' billable messages/month';
+                }
+            });
+        }
+
+        // FAQ accordion
+        document.querySelectorAll('[data-faq]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var content = this.nextElementSibling;
+                var chevron = this.querySelector('.accordion-chevron');
+                var isOpen = content.classList.contains('open');
+
+                // Close all
+                document.querySelectorAll('.accordion-content').forEach(function(c) { c.classList.remove('open'); });
+                document.querySelectorAll('.accordion-chevron').forEach(function(c) { c.classList.remove('open'); });
+
+                // Open clicked if it was closed
+                if (!isOpen) {
+                    content.classList.add('open');
+                    chevron.classList.add('open');
+                }
+            });
+        });
+    });
+</script>
 {{ end }}

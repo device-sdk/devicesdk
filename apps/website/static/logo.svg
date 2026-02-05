@@ -1,15 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" fill="#09090b"/>
-  <text
-    x="16"
-    y="16"
-    font-family="system-ui, -apple-system, sans-serif"
-    font-size="24"
-    font-weight="700"
-    fill="#fafafa"
-    text-anchor="middle"
-    dominant-baseline="central"
-  >
-    ◆
-  </text>
+  <rect width="32" height="32" rx="4" fill="#09090b"/>
+  <polygon points="16,6 26,16 16,26 6,16" fill="#fafafa"/>
 </svg>

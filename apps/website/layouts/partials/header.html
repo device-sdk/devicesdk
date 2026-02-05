@@ -1,24 +1,24 @@
-<nav class="fixed w-full top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 transition-shadow duration-200">
+<nav class="fixed w-full top-0 z-50 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 transition-colors duration-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-14">
             <div class="flex items-center">
                 <a href="/" class="flex items-center space-x-2.5">
                     {{ $logo := resources.Get "logo.svg" }}
                     {{ if $logo }}
-                    <img src="{{ $logo.RelPermalink }}" alt="DeviceSDK" class="w-7 h-7 rounded-md shadow-refined">
+                    <img src="{{ $logo.RelPermalink }}" alt="DeviceSDK" class="w-7 h-7 rounded-md">
                     {{ else }}
-                    <div class="w-7 h-7 bg-gradient-to-br from-gray-900 to-gray-700 rounded-md flex items-center justify-center">
-                        <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <div class="w-7 h-7 bg-emerald-500 rounded-md flex items-center justify-center">
+                        <svg class="w-4 h-4 text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                         </svg>
                     </div>
                     {{ end }}
-                    <span class="text-[15px] font-semibold text-gray-900 tracking-tight">DeviceSDK</span>
+                    <span class="text-[15px] font-semibold text-zinc-50 tracking-tight">DeviceSDK</span>
                 </a>
                 <div class="hidden md:block ml-8">
                     <div class="flex items-center space-x-1">
                         {{ range .Site.Menus.main }}
-                        <a href="{{ .URL }}" class="px-3 py-1.5 text-[13px] font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"{{ if strings.HasPrefix .URL "http" }} target="_blank" rel="noopener"{{ end }}>
+                        <a href="{{ .URL }}" class="px-3 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-zinc-50 rounded-md transition-colors"{{ if strings.HasPrefix .URL "http" }} target="_blank" rel="noopener"{{ end }}>
                             {{ .Name }}
                         </a>
                         {{ end }}
@@ -30,20 +30,20 @@
                     Dashboard
                 </a>
             </div>
-            <button id="mobile-menu-button" class="md:hidden p-2 text-gray-600 hover:text-gray-900">
+            <button id="mobile-menu-button" class="md:hidden p-2 text-zinc-400 hover:text-zinc-50">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </button>
         </div>
     </div>
-    
-    <div id="mobile-menu" class="hidden md:hidden border-t border-gray-100 bg-white">
+
+    <div id="mobile-menu" class="hidden md:hidden border-t border-zinc-800 bg-zinc-950">
         <div class="px-4 py-3 space-y-1">
             {{ range .Site.Menus.main }}
-            <a href="{{ .URL }}" class="block px-4 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg">{{ .Name }}</a>
+            <a href="{{ .URL }}" class="block px-4 py-2 text-base font-medium text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 rounded-lg">{{ .Name }}</a>
             {{ end }}
-            <div class="pt-3 border-t border-gray-100">
+            <div class="pt-3 border-t border-zinc-800">
                 <a href="{{ .Site.Params.dashboardUrl }}" class="block w-full btn-primary text-center">Dashboard</a>
             </div>
         </div>

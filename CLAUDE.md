@@ -5,9 +5,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Development Commands
 
 ```bash
-# Setup (requires nvm)
-export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
-
 # Build everything (Turbo handles dependency order: core → cli/api/simulation → dashboard/website)
 pnpm build
 
@@ -122,3 +119,9 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 - Node >= 20 required (using v22 via nvm)
 - Turbo `^build` ensures dependency-ordered builds
 - `examples/basic` has a pre-existing TS syntax error in `src/devices/device.ts:58`
+
+## Public-Facing Content Guidelines
+
+- **Never mention Cloudflare, Cloudflare Workers, or any Cloudflare product names** (D1, R2, Durable Objects, KV as "Cloudflare KV", Wrangler, Cloudflare Pages) in any public-facing content — this includes the website (`apps/website/layouts/`, `apps/website/content/`), documentation (`docs/`), and any user-visible strings.
+- DeviceSDK is a **managed platform**. Use generic infrastructure terms instead: "globally distributed runtime", "serverless runtime", "edge infrastructure", "managed platform".
+- Internal code, configs, and developer-only files (e.g., `wrangler.jsonc`, API source code, CLAUDE.md itself) may reference Cloudflare as needed.

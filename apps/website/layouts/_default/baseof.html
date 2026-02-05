@@ -3,7 +3,7 @@
 <head>
     {{- partial "head.html" . -}}
 </head>
-<body class="font-sans antialiased bg-white text-gray-900">
+<body class="font-sans antialiased bg-zinc-950 text-zinc-50">
     {{- partial "header.html" . -}}
 
     <main class="pt-14">
@@ -12,41 +12,42 @@
 
     {{- partial "footer.html" . -}}
 
-    <script src="/jquery-3.7.1.min.js"></script>
     {{- block "scripts" . }}{{- end }}
     <script>
-        $(document).ready(function() {
+        document.addEventListener('DOMContentLoaded', function() {
             // Mobile menu toggle
-            $('#mobile-menu-button').click(function() {
-                $('#mobile-menu').toggleClass('hidden');
-            });
+            var menuBtn = document.getElementById('mobile-menu-button');
+            var menu = document.getElementById('mobile-menu');
+            if (menuBtn && menu) {
+                menuBtn.addEventListener('click', function() {
+                    menu.classList.toggle('hidden');
+                });
+            }
 
             // Scroll animations
-            const observerOptions = {
-                threshold: 0.1,
-                rootMargin: '0px 0px -50px 0px'
-            };
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
+            var observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
                     if (entry.isIntersecting) {
                         entry.target.classList.add('animate-in');
                     }
                 });
-            }, observerOptions);
+            }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
-            $('.fade-up').each(function() {
-                observer.observe(this);
+            document.querySelectorAll('.fade-up').forEach(function(el) {
+                observer.observe(el);
             });
 
-            // Navbar scroll effect
-            $(window).scroll(function() {
-                if ($(this).scrollTop() > 10) {
-                    $('nav').addClass('shadow-sm');
-                } else {
-                    $('nav').removeClass('shadow-sm');
-                }
-            });
+            // Navbar border on scroll
+            var nav = document.querySelector('nav');
+            if (nav) {
+                window.addEventListener('scroll', function() {
+                    if (window.scrollY > 10) {
+                        nav.classList.add('border-b-zinc-700');
+                    } else {
+                        nav.classList.remove('border-b-zinc-700');
+                    }
+                });
+            }
         });
     </script>
 </body>

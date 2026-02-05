@@ -1,360 +1,240 @@
 {{ define "main" }}
 <!-- Hero -->
-<section class="pt-16 pb-16 px-4 sm:px-6 lg:px-8 gradient-bg-subtle">
-    <div class="max-w-7xl mx-auto text-center">
-        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">
-            Everything you need to build<br/>
-            <span class="gradient-text">production IoT applications</span>
+<section class="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto text-center">
+        <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
+            The complete IoT<br/>
+            <span class="text-emerald-500">development platform</span>
         </h1>
-        <p class="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
-            A complete platform for building, deploying, and managing IoT devices with TypeScript.
+        <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
+            CLI, runtime, dashboard, and API — everything from first line of code to production fleet.
         </p>
     </div>
 </section>
 
-<!-- CLI Tools -->
-<section class="py-20 px-4 sm:px-6 lg:px-8">
+<!-- CLI Workflow -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
     <div class="max-w-7xl mx-auto">
-        <div class="grid lg:grid-cols-2 gap-12 items-center">
-            <div class="fade-up">
-                <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-700 bg-blue-50 rounded-full mb-4">
-                    CLI Tools
-                </div>
-                <h2 class="text-3xl font-bold text-gray-900">Powerful command-line interface</h2>
-                <p class="mt-4 text-lg text-gray-600">
-                    Everything you need for the entire development workflow in one tool.
+        <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center fade-up">
+            <div>
+                <div class="badge badge-emerald mb-4">CLI</div>
+                <h2 class="text-3xl font-bold tracking-tight">Full workflow from the terminal</h2>
+                <p class="mt-4 text-zinc-400 text-lg leading-relaxed">
+                    One tool for the entire lifecycle: scaffold, develop, test, deploy, and flash.
                 </p>
-                <ul class="mt-8 space-y-4">
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">Project initialization</span>
-                            <p class="text-gray-600">Scaffold new projects instantly with templates</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">Local development</span>
-                            <p class="text-gray-600">Built-in simulator for testing without hardware</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">One-command deployment</span>
-                            <p class="text-gray-600">Build and push to production in seconds</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">Firmware flashing</span>
-                            <p class="text-gray-600">Direct Raspberry Pi Pico support</p>
-                        </div>
-                    </li>
-                </ul>
-            </div>
-            <div class="fade-up">
-                <div class="code-block shadow-xl">
-                    <div class="flex items-center px-4 py-3 bg-gray-800 border-b border-gray-700">
-                        <div class="flex space-x-2">
-                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                        </div>
-                        <span class="ml-4 text-sm text-gray-400">Terminal</span>
+                <div class="mt-8 space-y-3">
+                    <div class="flex items-center gap-3 text-sm">
+                        <code class="font-mono text-emerald-400 w-36">devicesdk init</code>
+                        <span class="text-zinc-500">Scaffold a new project with TypeScript config</span>
                     </div>
-                    <pre><code><span class="text-gray-500"># Initialize a new project</span>
-<span class="text-gray-500">$</span> devicesdk init sensor-network
-<span class="text-green-400">✓</span> Created devicesdk.ts
-<span class="text-green-400">✓</span> Created src/devices/device.ts
-
-<span class="text-gray-500"># Start local development</span>
-<span class="text-gray-500">$</span> devicesdk dev --port 8181
-<span class="text-blue-400">▶</span> Simulator running...
-
-<span class="text-gray-500"># Deploy to production</span>
-<span class="text-gray-500">$</span> devicesdk deploy --device temp-sensor
-<span class="text-green-400">✓</span> Deployed version 1.2.0
-
-<span class="text-gray-500"># Flash firmware to device</span>
-<span class="text-gray-500">$</span> devicesdk flash pico-1
-<span class="text-green-400">✓</span> Firmware flashed successfully</code></pre>
+                    <div class="flex items-center gap-3 text-sm">
+                        <code class="font-mono text-emerald-400 w-36">devicesdk dev</code>
+                        <span class="text-zinc-500">Local simulator with hot reload</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <code class="font-mono text-emerald-400 w-36">devicesdk build</code>
+                        <span class="text-zinc-500">Bundle your device script with esbuild</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <code class="font-mono text-emerald-400 w-36">devicesdk deploy</code>
+                        <span class="text-zinc-500">Push to the cloud in one command</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <code class="font-mono text-emerald-400 w-36">devicesdk flash</code>
+                        <span class="text-zinc-500">Write firmware to a connected Pico</span>
+                    </div>
                 </div>
+            </div>
+            <div class="code-window terminal">
+                <div class="code-window-bar">
+                    <div class="code-window-dots"><span></span><span></span><span></span></div>
+                    <span class="code-window-title">Terminal</span>
+                </div>
+                <pre><code><span class="text-zinc-500">$</span> devicesdk init sensor-network
+<span class="text-emerald-400">&#10003;</span> Created devicesdk.ts
+<span class="text-emerald-400">&#10003;</span> Created src/devices/device.ts
+
+<span class="text-zinc-500">$</span> devicesdk dev --port 8181
+<span class="text-sky-400">&#9654;</span> Simulator running at localhost:8181
+
+<span class="text-zinc-500">$</span> devicesdk deploy
+<span class="text-emerald-400">&#10003;</span> Built device.ts <span class="text-zinc-500">(42ms)</span>
+<span class="text-emerald-400">&#10003;</span> Deployed to 3 devices
+
+<span class="text-zinc-500">$</span> devicesdk flash
+<span class="text-emerald-400">&#10003;</span> Found RPI-RP2 at /Volumes/RPI-RP2
+<span class="text-emerald-400">&#10003;</span> Firmware flashed successfully</code></pre>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Runtime Environment -->
-<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+<!-- Runtime API -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
     <div class="max-w-7xl mx-auto">
-        <div class="grid lg:grid-cols-2 gap-12 items-center">
-            <div class="order-2 lg:order-1 fade-up">
-                <div class="code-block shadow-xl">
-                    <div class="flex items-center px-4 py-3 bg-gray-800 border-b border-gray-700">
-                        <div class="flex space-x-2">
-                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                        </div>
-                        <span class="ml-4 text-sm text-gray-400">src/devices/thermostat.ts</span>
+        <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center fade-up">
+            <div class="order-2 lg:order-1">
+                <div class="code-window">
+                    <div class="code-window-bar">
+                        <div class="code-window-dots"><span></span><span></span><span></span></div>
+                        <span class="code-window-title">src/devices/thermostat.ts</span>
                     </div>
-                    <pre><code><span class="text-purple-400">import</span> { DeviceEntrypoint } <span class="text-purple-400">from</span> <span class="text-green-400">"@devicesdk/runtime"</span>;
+                    <pre><code><span class="syn-kw">import</span> { DeviceEntrypoint } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/runtime"</span>;
 
-<span class="text-purple-400">export default class</span> <span class="text-yellow-300">Thermostat</span> <span class="text-purple-400">extends</span> <span class="text-yellow-300">DeviceEntrypoint</span> {
-  <span class="text-purple-400">async</span> <span class="text-blue-300">onDeviceConnect</span>() {
-    <span class="text-gray-500">// Monitor temperature sensor</span>
-    <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.configureAdcMonitoring(<span class="text-orange-400">26</span>, {
-      interval: <span class="text-orange-400">60000</span>, <span class="text-gray-500">// Every minute</span>
-      onChange: <span class="text-orange-400">true</span>
+<span class="syn-kw">export default class</span> <span class="syn-type">Thermostat</span> <span class="syn-kw">extends</span> <span class="syn-type">DeviceEntrypoint</span> {
+  <span class="syn-cm">// Called when device connects via WebSocket</span>
+  <span class="syn-kw">async</span> <span class="syn-fn">onDeviceConnect</span>() {
+    <span class="syn-cm">// Monitor temp sensor on ADC pin 26</span>
+    <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">configureAdcMonitoring</span>(<span class="syn-num">26</span>, {
+      interval: <span class="syn-num">60000</span>,
+      onChange: <span class="syn-num">true</span>
     });
   }
 
-  <span class="text-purple-400">async</span> <span class="text-blue-300">onMessage</span>(message) {
-    <span class="text-purple-400">if</span> (message.type === <span class="text-green-400">"adc_reading"</span>) {
-      <span class="text-purple-400">const</span> temp = <span class="text-blue-300">this</span>.toTemperature(message.payload.value);
+  <span class="syn-cm">// Called for every device message</span>
+  <span class="syn-kw">async</span> <span class="syn-fn">onMessage</span>(message) {
+    <span class="syn-kw">if</span> (message.type === <span class="syn-str">"adc_reading"</span>) {
+      <span class="syn-kw">const</span> temp = <span class="syn-kw">this</span>.<span class="syn-fn">toTemp</span>(message.payload.value);
+      <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv.<span class="syn-fn">put</span>(<span class="syn-str">"temp"</span>, temp);
 
-      <span class="text-gray-500">// Store in device KV</span>
-      <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.kv.put(<span class="text-green-400">"temp"</span>, temp);
-
-      <span class="text-gray-500">// Control heating based on temp</span>
-      <span class="text-purple-400">if</span> (temp < <span class="text-orange-400">20</span>) {
-        <span class="text-purple-400">await</span> <span class="text-blue-300">this</span>.env.DEVICE.setGpioState(<span class="text-orange-400">15</span>, <span class="text-green-400">"high"</span>);
+      <span class="syn-kw">if</span> (temp &lt; <span class="syn-num">20</span>) {
+        <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">setGpioOutput</span>(<span class="syn-num">15</span>, <span class="syn-num">1</span>);
       }
     }
   }
 }</code></pre>
                 </div>
             </div>
-            <div class="order-1 lg:order-2 fade-up">
-                <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-purple-700 bg-purple-50 rounded-full mb-4">
-                    Runtime
-                </div>
-                <h2 class="text-3xl font-bold text-gray-900">TypeScript runtime for devices</h2>
-                <p class="mt-4 text-lg text-gray-600">
-                    Write device logic in TypeScript with a simple, familiar API.
+            <div class="order-1 lg:order-2">
+                <div class="badge badge-emerald mb-4">Runtime</div>
+                <h2 class="text-3xl font-bold tracking-tight">DeviceEntrypoint API</h2>
+                <p class="mt-4 text-zinc-400 text-lg leading-relaxed">
+                    Extend <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">DeviceEntrypoint</code> and implement two lifecycle hooks. Your code runs on a globally distributed runtime — the device communicates via WebSocket.
                 </p>
-                <ul class="mt-8 space-y-4">
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">DeviceEntrypoint class</span>
-                            <p class="text-gray-600">Simple lifecycle hooks: onDeviceConnect, onMessage</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">GPIO control</span>
-                            <p class="text-gray-600">Digital I/O, analog inputs, PWM output</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">I2C & SPI support</span>
-                            <p class="text-gray-600">Talk to sensors and peripherals</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">Device KV storage</span>
-                            <p class="text-gray-600">Persistent state management per device</p>
-                        </div>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Web Dashboard -->
-<section class="py-20 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto">
-        <div class="text-center mb-16 fade-up">
-            <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-green-700 bg-green-50 rounded-full mb-4">
-                Dashboard
-            </div>
-            <h2 class="text-3xl font-bold text-gray-900">Manage your entire fleet</h2>
-            <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-                A powerful web dashboard for managing projects, devices, scripts, and deployments.
-            </p>
-        </div>
-
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 fade-up">
-            <div class="p-6 bg-white border border-gray-100 rounded-xl">
-                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-900">Project Management</h3>
-                <p class="mt-2 text-gray-600">Organize devices by project with full CRUD operations.</p>
-            </div>
-
-            <div class="p-6 bg-white border border-gray-100 rounded-xl">
-                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-900">Device Inventory</h3>
-                <p class="mt-2 text-gray-600">See all devices, their status, and last connection time.</p>
-            </div>
-
-            <div class="p-6 bg-white border border-gray-100 rounded-xl">
-                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-900">Script Deployment</h3>
-                <p class="mt-2 text-gray-600">Upload and deploy code directly from the browser.</p>
-            </div>
-
-            <div class="p-6 bg-white border border-gray-100 rounded-xl">
-                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-900">Version History</h3>
-                <p class="mt-2 text-gray-600">Full deployment history with one-click rollback.</p>
-            </div>
-
-            <div class="p-6 bg-white border border-gray-100 rounded-xl">
-                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-900">API Tokens</h3>
-                <p class="mt-2 text-gray-600">Create and manage API tokens for automation.</p>
-            </div>
-
-            <div class="p-6 bg-white border border-gray-100 rounded-xl">
-                <div class="w-12 h-12 flex items-center justify-center bg-blue-50 rounded-lg mb-4">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-900">Real-Time Status</h3>
-                <p class="mt-2 text-gray-600">Live online/offline indicators for all devices.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- API Platform -->
-<section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
-    <div class="max-w-7xl mx-auto">
-        <div class="grid lg:grid-cols-2 gap-12 items-center">
-            <div class="fade-up">
-                <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-orange-700 bg-orange-50 rounded-full mb-4">
-                    API
-                </div>
-                <h2 class="text-3xl font-bold text-gray-900">RESTful API for everything</h2>
-                <p class="mt-4 text-lg text-gray-600">
-                    Full programmatic control over your devices and deployments.
-                </p>
-                <ul class="mt-8 space-y-4">
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">Device management</span>
-                            <p class="text-gray-600">CRUD operations for all devices</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">Script deployment</span>
-                            <p class="text-gray-600">Upload and deploy programmatically</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <div>
-                            <span class="font-medium text-gray-900">OAuth & token auth</span>
-                            <p class="text-gray-600">Secure authentication flows</p>
-                        </div>
-                    </li>
-                </ul>
-            </div>
-            <div class="fade-up">
-                <div class="code-block shadow-xl">
-                    <div class="flex items-center px-4 py-3 bg-gray-800 border-b border-gray-700">
-                        <div class="flex space-x-2">
-                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                        </div>
-                        <span class="ml-4 text-sm text-gray-400">API Example</span>
+                <div class="mt-8 space-y-4 text-sm">
+                    <div class="border-b border-zinc-800 pb-3">
+                        <code class="font-mono text-emerald-400">onDeviceConnect()</code>
+                        <p class="text-zinc-500 mt-1">Configure GPIO, I2C, ADC monitoring when the device first connects</p>
                     </div>
-                    <pre><code><span class="text-gray-500"># List all devices</span>
-<span class="text-green-400">GET</span> /v1/projects/my-project/devices
-
-<span class="text-gray-500"># Deploy a script</span>
-<span class="text-yellow-400">PUT</span> /v1/projects/my-project/devices/sensor-1/script
-Content-Type: multipart/form-data
-Authorization: Bearer $TOKEN
-
-<span class="text-gray-500"># Download firmware</span>
-<span class="text-purple-400">POST</span> /v1/projects/my-project/devices/pico-1/firmware</code></pre>
+                    <div class="border-b border-zinc-800 pb-3">
+                        <code class="font-mono text-emerald-400">onMessage(message)</code>
+                        <p class="text-zinc-500 mt-1">Handle sensor readings, button presses, and all device events</p>
+                    </div>
+                    <div class="border-b border-zinc-800 pb-3">
+                        <code class="font-mono text-emerald-400">this.env.DEVICE.kv</code>
+                        <p class="text-zinc-500 mt-1">Type-safe key-value storage that persists across reboots</p>
+                    </div>
+                    <div>
+                        <code class="font-mono text-emerald-400">this.env.DEVICE.display</code>
+                        <p class="text-zinc-500 mt-1">Fluent API for SSD1306 OLED drawing commands</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Hardware Support -->
-<section class="py-20 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto">
-        <div class="text-center mb-16 fade-up">
-            <div class="inline-flex items-center px-3 py-1 text-sm font-medium text-red-700 bg-red-50 rounded-full mb-4">
-                Hardware
-            </div>
-            <h2 class="text-3xl font-bold text-gray-900">Supported hardware</h2>
-            <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-                Start building with popular microcontrollers, with more coming soon.
-            </p>
+<!-- Dashboard Features -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-4xl mx-auto fade-up">
+        <div class="text-center mb-12">
+            <div class="badge badge-emerald mb-4">Dashboard</div>
+            <h2 class="text-3xl font-bold tracking-tight">Manage your fleet</h2>
+            <p class="mt-4 text-zinc-400 text-lg">Web dashboard at <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">dash.devicesdk.com</code></p>
         </div>
 
-        <div class="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto fade-up">
-            <div class="p-8 bg-white border border-gray-200 rounded-2xl text-center">
-                <div class="w-20 h-20 mx-auto bg-green-50 rounded-2xl flex items-center justify-center mb-6">
-                    <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+        <div class="space-y-0 border border-zinc-800 rounded-xl overflow-hidden">
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+                <div>
+                    <h3 class="font-medium text-zinc-50">Project management</h3>
+                    <p class="text-sm text-zinc-500 mt-0.5">Organize devices into projects with separate settings</p>
                 </div>
-                <h3 class="text-xl font-semibold text-gray-900">Raspberry Pi Pico W</h3>
-                <p class="mt-2 text-gray-600">RP2040 with WiFi</p>
-                <span class="inline-flex items-center mt-4 px-3 py-1 text-sm font-medium text-green-700 bg-green-50 rounded-full">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    Supported
-                </span>
             </div>
-
-            <div class="p-8 bg-white border border-gray-200 rounded-2xl text-center">
-                <div class="w-20 h-20 mx-auto bg-green-50 rounded-2xl flex items-center justify-center mb-6">
-                    <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+                <div>
+                    <h3 class="font-medium text-zinc-50">Device inventory</h3>
+                    <p class="text-sm text-zinc-500 mt-0.5">See all devices, connection status, and last seen time</p>
                 </div>
-                <h3 class="text-xl font-semibold text-gray-900">Raspberry Pi Pico 2 W</h3>
-                <p class="mt-2 text-gray-600">RP2350 with WiFi</p>
-                <span class="inline-flex items-center mt-4 px-3 py-1 text-sm font-medium text-green-700 bg-green-50 rounded-full">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    Supported
-                </span>
+            </div>
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+                <div>
+                    <h3 class="font-medium text-zinc-50">Script deployment</h3>
+                    <p class="text-sm text-zinc-500 mt-0.5">Upload and deploy scripts from the browser or API</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+                <div>
+                    <h3 class="font-medium text-zinc-50">Version history</h3>
+                    <p class="text-sm text-zinc-500 mt-0.5">Full deployment log with one-click rollback</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+                <div>
+                    <h3 class="font-medium text-zinc-50">API tokens</h3>
+                    <p class="text-sm text-zinc-500 mt-0.5">Create and revoke tokens for CLI and programmatic access</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-between p-5">
+                <div>
+                    <h3 class="font-medium text-zinc-50">Google OAuth</h3>
+                    <p class="text-sm text-zinc-500 mt-0.5">Secure sign-in with session management</p>
+                </div>
             </div>
         </div>
+    </div>
+</section>
 
-        <div class="mt-12 text-center fade-up">
-            <p class="text-gray-500">More hardware support coming soon, including ESP32 family.</p>
+<!-- Hardware Compatibility -->
+<section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-4xl mx-auto fade-up">
+        <div class="text-center mb-12">
+            <div class="badge badge-emerald mb-4">Hardware</div>
+            <h2 class="text-3xl font-bold tracking-tight">Supported devices</h2>
+        </div>
+
+        <div class="border border-zinc-800 rounded-xl overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-zinc-800">
+                        <th class="text-left p-4 text-zinc-400 font-medium">Device</th>
+                        <th class="text-left p-4 text-zinc-400 font-medium">Chip</th>
+                        <th class="text-left p-4 text-zinc-400 font-medium">WiFi</th>
+                        <th class="text-left p-4 text-zinc-400 font-medium">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-b border-zinc-800">
+                        <td class="p-4 font-medium text-zinc-50">Raspberry Pi Pico W</td>
+                        <td class="p-4 text-zinc-400">RP2040</td>
+                        <td class="p-4 text-zinc-400">2.4 GHz</td>
+                        <td class="p-4"><span class="badge badge-emerald">Supported</span></td>
+                    </tr>
+                    <tr class="border-b border-zinc-800">
+                        <td class="p-4 font-medium text-zinc-50">Raspberry Pi Pico 2 W</td>
+                        <td class="p-4 text-zinc-400">RP2350</td>
+                        <td class="p-4 text-zinc-400">2.4 GHz</td>
+                        <td class="p-4"><span class="badge badge-emerald">Supported</span></td>
+                    </tr>
+                    <tr>
+                        <td class="p-4 font-medium text-zinc-50">ESP32</td>
+                        <td class="p-4 text-zinc-400">ESP32</td>
+                        <td class="p-4 text-zinc-400">2.4 GHz</td>
+                        <td class="p-4"><span class="badge">Coming soon</span></td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </section>
 
 <!-- CTA -->
-<section class="py-20 px-4 sm:px-6 lg:px-8 gradient-bg">
-    <div class="max-w-4xl mx-auto text-center">
-        <h2 class="text-3xl sm:text-4xl font-bold text-white">Ready to build?</h2>
-        <p class="mt-4 text-lg text-white/80">Start building IoT applications in minutes.</p>
-        <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="{{ .Site.Params.dashboardUrl }}" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-primary-600 bg-white rounded-lg hover:bg-gray-50 transition-colors">
-                Get started free
-            </a>
-            <a href="{{ .Site.Params.docsUrl }}" class="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white border-2 border-white/30 rounded-lg hover:bg-white/10 transition-colors">
-                Read documentation
-            </a>
+<section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-3xl mx-auto text-center fade-up">
+        <h2 class="text-3xl font-bold tracking-tight">Ready to build?</h2>
+        <p class="mt-4 text-zinc-400 text-lg">Get started with the CLI in under a minute.</p>
+        <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+            <a href="{{ .Site.Params.dashboardUrl }}" class="btn-primary h-11 px-6">Get started free</a>
+            <a href="{{ .Site.Params.docsUrl }}" class="btn-secondary h-11 px-6">Read documentation</a>
         </div>
     </div>
 </section>

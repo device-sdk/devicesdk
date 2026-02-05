@@ -40,7 +40,7 @@ function htmlTemplate({ title }) {
           margin: 0; padding: 0;
           width: ${WIDTH}px; height: ${HEIGHT}px;
           display: flex; align-items: center; justify-content: center;
-          background: #f6f5f1; color: #111827; font-family: Inter, system-ui, sans-serif;
+          background: #09090b; color: #fafafa; font-family: Inter, system-ui, sans-serif;
         }
         .card {
           text-align: center;
@@ -50,46 +50,55 @@ function htmlTemplate({ title }) {
         .logo-wrap {
           width: 240px; height: 240px;
           border-radius: 16px;
-          background: #0f1116;
+          background: #18181b;
+          border: 1px solid #27272a;
           display: grid; place-items: center;
-          box-shadow:
-            0 18px 30px rgba(0,0,0,0.16),
-            0 8px 16px rgba(0,0,0,0.12),
-            0 2px 6px rgba(0,0,0,0.08);
         }
         .logo-wrap img {
           width: 150px; height: 150px; object-fit: contain;
         }
         .brand {
           font-size: 64px; font-weight: 780; letter-spacing: 0.65px;
+          color: #fafafa;
+        }
+        .accent {
+          color: #10b981;
         }
         .title {
           max-width: 900px;
           font-size: 48px;
           font-weight: 680;
           line-height: 1.22;
+          color: #a1a1aa;
         }
       </style>
     </head>
     <body>
       <div class="card">
         <div class="logo-wrap"><img src="${LOGO_URL}" /></div>
-        <div class="brand">DeviceSDK</div>
+        <div class="brand">Device<span class="accent">SDK</span></div>
         <div class="title">${title || 'Untitled'}</div>
       </div>
     </body>
   </html>`;
 }
 
+const DOCS_DIR = path.join(__dirname, '..', '..', 'docs');
+
 async function main() {
-  const files = await glob('**/*.md', { cwd: CONTENT_DIR, nodir: true });
+  const contentFiles = await glob('**/*.md', { cwd: CONTENT_DIR, nodir: true });
+  const docsFiles = (await glob('**/*.md', { cwd: DOCS_DIR, nodir: true }))
+    .map(f => path.join('docs', f));
+  const files = [...contentFiles, ...docsFiles];
   if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT } });
 
   for (const rel of files) {
-    const abs = path.join(CONTENT_DIR, rel);
+    const abs = rel.startsWith('docs/')
+      ? path.join(DOCS_DIR, rel.slice('docs/'.length))
+      : path.join(CONTENT_DIR, rel);
     const raw = fs.readFileSync(abs, 'utf8');
     const fm = matter(raw);
     const data = fm.data || {};

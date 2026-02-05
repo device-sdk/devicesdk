@@ -3,6 +3,14 @@ languageCode = 'en-us'
 title = 'DeviceSDK - Build IoT Applications with TypeScript'
 enableRobotsTXT = true
 disableKinds = ["taxonomy", "term"]
+
+[[module.mounts]]
+  source = "content"
+  target = "content"
+
+[[module.mounts]]
+  source = "../../docs"
+  target = "content/docs"
 [outputs]
   home = ["HTML"]
 

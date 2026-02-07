@@ -12,7 +12,7 @@ pnpm build
 pnpm build --filter @devicesdk/api
 
 # Dev servers
-pnpm dev --filter @devicesdk/api          # Wrangler dev on port 9000
+pnpm dev --filter @devicesdk/api          # Wrangler dev on port 8787
 pnpm dev --filter @devicesdk/dashboard    # Quasar dev server
 pnpm dev --filter @devicesdk/simulation   # Next.js on port 9002
 
@@ -118,7 +118,27 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 - `packageManager: pnpm@9.15.4` in root `package.json`
 - Node >= 20 required (using v22 via nvm)
 - Turbo `^build` ensures dependency-ordered builds
-- `examples/basic` has a pre-existing TS syntax error in `src/devices/device.ts:58`
+## Local Development Workflow
+
+To run the full stack locally (API + dashboard + device):
+
+```bash
+# 1. Start the API server (port 8787)
+pnpm dev --filter @devicesdk/api
+
+# 2. Start the dashboard (separate terminal)
+pnpm dev --filter @devicesdk/dashboard
+
+# 3. Deploy a device script to the local API
+DEVICESDK_API_URL=http://localhost:8787 pnpm --filter @devicesdk/example-basic deploy
+
+# 4. Flash a device pointing to the local server
+pnpm --filter @devicesdk/example-basic flash-local
+```
+
+- `DEVICESDK_API_URL` overrides the CLI's default API endpoint (`https://api.devicesdk.com`). Set it whenever using CLI commands (`deploy`, `dev`, `login`, etc.) against the local server.
+- `flash-local` is a convenience script in `examples/basic/package.json` that runs `devicesdk flash device --host 192.168.1.238:8787`.
+- Ensure `apps/api/.dev.vars` contains `ENV=local` so local auth code paths activate.
 
 ## Public-Facing Content Guidelines
 

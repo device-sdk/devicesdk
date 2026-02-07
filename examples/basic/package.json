@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "devicesdk dev",
     "build": "devicesdk build",
-    "deploy": "devicesdk deploy"
+    "deploy": "devicesdk deploy",
+    "flash-remote": "devicesdk flash device",
+    "flash-local": "devicesdk flash device --host 192.168.1.238:8787"
   },
   "dependencies": {
     "@devicesdk/core": "workspace:*"

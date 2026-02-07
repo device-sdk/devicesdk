@@ -342,7 +342,11 @@ importers:
 
   firmware/esp32: {}
 
-  firmware/pico: {}
+  firmware/pico:
+    dependencies:
+      wrangler:
+        specifier: 'catalog:'
+        version: 4.63.0(@cloudflare/workers-types@4.20260205.0)
 
   packages/cli:
     dependencies:

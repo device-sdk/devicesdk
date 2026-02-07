@@ -3,7 +3,7 @@
     <div class="login-card">
       <div class="logo-section">
         <div class="logo">
-          <span class="logo-icon">&#9670;</span>
+          <img src="/favicon.svg" alt="DeviceSDK" class="logo-icon" />
           <span class="logo-text">DeviceSDK</span>
         </div>
         <p class="tagline">IoT Device Management Platform</p>
@@ -110,8 +110,9 @@ const handleSignIn = () => {
 }
 
 .logo-icon {
-  font-size: 1.5rem;
-  color: var(--foreground);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
 }
 
 .logo-text {

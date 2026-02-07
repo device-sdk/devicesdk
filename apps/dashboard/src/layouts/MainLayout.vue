@@ -5,7 +5,7 @@
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 
         <q-toolbar-title class="logo-text">
-          <span class="logo-icon">&#9670;</span>
+          <img src="/favicon.svg" alt="DeviceSDK" class="logo-icon" />
           DeviceSDK
         </q-toolbar-title>
 
@@ -58,7 +58,7 @@
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered class="app-drawer">
       <div class="drawer-header">
         <div class="drawer-logo">
-          <span class="logo-icon">&#9670;</span>
+          <img src="/favicon.svg" alt="DeviceSDK" class="logo-icon" />
           DeviceSDK
         </div>
       </div>
@@ -162,7 +162,9 @@ async function handleSignOut() {
 }
 
 .logo-icon {
-  font-size: 1.25rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
 }
 
 .header-icon {

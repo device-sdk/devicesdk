@@ -16,7 +16,7 @@ build/
 .dev.vars
 
 # Hugo
-public/
+apps/website/public/
 resources/_gen/
 
 # Firmware builds

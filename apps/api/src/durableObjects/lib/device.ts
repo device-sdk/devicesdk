@@ -352,19 +352,25 @@ export class BaseDevice extends DurableObject<Env> {
 		reason: string,
 		_wasClean: boolean,
 	) {
+		console.log(`webSocketClose with code ${code}, ${reason}`);
+		await this.handleConnectionLost(`WebSocket closed. Code: ${code}, Reason: ${reason}`);
+		ws.close(code, "Durable Object is closing WebSocket");
+	}
+
+	async webSocketError(ws: WebSocket, error: unknown) {
+		console.log(`webSocketError: ${error}`);
+		await this.handleConnectionLost(`WebSocket error: ${error}`);
+		ws.close(1011, "WebSocket error");
+	}
+
+	private async handleConnectionLost(reason: string) {
 		// Reject all pending commands because we can no longer receive responses.
 		for (const [_id, command] of this.pendingCommands.entries()) {
 			clearTimeout(command.timeoutId);
-			command.reject(
-				new Error(
-					`WebSocket connection closed. Code: ${code}, Reason: ${reason}`,
-				),
-			);
+			command.reject(new Error(reason));
 		}
 		this.pendingCommands.clear();
 		this._session = undefined;
-
-		console.log(`webSocketClose with code ${code}, ${reason}`);
 
 		// Clean up the user worker (restore it first if needed)
 		const worker = await this.getOrCreateUserWorker();
@@ -376,9 +382,6 @@ export class BaseDevice extends DurableObject<Env> {
 				console.error("Error in user worker onDeviceDisconnect:", error);
 			}
 		}
-
-		// If the client closes the connection, the runtime will invoke the webSocketClose() handler.
-		ws.close(code, "Durable Object is closing WebSocket");
 	}
 
 	/**
@@ -419,6 +422,9 @@ export class BaseDevice extends DurableObject<Env> {
 		reason: string;
 	}> {
 		const session = this.getSession();
+		console.log(
+			`[reboot] Session found: ${!!session}, readyState: ${session?.websocket.readyState}`,
+		);
 
 		if (
 			!session ||
@@ -438,13 +444,14 @@ export class BaseDevice extends DurableObject<Env> {
 				payload: {},
 			};
 			session.websocket.send(JSON.stringify(rebootCommand));
-
-			// Close the WebSocket - device will reconnect and load new script
-			session.websocket.close(4001, "Rebooting for script deployment");
+			// Don't close the WebSocket — the device will reboot and the
+			// connection drops naturally. Sending a close frame in the same
+			// TCP segment as the reboot command causes a hard fault on the
+			// Pico (tcp_close inside lwIP recv callback).
 
 			return {
 				rebooted: true,
-				reason: "Reboot command sent, WebSocket closed",
+				reason: "Reboot command sent",
 			};
 		} catch (error) {
 			return {

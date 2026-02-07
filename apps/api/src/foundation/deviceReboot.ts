@@ -15,17 +15,19 @@ export async function triggerDeviceReboot(
 	deviceId: string,
 ): Promise<RebootResult> {
 	const doName = `${projectId}:${deviceId}`;
+	console.log(`[reboot] Triggering reboot for DO: ${doName}`);
 	const durableObjectId = env.DEVICE.idFromName(doName);
 	const stub = env.DEVICE.get(durableObjectId) as unknown as {
 		triggerRebootForDeploy(): Promise<RebootResult>;
 	};
 
 	try {
-		return await stub.triggerRebootForDeploy();
+		const result = await stub.triggerRebootForDeploy();
+		console.log(`[reboot] Result:`, JSON.stringify(result));
+		return result;
 	} catch (error) {
-		return {
-			rebooted: false,
-			reason: `Failed to contact DO: ${(error as Error).message}`,
-		};
+		const reason = `Failed to contact DO: ${(error as Error).message}`;
+		console.error(`[reboot] Error:`, reason);
+		return { rebooted: false, reason };
 	}
 }

@@ -152,6 +152,11 @@ export default async function deploy(
 					entrypointName,
 				);
 				console.log(`\n✓ ${deviceId}  ${result.version_id}  (updated)`);
+				if (result.device_rebooted) {
+					console.log(`  Device rebooted: ${result.reboot_reason}`);
+				} else {
+					console.log(`  Device not rebooted: ${result.reboot_reason}`);
+				}
 				console.log(`\nDeployed 1 device successfully`);
 			} catch (error) {
 				if (error instanceof DeviceSDKApiError) {
@@ -184,8 +189,11 @@ export default async function deploy(
 				for (const version of result.versions) {
 					const statusText =
 						version.status === "created" ? "(created)" : "(updated)";
+					const rebootText = version.device_rebooted
+						? "rebooted"
+						: `not rebooted: ${version.reboot_reason}`;
 					console.log(
-						`✓ ${version.device_id.padEnd(20)} ${version.version_id}  ${statusText}`,
+						`✓ ${version.device_id.padEnd(20)} ${version.version_id}  ${statusText}  (${rebootText})`,
 					);
 				}
 

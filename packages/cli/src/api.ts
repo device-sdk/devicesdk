@@ -434,6 +434,8 @@ export interface UploadScriptResult {
 	device_id: string;
 	message?: string | null;
 	created_at: number;
+	device_rebooted: boolean;
+	reboot_reason: string;
 }
 
 export async function getScript(
@@ -517,6 +519,8 @@ export interface BatchUploadResult {
 		device_id: string;
 		version_id: string;
 		status: "success" | "created";
+		device_rebooted: boolean;
+		reboot_reason: string;
 	}>;
 	message?: string | null;
 }

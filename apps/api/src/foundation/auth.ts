@@ -243,9 +243,9 @@ export async function handleGoogleCallback(c: AppContext) {
 		setCookie(c, SESSION_COOKIE_NAME, session.results.token, {
 			httpOnly: true,
 			expires: expirationDate,
-			domain: ".localhost",
-			sameSite: "None",
-			secure: true,
+			domain: "localhost",
+			sameSite: "Lax",
+			secure: false,
 			path: "/",
 		});
 
@@ -269,9 +269,9 @@ export async function handleLogout(c: AppContext) {
 		setCookie(c, SESSION_COOKIE_NAME, "", {
 			httpOnly: true,
 			expires: new Date(0),
-			domain: ".localhost",
-			sameSite: "None",
-			secure: true,
+			domain: "localhost",
+			sameSite: "Lax",
+			secure: false,
 			path: "/",
 		});
 	} else {

@@ -257,7 +257,7 @@ int main() {
 
     char ws_path[256];
     snprintf(ws_path, sizeof(ws_path), "/v1/projects/%s/devices/%s/connect/websocket", project_id, device_id);
-    client.connect(api_host, 80, ws_path, WEBSOCKET_TOKEN);
+    client.connect(api_host, ws_path, WEBSOCKET_TOKEN);
     last_reconnect_attempt = to_ms_since_boot(get_absolute_time());
 
     while (true) {
@@ -298,7 +298,7 @@ int main() {
             // Try to reconnect every 5 seconds
             if (now - last_reconnect_attempt >= 5000) {
                 client.close_connection();
-                client.connect(api_host, 80, ws_path, WEBSOCKET_TOKEN);
+                client.connect(api_host, ws_path, WEBSOCKET_TOKEN);
                 last_reconnect_attempt = now;
 
                 // Blink twice to indicate reconnection attempt

@@ -52,7 +52,6 @@ export class MyDevice extends DeviceEntrypoint {
 		if (message.type === "gpio_state_changed" && message.payload.pin === BUTTON_PIN) {
 			const buttonState = message.payload.state;
 
-			this.env.DEVICES['sfdfds'].
 
 			// Toggle LED on button press (when pin goes low - button pressed with pull-up)
 			if (buttonState === "low") {

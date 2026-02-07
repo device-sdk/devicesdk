@@ -11,7 +11,7 @@
 #define MAX_RX_BUFFER_SIZE 16384
 #define MAX_TX_QUEUE_SIZE 10
 
-WebsocketClient::WebsocketClient() : tcp_pcb(nullptr), connected_state(0), http_response_complete(false), in_callback(false) {}
+WebsocketClient::WebsocketClient() : tcp_pcb(nullptr), port(80), connected_state(0), http_response_complete(false), in_callback(false) {}
 
 WebsocketClient::~WebsocketClient() {
     if (tcp_pcb) {
@@ -19,18 +19,28 @@ WebsocketClient::~WebsocketClient() {
     }
 }
 
-bool WebsocketClient::connect(const char* host, uint16_t port, const char* path, const char* token) {
+bool WebsocketClient::connect(const char* host, const char* path, const char* token) {
     // Clean up any existing connection first
     if (tcp_pcb) {
         close_connection();
     }
 
-    this->host = host;
+    // Parse port from host if present (e.g. "localhost:8787")
+    std::string host_str(host);
+    auto colon = host_str.find(':');
+    if (colon != std::string::npos) {
+        this->port = std::stoi(host_str.substr(colon + 1));
+        this->host = host_str.substr(0, colon);
+    } else {
+        this->port = 80;
+        this->host = host_str;
+    }
+
     this->path = path;
     this->token = token;
 
     cyw43_arch_lwip_begin();
-    err_t err = dns_gethostbyname(host, &remote_addr, dns_found_callback, this);
+    err_t err = dns_gethostbyname(this->host.c_str(), &remote_addr, dns_found_callback, this);
     cyw43_arch_lwip_end();
 
     if (err == ERR_OK) {
@@ -120,7 +130,7 @@ void WebsocketClient::on_dns_found(const ip_addr_t *ipaddr) {
 
         cyw43_arch_lwip_begin();
         connected_state = 1;
-        tcp_connect(tcp_pcb, &remote_addr, 80, tcp_connected_callback);
+        tcp_connect(tcp_pcb, &remote_addr, this->port, tcp_connected_callback);
         cyw43_arch_lwip_end();
     }
 }

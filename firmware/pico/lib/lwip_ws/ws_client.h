@@ -11,7 +11,7 @@ public:
     WebsocketClient();
     ~WebsocketClient();
 
-    bool connect(const char* host, uint16_t port, const char* path, const char* token);
+    bool connect(const char* host, const char* path, const char* token);
     void poll();
     bool send_text(const char* payload);
     bool is_connected() const;
@@ -21,6 +21,7 @@ private:
     struct tcp_pcb* tcp_pcb;
     ip_addr_t remote_addr;
     std::string host;
+    uint16_t port;
     std::string path;
     std::string token;
     int connected_state;

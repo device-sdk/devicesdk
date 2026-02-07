@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "devicesdk dev",
-    "build-dis": "devicesdk build",
+    "build": "devicesdk build",
     "deploy": "devicesdk deploy"
   },
   "dependencies": {

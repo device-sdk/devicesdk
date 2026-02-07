@@ -1,14 +1,18 @@
+import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SELF, env } from "cloudflare:test";
 import { D1QB } from "workers-qb";
 import type {
+	tableDeviceScripts,
+	tableDevices,
 	tableProjects,
 	tableUser,
 	tableUserSessions,
-	tableDevices,
-	tableDeviceScripts,
 } from "../../src/types";
-import { TEST_SESSION_TOKEN, TEST_PROJECT_ID, TEST_USER_ID } from "../setup-test-data";
+import {
+	TEST_PROJECT_ID,
+	TEST_SESSION_TOKEN,
+	TEST_USER_ID,
+} from "../setup-test-data";
 
 describe.sequential("Scripts endpoint", () => {
 	let qb: D1QB;
@@ -17,7 +21,7 @@ describe.sequential("Scripts endpoint", () => {
 
 	beforeAll(async () => {
 		qb = new D1QB(env.DB);
-		project = await qb
+		project = (await qb
 			.fetchOne<tableProjects>({
 				tableName: "projects",
 				where: {
@@ -26,7 +30,7 @@ describe.sequential("Scripts endpoint", () => {
 				},
 			})
 			.execute()
-			.then((p) => p.results) as tableProjects;
+			.then((p) => p.results)) as tableProjects;
 
 		const now = Date.now();
 		device = await qb
@@ -59,8 +63,9 @@ describe.sequential("Scripts endpoint", () => {
 						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({
-					entrypoint: "Device",
-					script: "export class Device { async onMessage() {} async onDeviceConnect() { console.log('connected'); } }",
+						entrypoint: "Device",
+						script:
+							"export class Device { async onMessage() {} async onDeviceConnect() { console.log('connected'); } }",
 						message: "Initial version",
 					}),
 				},
@@ -95,8 +100,8 @@ describe.sequential("Scripts endpoint", () => {
 						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({
-					entrypoint: "Device",
-					script: "this is not valid javascript {{{",
+						entrypoint: "Device",
+						script: "this is not valid javascript {{{",
 						message: "Bad script",
 					}),
 				},
@@ -117,8 +122,9 @@ describe.sequential("Scripts endpoint", () => {
 						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({
-					entrypoint: "Device",
-					script: "export class Device { async onMessage() {} async onDeviceConnect() {} }",
+						entrypoint: "Device",
+						script:
+							"export class Device { async onMessage() {} async onDeviceConnect() {} }",
 					}),
 				},
 			);
@@ -137,8 +143,8 @@ describe.sequential("Scripts endpoint", () => {
 						id: "script-100",
 						device_id: device.id,
 						version_id: "v1-uuid",
-					entrypoint: "Device",
-					message: "First version",
+						entrypoint: "Device",
+						message: "First version",
 						created_at: now - 1000,
 					},
 				})
@@ -151,8 +157,8 @@ describe.sequential("Scripts endpoint", () => {
 						id: "script-200",
 						device_id: device.id,
 						version_id: "v2-uuid",
-					entrypoint: "Device",
-					message: "Second version",
+						entrypoint: "Device",
+						message: "Second version",
 						created_at: now,
 					},
 				})
@@ -234,15 +240,17 @@ describe.sequential("Scripts endpoint", () => {
 						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({
-					message: "Batch update",
-					devices: {
+						message: "Batch update",
+						devices: {
 							"sensor-scripts-1": {
-						entrypoint: "Device",
-						script: "export class Device { async onMessage() {} async onDeviceConnect() { console.log('sensor 1'); } }",
+								entrypoint: "Device",
+								script:
+									"export class Device { async onMessage() {} async onDeviceConnect() { console.log('sensor 1'); } }",
 							},
 							"sensor-scripts-2": {
-						entrypoint: "Device",
-						script: "export class Device { async onMessage() {} async onDeviceConnect() { console.log('sensor 2'); } }",
+								entrypoint: "Device",
+								script:
+									"export class Device { async onMessage() {} async onDeviceConnect() { console.log('sensor 2'); } }",
 							},
 						},
 					}),
@@ -265,11 +273,12 @@ describe.sequential("Scripts endpoint", () => {
 						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({
-					message: "Auto-create test",
-					devices: {
+						message: "Auto-create test",
+						devices: {
 							"new-device": {
-						entrypoint: "Device",
-						script: "export class Device { async onMessage() {} async onDeviceConnect() {} }",
+								entrypoint: "Device",
+								script:
+									"export class Device { async onMessage() {} async onDeviceConnect() {} }",
 							},
 						},
 					}),
@@ -304,11 +313,11 @@ describe.sequential("Scripts endpoint", () => {
 						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({
-					message: "Invalid ID test",
-					devices: {
-							"Invalid_Device_ID": {
-						entrypoint: "Device",
-						script: "export class Device {}",
+						message: "Invalid ID test",
+						devices: {
+							Invalid_Device_ID: {
+								entrypoint: "Device",
+								script: "export class Device {}",
 							},
 						},
 					}),
@@ -330,11 +339,11 @@ describe.sequential("Scripts endpoint", () => {
 						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({
-					message: "Bad script test",
-					devices: {
+						message: "Bad script test",
+						devices: {
 							"sensor-scripts-1": {
-						entrypoint: "Device",
-						script: "this is not valid javascript {{{",
+								entrypoint: "Device",
+								script: "this is not valid javascript {{{",
 							},
 						},
 					}),

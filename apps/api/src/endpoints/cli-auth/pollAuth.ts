@@ -1,5 +1,5 @@
 import type { AppContext } from "../../types";
-import { hashToken, generateAccessToken, generateRefreshToken } from "./utils";
+import { generateAccessToken, generateRefreshToken, hashToken } from "./utils";
 
 type CliAuthCode = {
 	id: string;

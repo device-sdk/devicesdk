@@ -1,12 +1,12 @@
-import { Hono } from "hono";
 import { fromHono } from "chanfana";
+import { Hono } from "hono";
 import { CreateDevice } from "./createDevice";
-import { ListDevices } from "./listDevices";
-import { GetDevice } from "./getDevice";
-import { UpdateDevice } from "./updateDevice";
 import { DeleteDevice } from "./deleteDevice";
 import { DeviceConnect } from "./deviceConnect";
 import { DownloadFirmware } from "./downloadFirmware";
+import { GetDevice } from "./getDevice";
+import { ListDevices } from "./listDevices";
+import { UpdateDevice } from "./updateDevice";
 
 export const devicesRouter = fromHono(new Hono());
 

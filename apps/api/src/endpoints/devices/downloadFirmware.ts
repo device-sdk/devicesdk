@@ -1,7 +1,6 @@
-import { OpenAPIRoute } from "chanfana";
+import { ApiException, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import type { AppContext, tableProjects } from "../../types";
-import { ApiException } from "chanfana";
 
 const OLD_TOKEN = "e343ecb8036442e093a47718463c1716";
 const OLD_SSID = "8d477eda147344f8b9b8d3e3bef7505b";

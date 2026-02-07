@@ -14,10 +14,10 @@
  * device reconnections. Class properties are lost when the device disconnects.
  */
 
-import { DeviceEntrypoint, DeviceResponse } from "@devicesdk/core";
+import { DeviceEntrypoint, type DeviceResponse } from "@devicesdk/core";
 
 const BUTTON_PIN = 20;
-const LED_PIN = 25;  // Onboard LED on Pico
+const LED_PIN = 25; // Onboard LED on Pico
 
 export class ButtonLedToggle extends DeviceEntrypoint {
 	// NOTE: Don't store state in class properties - use DEVICE.kv instead
@@ -30,7 +30,7 @@ export class ButtonLedToggle extends DeviceEntrypoint {
 		await this.env.DEVICE.configureGpioInputMonitoring(BUTTON_PIN, true, "up");
 
 		// Load persisted LED state from kv (defaults to false if not set)
-		const ledOn = await this.env.DEVICE.kv.get<boolean>("ledOn") ?? false;
+		const ledOn = (await this.env.DEVICE.kv.get<boolean>("ledOn")) ?? false;
 		await this.env.DEVICE.setGpioState(LED_PIN, ledOn ? "high" : "low");
 
 		this.env.LOGGER.info(`Ready! LED is ${ledOn ? "ON" : "OFF"}`);
@@ -42,12 +42,15 @@ export class ButtonLedToggle extends DeviceEntrypoint {
 
 	async onMessage(message: DeviceResponse) {
 		// Handle button press (pin goes low with pull-up)
-		if (message.type === "gpio_state_changed" &&
+		if (
+			message.type === "gpio_state_changed" &&
 			message.payload.pin === BUTTON_PIN &&
-			message.payload.state === "low") {
-
+			message.payload.state === "low"
+		) {
 			// Read current state from kv, toggle it
-			const ledOn = !(await this.env.DEVICE.kv.get<boolean>("ledOn") ?? false);
+			const ledOn = !(
+				(await this.env.DEVICE.kv.get<boolean>("ledOn")) ?? false
+			);
 
 			// Persist new state to kv BEFORE updating hardware
 			await this.env.DEVICE.kv.put("ledOn", ledOn);

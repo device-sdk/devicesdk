@@ -5,7 +5,7 @@
  * Both Pico W (RP2040) and Pico 2W (RP2350) share the same pinout.
  */
 
-import type { I2cConfigureCommand } from '../index.js';
+import type { I2cConfigureCommand } from "../index.js";
 
 // Valid I2C0 pin configurations
 export type PicoI2c0Pins =
@@ -53,9 +53,9 @@ export const Pico = {
 	/**
 	 * Create an I2C configure command with validated pin combinations
 	 */
-	i2c(config: PicoI2cConfig): Omit<I2cConfigureCommand, 'id'> {
+	i2c(config: PicoI2cConfig): Omit<I2cConfigureCommand, "id"> {
 		return {
-			type: 'i2c_configure',
+			type: "i2c_configure",
 			payload: {
 				bus: config.bus,
 				sda_pin: config.sda_pin,

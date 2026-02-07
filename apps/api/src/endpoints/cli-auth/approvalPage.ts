@@ -1,5 +1,5 @@
-import type { AppContext } from "../../types";
 import { html, raw } from "hono/html";
+import type { AppContext } from "../../types";
 
 type CliAuthCode = {
 	id: string;

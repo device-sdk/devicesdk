@@ -1,12 +1,12 @@
-import { OpenAPIRoute, contentJson } from "chanfana";
+import { contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
+import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 import type {
 	AppContext,
-	tableDevices,
 	tableDeviceScripts,
+	tableDevices,
 	tableProjects,
 } from "../../types";
-import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 
 export class DeployVersion extends OpenAPIRoute {
 	public schema = {

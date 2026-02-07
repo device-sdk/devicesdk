@@ -1,7 +1,6 @@
-import { OpenAPIRoute, contentJson } from "chanfana";
+import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
-import type { AppContext, tableProjects, tableDevices } from "../../types";
-import { ApiException } from "chanfana";
+import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 export class GetProject extends OpenAPIRoute {
 	public schema = {

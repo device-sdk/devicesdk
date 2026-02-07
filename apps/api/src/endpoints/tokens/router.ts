@@ -1,8 +1,8 @@
-import { Hono } from "hono";
 import { fromHono } from "chanfana";
+import { Hono } from "hono";
 import { CreateApiToken } from "./createApiToken";
-import { ListApiTokens } from "./listApiTokens";
 import { DeleteApiToken } from "./deleteApiToken";
+import { ListApiTokens } from "./listApiTokens";
 
 export const tokensRouter = fromHono(new Hono());
 

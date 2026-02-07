@@ -19,9 +19,9 @@
  * device reconnections. Class properties are lost when the device disconnects.
  */
 
-import { DeviceEntrypoint, DeviceResponse } from "@devicesdk/core";
-import { SSD1306 } from "@devicesdk/core/i2c";
+import { DeviceEntrypoint, type DeviceResponse } from "@devicesdk/core";
 import { Pico } from "@devicesdk/core/devices/pico";
+import { SSD1306 } from "@devicesdk/core/i2c";
 
 const BUTTON_PIN = 20;
 const LED_PIN = 25;
@@ -33,7 +33,7 @@ export class OledButtonCounter extends DeviceEntrypoint {
 		bus: 0,
 		address: "0x3C",
 		width: 128,
-		height: 64
+		height: 64,
 	});
 
 	// NOTE: Don't store state in class properties - use DEVICE.kv instead
@@ -47,14 +47,14 @@ export class OledButtonCounter extends DeviceEntrypoint {
 
 		// Configure I2C with type-safe pin selection
 		await this.env.DEVICE.sendCommand(
-			Pico.i2c({ bus: 0, sda_pin: 0, scl_pin: 1, frequency: 400000 })
+			Pico.i2c({ bus: 0, sda_pin: 0, scl_pin: 1, frequency: 400000 }),
 		);
 
 		// Enable button monitoring with pull-up
 		await this.env.DEVICE.configureGpioInputMonitoring(BUTTON_PIN, true, "up");
 
 		// Load persisted LED state and restore hardware state
-		const ledOn = await this.env.DEVICE.kv.get<boolean>("ledOn") ?? false;
+		const ledOn = (await this.env.DEVICE.kv.get<boolean>("ledOn")) ?? false;
 		await this.env.DEVICE.setGpioState(LED_PIN, ledOn ? "high" : "low");
 
 		// Show initial display (reads all state from kv)
@@ -68,13 +68,17 @@ export class OledButtonCounter extends DeviceEntrypoint {
 	}
 
 	async onMessage(message: DeviceResponse) {
-		if (message.type === "gpio_state_changed" &&
+		if (
+			message.type === "gpio_state_changed" &&
 			message.payload.pin === BUTTON_PIN &&
-			message.payload.state === "low") {
-
+			message.payload.state === "low"
+		) {
 			// Read current state from kv
-			const ledOn = !(await this.env.DEVICE.kv.get<boolean>("ledOn") ?? false);
-			const pressCount = (await this.env.DEVICE.kv.get<number>("pressCount") ?? 0) + 1;
+			const ledOn = !(
+				(await this.env.DEVICE.kv.get<boolean>("ledOn")) ?? false
+			);
+			const pressCount =
+				((await this.env.DEVICE.kv.get<number>("pressCount")) ?? 0) + 1;
 
 			// Persist new state to kv FIRST
 			await this.env.DEVICE.kv.put("ledOn", ledOn);
@@ -92,9 +96,11 @@ export class OledButtonCounter extends DeviceEntrypoint {
 
 	private async updateDisplay() {
 		// Always read state from kv - never from class properties
-		const ledOn = await this.env.DEVICE.kv.get<boolean>("ledOn") ?? false;
-		const pressCount = await this.env.DEVICE.kv.get<number>("pressCount") ?? 0;
-		const displayInitialized = await this.env.DEVICE.kv.get<boolean>("displayInitialized") ?? false;
+		const ledOn = (await this.env.DEVICE.kv.get<boolean>("ledOn")) ?? false;
+		const pressCount =
+			(await this.env.DEVICE.kv.get<number>("pressCount")) ?? 0;
+		const displayInitialized =
+			(await this.env.DEVICE.kv.get<boolean>("displayInitialized")) ?? false;
 
 		this.display
 			.clear()
@@ -114,7 +120,7 @@ export class OledButtonCounter extends DeviceEntrypoint {
 
 		// Send to display - init sequence only on first call
 		await this.env.DEVICE.sendCommand(
-			this.display.toDisplayCommand({ init: !displayInitialized })
+			this.display.toDisplayCommand({ init: !displayInitialized }),
 		);
 
 		// Mark display as initialized in kv

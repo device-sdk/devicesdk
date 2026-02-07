@@ -1,14 +1,13 @@
-import { OpenAPIRoute, contentJson } from "chanfana";
+import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
+import { triggerDeviceReboot } from "../../foundation/deviceReboot";
+import { validateUserScript } from "../../foundation/scriptValidator";
 import type {
 	AppContext,
-	tableDevices,
 	tableDeviceScripts,
+	tableDevices,
 	tableProjects,
 } from "../../types";
-import { ApiException } from "chanfana";
-import { validateUserScript } from "../../foundation/scriptValidator";
-import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 
 export class UploadScript extends OpenAPIRoute {
 	public schema = {

@@ -5,9 +5,9 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 
 const TEMP_SENSOR_PIN = 26; // ADC pin for temperature sensor
-const ALERT_LED_PIN = 99;   // LED to indicate temperature alerts
+const ALERT_LED_PIN = 99; // LED to indicate temperature alerts
 const HIGH_TEMP_THRESHOLD = 30; // Celsius
-const LOW_TEMP_THRESHOLD = 10;  // Celsius
+const LOW_TEMP_THRESHOLD = 10; // Celsius
 
 // Convert ADC value to temperature (adjust formula for your sensor)
 // This example assumes a TMP36 sensor with 3.3V reference
@@ -20,7 +20,7 @@ function adcToTemperature(adcValue) {
 export default class extends WorkerEntrypoint {
 	async onDeviceConnect() {
 		this.env.logger.info("Temperature monitor connected");
-		
+
 		// Configure the temperature sensor pin for analog reading
 		await this.env.DEVICE.sendCommand({
 			type: "set_pin_config",
@@ -31,7 +31,7 @@ export default class extends WorkerEntrypoint {
 				report_change_threshold_percent: 2, // Report when value changes by 2%
 			},
 		});
-		
+
 		this.env.logger.info("Temperature sensor configured");
 	}
 
@@ -40,16 +40,23 @@ export default class extends WorkerEntrypoint {
 	}
 
 	async onMessage(message) {
-		if (message.type === "pin_state_update" && message.payload.pin === TEMP_SENSOR_PIN) {
+		if (
+			message.type === "pin_state_update" &&
+			message.payload.pin === TEMP_SENSOR_PIN
+		) {
 			const temperature = adcToTemperature(message.payload.value);
 			this.env.logger.info(`Temperature: ${temperature.toFixed(1)}°C`);
-			
+
 			// Check thresholds and alert
 			if (temperature > HIGH_TEMP_THRESHOLD) {
-				this.env.logger.warn(`HIGH TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`);
+				this.env.logger.warn(
+					`HIGH TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`,
+				);
 				await this.env.DEVICE.setGpioState(ALERT_LED_PIN, "high");
 			} else if (temperature < LOW_TEMP_THRESHOLD) {
-				this.env.logger.warn(`LOW TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`);
+				this.env.logger.warn(
+					`LOW TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`,
+				);
 				await this.env.DEVICE.setGpioState(ALERT_LED_PIN, "high");
 			} else {
 				await this.env.DEVICE.setGpioState(ALERT_LED_PIN, "low");

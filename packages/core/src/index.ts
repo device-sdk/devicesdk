@@ -248,8 +248,8 @@ export type UserWorkerEnv<ProjectDevices = {}> = {
 	// Logger binding for logging from user code
 	LOGGER: LoggerInterface;
 
-    DEVICES: ProjectDevices
-}
+	DEVICES: ProjectDevices;
+};
 
 // Interface for the DeviceSender binding provided to user code
 export interface DeviceSenderInterface {
@@ -290,16 +290,16 @@ export interface DeviceSenderProps {
 	deviceId: string;
 }
 
-export type Content = {}
+export type Content = {};
 
 export class DeviceEntrypoint<ProjectDevices = {}> {
-	ctx: Content
-	env: UserWorkerEnv<ProjectDevices>
+	ctx: Content;
+	env: UserWorkerEnv<ProjectDevices>;
 
-    constructor(ctx: Content, env: UserWorkerEnv<ProjectDevices>) {
-        this.ctx = ctx
-        this.env = env
-    }
+	constructor(ctx: Content, env: UserWorkerEnv<ProjectDevices>) {
+		this.ctx = ctx;
+		this.env = env;
+	}
 
 	// Called when the device connects
 	onDeviceConnect() {

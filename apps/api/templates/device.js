@@ -4,8 +4,8 @@
 
 import { WorkerEntrypoint } from "cloudflare:workers";
 
-const BUTTON_PIN = 20;  // GPIO pin connected to button (active high)
-const LED_PIN = 99;     // GPIO pin connected to LED
+const BUTTON_PIN = 20; // GPIO pin connected to button (active high)
+const LED_PIN = 99; // GPIO pin connected to LED
 
 export default class extends WorkerEntrypoint {
 	async onDeviceConnect() {
@@ -28,9 +28,14 @@ export default class extends WorkerEntrypoint {
 
 	async onMessage(message) {
 		// Handle GPIO state change events from the device
-		if (message.type === "gpio_state_changed" && message.payload.pin === BUTTON_PIN) {
+		if (
+			message.type === "gpio_state_changed" &&
+			message.payload.pin === BUTTON_PIN
+		) {
 			const buttonState = message.payload.state;
-			this.env.logger.info(`Button pin ${BUTTON_PIN} changed to ${buttonState}`);
+			this.env.logger.info(
+				`Button pin ${BUTTON_PIN} changed to ${buttonState}`,
+			);
 
 			// Toggle LED on button press (when pin goes high)
 			if (buttonState === "high") {

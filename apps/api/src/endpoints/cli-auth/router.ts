@@ -1,9 +1,9 @@
-import { Hono } from "hono";
 import { fromHono } from "chanfana";
-import { startAuth } from "./startAuth";
+import { Hono } from "hono";
 import { pollAuth } from "./pollAuth";
 import { refreshToken } from "./refreshToken";
 import { revokeToken } from "./revokeToken";
+import { startAuth } from "./startAuth";
 
 export const cliAuthRouterPreAuth = fromHono(new Hono());
 cliAuthRouterPreAuth.post("/start", startAuth);

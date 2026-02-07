@@ -1,9 +1,9 @@
-import fs from 'fs/promises';
-import path from 'path';
+import fs from "fs/promises";
+import path from "path";
 
 export const createTestProject = async (projectPath: string) => {
-    const devicesdkConfig = `
-import { defineConfig } from '${path.resolve(projectPath, '../../src/config')}';
+	const devicesdkConfig = `
+import { defineConfig } from '${path.resolve(projectPath, "../../src/config")}';
 export default defineConfig({
   projectId: "test-project",
   devices: {
@@ -15,15 +15,18 @@ export default defineConfig({
   },
 });
 `;
-    await fs.writeFile(path.join(projectPath, 'devicesdk.ts'), devicesdkConfig);
+	await fs.writeFile(path.join(projectPath, "devicesdk.ts"), devicesdkConfig);
 
-    await fs.mkdir(path.join(projectPath, 'devices'));
-    const deviceFile = `
+	await fs.mkdir(path.join(projectPath, "devices"));
+	const deviceFile = `
 export class TemperatureSensorDevice {
   fetch() {
     return new Response("Hello from TemperatureSensorDevice");
   }
 }
 `;
-    await fs.writeFile(path.join(projectPath, 'devices/temperatureSensor.ts'), deviceFile);
+	await fs.writeFile(
+		path.join(projectPath, "devices/temperatureSensor.ts"),
+		deviceFile,
+	);
 };

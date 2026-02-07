@@ -1,7 +1,6 @@
-import { OpenAPIRoute, contentJson } from "chanfana";
+import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import type { AppContext, tableTokens } from "../../types";
-import { ApiException } from "chanfana";
 
 export class CreateApiToken extends OpenAPIRoute {
 	public schema = {

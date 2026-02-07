@@ -1,7 +1,6 @@
-import { OpenAPIRoute, contentJson } from "chanfana";
+import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import type { AppContext, tableProjects } from "../../types";
-import { ApiException } from "chanfana";
 
 const projectSlugRegex = /^[a-z][a-z0-9-]{0,35}$/;
 

@@ -1,12 +1,12 @@
+import { DurableObject } from "cloudflare:workers";
 import type {
+	CommandResponseTypeMap,
 	DeviceCommand,
 	DeviceResponse,
-	CommandResponseTypeMap,
 } from "@devicesdk/core";
-import { DurableObject } from "cloudflare:workers";
 import type { Env } from "../../types";
-import type { IUserDeviceWorker } from "./userWorkerTypes";
 import { getProxyEntrypoint } from "./classProxy";
+import type { IUserDeviceWorker } from "./userWorkerTypes";
 
 // Represents the WebSocket connection to the device.
 interface DeviceSession {

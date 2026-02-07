@@ -1,9 +1,9 @@
-import type { AppContext, tableUser, tableUserSessions } from "../types";
-import type { Next } from "hono";
-import { getCookie, setCookie } from "hono/cookie";
-import { SESSION_COOKIE_NAME, SESSION_DURATION_MS } from "./consts";
 import type { GoogleUser } from "@hono/oauth-providers/google";
 import { ApiException } from "chanfana";
+import type { Next } from "hono";
+import { getCookie, setCookie } from "hono/cookie";
+import type { AppContext, tableUser, tableUserSessions } from "../types";
+import { SESSION_COOKIE_NAME, SESSION_DURATION_MS } from "./consts";
 
 function getToken(c: AppContext): null | string {
 	const authHeader = c.req.header("Authorization");

@@ -1,13 +1,17 @@
+import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SELF, env } from "cloudflare:test";
 import { D1QB } from "workers-qb";
 import type {
+	tableDevices,
 	tableProjects,
 	tableUser,
 	tableUserSessions,
-	tableDevices,
 } from "../../src/types";
-import {TEST_SESSION_TOKEN, TEST_PROJECT_ID, TEST_USER_ID} from "../setup-test-data";
+import {
+	TEST_PROJECT_ID,
+	TEST_SESSION_TOKEN,
+	TEST_USER_ID,
+} from "../setup-test-data";
 
 describe.sequential("Devices endpoint", () => {
 	let qb: D1QB;
@@ -15,7 +19,7 @@ describe.sequential("Devices endpoint", () => {
 
 	beforeAll(async () => {
 		qb = new D1QB(env.DB);
-		project = await qb
+		project = (await qb
 			.fetchOne<tableProjects>({
 				tableName: "projects",
 				where: {
@@ -24,7 +28,7 @@ describe.sequential("Devices endpoint", () => {
 				},
 			})
 			.execute()
-			.then((p) => p.results) as tableProjects;
+			.then((p) => p.results)) as tableProjects;
 	});
 
 	beforeEach(async () => {});

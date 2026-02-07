@@ -220,7 +220,10 @@ export const font5x7: Font = {
  * Get the font data for a single character
  * @returns 5-byte array for the character columns, or undefined if char not supported
  */
-export function getCharData(char: string, font: Font = font5x7): Uint8Array | undefined {
+export function getCharData(
+	char: string,
+	font: Font = font5x7,
+): Uint8Array | undefined {
 	const code = char.charCodeAt(0);
 	if (code < font.firstChar || code > font.lastChar) {
 		return undefined;

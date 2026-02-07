@@ -1,5 +1,5 @@
+import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SELF, env } from "cloudflare:test";
 import { D1QB } from "workers-qb";
 import type { tableUser, tableUserSessions } from "../../src/types";
 import { TEST_SESSION_TOKEN, TEST_USER_ID } from "../setup-test-data";
@@ -113,7 +113,7 @@ describe.sequential("Tokens endpoint", () => {
 		});
 		const listJson = await listResp.json();
 		for (const t of listJson.result) {
-			expect(t.id).not.eq(tokenId)
+			expect(t.id).not.eq(tokenId);
 		}
 	});
 

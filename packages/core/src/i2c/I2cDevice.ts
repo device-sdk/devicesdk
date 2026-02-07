@@ -1,4 +1,4 @@
-import type { I2cBatchWriteCommand } from '../index.js';
+import type { I2cBatchWriteCommand } from "../index.js";
 
 export interface I2cDeviceOptions {
 	bus?: number;
@@ -38,9 +38,9 @@ export class I2cDevice {
 	/**
 	 * Generate a batch write command from all queued writes
 	 */
-	toBatchCommand(): Omit<I2cBatchWriteCommand, 'id'> {
+	toBatchCommand(): Omit<I2cBatchWriteCommand, "id"> {
 		return {
-			type: 'i2c_batch_write',
+			type: "i2c_batch_write",
 			payload: {
 				bus: this.bus,
 				address: this.address,

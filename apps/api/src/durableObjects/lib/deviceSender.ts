@@ -1,7 +1,7 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type { DeviceCommand, DeviceResponse } from "@devicesdk/core";
-import type { DeviceSenderProps, KVInterface } from "./userWorkerTypes";
 import type { BaseDevice } from "./device";
+import type { DeviceSenderProps, KVInterface } from "./userWorkerTypes";
 
 // WorkerEntrypoint that is provided to the dynamic worker as a binding
 // This allows user code to send commands back to the IoT device

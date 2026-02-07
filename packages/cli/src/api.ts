@@ -1,514 +1,632 @@
-const DEFAULT_API_URL = 'https://api.devicesdk.com';
+const DEFAULT_API_URL = "https://api.devicesdk.com";
 
 let verboseLogging = false;
 
 export function setVerbose(verbose: boolean): void {
-  verboseLogging = verbose;
+	verboseLogging = verbose;
 }
 
 export function getApiUrl(): string {
-  return process.env.DEVICESDK_API_URL || DEFAULT_API_URL;
+	return process.env.DEVICESDK_API_URL || DEFAULT_API_URL;
 }
 
 export interface ApiResponse<T> {
-  success: boolean;
-  result: T;
+	success: boolean;
+	result: T;
 }
 
 export interface ApiError {
-  success: false;
-  error: {
-    message: string;
-    code?: string;
-  };
+	success: false;
+	error: {
+		message: string;
+		code?: string;
+	};
 }
 
 export class DeviceSDKApiError extends Error {
-  constructor(
-    message: string,
-    public statusCode: number,
-    public code?: string,
-    public responseBody?: any
-  ) {
-    super(message);
-    this.name = 'DeviceSDKApiError';
-  }
+	constructor(
+		message: string,
+		public statusCode: number,
+		public code?: string,
+		public responseBody?: any,
+	) {
+		super(message);
+		this.name = "DeviceSDKApiError";
+	}
 }
 
 async function request<T>(
-  endpoint: string,
-  options: RequestInit = {},
-  token?: string,
-  unwrapResult: boolean = true
+	endpoint: string,
+	options: RequestInit = {},
+	token?: string,
+	unwrapResult: boolean = true,
 ): Promise<T> {
-  const url = `${getApiUrl()}${endpoint}`;
-  const method = options.method || 'GET';
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
+	const url = `${getApiUrl()}${endpoint}`;
+	const method = options.method || "GET";
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+		...(options.headers as Record<string, string>),
+	};
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+	if (token) {
+		headers["Authorization"] = `Bearer ${token}`;
+	}
 
-  if (verboseLogging) {
-    console.log(`[request] ${method} ${url}`);
-  }
+	if (verboseLogging) {
+		console.log(`[request] ${method} ${url}`);
+	}
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+	const response = await fetch(url, {
+		...options,
+		headers,
+	});
 
-  if (verboseLogging) {
-    console.log(`[request] Response status: ${response.status}`);
-  }
+	if (verboseLogging) {
+		console.log(`[request] Response status: ${response.status}`);
+	}
 
-  const responseText = await response.text();
-  let data: any = null;
-  try {
-    data = responseText ? JSON.parse(responseText) : null;
-  } catch {
-    // response is not JSON
-  }
+	const responseText = await response.text();
+	let data: any = null;
+	try {
+		data = responseText ? JSON.parse(responseText) : null;
+	} catch {
+		// response is not JSON
+	}
 
-  if (!response.ok) {
-    if (responseText) {
-      console.error(`
+	if (!response.ok) {
+		if (responseText) {
+			console.error(`
 Response body (${response.status}):`);
-      try {
-        console.error(JSON.stringify(data ?? responseText, null, 2));
-      } catch {
-        console.error(responseText);
-      }
-    }
+			try {
+				console.error(JSON.stringify(data ?? responseText, null, 2));
+			} catch {
+				console.error(responseText);
+			}
+		}
 
-    const message = data?.error?.message || `Request failed with status ${response.status}`;
-    throw new DeviceSDKApiError(
-      message,
-      response.status,
-      data?.error?.code,
-      data ?? responseText
-    );
-  }
+		const message =
+			data?.error?.message || `Request failed with status ${response.status}`;
+		throw new DeviceSDKApiError(
+			message,
+			response.status,
+			data?.error?.code,
+			data ?? responseText,
+		);
+	}
 
-  // Some endpoints return data directly, others wrap in { success, result }
-  if (unwrapResult && data?.success === false) {
-    throw new DeviceSDKApiError(
-      data.error?.message || 'Request failed',
-      response.status,
-      data.error?.code,
-      data
-    );
-  }
+	// Some endpoints return data directly, others wrap in { success, result }
+	if (unwrapResult && data?.success === false) {
+		throw new DeviceSDKApiError(
+			data.error?.message || "Request failed",
+			response.status,
+			data.error?.code,
+			data,
+		);
+	}
 
-  return unwrapResult && data?.result !== undefined ? data.result : (data ?? responseText);
+	return unwrapResult && data?.result !== undefined
+		? data.result
+		: (data ?? responseText);
 }
 
 // User endpoints
 export interface User {
-  id: string;
-  name?: string;
-  picture?: string;
-  email: string;
-  verified_email: number;
-  created_at: number;
+	id: string;
+	name?: string;
+	picture?: string;
+	email: string;
+	verified_email: number;
+	created_at: number;
 }
 
 export async function getMe(token: string): Promise<User> {
-  return request<User>('/v1/user/me', {}, token);
+	return request<User>("/v1/user/me", {}, token);
 }
 
 // CLI Auth endpoints
 export interface AuthStartResponse {
-  device_code: string;
-  user_code: string;
-  verification_url: string;
-  verification_url_complete?: string;
-  expires_in: number;
-  interval: number;
+	device_code: string;
+	user_code: string;
+	verification_url: string;
+	verification_url_complete?: string;
+	expires_in: number;
+	interval: number;
 }
 
 export async function startAuth(): Promise<AuthStartResponse> {
-  const url = `${getApiUrl()}/v1/cli/auth/start`;
+	const url = `${getApiUrl()}/v1/cli/auth/start`;
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({}),
-    });
+	try {
+		const response = await fetch(url, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({}),
+		});
 
-    const data = await response.json();
+		const data = await response.json();
 
-    if (!response.ok) {
-      throw new DeviceSDKApiError(
-        data.error?.message || `Request failed with status ${response.status}`,
-        response.status,
-        data.error?.code
-      );
-    }
+		if (!response.ok) {
+			throw new DeviceSDKApiError(
+				data.error?.message || `Request failed with status ${response.status}`,
+				response.status,
+				data.error?.code,
+			);
+		}
 
-    // Unwrap the result
-    return data.result || data;
-  } catch (error) {
-    console.error('startAuth error:', error);
-    throw error;
-  }
+		// Unwrap the result
+		return data.result || data;
+	} catch (error) {
+		console.error("startAuth error:", error);
+		throw error;
+	}
 }
 
 export interface AuthPollResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
+	access_token: string;
+	refresh_token: string;
+	expires_in: number;
+	token_type: string;
 }
 
-export async function pollAuth(deviceCode: string): Promise<AuthPollResponse | null> {
-  try {
-    const result = await request<AuthPollResponse | { status: string }>('/v1/cli/auth/poll', {
-      method: 'POST',
-      body: JSON.stringify({ device_code: deviceCode }),
-    }, undefined, true);
+export async function pollAuth(
+	deviceCode: string,
+): Promise<AuthPollResponse | null> {
+	try {
+		const result = await request<AuthPollResponse | { status: string }>(
+			"/v1/cli/auth/poll",
+			{
+				method: "POST",
+				body: JSON.stringify({ device_code: deviceCode }),
+			},
+			undefined,
+			true,
+		);
 
-    // Check if the response indicates pending status
-    if (result && typeof result === 'object' && 'status' in result && result.status === 'pending') {
-      return null;
-    }
+		// Check if the response indicates pending status
+		if (
+			result &&
+			typeof result === "object" &&
+			"status" in result &&
+			result.status === "pending"
+		) {
+			return null;
+		}
 
-    return result as AuthPollResponse;
-  } catch (error) {
-    // If it's a 401 error, return null (user hasn't approved yet)
-    if (error instanceof DeviceSDKApiError && error.statusCode === 401) {
-      return null;
-    }
-    throw error;
-  }
+		return result as AuthPollResponse;
+	} catch (error) {
+		// If it's a 401 error, return null (user hasn't approved yet)
+		if (error instanceof DeviceSDKApiError && error.statusCode === 401) {
+			return null;
+		}
+		throw error;
+	}
 }
 
-export async function refreshToken(refreshToken: string): Promise<AuthPollResponse> {
-  return request<AuthPollResponse>('/v1/cli/auth/refresh', {
-    method: 'POST',
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
+export async function refreshToken(
+	refreshToken: string,
+): Promise<AuthPollResponse> {
+	return request<AuthPollResponse>("/v1/cli/auth/refresh", {
+		method: "POST",
+		body: JSON.stringify({ refresh_token: refreshToken }),
+	});
 }
 
 export async function revokeToken(token: string): Promise<void> {
-  await request('/v1/cli/auth/revoke', {
-    method: 'POST',
-  }, token);
+	await request(
+		"/v1/cli/auth/revoke",
+		{
+			method: "POST",
+		},
+		token,
+	);
 }
 
 // Project endpoints
 export interface Project {
-  id: string;
-  project_slug: string;
-  name?: string | null;
-  description?: string | null;
-  created_at: number;
-  device_count?: number;
-  devices?: Device[];
+	id: string;
+	project_slug: string;
+	name?: string | null;
+	description?: string | null;
+	created_at: number;
+	device_count?: number;
+	devices?: Device[];
 }
 
 export async function listProjects(token: string): Promise<Project[]> {
-  return request<Project[]>('/v1/projects', {}, token);
+	return request<Project[]>("/v1/projects", {}, token);
 }
 
-export async function getProject(token: string, projectId: string): Promise<Project> {
-  return request<Project>(`/v1/projects/${projectId}`, {}, token);
+export async function getProject(
+	token: string,
+	projectId: string,
+): Promise<Project> {
+	return request<Project>(`/v1/projects/${projectId}`, {}, token);
 }
 
 export async function createProject(
-  token: string,
-  projectId: string,
-  name?: string,
-  description?: string
+	token: string,
+	projectId: string,
+	name?: string,
+	description?: string,
 ): Promise<Project> {
-  return request<Project>('/v1/projects', {
-    method: 'POST',
-    body: JSON.stringify({ project_slug: projectId, name, description }),
-  }, token);
+	return request<Project>(
+		"/v1/projects",
+		{
+			method: "POST",
+			body: JSON.stringify({ project_slug: projectId, name, description }),
+		},
+		token,
+	);
 }
 
-export async function deleteProject(token: string, projectId: string): Promise<{ deleted: boolean; project_slug: string }> {
-  return request<{ deleted: boolean; project_slug: string }>(`/v1/projects/${projectId}`, {
-    method: 'DELETE',
-  }, token);
+export async function deleteProject(
+	token: string,
+	projectId: string,
+): Promise<{ deleted: boolean; project_slug: string }> {
+	return request<{ deleted: boolean; project_slug: string }>(
+		`/v1/projects/${projectId}`,
+		{
+			method: "DELETE",
+		},
+		token,
+	);
 }
 
 // Device endpoints
 export interface Device {
-  id: string;
-  device_id: string;
-  name?: string | null;
-  description?: string | null;
-  current_version_id?: string | null;
-  last_connected_at?: number | null;
-  created_at: number;
-  updated_at: number;
-  status?: string;
+	id: string;
+	device_id: string;
+	name?: string | null;
+	description?: string | null;
+	current_version_id?: string | null;
+	last_connected_at?: number | null;
+	created_at: number;
+	updated_at: number;
+	status?: string;
 }
 
-export async function listDevices(token: string, projectId: string): Promise<Device[]> {
-  return request<Device[]>(`/v1/projects/${projectId}/devices`, {}, token);
+export async function listDevices(
+	token: string,
+	projectId: string,
+): Promise<Device[]> {
+	return request<Device[]>(`/v1/projects/${projectId}/devices`, {}, token);
 }
 
-export async function getDevice(token: string, projectId: string, deviceId: string): Promise<Device> {
-  return request<Device>(`/v1/projects/${projectId}/devices/${deviceId}`, {}, token);
+export async function getDevice(
+	token: string,
+	projectId: string,
+	deviceId: string,
+): Promise<Device> {
+	return request<Device>(
+		`/v1/projects/${projectId}/devices/${deviceId}`,
+		{},
+		token,
+	);
 }
 
 export async function createDevice(
-  token: string,
-  projectId: string,
-  deviceId: string,
-  name?: string,
-  description?: string
+	token: string,
+	projectId: string,
+	deviceId: string,
+	name?: string,
+	description?: string,
 ): Promise<Device> {
-  return request<Device>(`/v1/projects/${projectId}/devices`, {
-    method: 'POST',
-    body: JSON.stringify({ device_id: deviceId, name, description }),
-  }, token);
+	return request<Device>(
+		`/v1/projects/${projectId}/devices`,
+		{
+			method: "POST",
+			body: JSON.stringify({ device_id: deviceId, name, description }),
+		},
+		token,
+	);
 }
 
-export async function deleteDevice(token: string, projectId: string, deviceId: string): Promise<{ deleted: boolean; device_id: string }> {
-  return request<{ deleted: boolean; device_id: string }>(`/v1/projects/${projectId}/devices/${deviceId}`, {
-    method: 'DELETE',
-  }, token);
+export async function deleteDevice(
+	token: string,
+	projectId: string,
+	deviceId: string,
+): Promise<{ deleted: boolean; device_id: string }> {
+	return request<{ deleted: boolean; device_id: string }>(
+		`/v1/projects/${projectId}/devices/${deviceId}`,
+		{
+			method: "DELETE",
+		},
+		token,
+	);
 }
 
-export type DeviceType = 'pico-w' | 'pico2-w' | 'esp32';
+export type DeviceType = "pico-w" | "pico2-w" | "esp32";
 
 export function isEsp32DeviceType(deviceType: DeviceType): boolean {
-  return deviceType === 'esp32';
+	return deviceType === "esp32";
 }
 
 export function isPicoDeviceType(deviceType: DeviceType): boolean {
-  return deviceType === 'pico-w' || deviceType === 'pico2-w';
+	return deviceType === "pico-w" || deviceType === "pico2-w";
 }
 
 export interface ESP32FlasherArgs {
-  chip: string;
-  flash_mode: string;
-  flash_size: string;
-  flash_freq: string;
-  before: string;
-  after: string;
-  flash_files: Record<string, string>;
+	chip: string;
+	flash_mode: string;
+	flash_size: string;
+	flash_freq: string;
+	before: string;
+	after: string;
+	flash_files: Record<string, string>;
 }
 
 export interface ESP32Firmware {
-  flasherArgs: ESP32FlasherArgs;
-  files: Record<string, Buffer>;
+	flasherArgs: ESP32FlasherArgs;
+	files: Record<string, Buffer>;
 }
 
 export async function downloadDeviceFirmware(
-  token: string,
-  projectId: string,
-  deviceId: string,
-  wifi: { ssid: string; password: string },
-  deviceType: DeviceType,
-  options?: { host?: string }
+	token: string,
+	projectId: string,
+	deviceId: string,
+	wifi: { ssid: string; password: string },
+	deviceType: DeviceType,
+	options?: { host?: string },
 ): Promise<Buffer> {
-  const url = `${getApiUrl()}/v1/projects/${projectId}/devices/${deviceId}/firmware`;
+	const url = `${getApiUrl()}/v1/projects/${projectId}/devices/${deviceId}/firmware`;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      ssid: wifi.ssid,
-      pass: wifi.password,
-      device_type: deviceType,
-      ...(options?.host ? { host: options.host } : {}),
-    }),
-  });
+	const response = await fetch(url, {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${token}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			ssid: wifi.ssid,
+			pass: wifi.password,
+			device_type: deviceType,
+			...(options?.host ? { host: options.host } : {}),
+		}),
+	});
 
-  if (!response.ok) {
-    let message = `Request failed with status ${response.status}`;
-    let responseBody: any;
-    let responseText: string | undefined;
-    try {
-      responseText = await response.text();
-      responseBody = responseText ? JSON.parse(responseText) : undefined;
-      message = responseBody?.error?.message || message;
-    } catch {
-      // ignore parse failure
-    }
+	if (!response.ok) {
+		let message = `Request failed with status ${response.status}`;
+		let responseBody: any;
+		let responseText: string | undefined;
+		try {
+			responseText = await response.text();
+			responseBody = responseText ? JSON.parse(responseText) : undefined;
+			message = responseBody?.error?.message || message;
+		} catch {
+			// ignore parse failure
+		}
 
-    if (responseBody || responseText) {
-      console.error(`
+		if (responseBody || responseText) {
+			console.error(`
 Response body (${response.status}):`);
-      try {
-        console.error(JSON.stringify(responseBody ?? responseText, null, 2));
-      } catch {
-        console.error(responseText);
-      }
-    }
+			try {
+				console.error(JSON.stringify(responseBody ?? responseText, null, 2));
+			} catch {
+				console.error(responseText);
+			}
+		}
 
-    throw new DeviceSDKApiError(message, response.status, responseBody?.error?.code, responseBody ?? responseText);
-  }
+		throw new DeviceSDKApiError(
+			message,
+			response.status,
+			responseBody?.error?.code,
+			responseBody ?? responseText,
+		);
+	}
 
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+	const arrayBuffer = await response.arrayBuffer();
+	return Buffer.from(arrayBuffer);
 }
 
 // Script endpoints
 export interface ScriptVersion {
-  version_id: string;
-  message?: string | null;
-  is_current?: boolean;
-  script?: string;
-  created_at: number;
+	version_id: string;
+	message?: string | null;
+	is_current?: boolean;
+	script?: string;
+	created_at: number;
 }
 
 export interface UploadScriptResult {
-  version_id: string;
-  device_id: string;
-  message?: string | null;
-  created_at: number;
+	version_id: string;
+	device_id: string;
+	message?: string | null;
+	created_at: number;
 }
 
-export async function getScript(token: string, projectId: string, deviceId: string): Promise<{ version_id: string | null; script: string }> {
-  return request<{ version_id: string | null; script: string }>(`/v1/projects/${projectId}/devices/${deviceId}/script`, {}, token);
+export async function getScript(
+	token: string,
+	projectId: string,
+	deviceId: string,
+): Promise<{ version_id: string | null; script: string }> {
+	return request<{ version_id: string | null; script: string }>(
+		`/v1/projects/${projectId}/devices/${deviceId}/script`,
+		{},
+		token,
+	);
 }
 
 export async function uploadScript(
-  token: string,
-  projectId: string,
-  deviceId: string,
-  script: string,
-  message?: string,
-  entrypoint?: string
+	token: string,
+	projectId: string,
+	deviceId: string,
+	script: string,
+	message?: string,
+	entrypoint?: string,
 ): Promise<UploadScriptResult> {
-  const body: any = { script, message };
-  if (entrypoint) {
-    body.entrypoint = entrypoint;
-  }
-  return request<UploadScriptResult>(`/v1/projects/${projectId}/devices/${deviceId}/script`, {
-    method: 'PUT',
-    body: JSON.stringify(body),
-  }, token);
+	const body: any = { script, message };
+	if (entrypoint) {
+		body.entrypoint = entrypoint;
+	}
+	return request<UploadScriptResult>(
+		`/v1/projects/${projectId}/devices/${deviceId}/script`,
+		{
+			method: "PUT",
+			body: JSON.stringify(body),
+		},
+		token,
+	);
 }
 
-export async function listScriptVersions(token: string, projectId: string, deviceId: string): Promise<ScriptVersion[]> {
-  return request<ScriptVersion[]>(`/v1/projects/${projectId}/devices/${deviceId}/script/versions`, {}, token);
+export async function listScriptVersions(
+	token: string,
+	projectId: string,
+	deviceId: string,
+): Promise<ScriptVersion[]> {
+	return request<ScriptVersion[]>(
+		`/v1/projects/${projectId}/devices/${deviceId}/script/versions`,
+		{},
+		token,
+	);
 }
 
-export async function getScriptVersion(token: string, projectId: string, deviceId: string, versionId: string): Promise<ScriptVersion> {
-  return request<ScriptVersion>(`/v1/projects/${projectId}/devices/${deviceId}/script/versions/${versionId}`, {}, token);
+export async function getScriptVersion(
+	token: string,
+	projectId: string,
+	deviceId: string,
+	versionId: string,
+): Promise<ScriptVersion> {
+	return request<ScriptVersion>(
+		`/v1/projects/${projectId}/devices/${deviceId}/script/versions/${versionId}`,
+		{},
+		token,
+	);
 }
 
 export async function deployScriptVersion(
-  token: string,
-  projectId: string,
-  deviceId: string,
-  versionId: string
+	token: string,
+	projectId: string,
+	deviceId: string,
+	versionId: string,
 ): Promise<{ version_id: string; device_id: string; deployed_at: number }> {
-  return request<{ version_id: string; device_id: string; deployed_at: number }>(
-    `/v1/projects/${projectId}/devices/${deviceId}/script/versions/${versionId}/deploy`,
-    { method: 'POST' },
-    token
-  );
+	return request<{
+		version_id: string;
+		device_id: string;
+		deployed_at: number;
+	}>(
+		`/v1/projects/${projectId}/devices/${deviceId}/script/versions/${versionId}/deploy`,
+		{ method: "POST" },
+		token,
+	);
 }
 
 export interface BatchUploadResult {
-  versions: Array<{
-    device_id: string;
-    version_id: string;
-    status: 'success' | 'created';
-  }>;
-  message?: string | null;
+	versions: Array<{
+		device_id: string;
+		version_id: string;
+		status: "success" | "created";
+	}>;
+	message?: string | null;
 }
 
 export async function uploadScriptsBatch(
-  token: string,
-  projectId: string,
-  devices: Record<string, { script: string; entrypoint?: string }>,
-  message?: string
+	token: string,
+	projectId: string,
+	devices: Record<string, { script: string; entrypoint?: string }>,
+	message?: string,
 ): Promise<BatchUploadResult> {
-  return request<BatchUploadResult>(`/v1/projects/${projectId}/scripts`, {
-    method: 'PUT',
-    body: JSON.stringify({ devices, message }),
-  }, token);
+	return request<BatchUploadResult>(
+		`/v1/projects/${projectId}/scripts`,
+		{
+			method: "PUT",
+			body: JSON.stringify({ devices, message }),
+		},
+		token,
+	);
 }
 
 // Token endpoints
 export interface ApiToken {
-  id: string;
-  token?: string;
-  last_four: string;
-  created_at: number;
+	id: string;
+	token?: string;
+	last_four: string;
+	created_at: number;
 }
 
 export async function listTokens(token: string): Promise<ApiToken[]> {
-  return request<ApiToken[]>('/v1/tokens', {}, token);
+	return request<ApiToken[]>("/v1/tokens", {}, token);
 }
 
-export async function createToken(token: string): Promise<{ id: string; token: string; created_at: number }> {
-  return request<{ id: string; token: string; created_at: number }>('/v1/tokens', {
-    method: 'POST',
-  }, token);
+export async function createToken(
+	token: string,
+): Promise<{ id: string; token: string; created_at: number }> {
+	return request<{ id: string; token: string; created_at: number }>(
+		"/v1/tokens",
+		{
+			method: "POST",
+		},
+		token,
+	);
 }
 
-export async function deleteToken(token: string, tokenId: string): Promise<void> {
-  await request(`/v1/tokens/${tokenId}`, {
-    method: 'DELETE',
-  }, token);
+export async function deleteToken(
+	token: string,
+	tokenId: string,
+): Promise<void> {
+	await request(
+		`/v1/tokens/${tokenId}`,
+		{
+			method: "DELETE",
+		},
+		token,
+	);
 }
 
 export async function downloadESP32Firmware(
-  token: string,
-  projectId: string,
-  deviceId: string,
-  wifi: { ssid: string; password: string },
-  deviceType: DeviceType,
-  options?: { host?: string }
+	token: string,
+	projectId: string,
+	deviceId: string,
+	wifi: { ssid: string; password: string },
+	deviceType: DeviceType,
+	options?: { host?: string },
 ): Promise<Buffer> {
-  const url = `${getApiUrl()}/v1/projects/${projectId}/devices/${deviceId}/firmware`;
+	const url = `${getApiUrl()}/v1/projects/${projectId}/devices/${deviceId}/firmware`;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      ssid: wifi.ssid,
-      pass: wifi.password,
-      device_type: deviceType,
-      ...(options?.host ? { host: options.host } : {}),
-    }),
-  });
+	const response = await fetch(url, {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${token}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			ssid: wifi.ssid,
+			pass: wifi.password,
+			device_type: deviceType,
+			...(options?.host ? { host: options.host } : {}),
+		}),
+	});
 
-  if (!response.ok) {
-    let message = `Request failed with status ${response.status}`;
-    let responseBody: any;
-    let responseText: string | undefined;
-    try {
-      responseText = await response.text();
-      responseBody = responseText ? JSON.parse(responseText) : undefined;
-      message = responseBody?.error?.message || message;
-    } catch {
-      // ignore parse failure
-    }
+	if (!response.ok) {
+		let message = `Request failed with status ${response.status}`;
+		let responseBody: any;
+		let responseText: string | undefined;
+		try {
+			responseText = await response.text();
+			responseBody = responseText ? JSON.parse(responseText) : undefined;
+			message = responseBody?.error?.message || message;
+		} catch {
+			// ignore parse failure
+		}
 
-    if (responseBody || responseText) {
-      console.error(`\nResponse body (${response.status}):`);
-      try {
-        console.error(JSON.stringify(responseBody ?? responseText, null, 2));
-      } catch {
-        console.error(responseText);
-      }
-    }
+		if (responseBody || responseText) {
+			console.error(`\nResponse body (${response.status}):`);
+			try {
+				console.error(JSON.stringify(responseBody ?? responseText, null, 2));
+			} catch {
+				console.error(responseText);
+			}
+		}
 
-    throw new DeviceSDKApiError(message, response.status, responseBody?.error?.code, responseBody ?? responseText);
-  }
+		throw new DeviceSDKApiError(
+			message,
+			response.status,
+			responseBody?.error?.code,
+			responseBody ?? responseText,
+		);
+	}
 
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+	const arrayBuffer = await response.arrayBuffer();
+	return Buffer.from(arrayBuffer);
 }

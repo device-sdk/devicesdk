@@ -1,8 +1,8 @@
-import { describe, test, expect, beforeEach } from "vitest";
 import { env, SELF } from "cloudflare:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { D1QB } from "workers-qb";
-import type { tableUser } from "../../src/types";
 import { hashToken } from "../../src/endpoints/cli-auth/utils";
+import type { tableUser } from "../../src/types";
 
 describe.sequential("CLI Authentication", () => {
 	let qb: D1QB;
@@ -897,78 +897,85 @@ describe.sequential("CLI Authentication", () => {
 	});
 
 	describe("Full CLI Auth Flow", () => {
-		test("complete flow: start -> approve -> poll -> authenticate", { timeout: 15000 }, async () => {
-			// Create a test user and session for browser approval
-			const userId = crypto.randomUUID();
-			const sessionToken = "full-flow-session";
-			await qb
-				.insert<tableUser>({
-					tableName: "user",
-					data: {
-						id: userId,
-						name: "Full Flow User",
-						email: "full-flow@devicesdk.com",
-						created_at: Date.now(),
-						verified_email: 1,
-						picture: "",
+		test(
+			"complete flow: start -> approve -> poll -> authenticate",
+			{ timeout: 15000 },
+			async () => {
+				// Create a test user and session for browser approval
+				const userId = crypto.randomUUID();
+				const sessionToken = "full-flow-session";
+				await qb
+					.insert<tableUser>({
+						tableName: "user",
+						data: {
+							id: userId,
+							name: "Full Flow User",
+							email: "full-flow@devicesdk.com",
+							created_at: Date.now(),
+							verified_email: 1,
+							picture: "",
+						},
+					})
+					.execute();
+
+				await qb
+					.insert({
+						tableName: "user_sessions",
+						data: {
+							user_id: userId,
+							token: sessionToken,
+							created_at: Date.now(),
+							expires_at: Date.now() + 100000,
+						},
+					})
+					.execute();
+
+				// Step 1: CLI starts auth flow
+				const startRes = await SELF.fetch(
+					"http://localhost/v1/cli/auth/start",
+					{
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ client_id: "devicesdk-cli" }),
 					},
-				})
-				.execute();
+				);
+				const startBody = await startRes.json();
+				expect(startBody.success).toBe(true);
+				const { device_code, user_code } = startBody.result;
 
-			await qb
-				.insert({
-					tableName: "user_sessions",
-					data: {
-						user_id: userId,
-						token: sessionToken,
-						created_at: Date.now(),
-						expires_at: Date.now() + 100000,
+				// Step 2: User approves in browser
+				const approveRes = await SELF.fetch("http://localhost/cli/auth", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded",
+						Cookie: `devicesdk-session=${sessionToken}`,
 					},
-				})
-				.execute();
+					body: `code=${user_code}&action=approve`,
+				});
+				expect(approveRes.status).toBe(200);
 
-			// Step 1: CLI starts auth flow
-			const startRes = await SELF.fetch("http://localhost/v1/cli/auth/start", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ client_id: "devicesdk-cli" }),
-			});
-			const startBody = await startRes.json();
-			expect(startBody.success).toBe(true);
-			const { device_code, user_code } = startBody.result;
+				// Step 3: CLI polls and gets tokens
+				const pollRes = await SELF.fetch("http://localhost/v1/cli/auth/poll", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ device_code }),
+				});
+				const pollBody = await pollRes.json();
+				expect(pollBody.success).toBe(true);
+				expect(pollBody.result.status).toBe("approved");
+				expect(pollBody.result.access_token).toBeDefined();
+				expect(pollBody.result.user.email).toBe("full-flow@devicesdk.com");
 
-			// Step 2: User approves in browser
-			const approveRes = await SELF.fetch("http://localhost/cli/auth", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/x-www-form-urlencoded",
-					Cookie: `devicesdk-session=${sessionToken}`,
-				},
-				body: `code=${user_code}&action=approve`,
-			});
-			expect(approveRes.status).toBe(200);
-
-			// Step 3: CLI polls and gets tokens
-			const pollRes = await SELF.fetch("http://localhost/v1/cli/auth/poll", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ device_code }),
-			});
-			const pollBody = await pollRes.json();
-			expect(pollBody.success).toBe(true);
-			expect(pollBody.result.status).toBe("approved");
-			expect(pollBody.result.access_token).toBeDefined();
-			expect(pollBody.result.user.email).toBe("full-flow@devicesdk.com");
-
-			// Step 4: CLI uses token to make authenticated request
-			const authRes = await SELF.fetch("http://localhost/v1/user/me", {
-				headers: {
-					Authorization: `Bearer ${pollBody.result.access_token}`,
-				},
-			});
-			const authBody = await authRes.json();
-			expect(authRes.status).toBe(200);
-			expect(authBody.result.id).toBe(userId);
-		});
+				// Step 4: CLI uses token to make authenticated request
+				const authRes = await SELF.fetch("http://localhost/v1/user/me", {
+					headers: {
+						Authorization: `Bearer ${pollBody.result.access_token}`,
+					},
+				});
+				const authBody = await authRes.json();
+				expect(authRes.status).toBe(200);
+				expect(authBody.result.id).toBe(userId);
+			},
+		);
 	});
 });

@@ -1,7 +1,6 @@
-import { OpenAPIRoute, contentJson } from "chanfana";
+import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import type { AppContext } from "../../types";
-import { ApiException } from "chanfana";
 
 export class DeleteApiToken extends OpenAPIRoute {
 	public schema = {

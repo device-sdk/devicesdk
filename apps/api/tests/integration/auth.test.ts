@@ -1,11 +1,10 @@
-import { describe, test, expect, vi, beforeEach } from "vitest";
-import { ApiException } from "chanfana";
-import { handleGoogleCallback, hashPassword } from "../../src/foundation/auth";
 import { env, SELF } from "cloudflare:test";
-import { D1QB } from "workers-qb";
-import type { tableUser, tableUserSessions } from "../../src/types";
+import { ApiException } from "chanfana";
 import { Hono } from "hono";
-import type { AppContext } from "../../src/types";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import { D1QB } from "workers-qb";
+import { handleGoogleCallback, hashPassword } from "../../src/foundation/auth";
+import type { AppContext, tableUser, tableUserSessions } from "../../src/types";
 
 describe.sequential("Authentication", () => {
 	let qb: D1QB;
@@ -71,7 +70,7 @@ describe.sequential("Authentication", () => {
 						token,
 						user_id: user.id,
 						created_at: Date.now(),
-						expires_at: Date.now()- 1000,
+						expires_at: Date.now() - 1000,
 					},
 				})
 				.execute();
@@ -85,7 +84,7 @@ describe.sequential("Authentication", () => {
 		});
 
 		test("should call next middleware if token is valid in cookie", async () => {
-			const token = "valid-token-1"
+			const token = "valid-token-1";
 			const user = {
 				id: "3",
 				name: "test-user-3",
@@ -107,7 +106,7 @@ describe.sequential("Authentication", () => {
 						token,
 						user_id: user.id,
 						created_at: Date.now(),
-						expires_at: Date.now()+ 100000,
+						expires_at: Date.now() + 100000,
 					},
 				})
 				.execute();
@@ -123,7 +122,7 @@ describe.sequential("Authentication", () => {
 		});
 
 		test("should call next middleware if token is valid in header", async () => {
-			const token = "valid-token-2"
+			const token = "valid-token-2";
 			const user = {
 				id: "2",
 				name: "test-user-2",
@@ -145,7 +144,7 @@ describe.sequential("Authentication", () => {
 						token,
 						user_id: user.id,
 						created_at: Date.now(),
-						expires_at: Date.now()+ 100000,
+						expires_at: Date.now() + 100000,
 					},
 				})
 				.execute();

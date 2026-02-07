@@ -1,6 +1,10 @@
-import { I2cDevice, type I2cDeviceOptions } from './I2cDevice.js';
-import { font5x7, getCharData, type Font } from './fonts/font5x7.js';
-import type { DisplayUpdateCommand, DisplayController, DisplaySegment } from '../index.js';
+import type {
+	DisplayController,
+	DisplaySegment,
+	DisplayUpdateCommand,
+} from "../index.js";
+import { type Font, font5x7, getCharData } from "./fonts/font5x7.js";
+import { I2cDevice, type I2cDeviceOptions } from "./I2cDevice.js";
 
 export interface SSD1306Options extends I2cDeviceOptions {
 	width?: number;
@@ -27,10 +31,10 @@ export class SSD1306 extends I2cDevice {
 	private controller: DisplayController;
 
 	constructor(options: SSD1306Options) {
-		super({ bus: options.bus ?? 0, address: options.address ?? '0x3C' });
+		super({ bus: options.bus ?? 0, address: options.address ?? "0x3C" });
 		this._width = options.width ?? 128;
 		this._height = options.height ?? 64;
-		this.controller = options.controller ?? 'ssd1306';
+		this.controller = options.controller ?? "ssd1306";
 		// Buffer size: width * (height / 8) for page-based addressing
 		this.buffer = new Uint8Array((this._width * this._height) / 8);
 	}
@@ -101,7 +105,13 @@ export class SSD1306 extends I2cDevice {
 	/**
 	 * Draw a line using Bresenham's algorithm
 	 */
-	drawLine(x0: number, y0: number, x1: number, y1: number, on: boolean = true): this {
+	drawLine(
+		x0: number,
+		y0: number,
+		x1: number,
+		y1: number,
+		on: boolean = true,
+	): this {
 		const dx = Math.abs(x1 - x0);
 		const dy = Math.abs(y1 - y0);
 		const sx = x0 < x1 ? 1 : -1;
@@ -154,7 +164,14 @@ export class SSD1306 extends I2cDevice {
 	 * Draw a rectangle
 	 * @param fill If true, fill the rectangle; otherwise draw outline only
 	 */
-	drawRect(x: number, y: number, w: number, h: number, fill: boolean = false, on: boolean = true): this {
+	drawRect(
+		x: number,
+		y: number,
+		w: number,
+		h: number,
+		fill: boolean = false,
+		on: boolean = true,
+	): this {
 		if (fill) {
 			for (let row = 0; row < h; row++) {
 				this.drawHLine(x, y + row, w, on);
@@ -171,7 +188,13 @@ export class SSD1306 extends I2cDevice {
 	/**
 	 * Draw a circle using midpoint algorithm
 	 */
-	drawCircle(cx: number, cy: number, r: number, fill: boolean = false, on: boolean = true): this {
+	drawCircle(
+		cx: number,
+		cy: number,
+		r: number,
+		fill: boolean = false,
+		on: boolean = true,
+	): this {
 		let x = r;
 		let y = 0;
 		let err = 0;
@@ -208,7 +231,13 @@ export class SSD1306 extends I2cDevice {
 	 * Draw a single character
 	 * @returns The x position after the character (for chaining text)
 	 */
-	drawChar(x: number, y: number, char: string, font: Font = font5x7, on: boolean = true): number {
+	drawChar(
+		x: number,
+		y: number,
+		char: string,
+		font: Font = font5x7,
+		on: boolean = true,
+	): number {
 		const charData = getCharData(char, font);
 		if (!charData) {
 			return x + font.width + 1;
@@ -233,10 +262,16 @@ export class SSD1306 extends I2cDevice {
 	 * @param text The text to draw
 	 * @param font Font to use (default: font5x7)
 	 */
-	drawText(x: number, y: number, text: string, font: Font = font5x7, on: boolean = true): this {
+	drawText(
+		x: number,
+		y: number,
+		text: string,
+		font: Font = font5x7,
+		on: boolean = true,
+	): this {
 		let cursorX = x;
 		for (const char of text) {
-			if (char === '\n') {
+			if (char === "\n") {
 				cursorX = x;
 				y += font.height + 1;
 				continue;
@@ -252,7 +287,14 @@ export class SSD1306 extends I2cDevice {
 	 * @param bitmapWidth Width of the bitmap
 	 * @param bitmapHeight Height of the bitmap
 	 */
-	drawBitmap(x: number, y: number, bitmap: Uint8Array, bitmapWidth: number, bitmapHeight: number, on: boolean = true): this {
+	drawBitmap(
+		x: number,
+		y: number,
+		bitmap: Uint8Array,
+		bitmapWidth: number,
+		bitmapHeight: number,
+		on: boolean = true,
+	): this {
 		let bitIndex = 0;
 		for (let row = 0; row < bitmapHeight; row++) {
 			for (let col = 0; col < bitmapWidth; col++) {
@@ -290,7 +332,9 @@ export class SSD1306 extends I2cDevice {
 	 */
 	setBuffer(buffer: Uint8Array): this {
 		if (buffer.length !== this.buffer.length) {
-			throw new Error(`Buffer size mismatch: expected ${this.buffer.length}, got ${buffer.length}`);
+			throw new Error(
+				`Buffer size mismatch: expected ${this.buffer.length}, got ${buffer.length}`,
+			);
 		}
 		this.buffer.set(buffer);
 		return this;
@@ -302,14 +346,17 @@ export class SSD1306 extends I2cDevice {
 	 * @param options.init If true, firmware should run init sequence before displaying
 	 * @param options.compress If true (default), use sparse encoding; if false, send full buffer
 	 */
-	toDisplayCommand(options?: { init?: boolean; compress?: boolean }): Omit<DisplayUpdateCommand, 'id'> {
+	toDisplayCommand(options?: {
+		init?: boolean;
+		compress?: boolean;
+	}): Omit<DisplayUpdateCommand, "id"> {
 		const compress = options?.compress ?? true;
 		const segments = compress
 			? this.sparseEncodeBuffer(this.buffer)
 			: [{ offset: 0, data: this.encodeBase64(this.buffer) }];
 
 		return {
-			type: 'display_update',
+			type: "display_update",
 			payload: {
 				bus: this.bus,
 				address: this.address,
@@ -355,8 +402,9 @@ export class SSD1306 extends I2cDevice {
 	 * Uses a pure JavaScript implementation for portability
 	 */
 	private encodeBase64(data: Uint8Array): string {
-		const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-		let result = '';
+		const chars =
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+		let result = "";
 		const len = data.length;
 
 		for (let i = 0; i < len; i += 3) {
@@ -368,8 +416,8 @@ export class SSD1306 extends I2cDevice {
 
 			result += chars[(triplet >> 18) & 0x3f];
 			result += chars[(triplet >> 12) & 0x3f];
-			result += i + 1 < len ? chars[(triplet >> 6) & 0x3f] : '=';
-			result += i + 2 < len ? chars[triplet & 0x3f] : '=';
+			result += i + 1 < len ? chars[(triplet >> 6) & 0x3f] : "=";
+			result += i + 2 < len ? chars[triplet & 0x3f] : "=";
 		}
 
 		return result;

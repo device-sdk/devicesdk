@@ -1,47 +1,47 @@
 {
-  "name": "@devicesdk/cli",
-  "version": "0.0.2",
-  "description": "CLI tool for developing and deploying DeviceSDK IoT applications.",
-  "author": "",
-  "main": "dist/index.js",
-  "bin": {
-    "devicesdk": "dist/index.js"
-  },
-  "files": [
-    "dist",
-    "LICENSE",
-    "README.md"
-  ],
-  "private": false,
-  "type": "module",
-  "scripts": {
-    "build": "rm -rf dist/ && tsc && pnpm run copy-assets",
-    "copy-assets": "cp -r ../../apps/simulation/out dist/simulator/assets/",
-    "start": "tsx src/index.ts",
-    "dev": "tsx src/index.ts",
-    "test": "tsc && vitest",
-    "check-types": "tsc --noEmit",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "adm-zip": "^0.5.16",
-    "chokidar": "^3.5.3",
-    "commander": "^12.0.0",
-    "esbuild": "^0.25.9",
-    "execa": "^8.0.1",
-    "open": "^10.1.0",
-    "ora": "^8.0.1",
-    "workerd": "^1.20250831.0",
-    "zod": "catalog:zod4"
-  },
-  "devDependencies": {
-    "@types/adm-zip": "^0.5.7",
-    "@devicesdk/simulation": "workspace:*",
-    "@repo/typescript-config": "workspace:*",
-    "@types/node": "catalog:",
-    "ts-node": "^10.9.2",
-    "tsx": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
-  }
+	"name": "@devicesdk/cli",
+	"version": "0.0.2",
+	"description": "CLI tool for developing and deploying DeviceSDK IoT applications.",
+	"author": "",
+	"main": "dist/index.js",
+	"bin": {
+		"devicesdk": "dist/index.js"
+	},
+	"files": [
+		"dist",
+		"LICENSE",
+		"README.md"
+	],
+	"private": false,
+	"type": "module",
+	"scripts": {
+		"build": "rm -rf dist/ && tsc && pnpm run copy-assets",
+		"copy-assets": "cp -r ../../apps/simulation/out dist/simulator/assets/",
+		"start": "tsx src/index.ts",
+		"dev": "tsx src/index.ts",
+		"test": "tsc && vitest",
+		"check-types": "tsc --noEmit",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"adm-zip": "^0.5.16",
+		"chokidar": "^3.5.3",
+		"commander": "^12.0.0",
+		"esbuild": "^0.25.9",
+		"execa": "^8.0.1",
+		"open": "^10.1.0",
+		"ora": "^8.0.1",
+		"workerd": "^1.20250831.0",
+		"zod": "catalog:zod4"
+	},
+	"devDependencies": {
+		"@types/adm-zip": "^0.5.7",
+		"@devicesdk/simulation": "workspace:*",
+		"@repo/typescript-config": "workspace:*",
+		"@types/node": "catalog:",
+		"ts-node": "^10.9.2",
+		"tsx": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	}
 }

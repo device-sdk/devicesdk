@@ -1,29 +1,29 @@
+import { googleAuth } from "@hono/oauth-providers/google";
 import { ApiException, fromHono } from "chanfana";
 import { Hono, type MiddlewareHandler } from "hono";
+import { cors } from "hono/cors";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { googleAuth } from "@hono/oauth-providers/google";
-import type { Env, Variables } from "./types";
 import { D1QB } from "workers-qb";
+import {
+	getApprovalPage,
+	handleApproval,
+} from "./endpoints/cli-auth/approvalPage";
+import {
+	cliAuthRouterPostAuth,
+	cliAuthRouterPreAuth,
+} from "./endpoints/cli-auth/router";
+import { devicesRouter } from "./endpoints/devices/router";
+import { projectsRouter } from "./endpoints/projects/router";
+import { batchScriptsRouter, scriptsRouter } from "./endpoints/scripts/router";
+import { tokensRouter } from "./endpoints/tokens/router";
+import { userRouter } from "./endpoints/user/router";
 import {
 	authenticateUser,
 	cliAuthUser,
 	handleGoogleCallback,
 	handleLogout,
 } from "./foundation/auth";
-import { userRouter } from "./endpoints/user/router";
-import { projectsRouter } from "./endpoints/projects/router";
-import { tokensRouter } from "./endpoints/tokens/router";
-import { devicesRouter } from "./endpoints/devices/router";
-import { scriptsRouter, batchScriptsRouter } from "./endpoints/scripts/router";
-import {
-	cliAuthRouterPostAuth,
-	cliAuthRouterPreAuth,
-} from "./endpoints/cli-auth/router";
-import {
-	getApprovalPage,
-	handleApproval,
-} from "./endpoints/cli-auth/approvalPage";
-import { cors } from "hono/cors";
+import type { Env, Variables } from "./types";
 
 const app = fromHono(new Hono<{ Bindings: Env; Variables: Variables }>(), {
 	schema: {

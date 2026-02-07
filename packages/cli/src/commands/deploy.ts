@@ -1,156 +1,211 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { uploadScript, uploadScriptsBatch, DeviceSDKApiError, getProject, createProject } from '../api.js';
-import { requireAuth } from '../credentials.js';
-import { loadConfig, getConfigDir } from '../utils.js';
-import { buildDevice, formatSize } from './build.js';
+import fs from "fs/promises";
+import path from "path";
+import {
+	createProject,
+	DeviceSDKApiError,
+	getProject,
+	uploadScript,
+	uploadScriptsBatch,
+} from "../api.js";
+import { requireAuth } from "../credentials.js";
+import { getConfigDir, loadConfig } from "../utils.js";
+import { buildDevice, formatSize } from "./build.js";
 
 interface DeployOptions {
-  device?: string;
-  message?: string;
-  dryRun?: boolean;
-  config?: string;
+	device?: string;
+	message?: string;
+	dryRun?: boolean;
+	config?: string;
 }
 
-async function ensureProjectExists(token: string, projectId: string): Promise<void> {
-  try {
-    await getProject(token, projectId);
-  } catch (error) {
-    if (error instanceof DeviceSDKApiError && error.statusCode === 404) {
-      console.log(`\nProject "${projectId}" not found. Creating...`);
-      try {
-        await createProject(token, projectId);
-        console.log(`✓ Created project "${projectId}"`);
-        return;
-      } catch (createError) {
-        if (createError instanceof DeviceSDKApiError) {
-          console.error(`\n✗ Failed to create project "${projectId}": ${createError.message}`);
-          if (createError.responseBody) {
-            console.error(JSON.stringify(createError.responseBody, null, 2));
-          }
-        }
-        throw createError;
-      }
-    }
-    throw error;
-  }
+async function ensureProjectExists(
+	token: string,
+	projectId: string,
+): Promise<void> {
+	try {
+		await getProject(token, projectId);
+	} catch (error) {
+		if (error instanceof DeviceSDKApiError && error.statusCode === 404) {
+			console.log(`\nProject "${projectId}" not found. Creating...`);
+			try {
+				await createProject(token, projectId);
+				console.log(`✓ Created project "${projectId}"`);
+				return;
+			} catch (createError) {
+				if (createError instanceof DeviceSDKApiError) {
+					console.error(
+						`\n✗ Failed to create project "${projectId}": ${createError.message}`,
+					);
+					if (createError.responseBody) {
+						console.error(JSON.stringify(createError.responseBody, null, 2));
+					}
+				}
+				throw createError;
+			}
+		}
+		throw error;
+	}
 }
 
-export default async function deploy(options: DeployOptions = {}): Promise<void> {
-  try {
-    const token = await requireAuth();
-    const config = await loadConfig(options.config);
-    const configDir = getConfigDir(options.config);
-    const buildDir = path.join(configDir, '.devicesdk', 'build');
+export default async function deploy(
+	options: DeployOptions = {},
+): Promise<void> {
+	try {
+		const token = await requireAuth();
+		const config = await loadConfig(options.config);
+		const configDir = getConfigDir(options.config);
+		const buildDir = path.join(configDir, ".devicesdk", "build");
 
-    // Create build directory
-    await fs.mkdir(buildDir, { recursive: true });
+		// Create build directory
+		await fs.mkdir(buildDir, { recursive: true });
 
-    // Filter devices if specific device requested
-    let devicesToDeploy = Object.entries(config.devices);
-    if (options.device) {
-      const device = config.devices[options.device];
-      if (!device) {
-        console.error(`✗ Error: Device "${options.device}" not found in config\n`);
-        console.error(`  Available devices: ${Object.keys(config.devices).join(', ')}`);
-        process.exit(5);
-      }
-      devicesToDeploy = [[options.device, device]];
-    }
+		// Filter devices if specific device requested
+		let devicesToDeploy = Object.entries(config.devices);
+		if (options.device) {
+			const device = config.devices[options.device];
+			if (!device) {
+				console.error(
+					`✗ Error: Device "${options.device}" not found in config\n`,
+				);
+				console.error(
+					`  Available devices: ${Object.keys(config.devices).join(", ")}`,
+				);
+				process.exit(5);
+			}
+			devicesToDeploy = [[options.device, device]];
+		}
 
-    if (devicesToDeploy.length === 0) {
-      console.error('✗ Error: No devices configured\n');
-      console.error('  Add devices to your devicesdk.ts configuration file.');
-      process.exit(5);
-    }
+		if (devicesToDeploy.length === 0) {
+			console.error("✗ Error: No devices configured\n");
+			console.error("  Add devices to your devicesdk.ts configuration file.");
+			process.exit(5);
+		}
 
-    // Build all devices first
-    console.log(`Building ${devicesToDeploy.length} device${devicesToDeploy.length !== 1 ? 's' : ''}...`);
+		// Build all devices first
+		console.log(
+			`Building ${devicesToDeploy.length} device${devicesToDeploy.length !== 1 ? "s" : ""}...`,
+		);
 
-    const builtDevices: Array<{ deviceId: string; script: string; size: number; entrypointName?: string }> = [];
+		const builtDevices: Array<{
+			deviceId: string;
+			script: string;
+			size: number;
+			entrypointName?: string;
+		}> = [];
 
-    for (const [deviceId, device] of devicesToDeploy) {
-      const mainFile = path.resolve(configDir, device.main);
+		for (const [deviceId, device] of devicesToDeploy) {
+			const mainFile = path.resolve(configDir, device.main);
 
-      // Check if main file exists
-      try {
-        await fs.access(mainFile);
-      } catch {
-        console.error(`✗ ${deviceId}: Main file not found: ${device.main}`);
-        process.exit(5);
-      }
+			// Check if main file exists
+			try {
+				await fs.access(mainFile);
+			} catch {
+				console.error(`✗ ${deviceId}: Main file not found: ${device.main}`);
+				process.exit(5);
+			}
 
-      try {
-        const { size, outfile } = await buildDevice(deviceId, mainFile, buildDir, {});
-        const script = await fs.readFile(outfile, 'utf-8');
-        builtDevices.push({ deviceId, script, size, entrypointName: device.entrypoint });
-        console.log(`✓ Built ${deviceId} (${formatSize(size)})`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`✗ ${deviceId}: Build failed - ${message}`);
-        process.exit(5);
-      }
-    }
+			try {
+				const { size, outfile } = await buildDevice(
+					deviceId,
+					mainFile,
+					buildDir,
+					{},
+				);
+				const script = await fs.readFile(outfile, "utf-8");
+				builtDevices.push({
+					deviceId,
+					script,
+					size,
+					entrypointName: device.entrypoint,
+				});
+				console.log(`✓ Built ${deviceId} (${formatSize(size)})`);
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : "Unknown error";
+				console.error(`✗ ${deviceId}: Build failed - ${message}`);
+				process.exit(5);
+			}
+		}
 
-    if (options.dryRun) {
-      console.log(`\n✓ Dry run complete: ${builtDevices.length} device${builtDevices.length !== 1 ? 's' : ''} would be deployed`);
-      return;
-    }
+		if (options.dryRun) {
+			console.log(
+				`\n✓ Dry run complete: ${builtDevices.length} device${builtDevices.length !== 1 ? "s" : ""} would be deployed`,
+			);
+			return;
+		}
 
-    await ensureProjectExists(token, config.projectId);
+		await ensureProjectExists(token, config.projectId);
 
-    // Deploy
-    console.log(`\n⬆ Uploading to project "${config.projectId}"...`);
+		// Deploy
+		console.log(`\n⬆ Uploading to project "${config.projectId}"...`);
 
-    if (options.device && builtDevices.length === 1) {
-      // Single device upload
-      const { deviceId, script, entrypointName } = builtDevices[0];
-      try {
-        const result = await uploadScript(token, config.projectId, deviceId, script, options.message, entrypointName);
-        console.log(`\n✓ ${deviceId}  ${result.version_id}  (updated)`);
-        console.log(`\nDeployed 1 device successfully`);
-      } catch (error) {
-        if (error instanceof DeviceSDKApiError) {
-          console.error(`\n✗ ${deviceId}: ${error.message}`);
-        } else {
-          throw error;
-        }
-        process.exit(6);
-      }
-    } else {
-      // Batch upload
-      const devices: Record<string, { script: string; entrypoint?: string }> = {};
-      for (const { deviceId, script, entrypointName } of builtDevices) {
-        devices[deviceId] = { script };
-        if (entrypointName) {
-          devices[deviceId].entrypoint = entrypointName;
-        }
-      }
+		if (options.device && builtDevices.length === 1) {
+			// Single device upload
+			const { deviceId, script, entrypointName } = builtDevices[0];
+			try {
+				const result = await uploadScript(
+					token,
+					config.projectId,
+					deviceId,
+					script,
+					options.message,
+					entrypointName,
+				);
+				console.log(`\n✓ ${deviceId}  ${result.version_id}  (updated)`);
+				console.log(`\nDeployed 1 device successfully`);
+			} catch (error) {
+				if (error instanceof DeviceSDKApiError) {
+					console.error(`\n✗ ${deviceId}: ${error.message}`);
+				} else {
+					throw error;
+				}
+				process.exit(6);
+			}
+		} else {
+			// Batch upload
+			const devices: Record<string, { script: string; entrypoint?: string }> =
+				{};
+			for (const { deviceId, script, entrypointName } of builtDevices) {
+				devices[deviceId] = { script };
+				if (entrypointName) {
+					devices[deviceId].entrypoint = entrypointName;
+				}
+			}
 
-      try {
-        const result = await uploadScriptsBatch(token, config.projectId, devices, options.message);
+			try {
+				const result = await uploadScriptsBatch(
+					token,
+					config.projectId,
+					devices,
+					options.message,
+				);
 
-        console.log('');
-        for (const version of result.versions) {
-          const statusText = version.status === 'created' ? '(created)' : '(updated)';
-          console.log(`✓ ${version.device_id.padEnd(20)} ${version.version_id}  ${statusText}`);
-        }
+				console.log("");
+				for (const version of result.versions) {
+					const statusText =
+						version.status === "created" ? "(created)" : "(updated)";
+					console.log(
+						`✓ ${version.device_id.padEnd(20)} ${version.version_id}  ${statusText}`,
+					);
+				}
 
-        console.log(`\nDeployed ${result.versions.length} device${result.versions.length !== 1 ? 's' : ''} successfully`);
-      } catch (error) {
-        if (error instanceof DeviceSDKApiError) {
-          console.error(`\n✗ Deploy failed: ${error.message}`);
-        } else {
-          throw error;
-        }
-        process.exit(6);
-      }
-    }
-  } catch (error) {
-    console.error('✗ Error: Deploy failed\n');
-    if (error instanceof Error) {
-      console.error(`  ${error.message}`);
-    }
-    process.exit(6);
-  }
+				console.log(
+					`\nDeployed ${result.versions.length} device${result.versions.length !== 1 ? "s" : ""} successfully`,
+				);
+			} catch (error) {
+				if (error instanceof DeviceSDKApiError) {
+					console.error(`\n✗ Deploy failed: ${error.message}`);
+				} else {
+					throw error;
+				}
+				process.exit(6);
+			}
+		}
+	} catch (error) {
+		console.error("✗ Error: Deploy failed\n");
+		if (error instanceof Error) {
+			console.error(`  ${error.message}`);
+		}
+		process.exit(6);
+	}
 }

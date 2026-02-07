@@ -1,11 +1,11 @@
+import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SELF, env } from "cloudflare:test";
 import { D1QB } from "workers-qb";
 import type {
 	tableProjects,
+	tableProjectVersions,
 	tableUser,
 	tableUserSessions,
-	tableProjectVersions,
 } from "../../src/types";
 import { TEST_SESSION_TOKEN, TEST_USER_ID } from "../setup-test-data";
 

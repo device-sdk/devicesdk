@@ -1,5 +1,5 @@
-import { Hono } from "hono";
 import { fromHono } from "chanfana";
+import { Hono } from "hono";
 import { UserDetails } from "./userDetails";
 
 export const userRouter = fromHono(new Hono());

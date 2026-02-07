@@ -1,10 +1,10 @@
-import { Hono } from "hono";
 import { fromHono } from "chanfana";
+import { Hono } from "hono";
 import { CreateProject } from "./createProject";
-import { ListProjects } from "./listProjects";
-import { GetProject } from "./getProject";
-import { UpdateProject } from "./updateProject";
 import { DeleteProject } from "./deleteProject";
+import { GetProject } from "./getProject";
+import { ListProjects } from "./listProjects";
+import { UpdateProject } from "./updateProject";
 
 export const projectsRouter = fromHono(new Hono());
 

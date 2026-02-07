@@ -1,12 +1,11 @@
-import { OpenAPIRoute } from "chanfana";
+import { ApiException, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import type {
 	AppContext,
-	tableProjects,
-	tableDevices,
 	tableDeviceScripts,
+	tableDevices,
+	tableProjects,
 } from "../../types";
-import { ApiException } from "chanfana";
 
 export class DeviceConnect extends OpenAPIRoute {
 	public schema = {

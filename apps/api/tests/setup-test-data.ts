@@ -1,8 +1,8 @@
-import { beforeAll } from "vitest";
 import { env } from "cloudflare:test";
+import { beforeAll } from "vitest";
 import { D1QB } from "workers-qb";
 import { hashPassword } from "../src/foundation/auth";
-import type { tableUser, tableProjects, tableUserSessions } from "../src/types";
+import type { tableProjects, tableUser, tableUserSessions } from "../src/types";
 
 export const TEST_SESSION_TOKEN = "test-session-token";
 export const TEST_USER_ID = "user-1";
@@ -52,7 +52,7 @@ beforeAll(async () => {
 			.insert<tableUser>({
 				tableName: "user",
 				data: user,
-				onConflict: 'IGNORE'
+				onConflict: "IGNORE",
 			})
 			.execute();
 	}
@@ -98,7 +98,7 @@ beforeAll(async () => {
 			.insert<tableProjects>({
 				tableName: "projects",
 				data: project,
-				onConflict: 'IGNORE'
+				onConflict: "IGNORE",
 			})
 			.execute();
 	}
@@ -113,7 +113,7 @@ beforeAll(async () => {
 				created_at: now,
 				expires_at: now + 86400000, // 24 hours from now
 			},
-			onConflict: 'IGNORE'
+			onConflict: "IGNORE",
 		})
 		.execute();
 });

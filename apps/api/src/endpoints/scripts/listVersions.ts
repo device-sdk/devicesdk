@@ -1,12 +1,11 @@
-import { OpenAPIRoute, contentJson } from "chanfana";
+import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import type {
 	AppContext,
-	tableDevices,
 	tableDeviceScripts,
+	tableDevices,
 	tableProjects,
 } from "../../types";
-import { ApiException } from "chanfana";
 
 export class ListVersions extends OpenAPIRoute {
 	public schema = {

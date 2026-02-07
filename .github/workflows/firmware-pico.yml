@@ -1,19 +1,25 @@
-name: Build and Release
+name: Firmware — Pico
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
+    paths: [firmware/pico/**]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+    paths: [firmware/pico/**]
+
+defaults:
+  run:
+    working-directory: firmware/pico
 
 jobs:
-  test_build:
-    name: Build client
+  build:
+    name: Build Pico firmware
     runs-on: ubuntu-latest
     permissions:
       contents: read
     env:
-      PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+      PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
 
     steps:
       - name: Checkout
@@ -23,13 +29,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y git cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential ninja-build
+        working-directory: .
 
       - name: Restore pico-sdk cache
         id: restore-pico-sdk
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.PICO_SDK_PATH }}
-          key: pico-sdk-${{ hashFiles('pico_sdk_import.cmake') }}
+          key: pico-sdk-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
 
       - name: Install pico-sdk
         if: steps.restore-pico-sdk.outputs.cache-hit != 'true'
@@ -42,14 +49,21 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.PICO_SDK_PATH }}
-          key: pico-sdk-${{ hashFiles('pico_sdk_import.cmake') }}
+          key: pico-sdk-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
 
-      - name: Publish artifacts
-        run: make publish
+      - name: Build firmware artifacts
+        run: |
+          rm -rf dist && mkdir -p dist
+          IOTKIT_BOARD=pico_w make build
+          cp build/devicesdk-client.uf2 dist/devicesdk-pico-w-client.uf2
+          IOTKIT_BOARD=pico2_w make build
+          cp build/devicesdk-client.uf2 dist/devicesdk-pico2-w-client.uf2
 
-      - name: Upload Build Artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: iotkit-client
-          path: dist/devicesdk-pico-w-client.uf2 | dist/devicesdk-pico2-w-client.uf2
+          name: devicesdk-pico-firmware
+          path: |
+            firmware/pico/dist/devicesdk-pico-w-client.uf2
+            firmware/pico/dist/devicesdk-pico2-w-client.uf2
           if-no-files-found: error

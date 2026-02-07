@@ -33,7 +33,7 @@
   "dependencies": {},
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "tsx": "^4.20.5",
-    "typescript": "^5.3.3"
+    "tsx": "catalog:",
+    "typescript": "catalog:"
   }
 }

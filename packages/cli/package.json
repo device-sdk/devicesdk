@@ -32,16 +32,16 @@
     "open": "^10.1.0",
     "ora": "^8.0.1",
     "workerd": "^1.20250831.0",
-    "zod": "^4.1.5"
+    "zod": "catalog:zod4"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",
     "@devicesdk/simulation": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^20.11.24",
+    "@types/node": "catalog:",
     "ts-node": "^10.9.2",
-    "tsx": "^4.20.5",
-    "typescript": "^5.3.3",
-    "vitest": "^3.2.4"
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -14,13 +14,13 @@
     "clean": "rm -rf public resources/_gen"
   },
   "dependencies": {
-    "wrangler": "^4.45.3"
+    "wrangler": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.18",
     "glob": "^13.0.0",
     "gray-matter": "^4.0.3",
     "playwright": "^1.57.0",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "catalog:tailwind4"
   }
 }

@@ -125,3 +125,23 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 - **Never mention Cloudflare, Cloudflare Workers, or any Cloudflare product names** (D1, R2, Durable Objects, KV as "Cloudflare KV", Wrangler, Cloudflare Pages) in any public-facing content — this includes the website (`apps/website/layouts/`, `apps/website/content/`), documentation (`docs/`), and any user-visible strings.
 - DeviceSDK is a **managed platform**. Use generic infrastructure terms instead: "globally distributed runtime", "serverless runtime", "edge infrastructure", "managed platform".
 - Internal code, configs, and developer-only files (e.g., `wrangler.jsonc`, API source code, CLAUDE.md itself) may reference Cloudflare as needed.
+
+## Troubleshooting Log
+
+Maintain a `TROUBLESHOOT.md` file at the repository root. This file serves as a persistent knowledge base of problems encountered and their solutions.
+
+### Rules
+
+- **Consult first**: When you feel stuck, encounter an error you don't immediately understand, or hit a recurring issue, **read `TROUBLESHOOT.md` before trying other approaches**. The answer may already be there.
+- **Record mistakes**: Whenever you make a mistake, misunderstand something, or discover a non-obvious solution, add an entry to `TROUBLESHOOT.md`.
+- **Record questions and answers**: If you had to investigate or ask the user to resolve an issue, document the question and the answer.
+- **Format**: Each entry should follow this structure:
+  ```markdown
+  ### <Short description of the problem>
+  **Date**: YYYY-MM-DD
+  **Question/Problem**: What went wrong or what was confusing?
+  **Root Cause**: Why did it happen?
+  **Solution**: How was it fixed?
+  ```
+- **Keep it actionable**: Write entries so that a future agent (or yourself in a new session) can immediately apply the solution without re-investigating.
+- **Don't duplicate**: Before adding a new entry, check if a similar one already exists. Update the existing entry instead if needed.

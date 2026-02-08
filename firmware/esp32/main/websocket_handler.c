@@ -1,59 +1,317 @@
 #include "websocket_handler.h"
-#include "hal.h"
+#include "command_queue.h"
+#include "shared_buffers.h"
+#include "base64.h"
 #include "cJSON.h"
-#include "esp_log.h"
 #include <string.h>
+#include <stdlib.h>
 
-static const char *TAG = "WebSocket Handler";
+#ifndef UNIT_TEST
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+static const char *TAG = "WSHandler";
+#define LOG_I(tag, fmt, ...) ESP_LOGI(tag, fmt, ##__VA_ARGS__)
+#define LOG_E(tag, fmt, ...) ESP_LOGE(tag, fmt, ##__VA_ARGS__)
+#define LOG_W(tag, fmt, ...) ESP_LOGW(tag, fmt, ##__VA_ARGS__)
+#else
+#include <stdio.h>
+static const char *TAG = "WSHandler";
+#define LOG_I(tag, fmt, ...) (void)tag
+#define LOG_E(tag, fmt, ...) (void)tag
+#define LOG_W(tag, fmt, ...) (void)tag
+#endif
 
-void handle_websocket_message(const char *message) {
+static void *s_cmd_queue = NULL;
+static uint32_t s_sequence_counter = 0;
+
+void websocket_handler_init(void *cmd_queue_handle) {
+    s_cmd_queue = cmd_queue_handle;
+    s_sequence_counter = 0;
+}
+
+static bool queue_command(worker_command_t *cmd) {
+    cmd->sequence_id = ++s_sequence_counter;
+
+#ifndef UNIT_TEST
+    if (!s_cmd_queue) return false;
+    if (xQueueSend((QueueHandle_t)s_cmd_queue, cmd, 0) != pdTRUE) {
+        LOG_E(TAG, "Command queue full");
+        return false;
+    }
+#else
+    (void)s_cmd_queue;
+#endif
+    return true;
+}
+
+bool handle_websocket_message(const char *message) {
     if (!message) {
-        ESP_LOGE(TAG, "Null message received");
-        return;
+        LOG_E(TAG, "Null message received");
+        return false;
     }
 
     cJSON *json = cJSON_Parse(message);
     if (!json) {
-        ESP_LOGE(TAG, "Failed to parse JSON: %s", message);
-        return;
+        LOG_E(TAG, "Failed to parse JSON: %s", message);
+        return false;
     }
 
     cJSON *type_obj = cJSON_GetObjectItem(json, "type");
     if (!cJSON_IsString(type_obj)) {
-        ESP_LOGE(TAG, "Message missing 'type' field");
+        LOG_E(TAG, "Message missing 'type' field");
         cJSON_Delete(json);
-        return;
+        return false;
     }
 
     const char *type = type_obj->valuestring;
-    ESP_LOGI(TAG, "Received message type: %s", type);
 
-    if (strcmp(type, "set_gpio_state") == 0) {
-        cJSON *payload = cJSON_GetObjectItem(json, "payload");
-        if (!cJSON_IsObject(payload)) {
-            ESP_LOGE(TAG, "set_gpio_state missing payload");
-            cJSON_Delete(json);
-            return;
-        }
+    // Extract message ID if present
+    cJSON *id_obj = cJSON_GetObjectItem(json, "id");
+    const char *msg_id = (cJSON_IsString(id_obj)) ? id_obj->valuestring : "";
 
+    // Get payload (may be absent for some commands)
+    cJSON *payload = cJSON_GetObjectItem(json, "payload");
+
+    worker_command_t cmd;
+    memset(&cmd, 0, sizeof(cmd));
+    strncpy(cmd.message_id, msg_id, MAX_MESSAGE_ID_LEN - 1);
+    cmd.message_id[MAX_MESSAGE_ID_LEN - 1] = '\0';
+
+    // === REBOOT ===
+    if (strcmp(type, "reboot") == 0) {
+        cmd.type = CMD_REBOOT;
+        queue_command(&cmd);
+    }
+    // === SET GPIO STATE ===
+    else if (strcmp(type, "set_gpio_state") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
         cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
         cJSON *state_obj = cJSON_GetObjectItem(payload, "state");
 
-        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(state_obj)) {
-            ESP_LOGE(TAG, "set_gpio_state invalid pin or state");
-            cJSON_Delete(json);
-            return;
+        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(state_obj)) goto done;
+
+        cmd.type = CMD_GPIO_SET;
+        cmd.payload.gpio.pin = (uint8_t)pin_obj->valuedouble;
+
+        if (strcmp(state_obj->valuestring, "high") == 0) {
+            cmd.payload.gpio.state = WORKER_GPIO_HIGH;
+        } else {
+            cmd.payload.gpio.state = WORKER_GPIO_LOW;
         }
+        queue_command(&cmd);
+    }
+    // === GET PIN STATE ===
+    else if (strcmp(type, "get_pin_state") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
+        cJSON *mode_obj = cJSON_GetObjectItem(payload, "mode");
+
+        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(mode_obj)) goto done;
+
+        cmd.payload.gpio.pin = (uint8_t)pin_obj->valuedouble;
+
+        if (strcmp(mode_obj->valuestring, "digital") == 0) {
+            cmd.type = CMD_GPIO_GET_DIGITAL;
+        } else if (strcmp(mode_obj->valuestring, "analog") == 0) {
+            cmd.type = CMD_GPIO_GET_ANALOG;
+        } else {
+            goto done;
+        }
+        queue_command(&cmd);
+    }
+    // === SET PWM STATE ===
+    else if (strcmp(type, "set_pwm_state") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
+        cJSON *freq_obj = cJSON_GetObjectItem(payload, "frequency");
+        cJSON *duty_obj = cJSON_GetObjectItem(payload, "duty_cycle");
+
+        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsNumber(freq_obj) || !cJSON_IsNumber(duty_obj)) goto done;
+
+        cmd.type = CMD_PWM_SET;
+        cmd.payload.pwm.pin = (uint8_t)pin_obj->valuedouble;
+        cmd.payload.pwm.frequency = (uint32_t)freq_obj->valuedouble;
+        cmd.payload.pwm.duty_cycle = (float)duty_obj->valuedouble;
+        queue_command(&cmd);
+    }
+    // === CONFIGURE GPIO INPUT MONITORING ===
+    else if (strcmp(type, "configure_gpio_input_monitoring") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
+        cJSON *enable_obj = cJSON_GetObjectItem(payload, "enable");
+
+        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsBool(enable_obj)) goto done;
 
         uint8_t pin = (uint8_t)pin_obj->valuedouble;
-        const char *state_str = state_obj->valuestring;
-        gpio_state_t state = strcmp(state_str, "high") == 0 ? GPIO_STATE_HIGH : GPIO_STATE_LOW;
+        bool enable = cJSON_IsTrue(enable_obj);
 
-        iotkit_hal_set_gpio(pin, state);
-        ESP_LOGI(TAG, "GPIO command executed: pin=%d, state=%s", pin, state_str);
-    } else {
-        ESP_LOGW(TAG, "Unknown message type: %s", type);
+        if (enable) {
+            cmd.type = CMD_GPIO_CONFIGURE_INPUT;
+            cmd.payload.gpio.pin = pin;
+
+            // Parse pull configuration
+            cmd.payload.gpio.pull = WORKER_PULL_UP;  // Default
+            cJSON *pull_obj = cJSON_GetObjectItem(payload, "pull");
+            if (cJSON_IsString(pull_obj)) {
+                if (strcmp(pull_obj->valuestring, "down") == 0) {
+                    cmd.payload.gpio.pull = WORKER_PULL_DOWN;
+                } else if (strcmp(pull_obj->valuestring, "none") == 0) {
+                    cmd.payload.gpio.pull = WORKER_PULL_NONE;
+                }
+            }
+            queue_command(&cmd);
+        }
+        // Disable monitoring: no command needed, just don't start monitoring
+    }
+    // === I2C CONFIGURE ===
+    else if (strcmp(type, "i2c_configure") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        cJSON *sda_obj = cJSON_GetObjectItem(payload, "sda_pin");
+        cJSON *scl_obj = cJSON_GetObjectItem(payload, "scl_pin");
+        cJSON *freq_obj = cJSON_GetObjectItem(payload, "frequency");
+
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(sda_obj) || !cJSON_IsNumber(scl_obj)) goto done;
+
+        cmd.type = CMD_I2C_CONFIGURE;
+        cmd.payload.i2c_configure.bus = (uint8_t)bus_obj->valuedouble;
+        cmd.payload.i2c_configure.sda_pin = (uint8_t)sda_obj->valuedouble;
+        cmd.payload.i2c_configure.scl_pin = (uint8_t)scl_obj->valuedouble;
+        cmd.payload.i2c_configure.frequency = cJSON_IsNumber(freq_obj)
+            ? (uint32_t)freq_obj->valuedouble
+            : 100000;
+        queue_command(&cmd);
+    }
+    // === I2C SCAN ===
+    else if (strcmp(type, "i2c_scan") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        if (!cJSON_IsNumber(bus_obj)) goto done;
+
+        cmd.type = CMD_I2C_SCAN;
+        cmd.payload.i2c_scan.bus = (uint8_t)bus_obj->valuedouble;
+        queue_command(&cmd);
+    }
+    // === I2C WRITE ===
+    else if (strcmp(type, "i2c_write") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        cJSON *addr_obj = cJSON_GetObjectItem(payload, "address");
+        cJSON *data_obj = cJSON_GetObjectItem(payload, "data");
+
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsString(data_obj)) goto done;
+
+        cmd.type = CMD_I2C_WRITE;
+        cmd.payload.i2c_write.bus = (uint8_t)bus_obj->valuedouble;
+        cmd.payload.i2c_write.address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
+
+        // Decode base64 data
+        size_t decoded_len = 0;
+        uint8_t *decoded = base64_decode(data_obj->valuestring, &decoded_len);
+        if (!decoded || decoded_len > MAX_I2C_DATA_LEN) {
+            free(decoded);
+            goto done;
+        }
+        memcpy(cmd.payload.i2c_write.data, decoded, decoded_len);
+        cmd.payload.i2c_write.data_len = decoded_len;
+        free(decoded);
+        queue_command(&cmd);
+    }
+    // === I2C READ ===
+    else if (strcmp(type, "i2c_read") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        cJSON *addr_obj = cJSON_GetObjectItem(payload, "address");
+        cJSON *len_obj = cJSON_GetObjectItem(payload, "length");
+        cJSON *reg_obj = cJSON_GetObjectItem(payload, "register");
+
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsNumber(len_obj)) goto done;
+
+        cmd.type = CMD_I2C_READ;
+        cmd.payload.i2c_read.bus = (uint8_t)bus_obj->valuedouble;
+        cmd.payload.i2c_read.address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
+        cmd.payload.i2c_read.length = (size_t)len_obj->valuedouble;
+        cmd.payload.i2c_read.reg = cJSON_IsNumber(reg_obj) ? (int)reg_obj->valuedouble : -1;
+        queue_command(&cmd);
+    }
+    // === DISPLAY UPDATE ===
+    else if (strcmp(type, "display_update") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        cJSON *addr_obj = cJSON_GetObjectItem(payload, "address");
+        cJSON *controller_obj = cJSON_GetObjectItem(payload, "controller");
+        cJSON *width_obj = cJSON_GetObjectItem(payload, "width");
+        cJSON *height_obj = cJSON_GetObjectItem(payload, "height");
+        cJSON *segments_obj = cJSON_GetObjectItem(payload, "segments");
+        cJSON *init_obj = cJSON_GetObjectItem(payload, "init");
+
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) ||
+            !cJSON_IsString(controller_obj) || !cJSON_IsNumber(width_obj) ||
+            !cJSON_IsNumber(height_obj) || !cJSON_IsArray(segments_obj)) goto done;
+
+        uint8_t bus = (uint8_t)bus_obj->valuedouble;
+        uint8_t address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
+        const char *controller = controller_obj->valuestring;
+        uint8_t width = (uint8_t)width_obj->valuedouble;
+        uint8_t height = (uint8_t)height_obj->valuedouble;
+
+        bool is_ssd1306 = (strcmp(controller, "ssd1306") == 0);
+        bool is_sh1106 = (strcmp(controller, "sh1106") == 0);
+        if (!is_ssd1306 && !is_sh1106) goto done;
+
+        size_t fb_size = (size_t)width * height / 8;
+        if (fb_size > MAX_DISPLAY_BUFFER_SIZE) goto done;
+
+        uint8_t fb_data[MAX_DISPLAY_BUFFER_SIZE];
+        memset(fb_data, 0, sizeof(fb_data));
+        display_segment_t seg_info[MAX_DISPLAY_SEGMENTS];
+        size_t seg_count = 0;
+
+        // Decode segments
+        int seg_array_size = cJSON_GetArraySize(segments_obj);
+        for (int i = 0; i < seg_array_size && seg_count < MAX_DISPLAY_SEGMENTS; i++) {
+            cJSON *seg = cJSON_GetArrayItem(segments_obj, i);
+            if (!cJSON_IsObject(seg)) continue;
+
+            cJSON *offset_obj = cJSON_GetObjectItem(seg, "offset");
+            cJSON *data_obj = cJSON_GetObjectItem(seg, "data");
+            if (!cJSON_IsNumber(offset_obj) || !cJSON_IsString(data_obj)) continue;
+
+            size_t offset = (size_t)offset_obj->valuedouble;
+            size_t decoded_len = 0;
+            uint8_t *decoded = base64_decode(data_obj->valuestring, &decoded_len);
+            if (!decoded) continue;
+
+            if (offset + decoded_len <= fb_size) {
+                memcpy(&fb_data[offset], decoded, decoded_len);
+                seg_info[seg_count].offset = offset;
+                seg_info[seg_count].length = decoded_len;
+                seg_count++;
+            }
+            free(decoded);
+        }
+
+        // Write to shared buffer
+        if (!shared_display_buffer_write(fb_data, fb_size, seg_info, seg_count)) {
+            goto done;
+        }
+
+        // Queue command
+        cmd.type = CMD_DISPLAY_UPDATE;
+        cmd.payload.display.bus = bus;
+        cmd.payload.display.address = address;
+        cmd.payload.display.width = width;
+        cmd.payload.display.height = height;
+        cmd.payload.display.controller = is_ssd1306 ? 0 : 1;
+        cmd.payload.display.init = cJSON_IsTrue(init_obj);
+        queue_command(&cmd);
+    }
+    else {
+        LOG_W(TAG, "Unknown command type: %s", type);
     }
 
+done:
     cJSON_Delete(json);
+    return true;
 }

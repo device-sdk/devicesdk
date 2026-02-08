@@ -4,16 +4,23 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "freertos/queue.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "esp_websocket_client.h"
+#include "cJSON.h"
 
 #include "hal.h"
 #include "config.h"
 #include "websocket_handler.h"
+#include "command_queue.h"
+#include "response_queue.h"
+#include "shared_buffers.h"
+#include "worker_task.h"
+#include "base64.h"
 
 static const char *TAG = "IoTKit";
 
@@ -24,6 +31,175 @@ static const int WIFI_FAIL_BIT = BIT1;
 static esp_websocket_client_handle_t ws_client = NULL;
 static uint32_t last_ping_time = 0;
 static bool ws_connected = false;
+
+// Global queues for inter-task communication
+QueueHandle_t cmd_queue;
+QueueHandle_t response_queue;
+QueueHandle_t gpio_notification_queue;
+
+static void ws_send_text(const char *text) {
+    if (ws_client && ws_connected) {
+        esp_websocket_client_send_text(ws_client, text, strlen(text), portMAX_DELAY);
+    }
+}
+
+static void process_worker_responses(void) {
+    worker_response_t resp;
+
+    while (xQueueReceive(response_queue, &resp, 0) == pdTRUE) {
+        cJSON *response = cJSON_CreateObject();
+        cJSON *payload_obj = cJSON_CreateObject();
+
+        if (resp.status == RESPONSE_ERROR) {
+            cJSON_AddStringToObject(response, "type", "command_error");
+            cJSON_AddStringToObject(payload_obj, "error", resp.error_msg);
+        } else {
+            switch (resp.original_cmd) {
+                case CMD_GPIO_SET:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "set_gpio_state");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.gpio.pin);
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_GPIO_GET_DIGITAL:
+                    cJSON_AddStringToObject(response, "type", "pin_state");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.gpio.pin);
+                    cJSON_AddStringToObject(payload_obj, "mode", "digital");
+                    cJSON_AddStringToObject(payload_obj, "value", resp.data.gpio.digital_value ? "high" : "low");
+                    break;
+
+                case CMD_GPIO_GET_ANALOG:
+                    cJSON_AddStringToObject(response, "type", "pin_state");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.gpio.pin);
+                    cJSON_AddStringToObject(payload_obj, "mode", "analog");
+                    cJSON_AddNumberToObject(payload_obj, "value", resp.data.gpio.analog_value);
+                    break;
+
+                case CMD_GPIO_CONFIGURE_INPUT:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "configure_gpio_input_monitoring");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.gpio.pin);
+                    cJSON_AddStringToObject(payload_obj, "status", "monitoring_enabled");
+                    break;
+
+                case CMD_PWM_SET:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "set_pwm_state");
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_I2C_CONFIGURE:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "i2c_configure");
+                    cJSON_AddNumberToObject(payload_obj, "bus", resp.data.i2c_configure.bus);
+                    cJSON_AddNumberToObject(payload_obj, "sda_pin", resp.data.i2c_configure.sda_pin);
+                    cJSON_AddNumberToObject(payload_obj, "scl_pin", resp.data.i2c_configure.scl_pin);
+                    cJSON_AddNumberToObject(payload_obj, "frequency", resp.data.i2c_configure.frequency);
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_I2C_SCAN: {
+                    cJSON_AddStringToObject(response, "type", "i2c_scan_result");
+                    cJSON_AddNumberToObject(payload_obj, "bus", resp.data.i2c_scan.bus);
+                    cJSON *devices = cJSON_CreateArray();
+                    for (uint8_t i = 0; i < resp.data.i2c_scan.count; i++) {
+                        char addr_str[8];
+                        snprintf(addr_str, sizeof(addr_str), "0x%02X", resp.data.i2c_scan.addresses[i]);
+                        cJSON_AddItemToArray(devices, cJSON_CreateString(addr_str));
+                    }
+                    cJSON_AddItemToObject(payload_obj, "devices", devices);
+                    cJSON_AddNumberToObject(payload_obj, "count", resp.data.i2c_scan.count);
+                    break;
+                }
+
+                case CMD_I2C_WRITE:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "i2c_write");
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_I2C_READ: {
+                    cJSON_AddStringToObject(response, "type", "i2c_read_result");
+                    cJSON_AddNumberToObject(payload_obj, "bus", resp.data.i2c_read.bus);
+                    char addr_str[8];
+                    snprintf(addr_str, sizeof(addr_str), "0x%02X", resp.data.i2c_read.address);
+                    cJSON_AddStringToObject(payload_obj, "address", addr_str);
+                    char *data_b64 = base64_encode(resp.data.i2c_read.data, resp.data.i2c_read.data_len);
+                    if (data_b64) {
+                        cJSON_AddStringToObject(payload_obj, "data", data_b64);
+                        free(data_b64);
+                    }
+                    cJSON_AddNumberToObject(payload_obj, "length", resp.data.i2c_read.data_len);
+                    break;
+                }
+
+                case CMD_DISPLAY_UPDATE:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "display_update");
+                    cJSON_AddStringToObject(payload_obj, "controller",
+                        resp.data.display.controller ? resp.data.display.controller : "ssd1306");
+                    cJSON_AddNumberToObject(payload_obj, "width", resp.data.display.width);
+                    cJSON_AddNumberToObject(payload_obj, "height", resp.data.display.height);
+                    cJSON_AddNumberToObject(payload_obj, "segments_count", resp.data.display.segments_count);
+                    cJSON_AddNumberToObject(payload_obj, "bytes_written", resp.data.display.bytes_written);
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_REBOOT:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "reboot");
+                    cJSON_AddStringToObject(payload_obj, "status", "rebooting");
+                    break;
+
+                default:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+            }
+        }
+
+        cJSON_AddItemToObject(response, "payload", payload_obj);
+
+        if (resp.message_id[0] != '\0') {
+            cJSON_AddStringToObject(response, "id", resp.message_id);
+        }
+
+        char *json_str = cJSON_PrintUnformatted(response);
+        if (json_str) {
+            ws_send_text(json_str);
+            free(json_str);
+        }
+        cJSON_Delete(response);
+
+        // Handle reboot after sending response
+        if (resp.original_cmd == CMD_REBOOT && resp.status == RESPONSE_SUCCESS) {
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+            iotkit_hal_reboot();
+        }
+    }
+}
+
+static void process_gpio_notifications(void) {
+    gpio_notification_t notification;
+
+    while (xQueueReceive(gpio_notification_queue, &notification, 0) == pdTRUE) {
+        cJSON *msg = cJSON_CreateObject();
+        cJSON *payload_obj = cJSON_CreateObject();
+
+        cJSON_AddStringToObject(msg, "type", "gpio_state_changed");
+        cJSON_AddNumberToObject(payload_obj, "pin", notification.pin);
+        cJSON_AddStringToObject(payload_obj, "state", notification.state ? "high" : "low");
+        cJSON_AddItemToObject(msg, "payload", payload_obj);
+
+        char *json_str = cJSON_PrintUnformatted(msg);
+        if (json_str) {
+            ws_send_text(json_str);
+            free(json_str);
+        }
+        cJSON_Delete(msg);
+    }
+}
 
 static void event_handler(void* arg, esp_event_base_t event_base,
                           int32_t event_id, void* event_data) {
@@ -72,9 +248,9 @@ static void wifi_init_sta(void) {
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
         },
     };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
-    ESP_ERROR_CHECK(esp_wifi_start() );
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
 
@@ -102,9 +278,9 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             ws_connected = true;
             iotkit_hal_blink_led(3);
             {
-                char msg[] = "{\"type\": \"device connect\"}";
+                const char *msg = "{\"type\":\"device_connected\"}";
                 esp_websocket_client_send_text(ws_client, msg, strlen(msg), portMAX_DELAY);
-                ESP_LOGI(TAG, "Sent device connect message");
+                ESP_LOGI(TAG, "Sent device_connected message");
             }
             last_ping_time = xTaskGetTickCount() * portTICK_PERIOD_MS;
             break;
@@ -113,7 +289,6 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             ws_connected = false;
             break;
         case WEBSOCKET_EVENT_DATA:
-            ESP_LOGI(TAG, "WEBSOCKET_EVENT_DATA");
             if (data->data_len > 0) {
                 char *message = malloc(data->data_len + 1);
                 if (message) {
@@ -149,17 +324,23 @@ static void websocket_task(void *pvParameters) {
     esp_websocket_client_start(ws_client);
 
     while (1) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        // Process responses from worker task and send via WebSocket
+        if (ws_connected) {
+            process_worker_responses();
+            process_gpio_notifications();
+        }
 
+        // Ping keepalive
         if (ws_connected) {
             uint32_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
             if (now - last_ping_time > IOTKIT_PING_INTERVAL_MS) {
-                char ping_msg[] = "{\"type\": \"ping\"}";
+                const char *ping_msg = "{\"type\":\"ping\"}";
                 esp_websocket_client_send_text(ws_client, ping_msg, strlen(ping_msg), portMAX_DELAY);
-                ESP_LOGI(TAG, "Sent ping message");
                 last_ping_time = now;
             }
         }
+
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 }
 
@@ -176,7 +357,25 @@ void app_main(void) {
     iotkit_hal_init();
     iotkit_hal_blink_led(1);
 
+    // Initialize inter-task queues
+    cmd_queue = xQueueCreate(8, sizeof(worker_command_t));
+    response_queue = xQueueCreate(16, sizeof(worker_response_t));
+    gpio_notification_queue = xQueueCreate(32, sizeof(gpio_notification_t));
+
+    // Initialize shared buffers
+    shared_buffers_init();
+
+    // Initialize worker task state
+    worker_task_init();
+
+    // Initialize WebSocket handler with command queue
+    websocket_handler_init(cmd_queue);
+
     wifi_init_sta();
 
-    xTaskCreate(&websocket_task, "websocket_task", 4096, NULL, 5, NULL);
+    // Start worker task
+    xTaskCreate(worker_task_entry, "worker", 8192, NULL, 4, NULL);
+
+    // Start WebSocket task (higher priority)
+    xTaskCreate(websocket_task, "websocket", 8192, NULL, 5, NULL);
 }

@@ -88,16 +88,6 @@ export async function listSerialPorts(): Promise<string[]> {
 		} catch {
 			// /dev not readable, return empty
 		}
-
-		// Also check /dev/serial/by-id for more descriptive names
-		try {
-			const serialDir = await fs.readdir("/dev/serial/by-id");
-			for (const entry of serialDir) {
-				ports.push(`/dev/serial/by-id/${entry}`);
-			}
-		} catch {
-			// No serial by-id directory
-		}
 	} else {
 		throw new Error(`Unsupported platform for ESP32 flashing: ${platform}`);
 	}
@@ -105,30 +95,15 @@ export async function listSerialPorts(): Promise<string[]> {
 	return ports;
 }
 
-export async function detectESP32Port(
-	timeoutMs: number = DEFAULT_TIMEOUT,
-): Promise<string> {
+async function waitForSerialPort(timeoutMs: number): Promise<string> {
 	const start = Date.now();
-
 	while (Date.now() - start < timeoutMs) {
 		const ports = await listSerialPorts();
-
-		if (ports.length === 1) {
-			return ports[0];
-		}
-
-		if (ports.length > 1) {
-			throw new Error(
-				`Multiple serial ports detected:\n${ports.map((p) => `  - ${p}`).join("\n")}\n\n` +
-					"Please specify the port with --port <port>",
-			);
-		}
-
+		if (ports.length > 0) return ports[0];
 		await new Promise((resolve) => setTimeout(resolve, 500));
 	}
-
 	throw new Error(
-		"No ESP32 serial port detected.\n" +
+		"No serial port detected.\n" +
 			"Make sure your ESP32 is connected via USB.\n" +
 			"You may need to install CP210x or CH340 USB drivers.",
 	);
@@ -142,11 +117,23 @@ export async function flashESP32(
 
 	const esptool = await getEsptoolCommand();
 
-	let port = options.port;
-	if (!port) {
-		console.log("\nSearching for ESP32 device...");
-		port = await detectESP32Port(timeoutMs);
-		console.log(`\u2713 Device found at ${port}`);
+	let port: string;
+	if (options.port) {
+		port = options.port;
+	} else {
+		console.log("\nWaiting for ESP32 serial port...");
+		port = await waitForSerialPort(timeoutMs);
+		console.log(`\u2713 Serial port detected: ${port}`);
+	}
+
+	try {
+		await fs.access(port, fs.constants.R_OK | fs.constants.W_OK);
+	} catch {
+		throw new Error(
+			`Serial port ${port} is not accessible (permission denied).\n` +
+				"Fix with:  sudo usermod -a -G dialout $USER\n" +
+				"Then log out and back in for the group change to take effect.",
+		);
 	}
 
 	const args: string[] = [

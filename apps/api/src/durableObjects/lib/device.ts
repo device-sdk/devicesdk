@@ -353,7 +353,9 @@ export class BaseDevice extends DurableObject<Env> {
 		_wasClean: boolean,
 	) {
 		console.log(`webSocketClose with code ${code}, ${reason}`);
-		await this.handleConnectionLost(`WebSocket closed. Code: ${code}, Reason: ${reason}`);
+		await this.handleConnectionLost(
+			`WebSocket closed. Code: ${code}, Reason: ${reason}`,
+		);
 		ws.close(code, "Durable Object is closing WebSocket");
 	}
 

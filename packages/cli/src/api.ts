@@ -84,8 +84,12 @@ Response body (${response.status}):`);
 			}
 		}
 
-		const message =
+		let message =
 			data?.error?.message || `Request failed with status ${response.status}`;
+		if (response.status === 401) {
+			message +=
+				"\nPlease run `npx devicesdk login` to re-authenticate.";
+		}
 		throw new DeviceSDKApiError(
 			message,
 			response.status,
@@ -393,6 +397,10 @@ Response body (${response.status}):`);
 			}
 		}
 
+		if (response.status === 401) {
+			message +=
+				"\nPlease run `npx devicesdk login` to re-authenticate.";
+		}
 		throw new DeviceSDKApiError(
 			message,
 			response.status,

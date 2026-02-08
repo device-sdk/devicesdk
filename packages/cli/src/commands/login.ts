@@ -14,6 +14,7 @@ export default async function login(options?: {
 		setVerbose(true);
 		isVerbose = true;
 	}
+
 	console.log("Starting authentication...\n");
 
 	try {

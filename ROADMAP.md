@@ -10,25 +10,25 @@ Last updated: 2026-02-07
 
 | # | Task | Description | Status |
 |---|------|-------------|--------|
-| 1 | [Rewrite Simulator in Vue.js](#1-rewrite-simulator-in-vuejs) | Delete `apps/simulation/` (Next.js) and rewrite as a Vue 3 + Quasar app that compiles to a static export for the CLI | [ ] |
-| 2 | [Finish the `dev` Command](#2-finish-the-dev-command) | Un-stub `packages/cli/src/commands/dev.ts` so `devicesdk dev` launches a local workerd simulator | [ ] |
-| 3 | [Implement Dashboard Script Templates](#3-implement-dashboard-script-templates) | Replace the 6 placeholder templates in DeviceDetailsPage.vue with real, working code | [ ] |
-| 4 | [Implement I2C Batch Write in Pico Firmware](#4-implement-i2c-batch-write-in-pico-firmware) | Wire up `CMD_I2C_BATCH_WRITE` in the Pico Core 1 worker instead of returning an error | [ ] |
-| 5 | [Fix Durable Object Worker Caching Bug](#5-fix-durable-object-worker-caching-bug) | Remove the LOADER.get() workaround once the upstream EW-9769 bug is fixed | [ ] |
-| 6 | [Bring ESP32 Firmware to Feature Parity](#6-bring-esp32-firmware-to-feature-parity) | ESP32 firmware lacks I2C, display, and sensor driver support present in the Pico firmware | [ ] |
-| 7 | [Add Device Logging Pipeline](#7-add-device-logging-pipeline) | End-to-end: device-side log transport, API ingestion/storage, dashboard log viewer | [ ] |
-| 8 | [Add Real-Time Dashboard Features](#8-add-real-time-dashboard-features) | Live device status, console output, and pin state monitoring in the dashboard | [ ] |
-| 9 | [Add Dashboard Tests](#9-add-dashboard-tests) | Unit tests (Vitest + Vue Test Utils) and E2E tests (Playwright) for the dashboard | [ ] |
-| 10 | [Add API Test Coverage Reporting](#10-add-api-test-coverage-reporting) | Emit coverage from the 63 integration tests, set thresholds, report in CI | [ ] |
-| 11 | [Unify Linting on Biome](#11-unify-linting-on-biome) | Migrate dashboard and simulation from ESLint to Biome for consistency | [ ] |
-| 12 | [Add Continuous Deployment](#12-add-continuous-deployment) | Automated deploy-on-merge for the API, dashboard, and website | [ ] |
-| 13 | [Add Dependency & Security Scanning](#13-add-dependency--security-scanning) | Dependabot/Renovate for dependency updates; SAST scanning in CI | [ ] |
-| 14 | [Add API Rate Limiting](#14-add-api-rate-limiting) | Protect public endpoints from abuse | [ ] |
-| 15 | [Add Account Deletion Endpoint](#15-add-account-deletion-endpoint) | GDPR-style `DELETE /v1/user/me` that cascades through projects, devices, scripts, sessions | [ ] |
-| 16 | [Expand Public Documentation](#16-expand-public-documentation) | API reference, I2C guide, sensor cookbook, `dev` command docs, architecture overview | [ ] |
-| 17 | [Add Monitoring & Error Tracking](#17-add-monitoring--error-tracking) | APM, structured logging, error tracking, and alerting for production | [ ] |
-| 18 | [Automate npm Publishing & Releases](#18-automate-npm-publishing--releases) | Changesets (or similar) for versioning `@devicesdk/core` and `@devicesdk/cli`, CI publish | [ ] |
-| 19 | [Miscellaneous Cleanup](#19-miscellaneous-cleanup) | Small TODOs, type fixes, and dead code across the repo | [ ] |
+| 1 | [Rewrite Simulator in Vue.js](#1-rewrite-simulator-in-vuejs) | Delete `apps/simulation/` (Next.js) and rewrite as a Vue 3 app that compiles to a static export for the CLI | [ x ]  |
+| 2 | [Finish the `dev` Command](#2-finish-the-dev-command) | Un-stub `packages/cli/src/commands/dev.ts` so `devicesdk dev` launches a local workerd simulator | [ ]    |
+| 3 | [Implement Dashboard Script Templates](#3-implement-dashboard-script-templates) | Replace the 6 placeholder templates in DeviceDetailsPage.vue with real, working code | [ ]    |
+| 4 | [Implement I2C Batch Write in Pico Firmware](#4-implement-i2c-batch-write-in-pico-firmware) | Wire up `CMD_I2C_BATCH_WRITE` in the Pico Core 1 worker instead of returning an error | [ ]    |
+| 5 | [Fix Durable Object Worker Caching Bug](#5-fix-durable-object-worker-caching-bug) | Remove the LOADER.get() workaround once the upstream EW-9769 bug is fixed | [ ]    |
+| 6 | [Bring ESP32 Firmware to Feature Parity](#6-bring-esp32-firmware-to-feature-parity) | ESP32 firmware lacks I2C, display, and sensor driver support present in the Pico firmware | [ x ]  |
+| 7 | [Add Device Logging Pipeline](#7-add-device-logging-pipeline) | End-to-end: device-side log transport, API ingestion/storage, dashboard log viewer | [ ]    |
+| 8 | [Add Real-Time Dashboard Features](#8-add-real-time-dashboard-features) | Live device status, console output, and pin state monitoring in the dashboard | [ ]    |
+| 9 | [Add Dashboard Tests](#9-add-dashboard-tests) | Unit tests (Vitest + Vue Test Utils) and E2E tests (Playwright) for the dashboard | [ ]    |
+| 10 | [Add API Test Coverage Reporting](#10-add-api-test-coverage-reporting) | Emit coverage from the 63 integration tests, set thresholds, report in CI | [ ]    |
+| 11 | [Unify Linting on Biome](#11-unify-linting-on-biome) | Migrate dashboard and simulation from ESLint to Biome for consistency | [ ]    |
+| 12 | [Add Continuous Deployment](#12-add-continuous-deployment) | Automated deploy-on-merge for the API, dashboard, and website | [ ]    |
+| 13 | [Add Dependency & Security Scanning](#13-add-dependency--security-scanning) | Dependabot/Renovate for dependency updates; SAST scanning in CI | [ ]    |
+| 14 | [Add API Rate Limiting](#14-add-api-rate-limiting) | Protect public endpoints from abuse | [ ]    |
+| 15 | [Add Account Deletion Endpoint](#15-add-account-deletion-endpoint) | GDPR-style `DELETE /v1/user/me` that cascades through projects, devices, scripts, sessions | [ ]    |
+| 16 | [Expand Public Documentation](#16-expand-public-documentation) | API reference, I2C guide, sensor cookbook, `dev` command docs, architecture overview | [ ]    |
+| 17 | [Add Monitoring & Error Tracking](#17-add-monitoring--error-tracking) | APM, structured logging, error tracking, and alerting for production | [ ]    |
+| 18 | [Automate npm Publishing & Releases](#18-automate-npm-publishing--releases) | Changesets (or similar) for versioning `@devicesdk/core` and `@devicesdk/cli`, CI publish | [ ]    |
+| 19 | [Miscellaneous Cleanup](#19-miscellaneous-cleanup) | Small TODOs, type fixes, and dead code across the repo | [ ]    |
 
 ---
 
@@ -39,7 +39,7 @@ Last updated: 2026-02-07
 **Priority**: High
 **Packages affected**: `apps/simulation/`, `packages/cli`
 
-The current simulator is a Next.js 15 (React) app at `apps/simulation/`. The rest of the frontend stack is Vue 3 + Quasar (`apps/dashboard/`). Maintaining two frameworks doubles UI dependency surface and prevents sharing components between the dashboard and the simulator.
+The current simulator is a Next.js 15 (React) app at `apps/simulation/`. The rest of the frontend stack is Vue 3 + Quasar (`apps/dashboard/`). but in this case we are using vanila vuejs and NOT usign quasar. Maintaining two frameworks doubles UI dependency surface and prevents sharing components between the dashboard and the simulator.
 
 **What exists today**:
 - `apps/simulation/` — Next.js + Radix UI + shadcn/ui + Tailwind + recharts
@@ -48,13 +48,13 @@ The current simulator is a Next.js 15 (React) app at `apps/simulation/`. The res
 
 **Work required**:
 1. Delete `apps/simulation/` entirely.
-2. Create a new `apps/simulation/` using Vue 3 + Quasar (matching the dashboard stack).
+2. Create a new `apps/simulation/` using Vue 3 (cc).
 3. Re-implement all current simulator features:
    - Board viewer with clickable GPIO pins (pin state read/write)
    - Virtual sensor connector (temperature, humidity, etc.)
    - Live logging panel (WebSocket-fed device events)
    - Device selector (switch between board models: Pico W, Pico 2W)
-4. Configure static export (Quasar SSG or `vite build` to `out/`).
+4. Configure static export.
 5. Verify the CLI build step still copies the static output correctly into `dist/simulator/assets/`.
 6. Update CI lint job — currently runs `ESLint (dashboard + simulation)` via turbo; ensure the new Vue app is covered by Biome or ESLint as appropriate.
 7. Update `CLAUDE.md` dependency graph and package descriptions.
@@ -252,7 +252,7 @@ The dashboard has zero tests.
 The API has 63 integration tests across 6 files, but no coverage reporting.
 
 **Work required**:
-1. Enable `@vitest/coverage-v8` (or `@vitest/coverage-istanbul`) in `tests/vitest.config.mts`.
+1. Enable `@vitest/coverage-istanbul` in `tests/vitest.config.mts`.
 2. Configure coverage thresholds (start with current baseline, ratchet up).
 3. Add coverage reporting step to CI (upload to Codecov or similar).
 4. Add a coverage badge to the repo README.
@@ -320,7 +320,7 @@ No rate limiting on any API endpoint. Public endpoints (OAuth, CLI auth) are esp
 
 **Work required**:
 1. Implement rate limiting middleware in the Hono app (token bucket or sliding window).
-2. Use D1 or Durable Objects for rate limit state (per-IP for unauthenticated, per-user for authenticated).
+2. Use this https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/ for rate limit state (per-IP for unauthenticated, per-user for authenticated).
 3. Apply stricter limits to auth endpoints, generous limits to authenticated CRUD.
 4. Return `429 Too Many Requests` with `Retry-After` header.
 5. Add integration tests for rate limit behavior.

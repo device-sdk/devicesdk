@@ -8,7 +8,8 @@ export default defineConfig({
       main: "./src/devices/button.ts",
       entrypoint: "MyDevice",
       name: "Main Device",
-      deviceType: 'pico2-w',
+      //deviceType: 'pico2-w',
+      deviceType: 'esp32',
       wifi: {
         ssid: 'Nau',
         password: '12345679'

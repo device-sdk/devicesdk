@@ -34,8 +34,10 @@ export async function startAuth(c: AppContext) {
 		.bind(crypto.randomUUID(), deviceCode, userCode, currentMs, expiresAt)
 		.run();
 
-	const url = new URL(c.req.url);
-	const baseUrl = `${url.protocol}//${url.host}`;
+	const baseUrl =
+		c.env.ENV === "local"
+			? "http://localhost:8787"
+			: `${new URL(c.req.url).protocol}//${new URL(c.req.url).host}`;
 
 	return c.json({
 		success: true,

@@ -1,5 +1,6 @@
+import chokidar from "chokidar";
 import * as esbuild from "esbuild";
-import { type ExecaError, execa } from "execa";
+import { type ExecaChildProcess, type ExecaError, execa } from "execa";
 import fs from "fs/promises";
 import net from "net";
 import path from "path";
@@ -36,18 +37,20 @@ const generateCapnpConfig = (
 	const durableObjects = Object.keys(devices)
 		.map(
 			(key) => `
-      (className = "${devices[key].className}", enableSql = true)
+      (className = "DeviceBridge_${key}", enableSql = true)
     `,
 		)
 		.join(",");
 
-	const bindings = Object.entries(devices)
+	const doBindings = Object.keys(devices)
 		.map(
-			([key, value]) => `
-        (name = "${key}", durableObjectNamespace = (className = "${value.className}", serviceName = "main"))
+			(key) => `
+        (name = "${key}", durableObjectNamespace = (className = "DeviceBridge_${key}", serviceName = "main"))
       `,
 		)
 		.join(",");
+
+	const deviceIds = JSON.stringify(Object.keys(devices));
 
 	return `using Workerd = import "/workerd/workerd.capnp";
 
@@ -82,13 +85,18 @@ const simulatorWorker :Workerd.Worker = (
         (name = "simulator.js", esModule = embed "./simulator.js"),
     ],
 
-    bindings = [(
+    bindings = [
+    (
       name = "ASSETS",
       service = (
         name = "simulator-assets"
       )
     ),
-    ${bindings}],
+    (
+      name = "DEVICES",
+      text = "${deviceIds.replace(/"/g, '\\"')}"
+    ),
+    ${doBindings}],
 );`;
 };
 
@@ -97,16 +105,25 @@ const generateWorkerdEntrypoint = async (
 	tmpDir: string,
 ): Promise<string> => {
 	const entrypointPath = path.join(tmpDir, "_workerd_entry.ts");
-	const imports = Object.values(devices)
+
+	const userImports = Object.values(devices)
 		.map(
 			(device) =>
-				`import { ${device.className} as ${device.className} } from '${device.resolvedEntrypoint}';`,
+				`import { ${device.className} } from '${device.resolvedEntrypoint}';`,
 		)
 		.join("\n");
-	const exports = `export { ${Object.values(devices)
-		.map((device) => device.className)
-		.join(", ")} };`;
-	const content = `${imports}\n${exports}`;
+
+	const bridgeExports = Object.entries(devices)
+		.map(
+			([key, device]) =>
+				`export const DeviceBridge_${key} = createDeviceBridge(${device.className});`,
+		)
+		.join("\n");
+
+	const content = `import { createDeviceBridge } from '${path.resolve(__dirname, "../simulator/deviceBridge.js")}';
+${userImports}
+${bridgeExports}
+`;
 	await fs.writeFile(entrypointPath, content);
 	return entrypointPath;
 };
@@ -114,7 +131,7 @@ const generateWorkerdEntrypoint = async (
 const buildEntryPoint = async (
 	entrypointPath: string,
 	outfile: string,
-	extraLoaders: esbuild.Plugin[] = [],
+	extraPlugins: esbuild.Plugin[] = [],
 ) => {
 	await esbuild.build({
 		entryPoints: [entrypointPath],
@@ -122,12 +139,12 @@ const buildEntryPoint = async (
 		outfile,
 		format: "esm",
 		platform: "node",
-		plugins: extraLoaders,
+		external: ["cloudflare:workers"],
+		plugins: extraPlugins,
 	});
 };
 
 function toClassName(deviceId: string): string {
-	// Convert device-id to DeviceId class name
 	return (
 		deviceId
 			.split("-")
@@ -136,10 +153,7 @@ function toClassName(deviceId: string): string {
 	);
 }
 
-const dev = async (options: { config?: string }) => {
-	console.log("devicesdk dev: coming soon. Thanks for your patience!");
-	return;
-
+const dev = async (options: { config?: string; port?: string }) => {
 	const configPathOption = options.config || ".";
 	let configPath = path.resolve(process.cwd(), configPathOption);
 
@@ -156,6 +170,23 @@ const dev = async (options: { config?: string }) => {
 	}
 	const tmpDir = path.join(path.dirname(configPath), ".devicesdk");
 
+	let workerdProcess: ExecaChildProcess | null = null;
+	let isRestarting = false;
+
+	const cleanup = async () => {
+		if (workerdProcess) {
+			workerdProcess.kill("SIGTERM");
+			workerdProcess = null;
+		}
+		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+	};
+
+	process.on("SIGINT", async () => {
+		console.log("\nShutting down devicesdk...");
+		await cleanup();
+		process.exit(0);
+	});
+
 	try {
 		const config = await loadConfig(options.config);
 		const configDir = path.dirname(configPath);
@@ -171,74 +202,194 @@ const dev = async (options: { config?: string }) => {
 		}
 
 		console.log("Loaded devices:");
-		Object.keys(devicesWithClass).forEach((deviceName) => {
-			console.log(`- ${deviceName}`);
-		});
+		for (const deviceName of Object.keys(devicesWithClass)) {
+			console.log(`  - ${deviceName}`);
+		}
 
 		await fs.mkdir(tmpDir, { recursive: true });
 
-		const entrypointPath = await generateWorkerdEntrypoint(
-			devicesWithClass,
-			tmpDir,
-		);
-		const outfile = path.join(tmpDir, "bundle.js");
-		await buildEntryPoint(entrypointPath, outfile);
-
-		const simulatorEntrypointPath = path.resolve(
+		// Resolve simulator assets path
+		let simulatorAssetsPath = path.resolve(
 			__dirname,
-			"../simulator/worker.ts",
+			"../simulator/assets",
 		);
-		const simulatorOutfile = path.join(tmpDir, "simulator.js");
-		await buildEntryPoint(simulatorEntrypointPath, simulatorOutfile, [
-			{
-				name: "raw-loader",
-				setup(build) {
-					build.onResolve({ filter: /\?raw$/ }, (args) => ({
-						path: path.isAbsolute(args.path)
-							? args.path.slice(0, -4)
-							: path.join(args.resolveDir, args.path.slice(0, -4)),
-						namespace: "raw-loader",
-					}));
-					build.onLoad(
-						{ filter: /.*/, namespace: "raw-loader" },
-						async (args) => ({
-							contents: await fs.readFile(args.path),
-							loader: "text",
-						}),
-					);
-				},
-			},
-		]);
-
-		let port = 8181;
-		if (!(await isPortAvailable(port))) {
-			port = Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
+		try {
+			await fs.access(simulatorAssetsPath);
+		} catch {
+			// Fallback: dev path when running from source
+			simulatorAssetsPath = path.resolve(
+				__dirname,
+				"../../../../apps/simulation/dist",
+			);
+			try {
+				await fs.access(simulatorAssetsPath);
+			} catch {
+				console.error(
+					"Error: Simulator assets not found. Run `pnpm build --filter @devicesdk/simulation` first.",
+				);
+				process.exit(1);
+			}
 		}
 
-		// TODO: make this path dynamic
-		const capnpConfig = generateCapnpConfig(
-			devicesWithClass,
-			"bundle.js",
-			path.resolve(__dirname, "../simulator/assets"),
-			port,
+		let port = options.port ? Number.parseInt(options.port, 10) : 8181;
+		if (!(await isPortAvailable(port))) {
+			const original = port;
+			port = Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
+			console.log(
+				`Port ${original} is in use, using ${port} instead.`,
+			);
+		}
+
+		const buildAndStart = async () => {
+			// Kill existing workerd process and wait for it to exit
+			if (workerdProcess) {
+				const proc = workerdProcess;
+				workerdProcess = null;
+				proc.kill("SIGTERM");
+				try {
+					await proc;
+				} catch {
+					// Expected — process was killed
+				}
+			}
+
+			const entrypointPath = await generateWorkerdEntrypoint(
+				devicesWithClass,
+				tmpDir,
+			);
+			const outfile = path.join(tmpDir, "bundle.js");
+			await buildEntryPoint(entrypointPath, outfile);
+
+			const simulatorWorkerPath = path.resolve(
+				__dirname,
+				"../simulator/worker.js",
+			);
+
+			// Check if the compiled worker.js exists; if not, try building from .ts
+			let simulatorSourcePath: string;
+			try {
+				await fs.access(simulatorWorkerPath);
+				simulatorSourcePath = simulatorWorkerPath;
+			} catch {
+				simulatorSourcePath = path.resolve(
+					__dirname,
+					"../simulator/worker.ts",
+				);
+			}
+
+			const simulatorOutfile = path.join(tmpDir, "simulator.js");
+			await buildEntryPoint(simulatorSourcePath, simulatorOutfile, [
+				{
+					name: "raw-loader",
+					setup(build) {
+						build.onResolve({ filter: /\?raw$/ }, (args) => ({
+							path: path.isAbsolute(args.path)
+								? args.path.slice(0, -4)
+								: path.join(
+										args.resolveDir,
+										args.path.slice(0, -4),
+									),
+							namespace: "raw-loader",
+						}));
+						build.onLoad(
+							{ filter: /.*/, namespace: "raw-loader" },
+							async (args) => ({
+								contents: await fs.readFile(args.path),
+								loader: "text",
+							}),
+						);
+					},
+				},
+			]);
+
+			const capnpConfig = generateCapnpConfig(
+				devicesWithClass,
+				"bundle.js",
+				simulatorAssetsPath,
+				port,
+			);
+			const capnpPath = path.join(tmpDir, "config.capnp");
+			await fs.writeFile(capnpPath, capnpConfig);
+
+			console.log(
+				`\nStarting devicesdk on http://localhost:${port}...\n`,
+			);
+
+			workerdProcess = execa(
+				"workerd",
+				["serve", "config.capnp", "--verbose"],
+				{
+					stdio: "inherit",
+					cwd: tmpDir,
+				},
+			);
+
+			workerdProcess.catch((error: ExecaError) => {
+				if (error.signal === "SIGTERM" && isRestarting) {
+					// Expected during restart
+					return;
+				}
+				if (error.signal === "SIGINT") {
+					// User pressed Ctrl+C
+					return;
+				}
+				console.error("\nworkerd exited unexpectedly:", error.message);
+			});
+		};
+
+		// Initial build and start
+		await buildAndStart();
+
+		// Watch user source files for changes
+		const watchPaths = Object.values(devicesWithClass).map(
+			(d) => d.resolvedEntrypoint,
 		);
-		const capnpPath = path.join(tmpDir, "config.capnp");
-		await fs.writeFile(capnpPath, capnpConfig);
+		const watchDirs = [
+			...new Set(watchPaths.map((p) => path.dirname(p))),
+		];
 
-		console.log(`
-Starting devicesdk on http://localhost:${port}...
-`);
-
-		await execa("workerd", ["serve", "config.capnp", "--verbose"], {
-			stdio: "inherit",
-			cwd: tmpDir,
+		let rebuildQueued = false;
+		const watcher = chokidar.watch(watchDirs, {
+			ignored: /(^|[\/\\])\.|node_modules|\.devicesdk/,
+			ignoreInitial: true,
 		});
+
+		watcher.on("change", async (changedPath) => {
+			console.log(
+				`\nFile changed: ${path.relative(configDir, changedPath)}`,
+			);
+
+			if (isRestarting) {
+				rebuildQueued = true;
+				return;
+			}
+
+			isRestarting = true;
+			console.log("Rebuilding...\n");
+
+			try {
+				await buildAndStart();
+			} catch (error) {
+				console.error("Rebuild failed:", (error as Error).message);
+			} finally {
+				isRestarting = false;
+			}
+
+			// If changes came in during rebuild, rebuild again
+			if (rebuildQueued) {
+				rebuildQueued = false;
+				watcher.emit("change", changedPath);
+			}
+		});
+
+		// Keep the process alive until SIGINT
+		await new Promise(() => {});
 	} catch (error) {
 		const execaError = error as ExecaError;
 		if (execaError.signal === "SIGINT") {
 			console.log("\nShutting down devicesdk...");
 		} else {
-			console.error("\n❌ An unexpected error occurred.");
+			console.error("\nAn unexpected error occurred.");
 			if (error instanceof Error) {
 				console.error(`\nError: ${(error as Error).message}`);
 			} else {
@@ -249,10 +400,7 @@ Starting devicesdk on http://localhost:${port}...
 			);
 			process.exitCode = 1;
 		}
-	} finally {
-		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {
-			// Ignore errors on cleanup
-		});
+		await cleanup();
 	}
 };
 

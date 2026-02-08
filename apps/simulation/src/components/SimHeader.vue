@@ -1,13 +1,43 @@
 <script setup lang="ts">
-defineProps<{
-	selectedDevice: string;
-}>();
+import { computed } from "vue";
+import type { ConnectionStatus } from "@/composables/useDeviceConnection";
+
+const props = withDefaults(
+	defineProps<{
+		selectedDevice: string;
+		isDevMode?: boolean;
+		connectionStatus?: ConnectionStatus;
+		availableDevices?: string[];
+	}>(),
+	{
+		isDevMode: false,
+		connectionStatus: "disconnected",
+		availableDevices: () => [],
+	},
+);
 
 const emit = defineEmits<{
 	deviceChange: [deviceId: string];
 }>();
 
-const devices = ["PicoW-A", "PicoW-B", "PicoW-C"];
+const fallbackDevices = ["PicoW-A", "PicoW-B", "PicoW-C"];
+
+const devices = computed(() =>
+	props.isDevMode && props.availableDevices.length > 0
+		? props.availableDevices
+		: fallbackDevices,
+);
+
+const statusColor = computed(() => {
+	switch (props.connectionStatus) {
+		case "connected":
+			return "bg-green-500";
+		case "connecting":
+			return "bg-yellow-500 animate-pulse";
+		default:
+			return "bg-red-500";
+	}
+});
 </script>
 
 <template>
@@ -31,6 +61,13 @@ const devices = ["PicoW-A", "PicoW-B", "PicoW-C"];
 				/>
 			</svg>
 			<h1 class="text-xl font-bold">DeviceSDK</h1>
+			<span
+				v-if="isDevMode"
+				class="ml-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold text-primary border-primary/30 bg-primary/10"
+			>
+				<span :class="['inline-block w-2 h-2 rounded-full', statusColor]" />
+				Dev Mode
+			</span>
 		</div>
 		<div class="w-48">
 			<select

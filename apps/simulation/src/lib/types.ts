@@ -1,4 +1,6 @@
-import type { DeviceCommand } from "@devicesdk/core";
+import type { DeviceCommand, DisplayUpdateCommand } from "@devicesdk/core";
+
+export type { DisplayUpdateCommand };
 
 export type PinMode =
 	| "digital_input"

@@ -11,7 +11,7 @@ Last updated: 2026-02-07
 | # | Task | Description | Status |
 |---|------|-------------|--------|
 | 1 | [Rewrite Simulator in Vue.js](#1-rewrite-simulator-in-vuejs) | Delete `apps/simulation/` (Next.js) and rewrite as a Vue 3 app that compiles to a static export for the CLI | [ x ]  |
-| 2 | [Finish the `dev` Command](#2-finish-the-dev-command) | Un-stub `packages/cli/src/commands/dev.ts` so `devicesdk dev` launches a local workerd simulator | [ ]    |
+| 2 | [Finish the `dev` Command](#2-finish-the-dev-command) | Un-stub `packages/cli/src/commands/dev.ts` so `devicesdk dev` launches a local workerd simulator | [ x ]  |
 | 3 | [Implement Dashboard Script Templates](#3-implement-dashboard-script-templates) | Replace the 6 placeholder templates in DeviceDetailsPage.vue with real, working code | [ ]    |
 | 4 | [Implement I2C Batch Write in Pico Firmware](#4-implement-i2c-batch-write-in-pico-firmware) | Wire up `CMD_I2C_BATCH_WRITE` in the Pico Core 1 worker instead of returning an error | [ ]    |
 | 5 | [Fix Durable Object Worker Caching Bug](#5-fix-durable-object-worker-caching-bug) | Remove the LOADER.get() workaround once the upstream EW-9769 bug is fixed | [ ]    |

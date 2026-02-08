@@ -56,6 +56,7 @@ program
 	.command("dev")
 	.description("Run the local development server")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("-p, --port <port>", "Port for the dev server (default: 8181)")
 	.action(dev);
 
 program

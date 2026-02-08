@@ -347,21 +347,6 @@ export function isPicoDeviceType(deviceType: DeviceType): boolean {
 	return deviceType === "pico-w" || deviceType === "pico2-w";
 }
 
-export interface ESP32FlasherArgs {
-	chip: string;
-	flash_mode: string;
-	flash_size: string;
-	flash_freq: string;
-	before: string;
-	after: string;
-	flash_files: Record<string, string>;
-}
-
-export interface ESP32Firmware {
-	flasherArgs: ESP32FlasherArgs;
-	files: Record<string, Buffer>;
-}
-
 export async function downloadDeviceFirmware(
 	token: string,
 	projectId: string,
@@ -578,59 +563,3 @@ export async function deleteToken(
 	);
 }
 
-export async function downloadESP32Firmware(
-	token: string,
-	projectId: string,
-	deviceId: string,
-	wifi: { ssid: string; password: string },
-	deviceType: DeviceType,
-	options?: { host?: string },
-): Promise<Buffer> {
-	const url = `${getApiUrl()}/v1/projects/${projectId}/devices/${deviceId}/firmware`;
-
-	const response = await fetch(url, {
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${token}`,
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
-			ssid: wifi.ssid,
-			pass: wifi.password,
-			device_type: deviceType,
-			...(options?.host ? { host: options.host } : {}),
-		}),
-	});
-
-	if (!response.ok) {
-		let message = `Request failed with status ${response.status}`;
-		let responseBody: any;
-		let responseText: string | undefined;
-		try {
-			responseText = await response.text();
-			responseBody = responseText ? JSON.parse(responseText) : undefined;
-			message = responseBody?.error?.message || message;
-		} catch {
-			// ignore parse failure
-		}
-
-		if (responseBody || responseText) {
-			console.error(`\nResponse body (${response.status}):`);
-			try {
-				console.error(JSON.stringify(responseBody ?? responseText, null, 2));
-			} catch {
-				console.error(responseText);
-			}
-		}
-
-		throw new DeviceSDKApiError(
-			message,
-			response.status,
-			responseBody?.error?.code,
-			responseBody ?? responseText,
-		);
-	}
-
-	const arrayBuffer = await response.arrayBuffer();
-	return Buffer.from(arrayBuffer);
-}

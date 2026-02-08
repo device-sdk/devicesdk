@@ -137,22 +137,17 @@ export class DownloadFirmware extends OpenAPIRoute {
 
 		const deviceType = data.body.device_type;
 
-		// ESP32 returns a ZIP archive directly
+		// Determine firmware key and filename based on device type
+		let firmwareKey: string;
+		let filename: string;
 		if (deviceType === "esp32") {
-			const firmwareKey = "esp32-client.zip";
-			const object = await c.env.FIRMWARES.get(firmwareKey);
-			if (!object) return c.text("Firmware not found", 404);
-
-			return new Response(object.body, {
-				headers: {
-					"Content-Type": "application/zip",
-					"Content-Disposition": 'attachment; filename="esp32-client.zip"',
-				},
-			});
+			firmwareKey = "esp32-client.bin";
+			filename = "esp32-client.bin";
+		} else {
+			firmwareKey = `devicesdk-${deviceType}-client.uf2`;
+			filename = "devicesdk-client.uf2";
 		}
 
-		// Pico devices return a patched UF2 file
-		const firmwareKey = `devicesdk-${deviceType}-client.uf2`;
 		const object = await c.env.FIRMWARES.get(firmwareKey);
 		if (!object) return c.text("Firmware not found", 404);
 
@@ -186,7 +181,7 @@ export class DownloadFirmware extends OpenAPIRoute {
 		return new Response(bytes, {
 			headers: {
 				"Content-Type": "application/octet-stream",
-				"Content-Disposition": 'attachment; filename="devicesdk-client.uf2"',
+				"Content-Disposition": `attachment; filename="${filename}"`,
 			},
 		});
 	}

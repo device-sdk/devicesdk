@@ -24,6 +24,33 @@
 
 static const char *TAG = "IoTKit";
 
+// Strip null padding from binary-patched credentials (matching Pico main.cpp:186-194)
+static void sanitize_credential(const char* src, size_t src_len, char* dest, size_t dest_size) {
+    size_t out = 0;
+    for (size_t i = 0; i < src_len && (out + 1) < dest_size; ++i) {
+        if (src[i] != '\0') {
+            dest[out++] = src[i];
+        }
+    }
+    dest[out] = '\0';
+}
+
+// Raw credential arrays (may contain null padding from binary patching)
+static const char RAW_SSID[] = IOTKIT_WIFI_SSID;
+static const char RAW_PASSWORD[] = IOTKIT_WIFI_PASSWORD;
+static const char RAW_TOKEN[] = IOTKIT_API_TOKEN;
+static const char RAW_HOST[] = IOTKIT_API_HOST;
+static const char RAW_PROJECT_ID[] = DEVICESDK_PROJECT_ID;
+static const char RAW_DEVICE_ID[] = DEVICESDK_DEVICE_ID;
+
+// Sanitized credential buffers
+static char wifi_ssid[sizeof(RAW_SSID)];
+static char wifi_password[sizeof(RAW_PASSWORD)];
+static char api_token[sizeof(RAW_TOKEN)];
+static char api_host[sizeof(RAW_HOST)];
+static char project_id[sizeof(RAW_PROJECT_ID)];
+static char device_id[sizeof(RAW_DEVICE_ID)];
+
 static EventGroupHandle_t wifi_event_group;
 static const int WIFI_CONNECTED_BIT = BIT0;
 static const int WIFI_FAIL_BIT = BIT1;
@@ -243,11 +270,13 @@ static void wifi_init_sta(void) {
 
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = IOTKIT_WIFI_SSID,
-            .password = IOTKIT_WIFI_PASSWORD,
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
         },
     };
+    // Copy sanitized credentials into wifi_config (can't use initializer for variable-length strings)
+    strncpy((char *)wifi_config.sta.ssid, wifi_ssid, sizeof(wifi_config.sta.ssid));
+    strncpy((char *)wifi_config.sta.password, wifi_password, sizeof(wifi_config.sta.password));
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -261,10 +290,10 @@ static void wifi_init_sta(void) {
             30000 / portTICK_PERIOD_MS);
 
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "connected to ap SSID:%s", IOTKIT_WIFI_SSID);
+        ESP_LOGI(TAG, "connected to ap SSID:%s", wifi_ssid);
         iotkit_hal_blink_led(2);
     } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to SSID:%s", IOTKIT_WIFI_SSID);
+        ESP_LOGI(TAG, "Failed to connect to SSID:%s", wifi_ssid);
     } else {
         ESP_LOGI(TAG, "UNEXPECTED EVENT");
     }
@@ -309,10 +338,13 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
 static void websocket_task(void *pvParameters) {
     ESP_LOGI(TAG, "WebSocket task started");
 
-    char uri[256];
+    char ws_path[256];
+    snprintf(ws_path, sizeof(ws_path), "/v1/projects/%s/devices/%s/connect/websocket", project_id, device_id);
+
+    char uri[512];
     char auth_header[256];
-    snprintf(uri, sizeof(uri), "ws://%s:%d%s", IOTKIT_SERVER_HOST, IOTKIT_SERVER_PORT, IOTKIT_SERVER_PATH);
-    snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s\r\n", IOTKIT_API_TOKEN);
+    snprintf(uri, sizeof(uri), "ws://%s%s", api_host, ws_path);
+    snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s\r\n", api_token);
 
     esp_websocket_client_config_t websocket_cfg = {
         .uri = uri,
@@ -346,6 +378,14 @@ static void websocket_task(void *pvParameters) {
 
 void app_main(void) {
     ESP_LOGI(TAG, "Starting IoTKit Client");
+
+    // Sanitize binary-patched credentials (strip null padding)
+    sanitize_credential(RAW_SSID, sizeof(RAW_SSID), wifi_ssid, sizeof(wifi_ssid));
+    sanitize_credential(RAW_PASSWORD, sizeof(RAW_PASSWORD), wifi_password, sizeof(wifi_password));
+    sanitize_credential(RAW_TOKEN, sizeof(RAW_TOKEN), api_token, sizeof(api_token));
+    sanitize_credential(RAW_HOST, sizeof(RAW_HOST), api_host, sizeof(api_host));
+    sanitize_credential(RAW_PROJECT_ID, sizeof(RAW_PROJECT_ID), project_id, sizeof(project_id));
+    sanitize_credential(RAW_DEVICE_ID, sizeof(RAW_DEVICE_ID), device_id, sizeof(device_id));
 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {

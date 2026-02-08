@@ -24,7 +24,6 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"adm-zip": "^0.5.16",
 		"chokidar": "^3.5.3",
 		"commander": "^12.0.0",
 		"esbuild": "^0.25.9",
@@ -35,7 +34,6 @@
 		"zod": "catalog:zod4"
 	},
 	"devDependencies": {
-		"@types/adm-zip": "^0.5.7",
 		"@devicesdk/simulation": "workspace:*",
 		"@repo/typescript-config": "workspace:*",
 		"@types/node": "catalog:",

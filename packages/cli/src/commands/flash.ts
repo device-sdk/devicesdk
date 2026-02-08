@@ -6,7 +6,6 @@ import {
 	createProject,
 	DeviceSDKApiError,
 	downloadDeviceFirmware,
-	downloadESP32Firmware,
 	getDevice,
 	getProject,
 	isEsp32DeviceType,
@@ -132,7 +131,7 @@ export default async function flash(
 			}
 
 			console.log(`\n⬇ Downloading firmware for ${deviceId}...`);
-			const firmwareZip = await downloadESP32Firmware(
+			const firmwareBin = await downloadDeviceFirmware(
 				token,
 				config.projectId,
 				deviceId,
@@ -147,14 +146,16 @@ export default async function flash(
 				"firmware",
 				deviceId,
 			);
+			await fs.mkdir(firmwareDir, { recursive: true });
+			const firmwarePath = path.join(firmwareDir, "esp32-client.bin");
+			await fs.writeFile(firmwarePath, firmwareBin);
 
 			if (!options.port) {
 				console.log("\nConnect your ESP32 device via USB...");
 			}
 
 			const result = await flashESP32({
-				firmwareZip,
-				outputDir: firmwareDir,
+				firmwarePath,
 				port: options.port,
 				baud: options.baud,
 				timeoutMs: options.timeout ?? 60_000,

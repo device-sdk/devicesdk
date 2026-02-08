@@ -13,7 +13,6 @@ const apiMocks = {
 	getDevice: vi.fn(),
 	createDevice: vi.fn(),
 	downloadDeviceFirmware: vi.fn(),
-	downloadESP32Firmware: vi.fn(),
 };
 
 vi.mock("../api.js", async (importOriginal) => {
@@ -26,8 +25,6 @@ vi.mock("../api.js", async (importOriginal) => {
 		createDevice: (...args: any[]) => apiMocks.createDevice(...args),
 		downloadDeviceFirmware: (...args: any[]) =>
 			apiMocks.downloadDeviceFirmware(...args),
-		downloadESP32Firmware: (...args: any[]) =>
-			apiMocks.downloadESP32Firmware(...args),
 	};
 });
 
@@ -99,7 +96,6 @@ describe("flash command", () => {
 		apiMocks.getDevice.mockResolvedValue({});
 		apiMocks.createDevice.mockResolvedValue({});
 		apiMocks.downloadDeviceFirmware.mockResolvedValue(Buffer.from("fw"));
-		apiMocks.downloadESP32Firmware.mockResolvedValue(Buffer.from("zipdata"));
 		flashPicoMock.mockResolvedValue({ mountpoint: "/Volumes/RPI-RP2" });
 		flashEsp32Mocks.flashESP32.mockResolvedValue({ port: "/dev/ttyUSB0" });
 		flashEsp32Mocks.checkEsptoolInstalled.mockResolvedValue(true);
@@ -226,7 +222,7 @@ describe("flash command", () => {
 			await flash("esp-1");
 
 			expect(flashEsp32Mocks.checkEsptoolInstalled).toHaveBeenCalled();
-			expect(apiMocks.downloadESP32Firmware).toHaveBeenCalledWith(
+			expect(apiMocks.downloadDeviceFirmware).toHaveBeenCalledWith(
 				"test-token",
 				"test-project",
 				"esp-1",
@@ -236,8 +232,7 @@ describe("flash command", () => {
 			);
 			expect(flashEsp32Mocks.flashESP32).toHaveBeenCalledWith(
 				expect.objectContaining({
-					firmwareZip: Buffer.from("zipdata"),
-					outputDir: expect.stringContaining("esp-1"),
+					firmwarePath: expect.stringContaining("esp32-client.bin"),
 				}),
 			);
 			expect(flashPicoMock).not.toHaveBeenCalled();
@@ -272,13 +267,13 @@ describe("flash command", () => {
 
 			await expect(flash("esp-1")).rejects.toThrowError(/exit:6/);
 			expect(exitSpy).toHaveBeenCalledWith(6);
-			expect(apiMocks.downloadESP32Firmware).not.toHaveBeenCalled();
+			expect(apiMocks.downloadDeviceFirmware).not.toHaveBeenCalled();
 		});
 
 		it("exits when ESP32 firmware download fails", async () => {
 			const { loadConfig } = await import("../utils.js");
 			(loadConfig as any).mockResolvedValueOnce(createEsp32Config());
-			apiMocks.downloadESP32Firmware.mockRejectedValueOnce(
+			apiMocks.downloadDeviceFirmware.mockRejectedValueOnce(
 				new Error("download failed"),
 			);
 

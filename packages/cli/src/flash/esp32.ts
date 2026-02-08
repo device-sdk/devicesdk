@@ -1,13 +1,9 @@
 import { type ExecaError, execa } from "execa";
 import fs from "fs/promises";
 import os from "os";
-import path from "path";
-import { ESP32Firmware } from "../api.js";
-import { extractESP32Firmware, writeFirmwareFiles } from "./zip.js";
 
 export interface ESP32FlashOptions {
-	firmwareZip: Buffer;
-	outputDir: string;
+	firmwarePath: string;
 	port?: string;
 	baud?: number;
 	timeoutMs?: number;
@@ -144,17 +140,8 @@ export async function flashESP32(
 	const baud = options.baud ?? DEFAULT_BAUD;
 	const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT;
 
-	// Verify esptool is installed
 	const esptool = await getEsptoolCommand();
 
-	// Extract firmware from ZIP
-	console.log("Extracting firmware...");
-	const firmware = extractESP32Firmware(options.firmwareZip);
-
-	// Write files to disk
-	const writtenPaths = await writeFirmwareFiles(firmware, options.outputDir);
-
-	// Detect or use specified port
 	let port = options.port;
 	if (!port) {
 		console.log("\nSearching for ESP32 device...");
@@ -162,33 +149,21 @@ export async function flashESP32(
 		console.log(`\u2713 Device found at ${port}`);
 	}
 
-	// Build esptool command arguments
 	const args: string[] = [
 		"--chip",
-		firmware.flasherArgs.chip,
+		"esp32",
 		"--port",
 		port,
 		"--baud",
 		String(baud),
 		"--before",
-		firmware.flasherArgs.before,
+		"default_reset",
 		"--after",
-		firmware.flasherArgs.after,
+		"hard_reset",
 		"write_flash",
-		"--flash_mode",
-		firmware.flasherArgs.flash_mode,
-		"--flash_size",
-		firmware.flasherArgs.flash_size,
-		"--flash_freq",
-		firmware.flasherArgs.flash_freq,
+		"0x0",
+		options.firmwarePath,
 	];
-
-	// Add flash file addresses and paths
-	for (const [address, filename] of Object.entries(
-		firmware.flasherArgs.flash_files,
-	)) {
-		args.push(address, writtenPaths[filename]);
-	}
 
 	console.log("\nStarting flash...");
 	const stopSpinner = startSpinner("Flashing");

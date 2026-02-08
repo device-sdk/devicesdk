@@ -7,6 +7,8 @@ export interface ESP32FlashOptions {
 	port?: string;
 	baud?: number;
 	timeoutMs?: number;
+	chipName?: string;
+	before?: string;
 }
 
 const DEFAULT_BAUD = 460800;
@@ -138,13 +140,13 @@ export async function flashESP32(
 
 	const args: string[] = [
 		"--chip",
-		"esp32",
+		options.chipName ?? "esp32",
 		"--port",
 		port,
 		"--baud",
 		String(baud),
 		"--before",
-		"default_reset",
+		options.before ?? "default_reset",
 		"--after",
 		"hard_reset",
 		"write_flash",

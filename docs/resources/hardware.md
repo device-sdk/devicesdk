@@ -31,22 +31,41 @@ social_image: /og-images/docs/resources/hardware.png
 - **WiFi**: 2.4GHz
 - **GPIO/ADC/PWM/I2C/SPI/UART**: Compatible footprint and pinout with Pico W
 
-## Coming Soon
+### ESP32
 
-### ESP32 Series (future)
+✅ **Full support**
 
-🔄 **Planned**
+- **Chip**: ESP32 (Dual Xtensa LX6 @ 240MHz)
+- **RAM**: 520KB SRAM
+- **Flash**: 4MB (typical)
+- **WiFi**: 2.4GHz 802.11 b/g/n
+- **GPIO**: 34 pins
+- **ADC**: 18 channels, 12-bit
+- **PWM**: 16 channels (LEDC)
+- **I2C**: 2 controllers
+- **SPI**: 3 controllers
+- **UART**: 3 controllers
 
-- ESP32-C3
-- ESP32-S3
-- ESP32
+### ESP32-C61
+
+✅ **Full support**
+
+- **Chip**: ESP32-C61 (Single RISC-V @ 160MHz)
+- **RAM**: 256KB SRAM
+- **Flash**: 4MB (typical)
+- **WiFi**: 2.4GHz 802.11 b/g/n/ax (WiFi 6)
+- **GPIO**: 22 pins
+- **ADC**: 7 channels, 12-bit
+- **I2C**: 1 controller
+- **SPI**: 2 controllers
+- **UART**: 2 controllers
 
 ## Hardware Requirements
 
 ### Minimum Requirements
 
 For DeviceSDK device support:
-- Raspberry Pi Pico W or Pico 2W
+- Raspberry Pi Pico W / Pico 2W, or an ESP32 / ESP32-C61 board
 - Stable WiFi connectivity
 
 ### Recommended
@@ -71,17 +90,42 @@ await this.env.DEVICE.send({
 });
 ```
 
-### ADC Pins
+### Pico W ADC Pins
 
 ADC-capable pins on Pico W:
 - **GP26** - ADC0
 - **GP27** - ADC1
 - **GP28** - ADC2
 
-### Special Pins
+### Pico W Special Pins
 
 - **GP25** - Onboard LED (Pico W uses different pin for LED)
 - **GP23-GP24** - WiFi module (reserved)
+
+### ESP32
+
+Standard GPIO pin numbers are used directly. The onboard LED pin varies by board:
+
+| Board | Onboard LED Pin |
+|-------|----------------|
+| ESP32 (classic) | GPIO 2 |
+| ESP32-C61 | GPIO 5 |
+
+```typescript
+// ESP32 onboard LED (GPIO 2)
+await this.env.DEVICE.send({
+  type: 'gpio_write',
+  pin: 2,
+  value: 1
+});
+
+// ESP32-C61 onboard LED (GPIO 5)
+await this.env.DEVICE.send({
+  type: 'gpio_write',
+  pin: 5,
+  value: 1
+});
+```
 
 ## Peripheral Support
 
@@ -145,10 +189,18 @@ Flashing is typically **one-time per device**. After the first flash, updates ar
 
 ### Required Hardware
 
-1. **Raspberry Pi Pico W** - The microcontroller
-2. **USB Cable** - Micro-USB data cable (not power-only)
-3. **Breadboard** (optional) - For prototyping
-4. **Jumper wires** (optional) - For connections
+**For Pico W / Pico 2W:**
+1. **Raspberry Pi Pico W or Pico 2W**
+2. **USB Cable** — Micro-USB data cable (not power-only)
+
+**For ESP32 / ESP32-C61:**
+1. **ESP32 or ESP32-C61 development board**
+2. **USB-C cable** — Data-capable USB-C cable
+3. **Python 3** — Required for esptool (`pip install esptool`)
+
+**Optional:**
+- **Breadboard** — For prototyping
+- **Jumper wires** — For connections
 
 ### Recommended Accessories
 
@@ -161,22 +213,27 @@ Flashing is typically **one-time per device**. After the first flash, updates ar
 
 ### Onboard LED Test
 
-Flash this code to verify hardware:
+Flash this code to verify hardware. Use the correct LED pin for your board:
+- **Pico W / Pico 2W**: pin `25`
+- **ESP32**: pin `2`
+- **ESP32-C61**: pin `5`
 
 ```typescript
+const LED_PIN = 25; // Pico W — use 2 for ESP32, 5 for ESP32-C61
+
 export default class TestDevice extends DeviceEntrypoint {
   async onDeviceConnect() {
     // Blink LED 5 times
     for (let i = 0; i < 5; i++) {
       await this.env.DEVICE.send({
         type: 'gpio_write',
-        pin: 25,
+        pin: LED_PIN,
         value: 1
       });
       await this.sleep(500);
       await this.env.DEVICE.send({
         type: 'gpio_write',
-        pin: 25,
+        pin: LED_PIN,
         value: 0
       });
       await this.sleep(500);
@@ -191,7 +248,8 @@ If LED blinks, your hardware is working!
 
 ### Official Distributors
 
-- [Raspberry Pi](https://www.raspberrypi.com/products/)
+- [Raspberry Pi](https://www.raspberrypi.com/products/) — Pico W, Pico 2W
+- [Espressif](https://www.espressif.com/en/products/devkits) — ESP32, ESP32-C61 dev boards
 - [Adafruit](https://www.adafruit.com/)
 - [SparkFun](https://www.sparkfun.com/)
 - [Pimoroni](https://shop.pimoroni.com/)
@@ -199,6 +257,7 @@ If LED blinks, your hardware is working!
 ### Price Range
 
 - Raspberry Pi Pico W: $6-10 USD
+- ESP32 dev boards: $5-15 USD
 - Starter kits with accessories: $20-40 USD
 
 ## Community-Tested Hardware
@@ -212,11 +271,19 @@ Note: These are not officially supported but may work.
 
 ## Troubleshooting
 
-### Device Won't Flash
+### Pico Won't Flash
 
 - Check USB cable supports data (not power-only)
-- Ensure BOOTSEL mode is active
-- Try different USB port
+- Ensure BOOTSEL mode is active (hold BOOTSEL while plugging in USB)
+- Try a different USB port
+
+### ESP32 Won't Flash
+
+- Install esptool: `pip install esptool`
+- Check serial port permissions on Linux: `sudo usermod -a -G dialout $USER` (then log out/in)
+- If you see "No serial data received", your board may not support auto-reset — use manual boot mode and `--before no_reset` (see [flash docs](/docs/cli/flash/))
+- Try the USB-JTAG port (`/dev/ttyACM0`) instead of the UART port (`/dev/ttyUSB0`)
+- Lower the baud rate: `--baud 115200`
 
 ### Device Won't Connect
 
@@ -226,13 +293,13 @@ Note: These are not officially supported but may work.
 
 ### GPIO Not Working
 
-- Check pin number is correct
-- Verify pin isn't reserved (e.g., WiFi pins)
+- Check pin number is correct for your board (LED pins differ between boards)
+- Verify pin isn't reserved (e.g., WiFi pins on Pico W)
 - Check for hardware shorts
 
 ## Future Platform Support
 
-- ESP32 series (highest priority)
+- ESP32-C3, ESP32-S3 (planned)
 
 ## Next Steps
 

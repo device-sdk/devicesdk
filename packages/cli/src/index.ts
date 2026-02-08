@@ -98,6 +98,10 @@ program
 		"--host <url>",
 		"Download firmware from a custom host (e.g., http://192.168.0.1:9000)",
 	)
+	.option(
+		"--before <method>",
+		"Reset method before flashing (default_reset or no_reset)",
+	)
 	.action((deviceId, options) => flash(deviceId, options));
 
 program.parse(process.argv);

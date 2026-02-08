@@ -7,6 +7,7 @@ import {
 	DeviceSDKApiError,
 	downloadDeviceFirmware,
 	getDevice,
+	getEsp32ChipName,
 	getProject,
 	isEsp32DeviceType,
 } from "../api.js";
@@ -21,6 +22,7 @@ interface FlashOptions {
 	host?: string;
 	port?: string;
 	baud?: number;
+	before?: string;
 }
 
 async function ensureProjectExists(
@@ -147,7 +149,7 @@ export default async function flash(
 				deviceId,
 			);
 			await fs.mkdir(firmwareDir, { recursive: true });
-			const firmwarePath = path.join(firmwareDir, "esp32-client.bin");
+			const firmwarePath = path.join(firmwareDir, `${deviceType}-client.bin`);
 			await fs.writeFile(firmwarePath, firmwareBin);
 
 			if (!options.port) {
@@ -159,6 +161,8 @@ export default async function flash(
 				port: options.port,
 				baud: options.baud,
 				timeoutMs: options.timeout ?? 60_000,
+				chipName: getEsp32ChipName(deviceType),
+				before: options.before,
 			});
 
 			console.log(`\n✓ Flashed ${deviceId} via ${result.port}`);

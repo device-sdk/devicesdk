@@ -35,6 +35,49 @@
 2. Log out and back in (or reboot) for the group change to take effect
 3. Verify with `groups` that `dialout` appears in the output
 
+### ESP32-C61 build fails: RISC-V toolchain not found
+**Date**: 2026-02-08
+**Question/Problem**: Building the ESP32 firmware with `idf.py set-target esp32c61 && idf.py build` fails because the RISC-V cross-compiler (`riscv32-esp-elf-gcc`) is not found. The ESP32-C61 uses a RISC-V core, unlike the original ESP32 which uses Xtensa.
+**Root Cause**: ESP-IDF's `install.sh` only installs toolchains for the targets you specify. If you originally installed for `esp32` (Xtensa), the RISC-V toolchain needed by C61 is missing.
+**Solution**: Re-run the ESP-IDF installer with the C61 target:
+```bash
+cd ~/esp/esp-idf
+./install.sh esp32c61
+source export.sh
+```
+You can also install multiple targets at once: `./install.sh esp32,esp32c61`.
+
+### ESP32-C61 build fails: app binary exceeds partition size
+**Date**: 2026-02-08
+**Question/Problem**: `idf.py build` succeeds but the binary is too large for the default factory partition. The RISC-V binary for ESP32-C61 is significantly larger than the Xtensa ESP32 binary and exceeds the default 1MB app partition.
+**Root Cause**: The default ESP-IDF partition table allocates only 1MB (`0x100000`) for the factory app partition. The C61 RISC-V binary (with WebSocket, TLS, WiFi) exceeds this.
+**Solution**: Use a custom `partitions.csv` that enlarges the factory partition to ~1.94MB:
+```csv
+# Name,   Type, SubType, Offset,  Size,   Flags
+nvs,      data, nvs,     0x9000,  0x6000,
+phy_init, data, phy,     0xf000,  0x1000,
+factory,  app,  factory, 0x10000, 0x1F0000,
+```
+Enable it in `sdkconfig.defaults` (or `sdkconfig.defaults.esp32c61`):
+```
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+```
+
+### ESP32-C61 flash fails: "No serial data received"
+**Date**: 2026-02-08
+**Question/Problem**: Running `esptool.py write_flash` with `--before default_reset` prints `Connecting...` then fails with "No serial data received". The board is connected via its UART USB-C port (`/dev/ttyUSB0`).
+**Root Cause**: `--before default_reset` toggles DTR/RTS serial lines to automatically put the chip into download mode. Some ESP32-C61 dev boards don't have DTR/RTS wired from the USB-UART bridge to the EN and GPIO9 (boot) pins, so the auto-reset has no effect and the chip never enters download mode.
+**Solution**: Use manual boot mode instead:
+1. Hold the **BOOT** button (GPIO9)
+2. While holding BOOT, press and release the **RESET** button (EN)
+3. Release the BOOT button — the chip is now in download mode
+4. Flash with `--before no_reset`:
+   ```bash
+   devicesdk flash <device-id> --before no_reset
+   ```
+Some boards also have a jumper (e.g. J5) that forces boot mode when shorted. If your board has a USB-JTAG port (second USB-C connector, appears as `/dev/ttyACM0`), try that instead — it often supports auto-reset. Lower the baud rate with `--baud 115200` if you still see connection issues.
+
 ### ESP32 multi-port detection caused "Multiple serial ports detected" on Linux
 **Date**: 2026-02-08
 **Question/Problem**: Linux exposes USB serial devices as both `/dev/ttyUSB0` and a symlink at `/dev/serial/by-id/usb-Silicon_Labs_...`. The old code scanned both `/dev/` and `/dev/serial/by-id/`, saw 2 entries for the same physical device, and threw "Multiple serial ports detected".

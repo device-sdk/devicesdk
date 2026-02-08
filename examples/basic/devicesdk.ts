@@ -9,7 +9,7 @@ export default defineConfig({
       entrypoint: "MyDevice",
       name: "Main Device",
       //deviceType: 'pico2-w',
-      deviceType: 'esp32',
+      deviceType: 'esp32c61',
       wifi: {
         ssid: 'Nau',
         password: '12345679'

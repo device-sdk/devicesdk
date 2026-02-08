@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-export type DeviceType = "pico-w" | "pico2-w" | "esp32";
+export type DeviceType = "pico-w" | "pico2-w" | "esp32" | "esp32c61";
 const deviceTypeSchema: z.ZodType<DeviceType> = z.enum([
 	"pico-w",
 	"pico2-w",
 	"esp32",
+	"esp32c61",
 ]);
 
 export const DeviceConfigSchema = z

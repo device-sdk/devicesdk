@@ -35,7 +35,7 @@ export class DownloadFirmware extends OpenAPIRoute {
 							ssid: z.string().max(32).optional(),
 							pass: z.string().max(63).optional(),
 							host: z.string().optional().default("api.devicesdk.com"),
-							device_type: z.enum(["pico-w", "pico2-w", "esp32"]),
+							device_type: z.enum(["pico-w", "pico2-w", "esp32", "esp32c61"]),
 						}),
 					},
 				},
@@ -140,9 +140,9 @@ export class DownloadFirmware extends OpenAPIRoute {
 		// Determine firmware key and filename based on device type
 		let firmwareKey: string;
 		let filename: string;
-		if (deviceType === "esp32") {
-			firmwareKey = "esp32-client.bin";
-			filename = "esp32-client.bin";
+		if (deviceType === "esp32" || deviceType === "esp32c61") {
+			firmwareKey = `${deviceType}-client.bin`;
+			filename = `${deviceType}-client.bin`;
 		} else {
 			firmwareKey = `devicesdk-${deviceType}-client.uf2`;
 			filename = "devicesdk-client.uf2";

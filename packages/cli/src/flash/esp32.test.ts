@@ -119,9 +119,7 @@ describe("esp32 flash", () => {
 
 		it("throws on unsupported platform", async () => {
 			vi.spyOn(os, "platform").mockReturnValue("win32");
-			await expect(listSerialPorts()).rejects.toThrow(
-				"Unsupported platform",
-			);
+			await expect(listSerialPorts()).rejects.toThrow("Unsupported platform");
 		});
 	});
 
@@ -171,10 +169,7 @@ describe("esp32 flash", () => {
 
 		it("picks first port when multiple ttyUSB ports exist", async () => {
 			vi.spyOn(os, "platform").mockReturnValue("linux");
-			vi.spyOn(fs, "readdir").mockResolvedValue([
-				"ttyUSB0",
-				"ttyUSB1",
-			] as any);
+			vi.spyOn(fs, "readdir").mockResolvedValue(["ttyUSB0", "ttyUSB1"] as any);
 			vi.spyOn(fs, "access").mockResolvedValue();
 			(execaMock as any).mockResolvedValueOnce({});
 

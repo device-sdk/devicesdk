@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "command -v idf.py >/dev/null 2>&1 && idf.py build || echo 'Skipping ESP32 build (ESP-IDF not found)'",
-    "build:all": "idf.py build && mkdir -p dist && esptool.py --chip esp32 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB -o dist/esp32-client.bin 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin",
+    "build": "bash -c '. ${IDF_PATH:-$HOME/esp/esp-idf}/export.sh 2>/dev/null && idf.py build || echo \"Skipping ESP32 build (ESP-IDF not found)\"'",
+    "build:all": "bash -c '. ${IDF_PATH:-$HOME/esp/esp-idf}/export.sh && idf.py build && mkdir -p dist && esptool.py --chip esp32 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB -o dist/esp32-client.bin 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin'",
     "publish": "pnpm build:all && wrangler r2 object put devicesdk-firmwares/esp32-client.bin --file dist/esp32-client.bin --remote",
     "test": "command -v pytest >/dev/null 2>&1 && pytest test_*.py -v || echo 'Skipping ESP32 tests'",
     "clean": "rm -rf build dist"

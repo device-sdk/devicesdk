@@ -40,7 +40,8 @@
 		{
 			"preview_bucket_name": "devicesdk-firmwares",
 			"bucket_name": "devicesdk-firmwares",
-			"binding": "FIRMWARES"
+			"binding": "FIRMWARES",
+			"remote": true
 		}
 	],
 	"d1_databases": [

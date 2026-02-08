@@ -4,7 +4,7 @@
 	"scripts": {
 		"build": "turbo run build",
 		"dev": "turbo run dev",
-		"lint": "biome check --write apps/api packages/core packages/cli && turbo run lint",
+		"lint": "biome check --write apps/api apps/simulation packages/core packages/cli && turbo run lint",
 		"test": "turbo run test",
 		"check-types": "turbo run check-types",
 		"deploy": "turbo run deploy",

@@ -14,7 +14,7 @@ pnpm build --filter @devicesdk/api
 # Dev servers
 pnpm dev --filter @devicesdk/api          # Wrangler dev on port 8787
 pnpm dev --filter @devicesdk/dashboard    # Quasar dev server
-pnpm dev --filter @devicesdk/simulation   # Next.js on port 9002
+pnpm dev --filter @devicesdk/simulation   # Vite dev on port 9002
 
 # Tests
 pnpm test --filter @devicesdk/api         # 63 integration tests (vitest + cloudflare workers pool)
@@ -25,10 +25,12 @@ cd apps/api && npx vitest run --config tests/vitest.config.mts -t "should create
 
 # Type checking
 pnpm check-types --filter @devicesdk/api
-pnpm check-types --filter @devicesdk/dashboard   # uses vue-tsc
+pnpm check-types --filter @devicesdk/simulation   # uses vue-tsc
+pnpm check-types --filter @devicesdk/dashboard     # uses vue-tsc
 
 # Linting
 pnpm lint --filter @devicesdk/api         # Biome
+pnpm lint --filter @devicesdk/simulation  # Biome
 pnpm lint --filter @devicesdk/dashboard   # ESLint
 
 # D1 database migrations
@@ -44,7 +46,7 @@ This is a pnpm + Turborepo monorepo for the DeviceSDK IoT platform. The platform
 
 **`packages/core`** (`@devicesdk/core`) — Shared TypeScript types and device abstractions. Published to npm. Exports `"."`, `"./i2c"`, `"./devices/pico"`. Has no runtime dependencies — pure type definitions.
 
-**`packages/cli`** (`@devicesdk/cli`) — CLI tool (`devicesdk` binary). Commands: `login`, `init`, `build`, `dev`, `deploy`, `flash`. Uses esbuild to bundle user device scripts, workerd for local simulation. Build copies Next.js static export from `apps/simulation/out` into `dist/simulator/assets/`.
+**`packages/cli`** (`@devicesdk/cli`) — CLI tool (`devicesdk` binary). Commands: `login`, `init`, `build`, `dev`, `deploy`, `flash`. Uses esbuild to bundle user device scripts, workerd for local simulation. Build copies Vite build output from `apps/simulation/dist` into `dist/simulator/assets/`.
 
 **`packages/typescript-config`** (`@repo/typescript-config`) — Shared `base.json` tsconfig extended by `core` and `cli`.
 
@@ -52,7 +54,7 @@ This is a pnpm + Turborepo monorepo for the DeviceSDK IoT platform. The platform
 
 **`apps/dashboard`** (`@devicesdk/dashboard`) — Vue 3 + Quasar SPA. Google OAuth login, project/device/token management. Deployed to `dash.devicesdk.com`. Requires `shamefully-hoist=true` in `.npmrc` for Quasar compatibility. Runs `quasar prepare` on postinstall.
 
-**`apps/simulation`** (`@devicesdk/simulation`) — Next.js app for device simulation UI. Static export (`out/`) is consumed by the CLI package at build time.
+**`apps/simulation`** (`@devicesdk/simulation`) — Vue 3 + Vite app for device simulation UI. Builds to `dist/` which is consumed by the CLI package at build time. Uses Tailwind CSS v4, `@floating-ui/vue` for popovers, and Biome for linting.
 
 **`apps/website`** (`@devicesdk/website`) — Hugo + Tailwind static site. Build requires Playwright browsers for OG image generation (`pnpm exec playwright install`).
 

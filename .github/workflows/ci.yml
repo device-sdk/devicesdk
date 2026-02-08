@@ -23,8 +23,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - name: Biome
-        run: pnpm exec biome ci apps/api packages/core packages/cli
-      - name: ESLint (dashboard + simulation)
+        run: pnpm exec biome ci apps/api apps/simulation packages/core packages/cli
+      - name: ESLint (dashboard)
         run: pnpm exec turbo run lint
 
   typecheck:

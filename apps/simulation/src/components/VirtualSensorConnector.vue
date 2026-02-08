@@ -6,6 +6,7 @@ import type {
 	SensorInfo,
 	ConnectedSensor,
 } from "@/lib/types";
+import { findI2cBus, describeI2cCapabilities } from "@/lib/pinCapabilities";
 
 const props = defineProps<{
 	pins: PinType[];
@@ -26,24 +27,34 @@ const SENSOR_PRESETS: SensorInfo[] = [
 	},
 	{
 		name: "SSD1306 OLED",
-		protocol: "SPI",
-		pins: { SCK: "SPI SCK", MOSI: "SPI TX", CS: "SPI CSn" },
+		protocol: "I2C",
+		pins: { SDA: "I2C SDA", SCL: "I2C SCL" },
 	},
 	{
 		name: "Push Button",
 		protocol: "ADC",
-		pins: { "ADC Pin": "ADC" },
+		pins: { "Signal Pin": "GP" },
 	},
 ];
 
 const selectedSensorType = ref<SensorType | "">("");
 const pinSelections = ref<Record<string, number | "">>({});
+const validationError = ref("");
 
 const selectedSensorInfo = computed(() =>
 	SENSOR_PRESETS.find((p) => p.name === selectedSensorType.value),
 );
 
+const isI2cSensor = computed(() => {
+	return selectedSensorInfo.value?.protocol === "I2C";
+});
+
 function getPinsByFunction(funcSubstring: string): PinType[] {
+	if (funcSubstring === "GP") {
+		return props.pins
+			.filter((p) => p.gpio !== null)
+			.sort((a, b) => (a.gpio as number) - (b.gpio as number));
+	}
 	const parts = funcSubstring.trim().split(/\s+/);
 	return props.pins
 		.filter(
@@ -58,6 +69,7 @@ function handleSensorTypeChange(event: Event) {
 	selectedSensorType.value = (event.target as HTMLSelectElement)
 		.value as SensorType;
 	pinSelections.value = {};
+	validationError.value = "";
 }
 
 function handlePinSelectionChange(pinRole: string, event: Event) {
@@ -66,6 +78,33 @@ function handlePinSelectionChange(pinRole: string, event: Event) {
 		...pinSelections.value,
 		[pinRole]: Number.parseInt(value, 10),
 	};
+	validationError.value = "";
+}
+
+function validateI2cPins(): boolean {
+	if (!isI2cSensor.value) return true;
+
+	const sdaPin = pinSelections.value.SDA;
+	const sclPin = pinSelections.value.SCL;
+
+	if (typeof sdaPin !== "number" || typeof sclPin !== "number") return true;
+
+	const result = findI2cBus(sdaPin, sclPin);
+	if (result) {
+		validationError.value = "";
+		return true;
+	}
+
+	const sdaCaps = describeI2cCapabilities(sdaPin);
+	const sclCaps = describeI2cCapabilities(sclPin);
+
+	const sdaDesc =
+		sdaCaps.length > 0 ? sdaCaps.join(" or ") : "no I2C capability";
+	const sclDesc =
+		sclCaps.length > 0 ? sclCaps.join(" or ") : "no I2C capability";
+
+	validationError.value = `GP${sdaPin} + GP${sclPin} is not a valid I2C pair. GP${sdaPin} supports ${sdaDesc}; GP${sclPin} supports ${sclDesc}.`;
+	return false;
 }
 
 function handleConnect() {
@@ -87,6 +126,11 @@ function handleConnect() {
 		return;
 	}
 
+	if (!validateI2cPins()) {
+		emit("log", `Error: ${validationError.value}`);
+		return;
+	}
+
 	emit("connectSensor", {
 		type: selectedSensorInfo.value.name,
 		pins: pinSelections.value as Record<string, number>,
@@ -94,6 +138,7 @@ function handleConnect() {
 
 	selectedSensorType.value = "";
 	pinSelections.value = {};
+	validationError.value = "";
 }
 </script>
 
@@ -211,6 +256,14 @@ function handleConnect() {
 						</option>
 					</select>
 				</div>
+			</div>
+
+			<!-- Validation Error -->
+			<div
+				v-if="validationError"
+				class="rounded-md border border-destructive/50 bg-destructive/10 p-3"
+			>
+				<p class="text-xs text-destructive">{{ validationError }}</p>
 			</div>
 		</div>
 		<div class="flex items-center p-6 pt-0">

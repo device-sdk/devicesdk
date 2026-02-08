@@ -11,6 +11,7 @@ const {
 	logs,
 	connectedSensors,
 	addLog,
+	clearLogs,
 	changeDevice,
 	updatePin,
 	connectSensor,
@@ -42,7 +43,7 @@ const {
 					class="flex-grow flex flex-col h-full overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm"
 				>
 					<div class="p-4 flex-grow overflow-hidden">
-						<LogPanel :logs="logs" />
+						<LogPanel :logs="logs" @clear="clearLogs" />
 					</div>
 				</div>
 			</div>

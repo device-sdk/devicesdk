@@ -62,6 +62,20 @@
 	--radius: 0.5rem;
 }
 
+.pin-pwm-pulse {
+	animation: pwm-pulse 500ms ease-in-out infinite;
+}
+
+@keyframes pwm-pulse {
+	0%,
+	100% {
+		opacity: 0.3;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
 * {
 	border-color: var(--color-border);
 }

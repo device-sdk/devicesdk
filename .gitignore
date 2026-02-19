@@ -23,6 +23,10 @@ resources/_gen/
 firmware/esp32/build/
 firmware/pico/build/
 
+# ESP-IDF managed components and Python cache
+firmware/esp32/managed_components/
+__pycache__/
+
 # IDE files
 .idea/
 .vscode/

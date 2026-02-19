@@ -148,6 +148,43 @@ pnpm --filter @devicesdk/example-basic flash-local
 - DeviceSDK is a **managed platform**. Use generic infrastructure terms instead: "globally distributed runtime", "serverless runtime", "edge infrastructure", "managed platform".
 - Internal code, configs, and developer-only files (e.g., `wrangler.jsonc`, API source code, CLAUDE.md itself) may reference Cloudflare as needed.
 
+## Anti-Redundancy Rules
+
+- **Search before creating**: Before writing a new utility, helper, type, or abstraction, search the codebase for existing implementations. Check `packages/core`, `apps/api/src/foundation/`, and existing endpoint patterns.
+- **Import from canonical sources**: Types come from `@devicesdk/core`, auth/middleware from `src/foundation/`, query patterns from `workers-qb`. Never duplicate these locally.
+- **One source of truth**: If the same logic exists in multiple places, refactor into a shared location. Do not create "V2" copies.
+
+## Source-of-Truth Locations
+
+| Concern | Canonical Location |
+|---------|-------------------|
+| Shared types and device abstractions | `packages/core` |
+| Auth middleware, session handling, OAuth | `apps/api/src/foundation/auth.ts` |
+| Session constants | `apps/api/src/foundation/consts.ts` |
+| Script validation | `apps/api/src/foundation/scriptValidator.ts` |
+| Device reboot trigger | `apps/api/src/foundation/deviceReboot.ts` |
+| Endpoint patterns | `apps/api/src/endpoints/` (follow existing resource structure) |
+| Database schema | `apps/api/migrations/` (sequential SQL files) |
+| Table type definitions | `apps/api/src/types.d.ts` |
+| Query builder patterns | Existing endpoints + `.claude/skills/write-sql-queries/SKILL.md` |
+
+## Multi-Agent Safety
+
+- **Multi-agent safety:** do **not** create/apply/drop `git stash` entries unless explicitly requested. Assume other agents may be working; keep unrelated WIP untouched.
+- **Multi-agent safety:** when the user says "push", you may `git pull --rebase` to integrate latest changes (never discard other agents' work). When the user says "commit", scope to your changes only.
+- **Multi-agent safety:** do **not** create/remove/modify `git worktree` checkouts unless explicitly requested.
+- **Multi-agent safety:** do **not** switch branches unless explicitly requested.
+- **Multi-agent safety:** running multiple agents is OK as long as each agent has its own session.
+- **Multi-agent safety:** when you see unrecognized files, keep going; focus on your changes and commit only those.
+
+## Coding Standards
+
+- **Strict types**: Do not use `any` in implementation code. Use `unknown` and narrow with type guards when needed.
+- **Validate at boundaries**: All external input (API request bodies, CLI args, environment variables, WebSocket messages) must be validated with Zod or explicit checks.
+- **File size**: Keep files under ~700 LOC. Split large files into focused modules.
+- **Response format**: Always use `{ success: true, result: ... }` or `{ success: false, error: "..." }` in API responses.
+- **IDs**: Use `crypto.randomUUID()` for new record IDs. Timestamps use `Date.now()` (epoch milliseconds).
+
 ## Troubleshooting Log
 
 Maintain a `TROUBLESHOOT.md` file at the repository root. This file serves as a persistent knowledge base of problems encountered and their solutions.

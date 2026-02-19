@@ -176,6 +176,7 @@ pnpm --filter @devicesdk/example-basic flash-local
 | Session constants | `apps/api/src/foundation/consts.ts` |
 | Script validation | `apps/api/src/foundation/scriptValidator.ts` |
 | Device reboot trigger | `apps/api/src/foundation/deviceReboot.ts` |
+| ESP32 image checksum recalculation | `apps/api/src/foundation/esp32ImageChecksum.ts` |
 | Endpoint patterns | `apps/api/src/endpoints/` (follow existing resource structure) |
 | Database schema | `apps/api/migrations/` (sequential SQL files) |
 | Table type definitions | `apps/api/src/types.d.ts` |
@@ -217,3 +218,14 @@ Maintain a `TROUBLESHOOT.md` file at the repository root. This file serves as a 
   ```
 - **Keep it actionable**: Write entries so that a future agent (or yourself in a new session) can immediately apply the solution without re-investigating.
 - **Don't duplicate**: Before adding a new entry, check if a similar one already exists. Update the existing entry instead if needed.
+
+## Knowledge Capture
+
+After completing any significant task (feature, bugfix, architectural change), **stop and evaluate** whether the work produced knowledge worth persisting:
+
+- **CLAUDE.md**: Update if new canonical file paths, build commands, architectural patterns, or conventions were established.
+- **TROUBLESHOOT.md**: Add entries for any non-obvious problems encountered, debugging dead-ends, or workarounds discovered.
+- **Claude Skills** (`.claude/skills/`): Create or update a skill if a repeatable workflow or domain-specific pattern emerged that future sessions would benefit from.
+- **Auto-memory** (`~/.claude/projects/.../memory/MEMORY.md`): Record hardware-specific findings, environment quirks, or user preferences.
+
+This is not optional — treat it as the final step of every significant task, before reporting completion to the user.

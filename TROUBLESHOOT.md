@@ -86,15 +86,10 @@ Some boards also have a jumper (e.g. J5) that forces boot mode when shorted. If 
 **Rule**: Only scan `/dev/ttyUSB*` and `/dev/ttyACM*` on Linux. Always pass `--port` to esptool.
 
 ### ESP32 firmware binary patching invalidates image checksum
-**Date**: 2026-02-19
+**Date**: 2026-02-19 (fixed 2026-02-19)
 **Question/Problem**: Downloading firmware via the API's `/v1/devices/:id/firmware` endpoint (which replaces placeholder strings with real WiFi/token/host credentials) and flashing the patched binary fails with `Checksum failed. Calculated 0x17 read 0x4b` and `Factory app partition is not bootable`.
-**Root Cause**: The API patches credentials by doing a byte-level string replacement in the merged binary. ESP-IDF images have a checksum embedded in the image header. Modifying the binary content without recalculating the checksum invalidates it.
-**Solution**: For local development and testing, build from source instead of using the binary patching path:
-1. Edit `firmware/esp32/main/config.h` with real credentials
-2. Run `idf.py build` to produce a valid image
-3. Flash individual partitions: `python -m esptool --chip esp32c61 write_flash 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin`
-4. Restore `config.h` to placeholders after flashing
-**Note**: The binary patching approach used by the CLI/API needs a future fix to recalculate the ESP-IDF image checksum after patching. This is tracked as a known issue.
+**Root Cause**: The API patches credentials by doing a byte-level string replacement in the merged binary. ESP-IDF app images (at offset `0x10000`) contain a 1-byte XOR checksum and a 32-byte SHA256 hash. Modifying bytes without recalculating both invalidates the image.
+**Solution**: `apps/api/src/foundation/esp32ImageChecksum.ts` — `recalculateEsp32Checksum()` is called after credential patching in `downloadFirmware.ts`. It parses the ESP-IDF image header, walks all segments to XOR data bytes (init `0xEF`), writes the checksum at the 16-byte-aligned position, then recomputes the SHA256 hash via `crypto.subtle.digest`. Verified against a real 5-segment ESP32-C61 firmware binary.
 
 ### ESP32-C61 has no RMT peripheral — use SPI backend for led_strip
 **Date**: 2026-02-19

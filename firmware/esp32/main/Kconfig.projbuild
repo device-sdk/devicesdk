@@ -2,8 +2,17 @@ menu "IoTKit Configuration"
 
     config IOTKIT_LED_PIN
         int "Onboard LED GPIO Pin"
-        default 2
+        default 8
         help
-            GPIO pin number for the onboard LED
+            GPIO pin number for the onboard LED.
+            ESP32-C61-DevKitC-1 uses GPIO 8 for the WS2812 RGB LED.
+
+    config IOTKIT_LED_IS_ADDRESSABLE
+        bool "LED is addressable (WS2812/NeoPixel)"
+        default y if IDF_TARGET_ESP32C61
+        default n
+        help
+            Enable if the onboard LED is an addressable RGB LED (WS2812).
+            ESP32-C61-DevKitC-1 has a WS2812 on GPIO 8.
 
 endmenu

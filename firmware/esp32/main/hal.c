@@ -26,10 +26,18 @@ int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t le
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+#include "led_strip.h"
+#include "led_strip_spi.h"
+#endif
 
 static const char *TAG = "HAL";
 
 #define ONBOARD_LED_PIN CONFIG_IOTKIT_LED_PIN
+
+#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+static led_strip_handle_t led_strip_handle = NULL;
+#endif
 
 // Track pins configured as inputs
 static uint64_t gpio_input_configured_mask = 0;
@@ -99,6 +107,22 @@ void iotkit_hal_init(void) {
         }
         ledc_channel_map_initialized = true;
     }
+
+#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = ONBOARD_LED_PIN,
+        .max_leds = 1,
+    };
+    led_strip_spi_config_t spi_config = {
+        .clk_src = SPI_CLK_SRC_DEFAULT,
+        .spi_bus = SPI2_HOST,
+        .flags.with_dma = true,
+    };
+    ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip_handle));
+    led_strip_clear(led_strip_handle);
+    ESP_LOGI(TAG, "Addressable LED initialized on GPIO %d", ONBOARD_LED_PIN);
+#endif
+
     ESP_LOGI(TAG, "HAL initialized");
 }
 
@@ -109,14 +133,40 @@ void iotkit_hal_reboot(void) {
 
 void iotkit_hal_blink_led(int count) {
     for (int i = 0; i < count; ++i) {
+#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+        if (led_strip_handle) {
+            led_strip_set_pixel(led_strip_handle, 0, 16, 16, 16);
+            led_strip_refresh(led_strip_handle);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+            led_strip_clear(led_strip_handle);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
+#else
         iotkit_hal_set_gpio(ONBOARD_LED_PIN, GPIO_STATE_HIGH);
         vTaskDelay(100 / portTICK_PERIOD_MS);
         iotkit_hal_set_gpio(ONBOARD_LED_PIN, GPIO_STATE_LOW);
         vTaskDelay(100 / portTICK_PERIOD_MS);
+#endif
     }
 }
 
 void iotkit_hal_set_gpio(uint8_t pin, gpio_state_t state) {
+#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+    // Map onboard LED pin or virtual pin 99 to the addressable LED
+    if ((pin == ONBOARD_LED_PIN || pin == 99) && led_strip_handle) {
+        if (state == GPIO_STATE_HIGH) {
+            led_strip_set_pixel(led_strip_handle, 0, 16, 16, 16);
+            led_strip_refresh(led_strip_handle);
+        } else {
+            led_strip_clear(led_strip_handle);
+        }
+        return;
+    }
+#endif
+    if (pin >= GPIO_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid GPIO pin: %d", pin);
+        return;
+    }
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << pin),
         .mode = GPIO_MODE_OUTPUT,

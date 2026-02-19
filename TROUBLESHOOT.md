@@ -84,3 +84,42 @@ Some boards also have a jumper (e.g. J5) that forces boot mode when shorted. If 
 **Root Cause**: `/dev/serial/by-id/` entries are symlinks to the same `/dev/ttyUSB*` device. Scanning both directories double-counted a single device.
 **Solution**: Removed `/dev/serial/by-id/` scanning entirely. `listSerialPorts()` now only scans `/dev/` for `ttyUSB*` and `ttyACM*` entries. When no explicit `--port` is given, `waitForSerialPort()` returns the first detected port, and `flashESP32()` always passes `--port` to esptool (preventing esptool from auto-scanning all serial ports including dozens of inaccessible `/dev/ttyS*` legacy ports).
 **Rule**: Only scan `/dev/ttyUSB*` and `/dev/ttyACM*` on Linux. Always pass `--port` to esptool.
+
+### ESP32 firmware binary patching invalidates image checksum
+**Date**: 2026-02-19
+**Question/Problem**: Downloading firmware via the API's `/v1/devices/:id/firmware` endpoint (which replaces placeholder strings with real WiFi/token/host credentials) and flashing the patched binary fails with `Checksum failed. Calculated 0x17 read 0x4b` and `Factory app partition is not bootable`.
+**Root Cause**: The API patches credentials by doing a byte-level string replacement in the merged binary. ESP-IDF images have a checksum embedded in the image header. Modifying the binary content without recalculating the checksum invalidates it.
+**Solution**: For local development and testing, build from source instead of using the binary patching path:
+1. Edit `firmware/esp32/main/config.h` with real credentials
+2. Run `idf.py build` to produce a valid image
+3. Flash individual partitions: `python -m esptool --chip esp32c61 write_flash 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin`
+4. Restore `config.h` to placeholders after flashing
+**Note**: The binary patching approach used by the CLI/API needs a future fix to recalculate the ESP-IDF image checksum after patching. This is tracked as a known issue.
+
+### ESP32-C61 has no RMT peripheral — use SPI backend for led_strip
+**Date**: 2026-02-19
+**Question/Problem**: Adding the `espressif/led_strip` component and using `led_strip_new_rmt_device()` results in an undefined reference linker error. The header exists and the library is on the link line, but the symbol isn't found.
+**Root Cause**: The ESP32-C61 does **not** have `CONFIG_SOC_RMT_SUPPORTED`. The led_strip component's CMakeLists.txt conditionally compiles the RMT backend only when `CONFIG_SOC_RMT_SUPPORTED` is set. Without it, the RMT source files (`led_strip_rmt_dev.c`, `led_strip_rmt_encoder.c`) are never compiled, hence the linker error.
+**Solution**: Use the SPI backend instead:
+```c
+#include "led_strip_spi.h"  // NOT led_strip_rmt.h
+
+led_strip_spi_config_t spi_config = {
+    .clk_src = SPI_CLK_SRC_DEFAULT,
+    .spi_bus = SPI2_HOST,
+    .flags.with_dma = true,
+};
+ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip_handle));
+```
+**Rule**: Always check `CONFIG_SOC_RMT_SUPPORTED` in `build/config/sdkconfig.h` before using RMT-dependent APIs. ESP32-C61 only has SPI (`CONFIG_SOC_GPSPI_SUPPORTED`).
+
+### ESP32-C61-DevKitC-1 onboard LED is an addressable WS2812 on GPIO 8
+**Date**: 2026-02-19
+**Question/Problem**: Setting GPIO 5 (or any simple GPIO) high/low doesn't blink the onboard LED. The LED appears always on or unresponsive to GPIO toggling.
+**Root Cause**: The ESP32-C61-DevKitC-1 board has a **WS2812 addressable RGB LED** on **GPIO 8**, not a simple GPIO-controlled LED. It requires the `espressif/led_strip` component with a timed digital protocol (NeoPixel/WS2812), not simple high/low signals.
+**Solution**:
+1. Add `espressif/led_strip: '*'` to `main/idf_component.yml`
+2. Use `CONFIG_IOTKIT_LED_IS_ADDRESSABLE` in Kconfig (defaults to `y` for `IDF_TARGET_ESP32C61`)
+3. In hal.c, use `led_strip_new_spi_device()` (SPI backend, since C61 lacks RMT)
+4. Control LED with `led_strip_set_pixel(handle, 0, r, g, b)` + `led_strip_refresh()` for ON, `led_strip_clear()` for OFF
+5. Intercept GPIO 8 and virtual pin 99 in `iotkit_hal_set_gpio()` to route through led_strip driver

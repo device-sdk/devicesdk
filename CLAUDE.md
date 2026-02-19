@@ -111,8 +111,10 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 ### Firmware (firmware/pico, firmware/esp32)
 
 - **Pico**: C++ with lwIP raw TCP WebSocket client. Single-threaded polling loop. HAL for GPIO/PWM/ADC/I2C. Virtual pin 99 = onboard LED.
-- **ESP32**: ESP-IDF based. Similar WebSocket architecture.
-- Both embed Wi-Fi credentials and API tokens at compile-time via CMake definitions.
+- **ESP32**: ESP-IDF v5.5.2 based. Similar WebSocket architecture. HAL functions prefixed `iotkit_hal_`. Supports addressable LEDs (WS2812) via `espressif/led_strip` component — guarded by `CONFIG_IOTKIT_LED_IS_ADDRESSABLE` Kconfig option.
+- **ESP32-C61 specifics**: No RMT peripheral — uses SPI backend for led_strip. Onboard LED is WS2812 on GPIO 8. Config in `firmware/esp32/main/Kconfig.projbuild`.
+- Both embed Wi-Fi credentials and API tokens at compile-time via placeholder strings in `config.h` (replaced at build time or via binary patching).
+- **Binary patching limitation**: The API's firmware download endpoint patches credentials in merged binaries, but this invalidates ESP-IDF image checksums. For local dev, build from source instead (see TROUBLESHOOT.md).
 
 ## Key Configuration Details
 
@@ -138,6 +140,17 @@ DEVICESDK_API_URL=http://localhost:8787 pnpm --filter @devicesdk/example-basic d
 pnpm --filter @devicesdk/example-basic flash-local
 ```
 
+- **ESP32 local flash** (build from source to avoid checksum issues):
+  ```bash
+  # 5a. Edit firmware/esp32/main/config.h with real WiFi/token/host credentials
+  # 5b. Build and flash
+  cd firmware/esp32
+  source ~/esp/esp-idf/export.sh
+  idf.py build
+  python -m esptool --chip esp32c61 -b 460800 --before default_reset --after hard_reset \
+    write_flash 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin
+  # 5c. Restore config.h to placeholder values after flashing
+  ```
 - `DEVICESDK_API_URL` overrides the CLI's default API endpoint (`https://api.devicesdk.com`). Set it whenever using CLI commands (`deploy`, `dev`, `login`, etc.) against the local server.
 - `flash-local` is a convenience script in `examples/basic/package.json` that runs `devicesdk flash device --host 192.168.1.238:8787`.
 - Ensure `apps/api/.dev.vars` contains `ENV=local` so local auth code paths activate.

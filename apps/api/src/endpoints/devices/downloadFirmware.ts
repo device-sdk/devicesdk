@@ -1,5 +1,6 @@
 import { ApiException, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
+import { recalculateEsp32Checksum } from "../../foundation/esp32ImageChecksum";
 import type { AppContext, tableProjects } from "../../types";
 
 const OLD_TOKEN = "e343ecb8036442e093a47718463c1716";
@@ -172,6 +173,10 @@ export class DownloadFirmware extends OpenAPIRoute {
 			replacePossiblySplitAscii(bytes, OLD_HOST, hostBytes, "Hostname");
 			replacePossiblySplitAscii(bytes, OLD_PROJECT_ID, projectBytes, "Project");
 			replacePossiblySplitAscii(bytes, OLD_DEVICE_ID, deviceBytes, "Device");
+			// Recalculate ESP-IDF image checksum after patching credentials
+			if (deviceType === "esp32" || deviceType === "esp32c61") {
+				await recalculateEsp32Checksum(bytes);
+			}
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Firmware patch failed";

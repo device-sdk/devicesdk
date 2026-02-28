@@ -12,10 +12,14 @@
 		"local": "pnpm --filter @devicesdk/api dev & pnpm --filter @devicesdk/dashboard dev",
 		"local:deploy": "DEVICESDK_API_URL=http://localhost:8787 pnpm --filter @devicesdk/example-basic run deploy",
 		"local:login": "DEVICESDK_API_URL=http://localhost:8787 npx devicesdk login",
-		"local:flash": "pnpm --filter @devicesdk/example-basic flash-local"
+		"local:flash": "pnpm --filter @devicesdk/example-basic flash-local",
+		"changeset": "changeset",
+		"version-packages": "changeset version",
+		"release": "changeset publish"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.8",
+		"@changesets/cli": "^2.29.8",
 		"turbo": "^2.5.0"
 	},
 	"packageManager": "pnpm@9.15.4",

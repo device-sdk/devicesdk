@@ -210,7 +210,7 @@ test.describe("UI behaviors", () => {
       // Click Delete
       await page
         .locator(".q-menu")
-        .getByText("Delete")
+        .getByText("Delete", { exact: true })
         .click();
 
       // Dialog should appear with slug confirmation

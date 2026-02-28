@@ -101,9 +101,9 @@ test.describe("CRUD operations", () => {
     });
 
     test("can edit device via edit dialog from overview", async ({ page }) => {
-      await page.goto("/projects/smart-home/devices/temp-sensor");
+      await page.goto("/projects/smart-home/devices/led-controller");
       await expect(
-        page.getByRole("heading", { name: "Temperature Sensor" }),
+        page.getByRole("heading", { name: "LED Controller" }),
       ).toBeVisible({ timeout: 10000 });
 
       // Click Edit Device button in quick actions
@@ -117,7 +117,7 @@ test.describe("CRUD operations", () => {
       // Update name in dialog
       const nameInput = page.locator(".q-dialog").getByLabel("Name");
       await nameInput.clear();
-      await nameInput.fill("Temp Sensor Updated");
+      await nameInput.fill("LED Strip Updated");
 
       // Save
       await page
@@ -177,10 +177,9 @@ test.describe("CRUD operations", () => {
 
       // Click delete button on first token row
       await page
-        .locator(".q-table")
-        .getByRole("button")
-        .filter({ has: page.locator("[class*='delete']") })
+        .locator(".q-table tbody .q-tr")
         .first()
+        .getByRole("button")
         .click();
 
       // Confirmation dialog appears
@@ -262,12 +261,12 @@ test.describe("CRUD operations", () => {
       await expect(deleteBtn).toBeDisabled();
 
       // Type wrong slug
-      await page.getByPlaceholder(/Type.*to confirm/).fill("wrong-slug");
+      await page.getByPlaceholder("Project slug").fill("wrong-slug");
       await expect(deleteBtn).toBeDisabled();
 
       // Type correct slug
       await page
-        .getByPlaceholder(/Type.*to confirm/)
+        .getByPlaceholder("Project slug")
         .fill("deletable-project");
       await expect(deleteBtn).toBeEnabled();
 

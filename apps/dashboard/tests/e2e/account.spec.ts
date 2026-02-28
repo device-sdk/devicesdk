@@ -12,14 +12,14 @@ test.describe("Account page", () => {
     ).toBeVisible();
 
     // Profile section shows user details
-    await expect(page.getByText("Profile")).toBeVisible();
+    await expect(page.getByText("Profile", { exact: true })).toBeVisible();
     await expect(page.getByText("Alice Johnson")).toBeVisible();
     await expect(page.getByText("alice@example.com").first()).toBeVisible();
   });
 
   test("shows email verification status", async ({ page }) => {
     await page.goto("/account");
-    await expect(page.getByText("Profile")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Profile", { exact: true })).toBeVisible({ timeout: 10000 });
 
     await expect(page.getByText("Email Verified")).toBeVisible();
     await expect(page.getByText("Verified")).toBeVisible();
@@ -27,14 +27,14 @@ test.describe("Account page", () => {
 
   test("shows member since date", async ({ page }) => {
     await page.goto("/account");
-    await expect(page.getByText("Profile")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Profile", { exact: true })).toBeVisible({ timeout: 10000 });
 
     await expect(page.getByText("Member Since")).toBeVisible();
   });
 
   test("shows preferences placeholder", async ({ page }) => {
     await page.goto("/account");
-    await expect(page.getByText("Profile")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Profile", { exact: true })).toBeVisible({ timeout: 10000 });
 
     await expect(page.getByText("Preferences")).toBeVisible();
     await expect(
@@ -54,7 +54,7 @@ test.describe("Account page", () => {
 
     // Dialog appears
     await expect(
-      page.locator(".q-dialog").getByText("Delete Account"),
+      page.locator(".q-dialog").getByText("Delete Account").first(),
     ).toBeVisible();
     await expect(
       page.getByText("Are you sure you want to delete your account?"),

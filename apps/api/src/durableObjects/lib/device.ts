@@ -9,6 +9,8 @@ import {
 	LOG_MAX_STORED,
 	LOG_MESSAGE_MAX_LENGTH,
 	LOG_RETENTION_MS,
+	type LogLevel,
+	VALID_LOG_LEVELS,
 } from "../../foundation/consts";
 import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
@@ -450,6 +452,7 @@ export class BaseDevice extends DurableObject<Env> {
 	 * Called via DeviceSender RPC from the proxy entrypoint's console override.
 	 */
 	async persistLog(level: string, message: string): Promise<void> {
+		if (!VALID_LOG_LEVELS.includes(level as LogLevel)) return;
 		this.ensureLogsTable();
 		const truncated =
 			message.length > LOG_MESSAGE_MAX_LENGTH
@@ -481,7 +484,7 @@ export class BaseDevice extends DurableObject<Env> {
 	 * Retrieves logs from DO SQLite storage with cursor-based pagination.
 	 */
 	async getLogs(options: {
-		cursor?: number;
+		cursor?: string;
 		limit?: number;
 		level?: string;
 	}): Promise<{
@@ -491,19 +494,30 @@ export class BaseDevice extends DurableObject<Env> {
 			message: string;
 			created_at: number;
 		}>;
-		next_cursor: number | null;
+		next_cursor: string | null;
 	}> {
 		this.ensureLogsTable();
 		const limit = Math.min(options.limit ?? 50, 100);
-		const cursor = options.cursor ?? Date.now() + 1;
+
+		let cursorTs = Date.now() + 1;
+		let cursorId = "\uffff"; // Sorts after any UUID
+		if (options.cursor) {
+			const sepIdx = options.cursor.indexOf(":");
+			if (sepIdx !== -1) {
+				cursorTs = Number(options.cursor.slice(0, sepIdx));
+				cursorId = options.cursor.slice(sepIdx + 1);
+			}
+		}
 
 		const rows = options.level
 			? this.ctx.storage.sql
 					.exec(
 						`SELECT id, level, message, created_at FROM device_logs
-					 WHERE created_at < ? AND level = ?
-					 ORDER BY created_at DESC LIMIT ?`,
-						cursor,
+					 WHERE (created_at < ? OR (created_at = ? AND id < ?)) AND level = ?
+					 ORDER BY created_at DESC, id DESC LIMIT ?`,
+						cursorTs,
+						cursorTs,
+						cursorId,
 						options.level,
 						limit + 1,
 					)
@@ -511,9 +525,11 @@ export class BaseDevice extends DurableObject<Env> {
 			: this.ctx.storage.sql
 					.exec(
 						`SELECT id, level, message, created_at FROM device_logs
-					 WHERE created_at < ?
-					 ORDER BY created_at DESC LIMIT ?`,
-						cursor,
+					 WHERE (created_at < ? OR (created_at = ? AND id < ?))
+					 ORDER BY created_at DESC, id DESC LIMIT ?`,
+						cursorTs,
+						cursorTs,
+						cursorId,
 						limit + 1,
 					)
 					.toArray();
@@ -525,9 +541,8 @@ export class BaseDevice extends DurableObject<Env> {
 			message: string;
 			created_at: number;
 		}>;
-		const nextCursor = hasMore
-			? (logs[logs.length - 1].created_at as number)
-			: null;
+		const lastLog = logs[logs.length - 1];
+		const nextCursor = hasMore ? `${lastLog.created_at}:${lastLog.id}` : null;
 
 		return { logs, next_cursor: nextCursor };
 	}

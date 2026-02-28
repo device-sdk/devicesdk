@@ -14,7 +14,7 @@ export class ListLogs extends OpenAPIRoute {
 				deviceId: z.string().min(1).max(36),
 			}),
 			query: z.object({
-				cursor: z.coerce.number().optional(),
+				cursor: z.string().optional(),
 				limit: z.coerce.number().min(1).max(100).optional(),
 				level: z.enum(["log", "info", "warn", "error", "debug"]).optional(),
 			}),
@@ -34,7 +34,7 @@ export class ListLogs extends OpenAPIRoute {
 									created_at: z.number(),
 								}),
 							),
-							next_cursor: z.number().nullable(),
+							next_cursor: z.string().nullable(),
 						}),
 					}),
 				),

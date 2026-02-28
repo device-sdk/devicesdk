@@ -13,7 +13,7 @@
       />
       <q-space />
       <q-toggle v-model="autoRefresh" label="Auto-refresh" />
-      <q-btn flat icon="refresh" :loading="loading" @click="fetchLogs(true)">
+      <q-btn flat icon="refresh" :loading="loading" @click="fetchLogs()">
         <q-tooltip>Refresh</q-tooltip>
       </q-btn>
     </div>
@@ -74,7 +74,7 @@ const props = defineProps<{
 }>();
 
 const logs = ref<DeviceLog[]>([]);
-const nextCursor = ref<number | null>(null);
+const nextCursor = ref<string | null>(null);
 const loading = ref(false);
 const loadingMore = ref(false);
 const autoRefresh = ref(false);
@@ -102,8 +102,7 @@ const levelColor = (level: string): string => {
 };
 
 const formatTimestamp = (ts: number): string => {
-  const normalized = ts < 946684800000 ? ts * 1000 : ts;
-  return new Date(normalized).toLocaleTimeString('en-US', {
+  return new Date(ts).toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -123,12 +122,10 @@ const formatMessage = (message: string): string => {
   }
 };
 
-const fetchLogs = async (reset = false) => {
-  if (reset) {
-    loading.value = true;
-    logs.value = [];
-    nextCursor.value = null;
-  }
+const fetchLogs = async () => {
+  loading.value = true;
+  logs.value = [];
+  nextCursor.value = null;
   try {
     const result = await logService.getLogs(props.projectId, props.deviceId, {
       limit: 50,
@@ -162,12 +159,12 @@ const loadMore = async () => {
 };
 
 watch(levelFilter, () => {
-  void fetchLogs(true);
+  void fetchLogs();
 });
 
 watch(autoRefresh, (enabled) => {
   if (enabled) {
-    refreshInterval = setInterval(() => void fetchLogs(true), 5000);
+    refreshInterval = setInterval(() => void fetchLogs(), 5000);
   } else if (refreshInterval) {
     clearInterval(refreshInterval);
     refreshInterval = null;
@@ -175,7 +172,7 @@ watch(autoRefresh, (enabled) => {
 });
 
 onMounted(() => {
-  void fetchLogs(true);
+  void fetchLogs();
 });
 
 onUnmounted(() => {

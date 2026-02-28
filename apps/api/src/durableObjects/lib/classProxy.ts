@@ -21,7 +21,7 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
 
     function serialize(args) {
       try { return JSON.stringify(args); }
-      catch { return JSON.stringify([String(args)]); }
+      catch { return JSON.stringify(args.map(String)); }
     }
 
     function persist(level, args) { device.persistLog(level, serialize(args)).catch(() => {}); }

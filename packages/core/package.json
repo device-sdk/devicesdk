@@ -29,9 +29,6 @@
 		"url": "git+https://github.com/device-sdk/devicesdk-monorepo.git",
 		"directory": "packages/core"
 	},
-	"publishConfig": {
-		"provenance": true
-	},
 	"type": "module",
 	"scripts": {
 		"build": "tsc",

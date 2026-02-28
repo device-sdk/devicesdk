@@ -23,6 +23,8 @@ interface PendingCommand {
 export class BaseDevice extends DurableObject<Env> {
 	private _session?: DeviceSession;
 	private pendingCommands: Map<string, PendingCommand> = new Map();
+	private logWriteCount = 0;
+	private logsTableReady = false;
 
 	// Device metadata from connection
 	private deviceMeta?: {
@@ -172,6 +174,9 @@ export class BaseDevice extends DurableObject<Env> {
 						LOGGER: (this.ctx as any).exports.Logger({
 							props: { deviceId, projectId },
 						}),
+						// Metadata for console override prefix in proxy entrypoint
+						__DEVICE_ID: deviceId,
+						__PROJECT_ID: projectId,
 					},
 					// Block network access for sandboxing
 					globalOutbound: null,
@@ -413,6 +418,103 @@ export class BaseDevice extends DurableObject<Env> {
 
 	async kvDelete(key: string): Promise<boolean> {
 		return this.ctx.storage.delete(key);
+	}
+
+	/**
+	 * Ensures the device_logs SQLite table exists in this DO's storage.
+	 */
+	private ensureLogsTable(): void {
+		if (this.logsTableReady) return;
+		this.ctx.storage.sql.exec(`
+			CREATE TABLE IF NOT EXISTS device_logs (
+				id TEXT PRIMARY KEY,
+				level TEXT NOT NULL,
+				message TEXT NOT NULL,
+				created_at INTEGER NOT NULL
+			)
+		`);
+		this.ctx.storage.sql.exec(
+			"CREATE INDEX IF NOT EXISTS idx_logs_created_at ON device_logs(created_at)",
+		);
+		this.logsTableReady = true;
+	}
+
+	/**
+	 * Persists a log entry from user code into DO SQLite storage.
+	 * Called via DeviceSender RPC from the proxy entrypoint's console override.
+	 */
+	async persistLog(level: string, message: string): Promise<void> {
+		this.ensureLogsTable();
+		this.ctx.storage.sql.exec(
+			"INSERT INTO device_logs (id, level, message, created_at) VALUES (?, ?, ?, ?)",
+			crypto.randomUUID(),
+			level,
+			message,
+			Date.now(),
+		);
+		this.logWriteCount++;
+		if (this.logWriteCount % 10 === 0) {
+			const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+			this.ctx.storage.sql.exec(
+				"DELETE FROM device_logs WHERE created_at < ?",
+				oneDayAgo,
+			);
+		}
+	}
+
+	/**
+	 * Retrieves logs from DO SQLite storage with cursor-based pagination.
+	 */
+	async getLogs(options: {
+		cursor?: number;
+		limit?: number;
+		level?: string;
+	}): Promise<{
+		logs: Array<{
+			id: string;
+			level: string;
+			message: string;
+			created_at: number;
+		}>;
+		next_cursor: number | null;
+	}> {
+		this.ensureLogsTable();
+		const limit = Math.min(options.limit ?? 50, 100);
+		const cursor = options.cursor ?? Date.now() + 1;
+
+		const rows = options.level
+			? this.ctx.storage.sql
+					.exec(
+						`SELECT id, level, message, created_at FROM device_logs
+					 WHERE created_at < ? AND level = ?
+					 ORDER BY created_at DESC LIMIT ?`,
+						cursor,
+						options.level,
+						limit + 1,
+					)
+					.toArray()
+			: this.ctx.storage.sql
+					.exec(
+						`SELECT id, level, message, created_at FROM device_logs
+					 WHERE created_at < ?
+					 ORDER BY created_at DESC LIMIT ?`,
+						cursor,
+						limit + 1,
+					)
+					.toArray();
+
+		const hasMore = rows.length > limit;
+		const logs = rows.slice(0, limit) as Array<{
+			id: string;
+			level: string;
+			message: string;
+			created_at: number;
+		}>;
+		const nextCursor = hasMore
+			? (logs[logs.length - 1].created_at as number)
+			: null;
+
+		return { logs, next_cursor: nextCursor };
 	}
 
 	/**

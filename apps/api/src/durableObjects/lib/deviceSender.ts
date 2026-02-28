@@ -123,4 +123,8 @@ export class DeviceSender extends WorkerEntrypoint<
 			payload: { pin, enable, pull },
 		});
 	}
+
+	async persistLog(level: string, message: string): Promise<void> {
+		await this.getDoStub().persistLog(level, message);
+	}
 }

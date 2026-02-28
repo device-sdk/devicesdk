@@ -13,6 +13,7 @@ import {
 	cliAuthRouterPreAuth,
 } from "./endpoints/cli-auth/router";
 import { devicesRouter } from "./endpoints/devices/router";
+import { logsRouter } from "./endpoints/logs/router";
 import { projectsRouter } from "./endpoints/projects/router";
 import { batchScriptsRouter, scriptsRouter } from "./endpoints/scripts/router";
 import { tokensRouter } from "./endpoints/tokens/router";
@@ -127,6 +128,7 @@ app.route("/v1/projects", projectsRouter);
 app.route("/v1/tokens", tokensRouter);
 app.route("/v1/projects/:projectId/devices", devicesRouter);
 app.route("/v1/projects/:projectId/devices/:deviceId/script", scriptsRouter);
+app.route("/v1/projects/:projectId/devices/:deviceId/logs", logsRouter);
 app.route("/v1/projects/:projectId/scripts", batchScriptsRouter);
 
 export default app;

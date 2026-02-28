@@ -336,6 +336,42 @@ export const scriptService = {
 };
 
 // ============================================================================
+// Log Endpoints
+// ============================================================================
+
+export interface DeviceLog {
+  id: string;
+  level: string;
+  message: string;
+  created_at: number;
+}
+
+export interface LogsResponse {
+  logs: DeviceLog[];
+  next_cursor: number | null;
+}
+
+export const logService = {
+  async getLogs(
+    projectId: string,
+    deviceId: string,
+    options?: { cursor?: number | undefined; limit?: number | undefined; level?: string | undefined },
+  ): Promise<LogsResponse> {
+    const params = new URLSearchParams();
+    if (options?.cursor) params.set('cursor', String(options.cursor));
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.level) params.set('level', options.level);
+    const qs = params.toString();
+    const url = `/v1/projects/${projectId}/devices/${deviceId}/logs${qs ? `?${qs}` : ''}`;
+    const data = await api.call<ApiResponse<LogsResponse>>(url);
+    if (!data || !data.success) {
+      throw new Error('Failed to fetch logs');
+    }
+    return data.result;
+  },
+};
+
+// ============================================================================
 // Token Endpoints
 // ============================================================================
 
@@ -392,4 +428,5 @@ export const apiService = {
   device: deviceService,
   script: scriptService,
   token: tokenService,
+  log: logService,
 };

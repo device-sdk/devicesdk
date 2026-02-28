@@ -71,6 +71,9 @@ export interface DeviceSenderInterface {
 
 	// KV storage for persistent state
 	kv: KVInterface;
+
+	// Persist a log entry to DO SQLite storage
+	persistLog(level: string, message: string): Promise<void>;
 }
 
 // Props passed to the DeviceSender entrypoint

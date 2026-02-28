@@ -65,8 +65,7 @@ export function createDeviceBridge(DeviceClass: DeviceEntrypointClass) {
 			}
 
 			const url = new URL(request.url);
-			this.deviceId =
-				url.searchParams.get("deviceId") || "device";
+			this.deviceId = url.searchParams.get("deviceId") || "device";
 
 			const pair = new WebSocketPair();
 			const client = pair[0];
@@ -103,17 +102,11 @@ export function createDeviceBridge(DeviceClass: DeviceEntrypointClass) {
 					try {
 						await this.userDevice.onMessage(message);
 					} catch (error) {
-						console.error(
-							`[${this.deviceId}] Error in onMessage:`,
-							error,
-						);
+						console.error(`[${this.deviceId}] Error in onMessage:`, error);
 					}
 				}
 			} catch (error) {
-				console.error(
-					`[${this.deviceId}] Failed to parse message:`,
-					error,
-				);
+				console.error(`[${this.deviceId}] Failed to parse message:`, error);
 			}
 		}
 
@@ -122,16 +115,11 @@ export function createDeviceBridge(DeviceClass: DeviceEntrypointClass) {
 			code: number,
 			reason: string,
 		): Promise<void> {
-			console.log(
-				`[${this.deviceId}] WebSocket closed: ${code} ${reason}`,
-			);
+			console.log(`[${this.deviceId}] WebSocket closed: ${code} ${reason}`);
 			await this._cleanup();
 		}
 
-		async webSocketError(
-			_ws: WebSocket,
-			error: unknown,
-		): Promise<void> {
+		async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
 			console.error(`[${this.deviceId}] WebSocket error:`, error);
 			await this._cleanup();
 		}
@@ -139,8 +127,7 @@ export function createDeviceBridge(DeviceClass: DeviceEntrypointClass) {
 		async _initDevice(ws: WebSocket): Promise<void> {
 			const storage = this.ctx.storage as DurableObjectState["storage"];
 			const kvStorage = {
-				get: async <T = unknown>(key: string) =>
-					storage.get<T>(key),
+				get: async <T = unknown>(key: string) => storage.get<T>(key),
 				put: async <T>(key: string, value: T) => {
 					await storage.put(key, value);
 				},
@@ -155,14 +142,13 @@ export function createDeviceBridge(DeviceClass: DeviceEntrypointClass) {
 				{ DEVICE: this.sender, LOGGER: logger, DEVICES: {} },
 			);
 
-			console.log(`[${this.deviceId}] Device connected, calling onDeviceConnect`);
+			console.log(
+				`[${this.deviceId}] Device connected, calling onDeviceConnect`,
+			);
 			try {
 				await this.userDevice.onDeviceConnect();
 			} catch (error) {
-				console.error(
-					`[${this.deviceId}] Error in onDeviceConnect:`,
-					error,
-				);
+				console.error(`[${this.deviceId}] Error in onDeviceConnect:`, error);
 			}
 		}
 

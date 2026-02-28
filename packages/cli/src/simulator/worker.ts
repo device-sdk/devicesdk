@@ -96,9 +96,7 @@ async function serveStaticAsset(url: URL, env: Env): Promise<Response> {
 
 	if (!resp.ok) {
 		// SPA fallback: serve index.html for non-file paths
-		const fallback = await env.ASSETS.fetch(
-			"http://localhost:8080/index.html",
-		);
+		const fallback = await env.ASSETS.fetch("http://localhost:8080/index.html");
 		return new Response(fallback.body, {
 			headers: { "content-type": "text/html; charset=utf-8" },
 			status: fallback.ok ? 200 : 404,

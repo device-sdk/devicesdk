@@ -236,7 +236,7 @@ export function useSimulator() {
 						? result?.pin.digitalState === "high"
 							? 1
 							: 0
-						: result?.pin.analog?.raw ?? 0;
+						: (result?.pin.analog?.raw ?? 0);
 				addLog(
 					`GP${command.payload.pin} read: ${value} (${command.payload.mode})`,
 					"get_pin_state",

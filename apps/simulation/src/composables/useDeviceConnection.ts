@@ -1,5 +1,5 @@
 import type { DeviceCommand, DeviceResponse } from "@devicesdk/core";
-import { ref, onUnmounted } from "vue";
+import { onUnmounted, ref } from "vue";
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected";
 

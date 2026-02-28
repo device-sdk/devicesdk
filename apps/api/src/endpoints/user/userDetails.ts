@@ -14,7 +14,7 @@ export class UserDetails extends OpenAPIRoute {
 					z.object({
 						success: z.boolean(),
 						result: z.object({
-							id: z.string().uuid(),
+							id: z.uuid(),
 							name: z.string().optional(),
 							picture: z.string().optional(),
 							email: z.string(),

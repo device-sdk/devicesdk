@@ -58,3 +58,5 @@ yarn-error.log*
 
 # Quasar
 /quasar.config.*.temporary.compiled*
+
+.claude/worktrees/

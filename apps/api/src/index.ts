@@ -2,6 +2,7 @@ import { googleAuth } from "@hono/oauth-providers/google";
 import { ApiException, fromHono } from "chanfana";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { D1QB } from "workers-qb";
 import {
@@ -51,6 +52,11 @@ app.onError((err, c) => {
 			{ success: false, errors: err.buildResponse() },
 			err.status as ContentfulStatusCode,
 		);
+	}
+
+	// Chanfana 3.x: validation errors flow through as HTTPException
+	if (err instanceof HTTPException) {
+		return err.getResponse();
 	}
 
 	console.error(`Global error handler caught ${err.name}:${err.message}`, {

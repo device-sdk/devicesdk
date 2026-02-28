@@ -1,6 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { ApiException } from "chanfana";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { D1QB } from "workers-qb";
 import { handleGoogleCallback, hashPassword } from "../../src/foundation/auth";
@@ -278,6 +279,9 @@ describe.sequential("Authentication", () => {
 						{ success: false, errors: err.buildResponse() },
 						err.status as any,
 					);
+				}
+				if (err instanceof HTTPException) {
+					return err.getResponse();
 				}
 				return c.json(
 					{

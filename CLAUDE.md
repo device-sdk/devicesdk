@@ -25,7 +25,7 @@ cd apps/api && npx vitest run --config tests/vitest.config.mts -t "should create
 
 # Dashboard UI tests
 pnpm test:unit --filter @devicesdk/dashboard  # Vitest component tests (~2s)
-pnpm test:e2e --filter @devicesdk/dashboard   # Playwright E2E tests (~30s, starts API + dashboard servers)
+pnpm test:e2e --filter @devicesdk/dashboard   # Playwright E2E tests (62 tests, ~90s, starts API + dashboard servers)
 pnpm test --filter @devicesdk/dashboard        # Both component + E2E
 
 # Type checking

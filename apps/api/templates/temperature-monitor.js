@@ -19,7 +19,7 @@ function adcToTemperature(adcValue) {
 
 export default class extends WorkerEntrypoint {
 	async onDeviceConnect() {
-		this.env.logger.info("Temperature monitor connected");
+		console.info("Temperature monitor connected");
 
 		// Configure the temperature sensor pin for analog reading
 		await this.env.DEVICE.sendCommand({
@@ -32,11 +32,11 @@ export default class extends WorkerEntrypoint {
 			},
 		});
 
-		this.env.logger.info("Temperature sensor configured");
+		console.info("Temperature sensor configured");
 	}
 
 	async onDeviceDisconnect() {
-		this.env.logger.info("Temperature monitor disconnected");
+		console.info("Temperature monitor disconnected");
 	}
 
 	async onMessage(message) {
@@ -45,16 +45,16 @@ export default class extends WorkerEntrypoint {
 			message.payload.pin === TEMP_SENSOR_PIN
 		) {
 			const temperature = adcToTemperature(message.payload.value);
-			this.env.logger.info(`Temperature: ${temperature.toFixed(1)}°C`);
+			console.info(`Temperature: ${temperature.toFixed(1)}°C`);
 
 			// Check thresholds and alert
 			if (temperature > HIGH_TEMP_THRESHOLD) {
-				this.env.logger.warn(
+				console.warn(
 					`HIGH TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`,
 				);
 				await this.env.DEVICE.setGpioState(ALERT_LED_PIN, "high");
 			} else if (temperature < LOW_TEMP_THRESHOLD) {
-				this.env.logger.warn(
+				console.warn(
 					`LOW TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`,
 				);
 				await this.env.DEVICE.setGpioState(ALERT_LED_PIN, "high");

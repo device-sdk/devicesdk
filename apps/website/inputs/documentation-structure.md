@@ -344,7 +344,7 @@ Each command gets its own page under `/docs/cli/[command]`:
 ### 6.2 Device Entrypoints
 - Lifecycle methods
 - Message handling model
-- Environment bindings (`env.DEVICE`, `env.logger`)
+- Environment bindings (`env.DEVICE`) and logging (`console.*`)
 - State management patterns
 
 ### 6.3 WebSocket Protocol

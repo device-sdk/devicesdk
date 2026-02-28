@@ -22,26 +22,26 @@ function angleToDuty(angle) {
 
 export default class extends WorkerEntrypoint {
 	async onDeviceConnect() {
-		this.env.logger.info("Motor/Servo controller connected");
+		console.info("Motor/Servo controller connected");
 
 		// Initialize motor at 0% speed
 		await this.env.DEVICE.setPwmState(MOTOR_PIN, MOTOR_FREQ, 0);
-		this.env.logger.info("Motor initialized at 0% speed");
+		console.info("Motor initialized at 0% speed");
 
 		// Initialize servo at center position (90 degrees)
 		await this.env.DEVICE.setPwmState(SERVO_PIN, SERVO_FREQ, angleToDuty(90));
-		this.env.logger.info("Servo initialized at 90 degrees");
+		console.info("Servo initialized at 90 degrees");
 	}
 
 	async onDeviceDisconnect() {
-		this.env.logger.info("Motor/Servo controller disconnected");
+		console.info("Motor/Servo controller disconnected");
 
 		// Safety: stop motor on disconnect
 		await this.env.DEVICE.setPwmState(MOTOR_PIN, MOTOR_FREQ, 0);
 	}
 
 	async onMessage(message) {
-		this.env.logger.debug("Received:", message);
+		console.debug("Received:", message);
 
 		// Example: respond to custom commands in messages
 		// You could extend this to handle external API calls
@@ -53,7 +53,7 @@ export default class extends WorkerEntrypoint {
 		// Clamp speed to 0-100%
 		const speed = Math.max(0, Math.min(100, speedPercent));
 		await this.env.DEVICE.setPwmState(MOTOR_PIN, MOTOR_FREQ, speed);
-		this.env.logger.info(`Motor speed set to ${speed}%`);
+		console.info(`Motor speed set to ${speed}%`);
 	}
 
 	async setServoAngle(angle) {
@@ -61,11 +61,11 @@ export default class extends WorkerEntrypoint {
 		const clampedAngle = Math.max(0, Math.min(180, angle));
 		const duty = angleToDuty(clampedAngle);
 		await this.env.DEVICE.setPwmState(SERVO_PIN, SERVO_FREQ, duty);
-		this.env.logger.info(`Servo angle set to ${clampedAngle} degrees`);
+		console.info(`Servo angle set to ${clampedAngle} degrees`);
 	}
 
 	async sweepServo() {
-		this.env.logger.info("Starting servo sweep...");
+		console.info("Starting servo sweep...");
 
 		// Sweep from 0 to 180 and back
 		for (let angle = 0; angle <= 180; angle += 10) {
@@ -85,6 +85,6 @@ export default class extends WorkerEntrypoint {
 			await new Promise((r) => setTimeout(r, 100));
 		}
 
-		this.env.logger.info("Servo sweep complete");
+		console.info("Servo sweep complete");
 	}
 }

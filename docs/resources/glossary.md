@@ -54,7 +54,7 @@ A global network of locations where device scripts execute close to users and de
 The serverless JavaScript runtime environment where device scripts execute.
 
 ### Environment Bindings
-Objects accessible in device entrypoints like `this.env.DEVICE`, `this.env.logger`, providing access to platform features.
+Objects accessible in device entrypoints like `this.env.DEVICE`, providing access to platform features. Standard `console` methods are also available for logging.
 
 ## F
 

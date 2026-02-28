@@ -14,7 +14,7 @@ export default class extends WorkerEntrypoint {
 	}
 
 	async onDeviceConnect() {
-		this.env.logger.info("Button LED Toggle connected");
+		console.info("Button LED Toggle connected");
 
 		// Configure button pin for digital input with change reporting
 		await this.env.DEVICE.sendCommand({
@@ -30,11 +30,11 @@ export default class extends WorkerEntrypoint {
 		await this.env.DEVICE.setGpioState(LED_PIN, "low");
 		this.ledState = false;
 
-		this.env.logger.info("Button and LED configured");
+		console.info("Button and LED configured");
 	}
 
 	async onDeviceDisconnect() {
-		this.env.logger.info("Button LED Toggle disconnected");
+		console.info("Button LED Toggle disconnected");
 	}
 
 	async onMessage(message) {
@@ -52,7 +52,7 @@ export default class extends WorkerEntrypoint {
 					LED_PIN,
 					this.ledState ? "high" : "low",
 				);
-				this.env.logger.info(
+				console.info(
 					`Button pressed! LED is now ${this.ledState ? "ON" : "OFF"}`,
 				);
 			}

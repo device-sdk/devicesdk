@@ -1,37 +1,42 @@
-import { execa } from "execa";
-import net from "net";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import dev from "./dev";
-
-vi.mock("execa");
-vi.mock("net");
+import net from "node:net";
+import { afterEach, describe, expect, it } from "vitest";
+import { isPortAvailable } from "./dev";
 
 describe("dev command port selection", () => {
-	let consoleLogSpy: any;
+	const servers: net.Server[] = [];
 
-	beforeEach(async () => {
-		consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	afterEach(() => {
+		for (const server of servers) {
+			server.close();
+		}
+		servers.length = 0;
 	});
 
-	afterEach(async () => {
-		vi.restoreAllMocks();
+	it("should detect a port as available when nothing is listening", async () => {
+		// Use port 0 to get a random available port, then check a known-free port
+		const server = net.createServer();
+		servers.push(server);
+		await new Promise<void>((resolve) => {
+			server.listen(0, () => resolve());
+		});
+		const addr = server.address() as net.AddressInfo;
+		server.close();
+
+		// After closing, the port should be available
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		const available = await isPortAvailable(addr.port);
+		expect(available).toBe(true);
 	});
 
-	it("should use port 8181 if it is available", async () => {
-		await dev({ config: "devicesdk.ts" });
+	it("should detect a port as unavailable when something is listening", async () => {
+		const server = net.createServer();
+		servers.push(server);
+		await new Promise<void>((resolve) => {
+			server.listen(0, () => resolve());
+		});
+		const addr = server.address() as net.AddressInfo;
 
-		expect(consoleLogSpy).toHaveBeenCalledWith(
-			expect.stringContaining("coming soon"),
-		);
-		expect(execa).not.toHaveBeenCalled();
-	});
-
-	it("should use a random port if 8181 is not available", async () => {
-		await dev({ config: "devicesdk.ts" });
-
-		expect(consoleLogSpy).toHaveBeenCalledWith(
-			expect.stringContaining("coming soon"),
-		);
-		expect(execa).not.toHaveBeenCalled();
+		const available = await isPortAvailable(addr.port);
+		expect(available).toBe(false);
 	});
 });

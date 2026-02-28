@@ -24,11 +24,13 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
       catch { return JSON.stringify([String(args)]); }
     }
 
-    console.log = (...args) => { _log(prefix, ...args); device.persistLog('log', serialize(args)); };
-    console.info = (...args) => { _info(prefix, ...args); device.persistLog('info', serialize(args)); };
-    console.warn = (...args) => { _warn(prefix, ...args); device.persistLog('warn', serialize(args)); };
-    console.error = (...args) => { _error(prefix, ...args); device.persistLog('error', serialize(args)); };
-    console.debug = (...args) => { _debug(prefix, ...args); device.persistLog('debug', serialize(args)); };
+    function persist(level, args) { device.persistLog(level, serialize(args)).catch(() => {}); }
+
+    console.log = (...args) => { _log(prefix, ...args); persist('log', args); };
+    console.info = (...args) => { _info(prefix, ...args); persist('info', args); };
+    console.warn = (...args) => { _warn(prefix, ...args); persist('warn', args); };
+    console.error = (...args) => { _error(prefix, ...args); persist('error', args); };
+    console.debug = (...args) => { _debug(prefix, ...args); persist('debug', args); };
 
     const target = new ${entrypointName}(this.ctx, this.env);
 

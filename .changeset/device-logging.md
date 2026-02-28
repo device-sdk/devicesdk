@@ -1,6 +1,6 @@
 ---
 "@devicesdk/api": minor
-"@devicesdk/core": patch
+"@devicesdk/core": minor
 "@devicesdk/cli": patch
 "@devicesdk/dashboard": minor
 ---

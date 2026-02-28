@@ -4,6 +4,12 @@ import type {
 	DeviceCommand,
 	DeviceResponse,
 } from "@devicesdk/core";
+import {
+	LOG_CLEANUP_INTERVAL,
+	LOG_MAX_STORED,
+	LOG_MESSAGE_MAX_LENGTH,
+	LOG_RETENTION_MS,
+} from "../../foundation/consts";
 import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
@@ -445,19 +451,28 @@ export class BaseDevice extends DurableObject<Env> {
 	 */
 	async persistLog(level: string, message: string): Promise<void> {
 		this.ensureLogsTable();
+		const truncated =
+			message.length > LOG_MESSAGE_MAX_LENGTH
+				? message.slice(0, LOG_MESSAGE_MAX_LENGTH)
+				: message;
 		this.ctx.storage.sql.exec(
 			"INSERT INTO device_logs (id, level, message, created_at) VALUES (?, ?, ?, ?)",
 			crypto.randomUUID(),
 			level,
-			message,
+			truncated,
 			Date.now(),
 		);
 		this.logWriteCount++;
-		if (this.logWriteCount % 10 === 0) {
-			const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+		if (this.logWriteCount % LOG_CLEANUP_INTERVAL === 0) {
 			this.ctx.storage.sql.exec(
 				"DELETE FROM device_logs WHERE created_at < ?",
-				oneDayAgo,
+				Date.now() - LOG_RETENTION_MS,
+			);
+			this.ctx.storage.sql.exec(
+				`DELETE FROM device_logs WHERE id NOT IN (
+					SELECT id FROM device_logs ORDER BY created_at DESC LIMIT ?
+				)`,
+				LOG_MAX_STORED,
 			);
 		}
 	}

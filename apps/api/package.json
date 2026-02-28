@@ -17,10 +17,10 @@
 		"@devicesdk/core": "workspace:*",
 		"@hono/oauth-providers": "^0.8.5",
 		"@sentry/cloudflare": "^10.29.0",
-		"chanfana": "2.8.3",
+		"chanfana": "^3.2.1",
 		"hono": "4.10.7",
 		"workers-qb": "^1.11.2",
-		"zod": "catalog:zod3"
+		"zod": "catalog:zod4"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "0.11.1",

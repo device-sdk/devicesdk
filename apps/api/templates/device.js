@@ -33,9 +33,7 @@ export default class extends WorkerEntrypoint {
 			message.payload.pin === BUTTON_PIN
 		) {
 			const buttonState = message.payload.state;
-			console.info(
-				`Button pin ${BUTTON_PIN} changed to ${buttonState}`,
-			);
+			console.info(`Button pin ${BUTTON_PIN} changed to ${buttonState}`);
 
 			// Toggle LED on button press (when pin goes high)
 			if (buttonState === "high") {

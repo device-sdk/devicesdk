@@ -49,14 +49,10 @@ export default class extends WorkerEntrypoint {
 
 			// Check thresholds and alert
 			if (temperature > HIGH_TEMP_THRESHOLD) {
-				console.warn(
-					`HIGH TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`,
-				);
+				console.warn(`HIGH TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`);
 				await this.env.DEVICE.setGpioState(ALERT_LED_PIN, "high");
 			} else if (temperature < LOW_TEMP_THRESHOLD) {
-				console.warn(
-					`LOW TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`,
-				);
+				console.warn(`LOW TEMPERATURE ALERT: ${temperature.toFixed(1)}°C`);
 				await this.env.DEVICE.setGpioState(ALERT_LED_PIN, "high");
 			} else {
 				await this.env.DEVICE.setGpioState(ALERT_LED_PIN, "low");

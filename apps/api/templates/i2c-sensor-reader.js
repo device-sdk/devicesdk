@@ -18,10 +18,7 @@ export default class extends WorkerEntrypoint {
 		// Scan I2C bus to find connected devices
 		try {
 			const scanResult = await this.env.DEVICE.i2cScan(I2C_BUS);
-			console.info(
-				"I2C devices found:",
-				scanResult.payload.addresses_found,
-			);
+			console.info("I2C devices found:", scanResult.payload.addresses_found);
 
 			if (scanResult.payload.addresses_found.length === 0) {
 				console.warn("No I2C devices found! Check your wiring.");

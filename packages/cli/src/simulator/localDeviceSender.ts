@@ -152,4 +152,8 @@ export class LocalDeviceSender implements DeviceSenderInterface {
 			payload: { pin, enable, pull },
 		});
 	}
+
+	async persistLog(_level: string, _message: string): Promise<void> {
+		// No-op in local simulator — logs go to console directly
+	}
 }

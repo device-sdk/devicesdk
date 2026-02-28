@@ -95,21 +95,21 @@ export default class MyDevice extends DeviceEntrypoint {
 		await this.env.DEVICE.setGpioState(LED_PIN, "low");
 		await this.env.DEVICE.kv.put("ledOn", false);
 
-		this.env.logger.info(`Monitoring GPIO ${BUTTON_PIN} for button presses`);
+		console.info(`Monitoring GPIO ${BUTTON_PIN} for button presses`);
 	}
 
 	async onMessage(message) {
 		// Handle GPIO state change events from the device
 		if (message.type === "gpio_state_changed" && message.payload.pin === BUTTON_PIN) {
 			const buttonState = message.payload.state;
-			this.env.logger.info(`Button pin ${BUTTON_PIN} changed to ${buttonState}`);
+			console.info(`Button pin ${BUTTON_PIN} changed to ${buttonState}`);
 
 			// Toggle LED on button press (when pin goes high)
 			if (buttonState === "high") {
 				const ledOn = !(await this.env.DEVICE.kv.get("ledOn"));
 				await this.env.DEVICE.kv.put("ledOn", ledOn);
 				await this.env.DEVICE.setGpioState(LED_PIN, ledOn ? "high" : "low");
-				this.env.logger.info(`LED toggled ${ledOn ? "ON" : "OFF"}`);
+				console.info(`LED toggled ${ledOn ? "ON" : "OFF"}`);
 			}
 		}
 	}

@@ -248,13 +248,7 @@
           </q-tab-panel>
 
           <q-tab-panel name="logs" class="q-pa-lg">
-            <div class="text-center q-pa-xl">
-              <q-icon name="construction" size="80px" color="grey-4" class="q-mb-md" />
-              <div class="text-h5 text-grey-6 q-mb-sm">Coming Soon</div>
-              <p class="text-body2 text-grey-5">
-                Device logs and real-time monitoring will be available in a future update.
-              </p>
-            </div>
+            <DeviceLogs :project-id="projectId" :device-id="deviceId" />
           </q-tab-panel>
 
           <q-tab-panel name="settings" class="q-pa-lg">
@@ -372,6 +366,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
+import DeviceLogs from '@/components/DeviceLogs.vue';
 import {
   deviceService,
   scriptService,

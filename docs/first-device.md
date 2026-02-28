@@ -53,7 +53,7 @@ async onMessage(message: DeviceMessage) {
   switch (message.type) {
     case 'sensor_reading':
       // Store sensor data
-      await this.env.logger.info(`Temperature: ${message.temperature}°C`);
+      console.info(`Temperature: ${message.temperature}°C`);
       break;
       
     case 'button_press':
@@ -108,7 +108,7 @@ export default class LEDController extends DeviceEntrypoint {
       pin: 25
     });
 
-    await this.env.logger.info(`Device initialized`);
+    console.info(`Device initialized`);
   }
 
   async onMessage(message: DeviceMessage) {
@@ -124,13 +124,13 @@ export default class LEDController extends DeviceEntrypoint {
           value: this.ledState ? 1 : 0
         });
 
-        await this.env.logger.info(`LED ${this.ledState ? 'ON' : 'OFF'}`);
+        console.info(`LED ${this.ledState ? 'ON' : 'OFF'}`);
       }
     }
   }
 
   async onDeviceDisconnect() {
-    await this.env.logger.info(`Device disconnected`);
+    console.info(`Device disconnected`);
   }
 }
 ```
@@ -167,7 +167,7 @@ npx @devicesdk/cli flash
 
 Your device entrypoint has access to several environment bindings:
 
-- `this.env.logger` - Structured logging
+- `console.log` / `console.info` / etc. - Logging (automatically captured and persisted)
 - `this.env.DEVICE` - Send messages to device
 - `this.env.DEVICE.kv` - Key-value storage for device state
 

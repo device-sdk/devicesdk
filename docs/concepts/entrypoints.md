@@ -36,7 +36,7 @@ Called when a device establishes a WebSocket connection.
 ```typescript
 async onDeviceConnect() {
   // Initialize device
-  await this.env.logger.info(`Device connected`);
+  console.info(`Device connected`);
 }
 ```
 
@@ -76,7 +76,7 @@ Called when a device disconnects.
 ```typescript
 async onDeviceDisconnect() {
   // Cleanup
-  await this.env.logger.info(`Device disconnected`);
+  console.info(`Device disconnected`);
   
   // Update status
   await this.env.DEVICE.kv.put(`status`, 'offline');
@@ -109,14 +109,14 @@ await this.env.DEVICE.kv.put('key', 'value');
 const value = await this.env.DEVICE.kv.get('key');
 ```
 
-### this.env.logger
+### Logging
 
-Structured logging:
+Use standard `console` methods — all output is automatically captured and viewable in the dashboard:
 
 ```typescript
-await this.env.logger.info('Device connected', { });
-await this.env.logger.error('Sensor reading failed', { error });
-await this.env.logger.warn('Temperature threshold exceeded', { temp: 85 });
+console.info('Device connected');
+console.error('Sensor reading failed', error);
+console.warn('Temperature threshold exceeded', { temp: 85 });
 ```
 
 ## Message Handling Patterns
@@ -129,8 +129,8 @@ Device sends event, script processes asynchronously:
 async onMessage(message: DeviceMessage) {
   if (message.type === 'alert') {
     // Don't wait for external calls
-    this.sendEmailAlert(message).catch(err => 
-      this.env.logger.error('Email failed', { err })
+    this.sendEmailAlert(message).catch(err =>
+      console.error('Email failed', err)
     );
   }
 }
@@ -179,7 +179,7 @@ async onMessage(message: DeviceMessage) {
   try {
     await this.processMessage(message);
   } catch (error) {
-    await this.env.logger.error('Message processing failed', {
+    console.error('Message processing failed', {
       error: error.message
     });
   }

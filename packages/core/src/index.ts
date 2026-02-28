@@ -231,22 +231,10 @@ export interface KVInterface {
 	delete(key: string): Promise<boolean>;
 }
 
-// Logger interface for user code
-export interface LoggerInterface {
-	debug(...args: unknown[]): void;
-	info(...args: unknown[]): void;
-	log(...args: unknown[]): void;
-	warn(...args: unknown[]): void;
-	error(...args: unknown[]): void;
-}
-
 // The env that the dynamic worker will receive
 export type UserWorkerEnv<ProjectDevices = {}> = {
 	// Binding to send messages/commands to the IoT device via the DO
 	DEVICE: DeviceSenderInterface;
-
-	// Logger binding for logging from user code
-	LOGGER: LoggerInterface;
 
 	DEVICES: ProjectDevices;
 };
@@ -282,6 +270,9 @@ export interface DeviceSenderInterface {
 
 	// KV storage for persistent state
 	kv: KVInterface;
+
+	// Persist a log entry to DO SQLite storage
+	persistLog(level: string, message: string): Promise<void>;
 }
 
 // Props passed to the DeviceSender entrypoint

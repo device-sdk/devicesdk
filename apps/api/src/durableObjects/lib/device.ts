@@ -4,6 +4,14 @@ import type {
 	DeviceCommand,
 	DeviceResponse,
 } from "@devicesdk/core";
+import {
+	LOG_CLEANUP_INTERVAL,
+	LOG_MAX_STORED,
+	LOG_MESSAGE_MAX_LENGTH,
+	LOG_RETENTION_MS,
+	type LogLevel,
+	VALID_LOG_LEVELS,
+} from "../../foundation/consts";
 import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
@@ -23,6 +31,8 @@ interface PendingCommand {
 export class BaseDevice extends DurableObject<Env> {
 	private _session?: DeviceSession;
 	private pendingCommands: Map<string, PendingCommand> = new Map();
+	private logWriteCount = 0;
+	private logsTableReady = false;
 
 	// Device metadata from connection
 	private deviceMeta?: {
@@ -168,10 +178,9 @@ export class BaseDevice extends DurableObject<Env> {
 						DEVICE: (this.ctx as any).exports.DeviceSender({
 							props: { deviceId, projectId },
 						}),
-						// Provide the Logger binding for logging from user code
-						LOGGER: (this.ctx as any).exports.Logger({
-							props: { deviceId, projectId },
-						}),
+						// Metadata for console override prefix in proxy entrypoint
+						__DEVICE_ID: deviceId,
+						__PROJECT_ID: projectId,
 					},
 					// Block network access for sandboxing
 					globalOutbound: null,
@@ -413,6 +422,125 @@ export class BaseDevice extends DurableObject<Env> {
 
 	async kvDelete(key: string): Promise<boolean> {
 		return this.ctx.storage.delete(key);
+	}
+
+	/**
+	 * Ensures the device_logs SQLite table exists in this DO's storage.
+	 */
+	private ensureLogsTable(): void {
+		if (this.logsTableReady) return;
+		this.ctx.storage.sql.exec(`
+			CREATE TABLE IF NOT EXISTS device_logs (
+				id TEXT PRIMARY KEY,
+				level TEXT NOT NULL,
+				message TEXT NOT NULL,
+				created_at INTEGER NOT NULL
+			)
+		`);
+		this.ctx.storage.sql.exec(
+			"CREATE INDEX IF NOT EXISTS idx_logs_created_at ON device_logs(created_at)",
+		);
+		this.logsTableReady = true;
+	}
+
+	/**
+	 * Persists a log entry from user code into DO SQLite storage.
+	 * Called via DeviceSender RPC from the proxy entrypoint's console override.
+	 */
+	async persistLog(level: string, message: string): Promise<void> {
+		if (!VALID_LOG_LEVELS.includes(level as LogLevel)) return;
+		this.ensureLogsTable();
+		const truncated =
+			message.length > LOG_MESSAGE_MAX_LENGTH
+				? message.slice(0, LOG_MESSAGE_MAX_LENGTH)
+				: message;
+		this.ctx.storage.sql.exec(
+			"INSERT INTO device_logs (id, level, message, created_at) VALUES (?, ?, ?, ?)",
+			crypto.randomUUID(),
+			level,
+			truncated,
+			Date.now(),
+		);
+		this.logWriteCount++;
+		if (this.logWriteCount % LOG_CLEANUP_INTERVAL === 0) {
+			this.ctx.storage.sql.exec(
+				"DELETE FROM device_logs WHERE created_at < ?",
+				Date.now() - LOG_RETENTION_MS,
+			);
+			this.ctx.storage.sql.exec(
+				`DELETE FROM device_logs WHERE id NOT IN (
+					SELECT id FROM device_logs ORDER BY created_at DESC LIMIT ?
+				)`,
+				LOG_MAX_STORED,
+			);
+		}
+	}
+
+	/**
+	 * Retrieves logs from DO SQLite storage with cursor-based pagination.
+	 */
+	async getLogs(options: {
+		cursor?: string;
+		limit?: number;
+		level?: string;
+	}): Promise<{
+		logs: Array<{
+			id: string;
+			level: string;
+			message: string;
+			created_at: number;
+		}>;
+		next_cursor: string | null;
+	}> {
+		this.ensureLogsTable();
+		const limit = Math.min(options.limit ?? 50, 100);
+
+		let cursorTs = Date.now() + 1;
+		let cursorId = "\uffff"; // Sorts after any UUID
+		if (options.cursor) {
+			const sepIdx = options.cursor.indexOf(":");
+			if (sepIdx !== -1) {
+				cursorTs = Number(options.cursor.slice(0, sepIdx));
+				cursorId = options.cursor.slice(sepIdx + 1);
+			}
+		}
+
+		const rows = options.level
+			? this.ctx.storage.sql
+					.exec(
+						`SELECT id, level, message, created_at FROM device_logs
+					 WHERE (created_at < ? OR (created_at = ? AND id < ?)) AND level = ?
+					 ORDER BY created_at DESC, id DESC LIMIT ?`,
+						cursorTs,
+						cursorTs,
+						cursorId,
+						options.level,
+						limit + 1,
+					)
+					.toArray()
+			: this.ctx.storage.sql
+					.exec(
+						`SELECT id, level, message, created_at FROM device_logs
+					 WHERE (created_at < ? OR (created_at = ? AND id < ?))
+					 ORDER BY created_at DESC, id DESC LIMIT ?`,
+						cursorTs,
+						cursorTs,
+						cursorId,
+						limit + 1,
+					)
+					.toArray();
+
+		const hasMore = rows.length > limit;
+		const logs = rows.slice(0, limit) as Array<{
+			id: string;
+			level: string;
+			message: string;
+			created_at: number;
+		}>;
+		const lastLog = logs[logs.length - 1];
+		const nextCursor = hasMore ? `${lastLog.created_at}:${lastLog.id}` : null;
+
+		return { logs, next_cursor: nextCursor };
 	}
 
 	/**

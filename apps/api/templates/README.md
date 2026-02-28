@@ -14,7 +14,7 @@ This folder contains example device scripts that can be uploaded to your IoT pro
 Simple LED blinking example. Great starting point for new users.
 - Demonstrates `onDeviceConnect`, `onDeviceDisconnect`, `onMessage`
 - Shows GPIO output control with `env.DEVICE.setGpioState()`
-- Uses `env.logger` for logging
+- Uses `console` methods for logging
 
 ### `temperature-monitor.js`
 Analog temperature sensor monitoring with alerts.
@@ -84,7 +84,7 @@ export default class extends WorkerEntrypoint {
 
 **Important:** Access bindings via `this.env`, not global `env`:
 - ✅ `this.env.DEVICE.setGpioState(...)`
-- ✅ `this.env.logger.info(...)`
+- ✅ `console.info(...)` (automatically captured and persisted)
 - ❌ `env.DEVICE.setGpioState(...)` (will fail with I/O context error)
 
 ## Available Bindings
@@ -130,15 +130,16 @@ const value = await env.DEVICE.kv.get("myKey");
 await env.DEVICE.kv.delete("myKey");
 ```
 
-### `env.logger`
-Log messages (proxied to the platform logs):
+### Logging
+
+Use standard `console` methods — all output is automatically captured and viewable in the dashboard:
 
 ```javascript
-env.logger.debug("Debug message");
-env.logger.info("Info message");
-env.logger.log("Log message");
-env.logger.warn("Warning message");
-env.logger.error("Error message");
+console.debug("Debug message");
+console.info("Info message");
+console.log("Log message");
+console.warn("Warning message");
+console.error("Error message");
 ```
 
 ## Message Types

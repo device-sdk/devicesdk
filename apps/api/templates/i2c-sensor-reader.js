@@ -13,40 +13,37 @@ const BME280_REG_CTRL_MEAS = "0xF4";
 
 export default class extends WorkerEntrypoint {
 	async onDeviceConnect() {
-		this.env.logger.info("I2C Sensor Reader connected");
+		console.info("I2C Sensor Reader connected");
 
 		// Scan I2C bus to find connected devices
 		try {
 			const scanResult = await this.env.DEVICE.i2cScan(I2C_BUS);
-			this.env.logger.info(
-				"I2C devices found:",
-				scanResult.payload.addresses_found,
-			);
+			console.info("I2C devices found:", scanResult.payload.addresses_found);
 
 			if (scanResult.payload.addresses_found.length === 0) {
-				this.env.logger.warn("No I2C devices found! Check your wiring.");
+				console.warn("No I2C devices found! Check your wiring.");
 				return;
 			}
 
 			// Initialize the sensor (example for BME280)
 			// Write to control register: normal mode, oversampling x1
 			await this.env.DEVICE.i2cWrite(I2C_BUS, SENSOR_ADDRESS, ["0xF4", "0x27"]);
-			this.env.logger.info("Sensor initialized");
+			console.info("Sensor initialized");
 		} catch (error) {
-			this.env.logger.error("Failed to initialize I2C sensor:", error);
+			console.error("Failed to initialize I2C sensor:", error);
 		}
 	}
 
 	async onDeviceDisconnect() {
-		this.env.logger.info("I2C Sensor Reader disconnected");
+		console.info("I2C Sensor Reader disconnected");
 	}
 
 	async onMessage(message) {
-		this.env.logger.debug("Received:", message);
+		console.debug("Received:", message);
 
 		// Handle I2C read results
 		if (message.type === "i2c_read_result") {
-			this.env.logger.info(
+			console.info(
 				`I2C data from ${message.payload.address}:`,
 				message.payload.data,
 			);
@@ -54,7 +51,7 @@ export default class extends WorkerEntrypoint {
 
 		// Handle I2C scan results
 		if (message.type === "i2c_scan_result") {
-			this.env.logger.info(
+			console.info(
 				"I2C scan complete. Devices:",
 				message.payload.addresses_found,
 			);
@@ -73,9 +70,9 @@ export default class extends WorkerEntrypoint {
 
 			// Parse BME280 temperature data (simplified)
 			const data = result.payload.data;
-			this.env.logger.info("Raw temperature data:", data);
+			console.info("Raw temperature data:", data);
 		} catch (error) {
-			this.env.logger.error("Failed to read temperature:", error);
+			console.error("Failed to read temperature:", error);
 		}
 	}
 }

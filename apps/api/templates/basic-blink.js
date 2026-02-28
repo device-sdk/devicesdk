@@ -6,6 +6,6 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 
 export default class extends WorkerEntrypoint {
 	async onDeviceConnect() {
-		this.env.logger.info("Device connected! Starting blink pattern...");
+		console.info("Device connected! Starting blink pattern...");
 	}
 }

@@ -1,26 +1,33 @@
-import { execa } from "execa";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import dev from "./dev";
 
-vi.mock("execa");
-
 describe("dev command e2e", () => {
-	let consoleLogSpy: any;
+	// biome-ignore lint: test helper
+	let consoleErrorSpy: any;
+	// biome-ignore lint: test helper
+	let processExitSpy: any;
 
-	beforeEach(async () => {
-		consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	beforeEach(() => {
+		consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		processExitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+			throw new Error("process.exit");
+		}) as never);
 	});
 
-	afterEach(async () => {
+	afterEach(() => {
 		vi.restoreAllMocks();
 	});
 
-	it("should generate config files and attempt to start workerd", async () => {
+	it("should exit with error when no config file exists", async () => {
+		// dev({}) resolves CWD (a directory), then loadConfig fails to find devicesdk.ts
+		// loadConfig calls process.exit(4) which our mock throws
+		// The error is caught by dev()'s outer try-catch, so dev() resolves
 		await dev({});
 
-		expect(consoleLogSpy).toHaveBeenCalledWith(
-			expect.stringContaining("coming soon"),
+		expect(consoleErrorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Config file not found"),
 		);
-		expect(execa).not.toHaveBeenCalled();
+		expect(processExitSpy).toHaveBeenCalledWith(4);
 	});
 });

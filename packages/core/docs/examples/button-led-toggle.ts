@@ -24,7 +24,7 @@ export class ButtonLedToggle extends DeviceEntrypoint {
 	// Class properties reset when the worker restarts or device reconnects
 
 	async onDeviceConnect() {
-		this.env.LOGGER.info("Device connected");
+		console.info("Device connected");
 
 		// Enable GPIO input monitoring on button pin with pull-up
 		await this.env.DEVICE.configureGpioInputMonitoring(BUTTON_PIN, true, "up");
@@ -33,11 +33,11 @@ export class ButtonLedToggle extends DeviceEntrypoint {
 		const ledOn = (await this.env.DEVICE.kv.get<boolean>("ledOn")) ?? false;
 		await this.env.DEVICE.setGpioState(LED_PIN, ledOn ? "high" : "low");
 
-		this.env.LOGGER.info(`Ready! LED is ${ledOn ? "ON" : "OFF"}`);
+		console.info(`Ready! LED is ${ledOn ? "ON" : "OFF"}`);
 	}
 
 	async onDeviceDisconnect() {
-		this.env.LOGGER.info("Device disconnected");
+		console.info("Device disconnected");
 	}
 
 	async onMessage(message: DeviceResponse) {
@@ -58,7 +58,7 @@ export class ButtonLedToggle extends DeviceEntrypoint {
 			// Now update hardware
 			await this.env.DEVICE.setGpioState(LED_PIN, ledOn ? "high" : "low");
 
-			this.env.LOGGER.info(`LED toggled ${ledOn ? "ON" : "OFF"}`);
+			console.info(`LED toggled ${ledOn ? "ON" : "OFF"}`);
 		}
 	}
 }

@@ -24,11 +24,10 @@ interface DurableObjectState {
 
 import type { DeviceEntrypoint, DeviceResponse } from "@devicesdk/core";
 import { LocalDeviceSender } from "./localDeviceSender.js";
-import { LocalLogger } from "./localLogger.js";
 
 type DeviceEntrypointClass = new (
 	ctx: {},
-	env: { DEVICE: LocalDeviceSender; LOGGER: LocalLogger; DEVICES: {} },
+	env: { DEVICE: LocalDeviceSender; DEVICES: {} },
 ) => DeviceEntrypoint;
 
 /**
@@ -135,11 +134,10 @@ export function createDeviceBridge(DeviceClass: DeviceEntrypointClass) {
 			};
 
 			this.sender = new LocalDeviceSender(ws, kvStorage);
-			const logger = new LocalLogger(this.deviceId);
 
 			this.userDevice = new DeviceClass(
 				{},
-				{ DEVICE: this.sender, LOGGER: logger, DEVICES: {} },
+				{ DEVICE: this.sender, DEVICES: {} },
 			);
 
 			console.log(

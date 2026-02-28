@@ -2,10 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import dev from "./dev";
 
 describe("dev command error handling", () => {
-	let consoleLogSpy: any;
+	// biome-ignore lint: test helper
+	let consoleErrorSpy: any;
+	// biome-ignore lint: test helper
+	let processExitSpy: any;
 
 	beforeEach(() => {
-		consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		processExitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+			throw new Error("process.exit");
+		}) as never);
 	});
 
 	afterEach(() => {
@@ -13,10 +20,13 @@ describe("dev command error handling", () => {
 	});
 
 	it("should display an error if the config file is not found", async () => {
-		await dev({ config: "non-existent-config.ts" });
-
-		expect(consoleLogSpy).toHaveBeenCalledWith(
-			expect.stringContaining("coming soon"),
+		await expect(dev({ config: "non-existent-config.ts" })).rejects.toThrow(
+			"process.exit",
 		);
+
+		expect(consoleErrorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Could not find"),
+		);
+		expect(processExitSpy).toHaveBeenCalledWith(1);
 	});
 });

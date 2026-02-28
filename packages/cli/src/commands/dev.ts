@@ -11,7 +11,7 @@ import { loadConfig } from "../utils.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const isPortAvailable = (port: number): Promise<boolean> => {
+export const isPortAvailable = (port: number): Promise<boolean> => {
 	return new Promise((resolve) => {
 		const server = net.createServer();
 		server.once("error", () => resolve(false));

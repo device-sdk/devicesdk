@@ -5,11 +5,9 @@ test.describe("Navigation", () => {
     await page.goto("/projects");
 
     const drawer = page.locator(".q-drawer");
-    await expect(drawer.getByRole("link", { name: "Projects" })).toBeVisible();
-    await expect(
-      drawer.getByRole("link", { name: "API Tokens" }),
-    ).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Settings" })).toBeVisible();
+    await expect(drawer.getByText("Projects", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("API Tokens", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("Settings", { exact: true })).toBeVisible();
   });
 
   test("can navigate between pages via sidebar", async ({ page }) => {
@@ -18,26 +16,28 @@ test.describe("Navigation", () => {
     const drawer = page.locator(".q-drawer");
 
     // Navigate to Tokens
-    await drawer.getByRole("link", { name: "API Tokens" }).click();
+    await drawer.getByText("API Tokens", { exact: true }).click();
     await expect(page).toHaveURL(/\/tokens/);
     await expect(
       page.getByText("Manage API tokens for programmatic access"),
     ).toBeVisible();
 
     // Navigate to Settings
-    await drawer.getByRole("link", { name: "Settings" }).click();
+    await drawer.getByText("Settings", { exact: true }).click();
     await expect(page).toHaveURL(/\/account/);
 
     // Navigate back to Projects
-    await drawer.getByRole("link", { name: "Projects" }).click();
+    await drawer.getByText("Projects", { exact: true }).click();
     await expect(page).toHaveURL(/\/projects/);
   });
 
   test("unauthenticated users are redirected to login", async ({
     browser,
   }) => {
-    // Create a context WITHOUT auth cookies
-    const context = await browser.newContext();
+    // Explicitly pass empty storageState to override the project default
+    const context = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
+    });
     const page = await context.newPage();
 
     await page.goto("http://localhost:9000/projects");
@@ -50,7 +50,9 @@ test.describe("Navigation", () => {
   });
 
   test("login page shows Google sign-in button", async ({ browser }) => {
-    const context = await browser.newContext();
+    const context = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
+    });
     const page = await context.newPage();
 
     await page.goto("http://localhost:9000/login");

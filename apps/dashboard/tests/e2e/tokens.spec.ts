@@ -50,6 +50,11 @@ test.describe("Tokens page", () => {
 
     await page.getByRole("button", { name: "Done" }).click();
 
-    await expect(page.getByText("E2E test token")).toBeVisible();
+    // Token should appear in the table (shown as ****<last4> in a chip)
+    await expect(page.locator(".token-chip").first()).toBeVisible({
+      timeout: 10000,
+    });
+    // Empty state should be gone
+    await expect(page.getByText("No API tokens yet")).not.toBeVisible();
   });
 });

@@ -4,30 +4,33 @@ test.describe("Projects page", () => {
   test("shows seeded projects", async ({ page }) => {
     await page.goto("/projects");
 
-    // Wait for the table to load
-    await expect(page.getByText("Smart Home")).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText("Weather Station")).toBeVisible();
+    // Wait for the table to load (table shows project slugs)
+    await expect(page.getByText("smart-home").first()).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByText("weather-station").first()).toBeVisible();
   });
 
   test("can search projects", async ({ page }) => {
     await page.goto("/projects");
-    await expect(page.getByText("Smart Home")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("smart-home").first()).toBeVisible({
+      timeout: 10000,
+    });
 
     await page.getByPlaceholder("Search projects...").fill("weather");
 
-    await expect(page.getByText("Weather Station")).toBeVisible();
-    await expect(page.getByText("Smart Home")).not.toBeVisible();
+    await expect(page.getByText("weather-station").first()).toBeVisible();
+    await expect(page.getByText("smart-home")).not.toBeVisible();
   });
 
   test("can navigate to project details", async ({ page }) => {
     await page.goto("/projects");
-    await expect(page.getByText("Smart Home")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("smart-home").first()).toBeVisible({
+      timeout: 10000,
+    });
 
-    // Click the Smart Home project row in the table
-    await page
-      .locator(".q-table")
-      .getByText("Smart Home")
-      .click();
+    // Click the smart-home project row in the table
+    await page.locator(".q-table").getByText("smart-home").first().click();
 
     await expect(page).toHaveURL(/\/projects\/smart-home/);
   });
@@ -43,9 +46,7 @@ test.describe("Projects page", () => {
 
     // Dialog should appear with stepper
     await expect(page.getByText("Create New Project")).toBeVisible();
-    await expect(
-      page.getByText("Recommended: Use the CLI"),
-    ).toBeVisible();
+    await expect(page.getByText("Recommended: Use the CLI")).toBeVisible();
 
     // Close dialog
     await page.keyboard.press("Escape");
@@ -65,16 +66,25 @@ test.describe("Projects page", () => {
     // Click "Create manually instead" to go to step 2
     await page.getByRole("button", { name: /manually/i }).click();
 
-    // Fill form
-    await page.getByLabel("Project Slug").fill("test-e2e-project");
-    await page.getByLabel("Project Name").fill("E2E Test Project");
-    await page.getByLabel("Description").fill("Created by E2E test");
+    // Fill form (Quasar inputs use divs for labels, not <label> elements)
+    await page
+      .getByPlaceholder("e.g., smart-home-hub")
+      .fill("test-e2e-project");
+    await page
+      .getByPlaceholder("e.g., Smart Home Hub")
+      .fill("E2E Test Project");
+    await page
+      .getByPlaceholder("Describe your project...")
+      .fill("Created by E2E test");
 
-    // Submit
-    await page.getByRole("button", { name: "Create Project" }).click();
+    // Submit (scope to dialog to avoid strict mode with page's "Create Project" button)
+    await page
+      .locator(".q-dialog")
+      .getByRole("button", { name: "Create Project" })
+      .click();
 
     // Should see the new project in the list after dialog closes
-    await expect(page.getByText("E2E Test Project")).toBeVisible({
+    await expect(page.getByText("test-e2e-project").first()).toBeVisible({
       timeout: 10000,
     });
   });

@@ -1,25 +1,5 @@
-import { test as base } from "@playwright/test";
-
 /**
- * Custom test fixture that removes vite-plugin-checker error overlays
- * which can intercept pointer events and block Playwright clicks.
+ * Custom test fixtures for E2E tests.
+ * All spec files import from here so fixtures can be extended in one place.
  */
-export const test = base.extend({
-  page: async ({ page }, use) => {
-    await page.addInitScript(() => {
-      new MutationObserver(() => {
-        for (const el of document.querySelectorAll(
-          "vite-plugin-checker-error-overlay",
-        )) {
-          el.remove();
-        }
-      }).observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-      });
-    });
-    await use(page);
-  },
-});
-
-export { expect } from "@playwright/test";
+export { test, expect } from "@playwright/test";

@@ -13,7 +13,7 @@ const PID_FILE = path.resolve(__dirname, ".pids.json");
 
 async function waitForServer(
   url: string,
-  timeoutMs: number = 30000,
+  timeoutMs: number = 60000,
 ): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -28,55 +28,41 @@ async function waitForServer(
   throw new Error(`Server at ${url} did not start within ${timeoutMs}ms`);
 }
 
+function killExistingServers() {
+  if (!fs.existsSync(PID_FILE)) return;
+  try {
+    const pids = JSON.parse(fs.readFileSync(PID_FILE, "utf-8"));
+    for (const [, pid] of Object.entries(pids)) {
+      try {
+        process.kill(-(pid as number), "SIGTERM");
+      } catch {
+        // Process already gone
+      }
+    }
+  } catch {
+    // Ignore errors reading stale PID file
+  }
+  fs.unlinkSync(PID_FILE);
+}
+
 export default async function globalSetup() {
-  // 1. Apply D1 migrations
+  // Kill any leftover servers from previous runs
+  killExistingServers();
+
+  // 1. Apply D1 migrations (idempotent)
   execSync("npx wrangler d1 migrations apply DB --local", {
     cwd: API_DIR,
     stdio: "pipe",
   });
 
-  // 2. Seed test data
-  const now = Date.now();
-  const expires = now + 86400000;
-  const seedSQL = `
-    DELETE FROM device_scripts;
-    DELETE FROM devices;
-    DELETE FROM tokens;
-    DELETE FROM user_sessions;
-    DELETE FROM projects;
-    DELETE FROM user;
-
-    INSERT OR IGNORE INTO user (id, name, email, verified_email, picture, created_at)
-    VALUES ('user-1', 'Alice Johnson', 'alice@example.com', 1, 'https://example.com/alice.jpg', ${now});
-
-    INSERT OR IGNORE INTO user_sessions (user_id, token, created_at, expires_at)
-    VALUES ('user-1', 'test-session-token', ${now}, ${expires});
-
-    INSERT OR IGNORE INTO projects (id, user_id, project_slug, name, description, created_at)
-    VALUES ('proj-1', 'user-1', 'smart-home', 'Smart Home', 'IoT smart home automation project', ${now});
-
-    INSERT OR IGNORE INTO projects (id, user_id, project_slug, name, description, created_at)
-    VALUES ('proj-2', 'user-1', 'weather-station', 'Weather Station', 'IoT weather monitoring system', ${now});
-  `.trim();
-
-  execSync(
-    `npx wrangler d1 execute DB --local --command "${seedSQL.replace(/"/g, '\\"')}"`,
-    { cwd: API_DIR, stdio: "pipe" },
-  );
-
-  // 3. Start API server
+  // 2. Start API server
   const apiProcess = spawn(
     "npx",
     ["wrangler", "dev", "--port", String(API_PORT)],
-    {
-      cwd: API_DIR,
-      stdio: "pipe",
-      env: { ...process.env, ENV: "local" },
-      detached: true,
-    },
+    { cwd: API_DIR, stdio: "pipe", detached: true },
   );
 
-  // 4. Start dashboard dev server (disable auto-open)
+  // 3. Start dashboard dev server
   const dashProcess = spawn("npx", ["quasar", "dev"], {
     cwd: DASHBOARD_DIR,
     stdio: "pipe",
@@ -87,13 +73,55 @@ export default async function globalSetup() {
   // Save PIDs for teardown
   fs.writeFileSync(
     PID_FILE,
-    JSON.stringify({
-      api: apiProcess.pid,
-      dashboard: dashProcess.pid,
-    }),
+    JSON.stringify({ api: apiProcess.pid, dashboard: dashProcess.pid }),
   );
 
-  // 5. Wait for servers
+  // 4. Wait for API server to be ready
   await waitForServer(`http://localhost:${API_PORT}/v1/user/me`);
+
+  // 5. Seed test data AFTER API server starts (ensures same DB instance)
+  const now = Date.now();
+  const expires = now + 86400000;
+  const seedSQL = [
+    "DELETE FROM device_scripts;",
+    "DELETE FROM devices;",
+    "DELETE FROM tokens;",
+    "DELETE FROM user_sessions;",
+    "DELETE FROM projects;",
+    "DELETE FROM user;",
+    "",
+    `INSERT INTO user (id, name, email, verified_email, picture, created_at) VALUES ('user-1', 'Alice Johnson', 'alice@example.com', 1, 'https://example.com/alice.jpg', ${now});`,
+    `INSERT INTO user_sessions (user_id, token, created_at, expires_at) VALUES ('user-1', 'test-session-token', ${now}, ${expires});`,
+    `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-1', 'user-1', 'smart-home', 'Smart Home', 'IoT smart home automation project', ${now});`,
+    `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-2', 'user-1', 'weather-station', 'Weather Station', 'IoT weather monitoring system', ${now});`,
+  ].join("\n");
+
+  const sqlFile = path.resolve(__dirname, ".seed.sql");
+  fs.writeFileSync(sqlFile, seedSQL);
+  try {
+    execSync(`npx wrangler d1 execute DB --local --file="${sqlFile}"`, {
+      cwd: API_DIR,
+      stdio: "pipe",
+    });
+  } catch (err: unknown) {
+    const error = err as { stderr?: string; stdout?: string };
+    console.error("[e2e] Seed failed:", error.stderr || error.stdout);
+    throw err;
+  } finally {
+    fs.unlinkSync(sqlFile);
+  }
+
+  // 6. Verify seed data is accessible through the API
+  const verifyResp = await fetch(`http://localhost:${API_PORT}/v1/projects`, {
+    headers: { Authorization: "Bearer test-session-token" },
+  });
+  if (!verifyResp.ok) {
+    const body = await verifyResp.text();
+    throw new Error(
+      `[e2e] Seed verification failed (${verifyResp.status}): ${body}`,
+    );
+  }
+
+  // 7. Wait for dashboard
   await waitForServer(`http://localhost:${DASHBOARD_PORT}`);
 }

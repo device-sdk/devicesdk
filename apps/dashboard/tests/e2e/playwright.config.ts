@@ -22,7 +22,7 @@ export default defineConfig({
       name: "e2e",
       dependencies: ["auth-setup"],
       use: {
-        storageState: ".auth/session.json",
+        storageState: "tests/e2e/.auth/session.json",
       },
     },
   ],

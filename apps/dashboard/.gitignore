@@ -35,5 +35,6 @@ yarn-error.log*
 # E2E test artifacts
 tests/e2e/.auth/
 tests/e2e/.pids.json
+tests/e2e/.seed.sql
 test-results/
 playwright-report/

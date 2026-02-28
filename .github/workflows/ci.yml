@@ -52,3 +52,26 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run test
+
+  changeset:
+    name: Changeset
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Check for changeset
+        run: |
+          # Allow the automated changeset version PR to pass without a changeset
+          if git log --oneline origin/main..HEAD | grep -q "chore: version packages"; then
+            echo "Version packages commit detected, skipping changeset check"
+            exit 0
+          fi
+          pnpm exec changeset status --since=origin/main

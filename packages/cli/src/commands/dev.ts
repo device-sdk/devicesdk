@@ -209,10 +209,7 @@ const dev = async (options: { config?: string; port?: string }) => {
 		await fs.mkdir(tmpDir, { recursive: true });
 
 		// Resolve simulator assets path
-		let simulatorAssetsPath = path.resolve(
-			__dirname,
-			"../simulator/assets",
-		);
+		let simulatorAssetsPath = path.resolve(__dirname, "../simulator/assets");
 		try {
 			await fs.access(simulatorAssetsPath);
 		} catch {
@@ -235,9 +232,7 @@ const dev = async (options: { config?: string; port?: string }) => {
 		if (!(await isPortAvailable(port))) {
 			const original = port;
 			port = Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
-			console.log(
-				`Port ${original} is in use, using ${port} instead.`,
-			);
+			console.log(`Port ${original} is in use, using ${port} instead.`);
 		}
 
 		const buildAndStart = async () => {
@@ -271,10 +266,7 @@ const dev = async (options: { config?: string; port?: string }) => {
 				await fs.access(simulatorWorkerPath);
 				simulatorSourcePath = simulatorWorkerPath;
 			} catch {
-				simulatorSourcePath = path.resolve(
-					__dirname,
-					"../simulator/worker.ts",
-				);
+				simulatorSourcePath = path.resolve(__dirname, "../simulator/worker.ts");
 			}
 
 			const simulatorOutfile = path.join(tmpDir, "simulator.js");
@@ -285,10 +277,7 @@ const dev = async (options: { config?: string; port?: string }) => {
 						build.onResolve({ filter: /\?raw$/ }, (args) => ({
 							path: path.isAbsolute(args.path)
 								? args.path.slice(0, -4)
-								: path.join(
-										args.resolveDir,
-										args.path.slice(0, -4),
-									),
+								: path.join(args.resolveDir, args.path.slice(0, -4)),
 							namespace: "raw-loader",
 						}));
 						build.onLoad(
@@ -311,9 +300,7 @@ const dev = async (options: { config?: string; port?: string }) => {
 			const capnpPath = path.join(tmpDir, "config.capnp");
 			await fs.writeFile(capnpPath, capnpConfig);
 
-			console.log(
-				`\nStarting devicesdk on http://localhost:${port}...\n`,
-			);
+			console.log(`\nStarting devicesdk on http://localhost:${port}...\n`);
 
 			workerdProcess = execa(
 				"workerd",
@@ -344,20 +331,16 @@ const dev = async (options: { config?: string; port?: string }) => {
 		const watchPaths = Object.values(devicesWithClass).map(
 			(d) => d.resolvedEntrypoint,
 		);
-		const watchDirs = [
-			...new Set(watchPaths.map((p) => path.dirname(p))),
-		];
+		const watchDirs = [...new Set(watchPaths.map((p) => path.dirname(p)))];
 
 		let rebuildQueued = false;
 		const watcher = chokidar.watch(watchDirs, {
-			ignored: /(^|[\/\\])\.|node_modules|\.devicesdk/,
+			ignored: /(^|[/\\])\.|node_modules|\.devicesdk/,
 			ignoreInitial: true,
 		});
 
 		watcher.on("change", async (changedPath) => {
-			console.log(
-				`\nFile changed: ${path.relative(configDir, changedPath)}`,
-			);
+			console.log(`\nFile changed: ${path.relative(configDir, changedPath)}`);
 
 			if (isRestarting) {
 				rebuildQueued = true;

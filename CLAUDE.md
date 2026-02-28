@@ -191,6 +191,11 @@ pnpm --filter @devicesdk/example-basic flash-local
 - **Multi-agent safety:** running multiple agents is OK as long as each agent has its own session.
 - **Multi-agent safety:** when you see unrecognized files, keep going; focus on your changes and commit only those.
 
+## Git Workflow
+
+- **Never commit directly to `main`**. Always create a new branch for your changes.
+- **Before every commit**, run `pnpm lint` to fix lint issues. Do not commit if linting fails.
+
 ## Coding Standards
 
 - **Strict types**: Do not use `any` in implementation code. Use `unknown` and narrow with type guards when needed.

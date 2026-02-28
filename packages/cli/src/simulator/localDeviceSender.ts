@@ -118,11 +118,7 @@ export class LocalDeviceSender implements DeviceSenderInterface {
 		});
 	}
 
-	async i2cWrite(
-		bus: number,
-		address: string,
-		data: string[],
-	): Promise<void> {
+	async i2cWrite(bus: number, address: string, data: string[]): Promise<void> {
 		await this.sendCommandAndWait({
 			type: "i2c_write",
 			payload: { bus, address, data },

@@ -40,7 +40,7 @@ export class OledButtonCounter extends DeviceEntrypoint {
 	// All persistent state (ledOn, pressCount, displayInitialized) goes in kv
 
 	async onDeviceConnect() {
-		this.env.LOGGER.info("Device connected - initializing...");
+		console.info("Device connected - initializing...");
 
 		// Reset hardware-related state (device has rebooted)
 		await this.env.DEVICE.kv.put("displayInitialized", false);
@@ -60,11 +60,11 @@ export class OledButtonCounter extends DeviceEntrypoint {
 		// Show initial display (reads all state from kv)
 		await this.updateDisplay();
 
-		this.env.LOGGER.info("Ready!");
+		console.info("Ready!");
 	}
 
 	async onDeviceDisconnect() {
-		this.env.LOGGER.info("Device disconnected");
+		console.info("Device disconnected");
 	}
 
 	async onMessage(message: DeviceResponse) {
@@ -90,7 +90,7 @@ export class OledButtonCounter extends DeviceEntrypoint {
 			// Update display (reads state from kv)
 			await this.updateDisplay();
 
-			this.env.LOGGER.info(`LED ${ledOn ? "ON" : "OFF"}, press #${pressCount}`);
+			console.info(`LED ${ledOn ? "ON" : "OFF"}, press #${pressCount}`);
 		}
 	}
 

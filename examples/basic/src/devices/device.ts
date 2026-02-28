@@ -19,7 +19,7 @@ export class MyDevice extends DeviceEntrypoint {
 	});
 
 	async onDeviceConnect() {
-		this.env.LOGGER.info("Device connected - initializing...");
+		console.info("Device connected - initializing...");
 
 		// Reset hardware-related state (device has rebooted)
 		await this.env.DEVICE.kv.put("displayInitialized", false);
@@ -40,11 +40,11 @@ export class MyDevice extends DeviceEntrypoint {
 		// Show initial display
 		await this.updateDisplay();
 
-		this.env.LOGGER.info(`Ready! Press button on GP${BUTTON_PIN} to toggle LED`);
+		console.info(`Ready! Press button on GP${BUTTON_PIN} to toggle LED`);
 	}
 
 	async onDeviceDisconnect() {
-		this.env.LOGGER.info("Device disconnected");
+		console.info("Device disconnected");
 	}
 
 	async onMessage(message: DeviceResponse) {
@@ -64,7 +64,7 @@ export class MyDevice extends DeviceEntrypoint {
 				await this.env.DEVICE.kv.put("pressCount", pressCount);
 
 				await this.env.DEVICE.setGpioState(LED_PIN, ledOn ? "high" : "low");
-				this.env.LOGGER.info(`Button pressed! LED ${ledOn ? "ON" : "OFF"} (press #${pressCount})`);
+				console.info(`Button pressed! LED ${ledOn ? "ON" : "OFF"} (press #${pressCount})`);
 
 				// Update display
 				await this.updateDisplay();

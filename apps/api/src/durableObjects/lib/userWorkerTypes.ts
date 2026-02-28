@@ -23,21 +23,10 @@ export interface KVInterface {
 	delete(key: string): Promise<boolean>;
 }
 
-// Logger interface for user code
-export interface LoggerInterface {
-	debug(...args: unknown[]): Promise<void>;
-	info(...args: unknown[]): Promise<void>;
-	log(...args: unknown[]): Promise<void>;
-	warn(...args: unknown[]): Promise<void>;
-	error(...args: unknown[]): Promise<void>;
-}
-
 // The env that the dynamic worker will receive
 export interface UserWorkerEnv {
 	// Binding to send messages/commands to the IoT device via the DO
 	DEVICE: DeviceSenderInterface;
-	// Logger binding for logging from user code
-	logger: LoggerInterface;
 }
 
 // Interface for the DeviceSender binding provided to user code

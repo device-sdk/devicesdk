@@ -134,7 +134,6 @@ app.route("/v1/projects/:projectId/scripts", batchScriptsRouter);
 export default app;
 export { BaseDevice as Device } from "./durableObjects/lib/device";
 export { DeviceSender } from "./durableObjects/lib/deviceSender";
-export { Logger } from "./durableObjects/lib/logger";
 
 // export default Sentry.withSentry(
 //   env => ({

@@ -178,10 +178,6 @@ export class BaseDevice extends DurableObject<Env> {
 						DEVICE: (this.ctx as any).exports.DeviceSender({
 							props: { deviceId, projectId },
 						}),
-						// Provide the Logger binding for logging from user code
-						LOGGER: (this.ctx as any).exports.Logger({
-							props: { deviceId, projectId },
-						}),
 						// Metadata for console override prefix in proxy entrypoint
 						__DEVICE_ID: deviceId,
 						__PROJECT_ID: projectId,

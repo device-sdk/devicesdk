@@ -120,7 +120,7 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 
 - `shamefully-hoist=true` in root `.npmrc` is **required** by Quasar's `@quasar/app-vite`
 - `packageManager: pnpm@9.15.4` in root `package.json`
-- Node >= 20 required (using v22 via nvm)
+- Node >= 20 required (using v24 via nvm)
 - Turbo `^build` ensures dependency-ordered builds
 ## Local Development Workflow
 

@@ -98,6 +98,14 @@ test.describe("CRUD operations", () => {
       await expect(page.getByText("Device updated")).toBeVisible({
         timeout: 10000,
       });
+
+      // Restore original name so downstream tests aren't affected
+      await page.getByLabel("Device Name").clear();
+      await page.getByLabel("Device Name").fill("LED Controller");
+      await page.getByRole("button", { name: "Save Changes" }).click();
+      await expect(page.getByText("Device updated")).toBeVisible({
+        timeout: 10000,
+      });
     });
 
     test("can edit device via edit dialog from overview", async ({ page }) => {
@@ -125,6 +133,19 @@ test.describe("CRUD operations", () => {
         .getByRole("button", { name: "Save" })
         .click();
 
+      await expect(page.getByText("Device updated")).toBeVisible({
+        timeout: 10000,
+      });
+
+      // Restore original name so downstream tests aren't affected
+      await page.getByRole("button", { name: "Edit Device" }).click();
+      const restoreInput = page.locator(".q-dialog").getByLabel("Name");
+      await restoreInput.clear();
+      await restoreInput.fill("LED Controller");
+      await page
+        .locator(".q-dialog")
+        .getByRole("button", { name: "Save" })
+        .click();
       await expect(page.getByText("Device updated")).toBeVisible({
         timeout: 10000,
       });

@@ -22,7 +22,7 @@ test.describe("Account page", () => {
     await expect(page.getByText("Profile", { exact: true })).toBeVisible({ timeout: 10000 });
 
     await expect(page.getByText("Email Verified")).toBeVisible();
-    await expect(page.getByText("Verified")).toBeVisible();
+    await expect(page.getByText("Verified", { exact: true })).toBeVisible();
   });
 
   test("shows member since date", async ({ page }) => {
@@ -36,7 +36,7 @@ test.describe("Account page", () => {
     await page.goto("/account");
     await expect(page.getByText("Profile", { exact: true })).toBeVisible({ timeout: 10000 });
 
-    await expect(page.getByText("Preferences")).toBeVisible();
+    await expect(page.getByText("Preferences", { exact: true })).toBeVisible();
     await expect(
       page.getByText("Preferences will be available in a future update"),
     ).toBeVisible();

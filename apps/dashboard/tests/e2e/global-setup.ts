@@ -94,6 +94,17 @@ export default async function globalSetup() {
     `INSERT INTO user_sessions (user_id, token, created_at, expires_at) VALUES ('user-1', 'test-session-token', ${now}, ${expires});`,
     `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-1', 'user-1', 'smart-home', 'Smart Home', 'IoT smart home automation project', ${now});`,
     `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-2', 'user-1', 'weather-station', 'Weather Station', 'IoT weather monitoring system', ${now});`,
+
+    // Devices for proj-1 (smart-home)
+    `INSERT INTO devices (id, project_id, device_slug, name, description, current_version_id, last_connected_at, created_at, updated_at) VALUES ('dev-1', 'proj-1', 'temp-sensor', 'Temperature Sensor', 'Living room temperature monitor', NULL, NULL, ${now}, ${now});`,
+    `INSERT INTO devices (id, project_id, device_slug, name, description, current_version_id, last_connected_at, created_at, updated_at) VALUES ('dev-2', 'proj-1', 'led-controller', 'LED Controller', 'Kitchen LED strip controller', NULL, NULL, ${now}, ${now});`,
+
+    // Deletable project with a device
+    `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-3', 'user-1', 'deletable-project', 'Deletable Project', 'Project for delete testing', ${now});`,
+    `INSERT INTO devices (id, project_id, device_slug, name, description, current_version_id, last_connected_at, created_at, updated_at) VALUES ('dev-3', 'proj-3', 'deletable-device', 'Deletable Device', 'Device for delete testing', NULL, NULL, ${now}, ${now});`,
+
+    // Token for delete testing
+    `INSERT INTO tokens (id, user_id, token, created_at, description, managed) VALUES ('tok-1', 'user-1', 'dsdk_testtoken1234567890abcdef', ${now}, 'Test token for E2E', 0);`,
   ].join("\n");
 
   const sqlFile = path.resolve(__dirname, ".seed.sql");

@@ -201,6 +201,20 @@ kv.<span class="syn-fn">put</span>(<span class="syn-str">"role"</span>, <span cl
 }</code></pre>
                 </div>
             </div>
+            <div class="card p-5" data-category="advanced">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="badge" style="border-color:rgba(251,146,60,0.3);color:#fb923c;background:rgba(251,146,60,0.1)">Advanced</span>
+                    <span class="badge">RPC</span>
+                </div>
+                <h3 class="font-semibold text-zinc-50">Device-to-Device RPC</h3>
+                <p class="text-sm text-zinc-500 mt-1 mb-4">Sensor triggers light controller via type-safe method calls</p>
+                <div class="code-window text-xs">
+                    <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICES[
+  <span class="syn-str">"light"</span>
+].<span class="syn-fn">turnOn</span>();
+<span class="syn-cm">// { status: "on" }</span></code></pre>
+                </div>
+            </div>
         </div>
     </div>
 </section>

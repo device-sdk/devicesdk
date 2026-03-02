@@ -175,6 +175,7 @@ Your device entrypoint has access to several environment bindings:
 
 - [**CLI Reference**](/docs/cli/) - Learn all CLI commands
 - [**Platform Architecture**](/docs/concepts/architecture/) - See how it all works
+- [**Inter-Device Communication**](/docs/guides/inter-device-communication/) - Call methods between devices
 
 ## Need Help?
 

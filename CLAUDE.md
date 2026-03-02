@@ -186,6 +186,9 @@ pnpm --filter @devicesdk/example-basic flash-local
 | Database schema | `apps/api/migrations/` (sequential SQL files) |
 | Table type definitions | `apps/api/src/types.d.ts` |
 | Query builder patterns | Existing endpoints + `.claude/skills/write-sql-queries/SKILL.md` |
+| Inter-device RPC types | `packages/core/src/index.ts` (`RemoteDevice`, `GetEnv`) |
+| DevicesBridge (inter-device RPC) | `apps/api/src/durableObjects/lib/devicesBridge.ts` |
+| CLI type generation | `packages/cli/src/commands/build.ts` (`generateDeviceTypes`) |
 
 ## Multi-Agent Safety
 

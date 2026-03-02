@@ -32,13 +32,44 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     console.error = (...args) => { _error(prefix, ...args); persist('error', args); };
     console.debug = (...args) => { _debug(prefix, ...args); persist('debug', args); };
 
-    const target = new ${entrypointName}(this.ctx, this.env);
+    // Build DEVICES proxy for inter-device RPC
+    const bridge = this.env.__DEVICE_BRIDGE;
+    let currentCallDepth = 0;
+
+    const devicesProxy = new Proxy({}, {
+      get(_, deviceSlug) {
+        if (typeof deviceSlug !== 'string') return undefined;
+        return new Proxy({}, {
+          get(_, methodName) {
+            if (typeof methodName !== 'string') return undefined;
+            if (methodName === 'then') return undefined;
+            return (...args) => bridge.callRemoteMethod(
+              deviceSlug, methodName, args, currentCallDepth
+            );
+          }
+        });
+      }
+    });
+
+    const env = Object.assign({}, this.env, { DEVICES: devicesProxy });
+    const target = new ${entrypointName}(this.ctx, env);
+
+    const BLOCKED_METHODS = new Set([
+      'onMessage', 'onDeviceConnect', 'onDeviceDisconnect', 'onAlarm',
+      'constructor', 'env', 'ctx'
+    ]);
 
     return {
     	onMessage: (...args) => target.onMessage(...args),
     	onDeviceConnect: (...args) => target.onDeviceConnect(...args),
     	onDeviceDisconnect: (...args) => target.onDeviceDisconnect(...args),
     	onAlarm: (...args) => target.onAlarm(...args),
+    	callMethod: (name, args, callDepth) => {
+    	  if (BLOCKED_METHODS.has(name)) throw new Error('Cannot call "' + name + '" remotely');
+    	  if (typeof target[name] !== 'function') throw new Error('Method "' + name + '" not found');
+    	  currentCallDepth = callDepth || 0;
+    	  return target[name](...args);
+    	},
     }
   }
 }`;

@@ -36,7 +36,7 @@
                 <p class="text-sm text-zinc-500 mt-1 mb-4">Toggle the onboard LED on and off with a timer</p>
                 <div class="code-window text-xs">
                     <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE
-  .<span class="syn-fn">setGpioOutput</span>(<span class="syn-num">99</span>, <span class="syn-num">1</span>);
+  .<span class="syn-fn">setGpioState</span>(<span class="syn-num">99</span>, <span class="syn-str">"high"</span>);
 <span class="syn-cm">// Pin 99 = onboard LED</span></code></pre>
                 </div>
             </div>
@@ -51,7 +51,8 @@
                 <p class="text-sm text-zinc-500 mt-1 mb-4">React to physical button presses on a GPIO pin</p>
                 <div class="code-window text-xs">
                     <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE
-  .<span class="syn-fn">configureGpioInput</span>(<span class="syn-num">14</span>);
+  .<span class="syn-fn">configureGpioInputMonitoring</span>(
+    <span class="syn-num">14</span>, <span class="syn-num">true</span>);
 <span class="syn-cm">// Fires gpio_state_changed</span></code></pre>
                 </div>
             </div>
@@ -82,9 +83,8 @@
                 <p class="text-sm text-zinc-500 mt-1 mb-4">Read an analog temperature sensor with periodic ADC polling</p>
                 <div class="code-window text-xs">
                     <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE
-  .<span class="syn-fn">configureAdcMonitoring</span>(<span class="syn-num">26</span>, {
-    interval: <span class="syn-num">60000</span>
-  });</code></pre>
+  .<span class="syn-fn">configureGpioInputMonitoring</span>(
+    <span class="syn-num">26</span>, <span class="syn-num">true</span>);</code></pre>
                 </div>
             </div>
 
@@ -162,8 +162,8 @@
                 <p class="text-sm text-zinc-500 mt-1 mb-4">Control heating based on temperature with OLED display</p>
                 <div class="code-window text-xs">
                     <pre class="!p-3"><code><span class="syn-kw">if</span> (temp &lt; target) {
-  <span class="syn-kw">await</span> device.<span class="syn-fn">setGpioOutput</span>(
-    RELAY_PIN, <span class="syn-num">1</span>);
+  <span class="syn-kw">await</span> device.<span class="syn-fn">setGpioState</span>(
+    RELAY_PIN, <span class="syn-str">"high"</span>);
   display.<span class="syn-fn">drawText</span>(<span class="syn-num">0</span>,<span class="syn-num">0</span>,<span class="syn-str">"Heating"</span>);
 }</code></pre>
                 </div>
@@ -195,8 +195,8 @@ kv.<span class="syn-fn">put</span>(<span class="syn-str">"role"</span>, <span cl
                 <p class="text-sm text-zinc-500 mt-1 mb-4">Monitor soil moisture and control a water pump automatically</p>
                 <div class="code-window text-xs">
                     <pre class="!p-3"><code><span class="syn-kw">if</span> (moisture &lt; <span class="syn-num">30</span>) {
-  <span class="syn-kw">await</span> device.<span class="syn-fn">setGpioOutput</span>(
-    PUMP_PIN, <span class="syn-num">1</span>);
+  <span class="syn-kw">await</span> device.<span class="syn-fn">setGpioState</span>(
+    PUMP_PIN, <span class="syn-str">"high"</span>);
   <span class="syn-kw">await</span> <span class="syn-fn">delay</span>(<span class="syn-num">5000</span>);
 }</code></pre>
                 </div>

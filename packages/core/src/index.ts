@@ -241,7 +241,7 @@ type LifecycleMethods =
 	| "onAlarm";
 type InternalProps = "env" | "ctx";
 
-// Extracts public non-lifecycle async methods from a device class.
+// Extracts public non-lifecycle methods and wraps return types in Promise for RPC transport.
 // TypeScript's keyof naturally excludes private/protected members.
 export type RemoteDevice<T> = {
 	[K in keyof T as K extends LifecycleMethods | InternalProps
@@ -264,12 +264,12 @@ export type GetEnv<ProjectDevices = {}> = {
 	DEVICES: RemoteDevices<ProjectDevices>;
 };
 
-// The env that the dynamic worker will receive (kept for API-internal use)
-export type UserWorkerEnv<ProjectDevices = {}> = {
-	// Binding to send messages/commands to the IoT device via the DO
+// Internal type for the dynamic worker's raw env (before proxy wrapping)
+export type UserWorkerEnv = {
 	DEVICE: DeviceSenderInterface;
-
-	DEVICES: ProjectDevices;
+	__DEVICE_BRIDGE?: unknown;
+	__DEVICE_ID?: string;
+	__PROJECT_ID?: string;
 };
 
 // Interface for the DeviceSender binding provided to user code

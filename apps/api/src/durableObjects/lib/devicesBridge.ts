@@ -1,8 +1,7 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { D1QB } from "workers-qb";
 import type { BaseDevice } from "./device";
-
-const MAX_CALL_DEPTH = 3;
+import { MAX_CALL_DEPTH } from "./rpcConstants";
 
 interface DevicesBridgeProps {
 	projectId: string;

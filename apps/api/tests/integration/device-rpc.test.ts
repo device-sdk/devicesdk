@@ -236,50 +236,68 @@ describe.sequential("Inter-device RPC", () => {
 		});
 	});
 
-	describe("classProxy callMethod blocking", () => {
-		// These verify the BLOCKED_METHODS set used in the proxy's callMethod function.
-		const BLOCKED_METHODS = new Set([
-			"onMessage",
-			"onDeviceConnect",
-			"onDeviceDisconnect",
-			"onAlarm",
-			"constructor",
-			"env",
-			"ctx",
-		]);
-
-		it("should block lifecycle methods from remote calls", () => {
-			expect(BLOCKED_METHODS.has("onMessage")).toBe(true);
-			expect(BLOCKED_METHODS.has("onDeviceConnect")).toBe(true);
-			expect(BLOCKED_METHODS.has("onDeviceDisconnect")).toBe(true);
-			expect(BLOCKED_METHODS.has("onAlarm")).toBe(true);
+	describe("RPC constants", () => {
+		it("should have expected blocked methods", async () => {
+			const { BLOCKED_METHODS } = await import(
+				"../../src/durableObjects/lib/rpcConstants"
+			);
+			expect(BLOCKED_METHODS).toContain("onMessage");
+			expect(BLOCKED_METHODS).toContain("onDeviceConnect");
+			expect(BLOCKED_METHODS).toContain("onDeviceDisconnect");
+			expect(BLOCKED_METHODS).toContain("onAlarm");
+			expect(BLOCKED_METHODS).toContain("constructor");
+			expect(BLOCKED_METHODS).toContain("env");
+			expect(BLOCKED_METHODS).toContain("ctx");
 		});
 
-		it("should block internal properties from remote calls", () => {
-			expect(BLOCKED_METHODS.has("constructor")).toBe(true);
-			expect(BLOCKED_METHODS.has("env")).toBe(true);
-			expect(BLOCKED_METHODS.has("ctx")).toBe(true);
+		it("should not block user-defined method names", async () => {
+			const { BLOCKED_METHODS } = await import(
+				"../../src/durableObjects/lib/rpcConstants"
+			);
+			const blocked = new Set<string>(BLOCKED_METHODS);
+			expect(blocked.has("turnOn")).toBe(false);
+			expect(blocked.has("updateDesiredState")).toBe(false);
+			expect(blocked.has("getStatus")).toBe(false);
 		});
 
-		it("should allow user-defined methods", () => {
-			expect(BLOCKED_METHODS.has("turnOn")).toBe(false);
-			expect(BLOCKED_METHODS.has("updateDesiredState")).toBe(false);
-			expect(BLOCKED_METHODS.has("getStatus")).toBe(false);
+		it("should have max call depth of 3", async () => {
+			const { MAX_CALL_DEPTH } = await import(
+				"../../src/durableObjects/lib/rpcConstants"
+			);
+			expect(MAX_CALL_DEPTH).toBe(3);
 		});
 	});
 
-	describe("call depth limiting", () => {
-		const MAX_CALL_DEPTH = 3;
-
-		it("should allow calls within depth limit", () => {
-			expect(0 < MAX_CALL_DEPTH).toBe(true);
-			expect(1 < MAX_CALL_DEPTH).toBe(true);
-			expect(2 < MAX_CALL_DEPTH).toBe(true);
+	describe("classProxy generated code", () => {
+		it("should include BLOCKED_METHODS in generated proxy", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			expect(code).toContain("BLOCKED_METHODS");
+			expect(code).toContain("onMessage");
+			expect(code).toContain("callMethod");
 		});
 
-		it("should reject calls at or beyond max depth", () => {
-			expect(3 >= MAX_CALL_DEPTH).toBe(true);
-			expect(5 >= MAX_CALL_DEPTH).toBe(true);
+		it("should strip internal bindings from user env in generated proxy", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			expect(code).toContain("__DEVICE_BRIDGE: bridge");
+			expect(code).toContain("publicEnv");
+			expect(code).toContain(
+				"Object.assign({}, publicEnv, { DEVICES: devicesProxy })",
+			);
+		});
+
+		it("should check user class prototype in callMethod", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			expect(code).toContain("Object.getPrototypeOf(target)");
+			expect(code).toContain("hasOwnProperty");
 		});
 	});
 });

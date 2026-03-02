@@ -80,7 +80,7 @@ export default defineConfig({
 ## Example Device Entrypoint
 ```ts
 // src/devices/lobby-sensor.ts
-import { DeviceEntrypoint } from "@devicesdk/runtime";
+import { DeviceEntrypoint } from "@devicesdk/core";
 
 const BUTTON_PIN = 20;  // GPIO pin connected to button (active high)
 const LED_PIN = 99;     // GPIO pin connected to LED

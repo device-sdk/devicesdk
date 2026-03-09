@@ -29,6 +29,8 @@ Last updated: 2026-02-07
 | 17 | [Add Monitoring & Error Tracking](#17-add-monitoring--error-tracking) | APM, structured logging, error tracking, and alerting for production | [ ]    |
 | 18 | [Automate npm Publishing & Releases](#18-automate-npm-publishing--releases) | Changesets (or similar) for versioning `@devicesdk/core` and `@devicesdk/cli`, CI publish | [ ]    |
 | 19 | [Miscellaneous Cleanup](#19-miscellaneous-cleanup) | Small TODOs, type fixes, and dead code across the repo | [ ]    |
+| 20 | [Inter-Device Communication (RPC)](#20-inter-device-communication-rpc) | Type-safe method calls between devices in the same project | [ x ]  |
+| 21 | [Inter-Device Events / Pub-Sub](#21-inter-device-events--pub-sub) | Project-level event broadcasting between devices | [ ]    |
 
 ---
 
@@ -408,3 +410,44 @@ Small TODOs and type issues scattered across the codebase:
 | `packages/cli/src/commands/dev.ts` | 218 | `TODO: make this path dynamic` — resolve simulator assets path from CLI install dir |
 | `firmware/pico/src/websocket_handler.cpp` | 209 | `TODO: Add CMD_GPIO_DISABLE_MONITORING if needed` — evaluate if this command is necessary |
 | `examples/temperature-to-discord/src/devices/temperatureSensor.ts` | 3 | `TODO: Implement Discord integration` — finish the example or remove it |
+
+---
+
+### 20. Inter-Device Communication (RPC)
+
+**Priority**: High
+**Packages affected**: `packages/core`, `packages/cli`, `apps/api`
+**Status**: Done
+
+Type-safe inter-device RPC so that `this.env.DEVICES["light-controller"].turnOn()` works with full TypeScript autocomplete and request-response semantics.
+
+**What was implemented**:
+1. `RemoteDevice<T>` and `GetEnv<ProjectDevices>` types in `packages/core` — extracts public non-lifecycle methods from device classes
+2. CLI generates `devicesdk-env.d.ts` alongside `devicesdk.ts` with project device types
+3. `DevicesBridge` WorkerEntrypoint resolves device slugs via D1 and dispatches RPC calls
+4. `BaseDevice.handleRemoteCall()` loads user worker and invokes methods
+5. `classProxy.ts` creates `DEVICES` JS Proxy and exposes `callMethod` with lifecycle method blocking
+6. Max call depth of 3 prevents infinite cycles between devices
+
+**Limitations**: Same project only. RPC args must be JSON-serializable. Full E2E testing requires LOADER + R2 (tested via manual local dev workflow).
+
+---
+
+### 21. Inter-Device Events / Pub-Sub
+
+**Priority**: Medium
+**Packages affected**: `packages/core`, `apps/api`
+**Status**: Not started
+
+Complements RPC (task #20) for one-to-many communication patterns.
+
+**Proposed design**:
+1. `this.env.PROJECT.emit('event-name', data)` for broadcasting events to all devices in a project
+2. `onProjectEvent(event, data)` lifecycle method for receiving events
+3. Event delivery is best-effort (no guaranteed ordering or exactly-once delivery)
+
+**Work required**:
+1. Add `ProjectBridge` WorkerEntrypoint that fans out events to all device DOs in a project
+2. Add `onProjectEvent` to `DeviceEntrypoint` lifecycle methods
+3. Add event types to `@devicesdk/core`
+4. Add integration tests and documentation

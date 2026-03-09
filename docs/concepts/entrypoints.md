@@ -22,7 +22,7 @@ import { DeviceEntrypoint } from '@devicesdk/core';
 export default class MyDevice extends DeviceEntrypoint {
   // Lifecycle methods
   async onDeviceConnect() { }
-  async onMessage(message: DeviceMessage) { }
+  async onMessage(message: DeviceResponse) { }
   async onDeviceDisconnect() { }
 }
 ```
@@ -50,7 +50,7 @@ async onDeviceConnect() {
 Called when a device sends a message.
 
 ```typescript
-async onMessage(message: DeviceMessage) {
+async onMessage(message: DeviceResponse) {
   // Handle different message types
   switch (message.type) {
     case 'sensor_data':
@@ -95,14 +95,12 @@ Your entrypoint has access to these bindings:
 
 ### this.env.DEVICE
 
-Send messages and manage devices:
+Send commands and manage devices:
 
 ```typescript
-// Send message to device
-await this.env.DEVICE.send({
-  type: 'command',
-  action: 'restart'
-});
+// Send commands to the device
+await this.env.DEVICE.setGpioState(25, "high");
+await this.env.DEVICE.reboot();
 
 // Access KV storage
 await this.env.DEVICE.kv.put('key', 'value');
@@ -126,7 +124,7 @@ console.warn('Temperature threshold exceeded', { temp: 85 });
 Device sends event, script processes asynchronously:
 
 ```typescript
-async onMessage(message: DeviceMessage) {
+async onMessage(message: DeviceResponse) {
   if (message.type === 'alert') {
     // Don't wait for external calls
     this.sendEmailAlert(message).catch(err =>
@@ -141,7 +139,7 @@ async onMessage(message: DeviceMessage) {
 Maintain device state in KV:
 
 ```typescript
-async onMessage(message: DeviceMessage) {
+async onMessage(message: DeviceResponse) {
   // Load current state
   const state = await this.env.DEVICE.kv.get(`state`);
   
@@ -170,12 +168,53 @@ export default {
 
 Each device type has its own entrypoint class.
 
+## Inter-Device Communication
+
+Devices within the same project can call methods on each other using `this.env.DEVICES`. Public methods on any device class are automatically available to other devices as type-safe remote calls.
+
+### Setup
+
+Run `devicesdk build` to generate `devicesdk-env.d.ts`, then pass the `Env` type to your entrypoint:
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+import type { Env } from '../../devicesdk-env';
+
+export class Sensor extends DeviceEntrypoint<Env> {
+  async onMessage(message: DeviceResponse) {
+    if (message.type === 'gpio_state_changed' && message.payload.pin === 20) {
+      // Type-safe call to another device's public method
+      const result = await this.env.DEVICES['led-controller'].turnOn();
+      console.info('Light turned on:', result);
+    }
+  }
+}
+```
+
+### What's Callable
+
+- **Public methods** you define on device classes are callable remotely
+- **Private/protected methods** are hidden from remote callers (TypeScript enforces this)
+- **Lifecycle methods** (`onDeviceConnect`, `onMessage`, etc.) and internal properties (`env`, `ctx`) are blocked
+
+### Offline Behavior
+
+Your device script always runs in the serverless runtime, even when hardware is offline:
+- **KV operations** (`this.env.DEVICE.kv.put(...)`) always succeed — use this for deferred state
+- **Hardware commands** (`this.env.DEVICE.setGpioState(...)`) throw if the device is not connected
+
+### Call Depth Limit
+
+To prevent infinite cycles (device A calls B, which calls A), the maximum call depth is 3.
+
+For a full walkthrough, see the [Inter-Device Communication Guide](/docs/guides/inter-device-communication/).
+
 ## Error Handling
 
 Handle errors gracefully:
 
 ```typescript
-async onMessage(message: DeviceMessage) {
+async onMessage(message: DeviceResponse) {
   try {
     await this.processMessage(message);
   } catch (error) {

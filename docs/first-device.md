@@ -13,7 +13,7 @@ A device entrypoint is a TypeScript class that handles communication between you
 Every device entrypoint extends the `DeviceEntrypoint` class:
 
 ```typescript
-import { DeviceEntrypoint, DeviceMessage } from '@devicesdk/core';
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
 
 export default class MyDevice extends DeviceEntrypoint {
   async onDeviceConnect() {
@@ -21,7 +21,7 @@ export default class MyDevice extends DeviceEntrypoint {
     console.log(`Device connected`);
   }
 
-  async onMessage(message: DeviceMessage) {
+  async onMessage(message: DeviceResponse) {
     // Called when a device sends a message
     console.log(`Received from`, message);
   }
@@ -49,41 +49,31 @@ async onDeviceConnect() {
 Handle incoming messages in the `onMessage` method:
 
 ```typescript
-async onMessage(message: DeviceMessage) {
+async onMessage(message: DeviceResponse) {
   switch (message.type) {
-    case 'sensor_reading':
+    case 'pin_state_update':
       // Store sensor data
-      console.info(`Temperature: ${message.temperature}°C`);
+      console.info(`Pin ${message.payload.pin}: ${message.payload.value}`);
       break;
-      
-    case 'button_press':
+
+    case 'gpio_state_changed':
       // Respond to button press
-      await this.env.DEVICE.send({
-        type: 'led',
-        state: 'on'
-      });
+      await this.env.DEVICE.setGpioState(99, "high");
       break;
   }
 }
 ```
 
-## Sending Messages to Devices
+## Sending Commands to Devices
 
-Send commands to your devices using the `send` method:
+Send commands to your devices using the typed methods:
 
 ```typescript
 // Turn on an LED
-await this.env.DEVICE.send({
-  type: 'gpio_write',
-  pin: 25,
-  value: 1
-});
+await this.env.DEVICE.setGpioState(25, "high");
 
-// Read an analog sensor
-await this.env.DEVICE.send({
-  type: 'adc_read',
-  pin: 26
-});
+// Read a pin state
+const reading = await this.env.DEVICE.getPinState(26, "analog");
 ```
 
 ## Complete Example: LED Controller
@@ -91,40 +81,26 @@ await this.env.DEVICE.send({
 Here's a complete example that controls an LED based on button presses:
 
 ```typescript
-import { DeviceEntrypoint, DeviceMessage } from '@devicesdk/core';
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
 
 export default class LEDController extends DeviceEntrypoint {
   async onDeviceConnect() {
     // Configure button input on GPIO 20
-    await this.env.DEVICE.send({
-      type: 'gpio_input',
-      pin: 20,
-      pullup: true
-    });
-
-    // Configure LED output on GPIO 25
-    await this.env.DEVICE.send({
-      type: 'gpio_output',
-      pin: 25
-    });
+    await this.env.DEVICE.configureGpioInputMonitoring(20, true, "up");
 
     console.info(`Device initialized`);
   }
 
-  async onMessage(message: DeviceMessage) {
-    if (message.type === 'gpio_change' && message.pin === 20) {
+  async onMessage(message: DeviceResponse) {
+    if (message.type === 'gpio_state_changed' && message.payload.pin === 20) {
       // Button pressed (pulled low)
-      if (message.value === 0) {
-        // Toggle LED state
-        this.ledState = !this.ledState;
-        
-        await this.env.DEVICE.send({
-          type: 'gpio_write',
-          pin: 25,
-          value: this.ledState ? 1 : 0
-        });
-
-        console.info(`LED ${this.ledState ? 'ON' : 'OFF'}`);
+      if (message.payload.state === 'low') {
+        // Toggle LED
+        await this.env.DEVICE.setGpioState(25, "high");
+        console.info('LED ON');
+      } else {
+        await this.env.DEVICE.setGpioState(25, "low");
+        console.info('LED OFF');
       }
     }
   }
@@ -175,6 +151,7 @@ Your device entrypoint has access to several environment bindings:
 
 - [**CLI Reference**](/docs/cli/) - Learn all CLI commands
 - [**Platform Architecture**](/docs/concepts/architecture/) - See how it all works
+- [**Inter-Device Communication**](/docs/guides/inter-device-communication/) - Call methods between devices
 
 ## Need Help?
 

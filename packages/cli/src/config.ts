@@ -10,7 +10,13 @@ const deviceTypeSchema: z.ZodType<DeviceType> = z.enum([
 
 export const DeviceConfigSchema = z
 	.object({
-		entrypoint: z.string().min(1, "'entrypoint' is required"),
+		entrypoint: z
+			.string()
+			.min(1, "'entrypoint' is required")
+			.regex(
+				/^[A-Za-z_$][A-Za-z0-9_$]*$/,
+				"'entrypoint' must be a valid TypeScript class name (letters, digits, _, $)",
+			),
 		main: z.string().optional(),
 		deviceType: deviceTypeSchema,
 		name: z.string().optional(),

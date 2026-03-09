@@ -159,14 +159,21 @@ Devices automatically reconnect with exponential backoff. Your `onDeviceConnect`
 
 ### Can devices communicate with each other?
 
-Yes, through your edge script:
+Yes! Devices in the same project can call methods on each other with full type safety:
+
 ```typescript
-// Device A sends message
-async onMessage(message) {
-  // Forward to device B
-  await this.env.DEVICE.send(message);
+import type { Env } from '../../devicesdk-env';
+
+export class Sensor extends DeviceEntrypoint<Env> {
+  async onMessage(message: DeviceResponse) {
+    // Call a method on another device — fully typed with autocomplete
+    const result = await this.env.DEVICES['light-controller'].turnOn();
+    console.info('Light status:', result.status);
+  }
 }
 ```
+
+The CLI generates `devicesdk-env.d.ts` with types for all devices in your project. Methods that only use KV storage work even when the target device's hardware is offline. See the [Inter-Device Communication Guide](/docs/guides/inter-device-communication/) for a full walkthrough.
 
 ## Features
 

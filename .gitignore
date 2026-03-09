@@ -60,3 +60,4 @@ yarn-error.log*
 /quasar.config.*.temporary.compiled*
 
 .claude/worktrees/
+.worktrees/

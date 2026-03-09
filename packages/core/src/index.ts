@@ -231,12 +231,45 @@ export interface KVInterface {
 	delete(key: string): Promise<boolean>;
 }
 
-// The env that the dynamic worker will receive
-export type UserWorkerEnv<ProjectDevices = {}> = {
-	// Binding to send messages/commands to the IoT device via the DO
-	DEVICE: DeviceSenderInterface;
+// --- Inter-Device RPC Types ---
 
-	DEVICES: ProjectDevices;
+// Lifecycle methods and internal properties excluded from remote interface
+type LifecycleMethods =
+	| "onDeviceConnect"
+	| "onDeviceDisconnect"
+	| "onMessage"
+	| "onAlarm";
+type InternalProps = "env" | "ctx";
+
+// Extracts public non-lifecycle methods and wraps return types in Promise for RPC transport.
+// TypeScript's keyof naturally excludes private/protected members.
+export type RemoteDevice<T> = {
+	[K in keyof T as K extends LifecycleMethods | InternalProps
+		? never
+		: T[K] extends (...args: infer _A) => infer _R
+			? K
+			: never]: T[K] extends (...args: infer A) => infer R
+		? (...args: A) => Promise<Awaited<R>>
+		: never;
+};
+
+// Maps device slugs to their remote interfaces
+type RemoteDevices<T> = {
+	[K in keyof T]: T[K] extends object ? RemoteDevice<T[K]> : never;
+};
+
+// Helper: given a ProjectDevices map, returns the full env type
+export type GetEnv<ProjectDevices = {}> = {
+	DEVICE: DeviceSenderInterface;
+	DEVICES: RemoteDevices<ProjectDevices>;
+};
+
+// Internal type for the dynamic worker's raw env (before proxy wrapping)
+export type UserWorkerEnv = {
+	DEVICE: DeviceSenderInterface;
+	__DEVICE_BRIDGE?: unknown;
+	__DEVICE_ID?: string;
+	__PROJECT_ID?: string;
 };
 
 // Interface for the DeviceSender binding provided to user code
@@ -283,11 +316,11 @@ export interface DeviceSenderProps {
 
 export type Content = {};
 
-export class DeviceEntrypoint<ProjectDevices = {}> {
+export class DeviceEntrypoint<Env = GetEnv> {
 	ctx: Content;
-	env: UserWorkerEnv<ProjectDevices>;
+	env: Env;
 
-	constructor(ctx: Content, env: UserWorkerEnv<ProjectDevices>) {
+	constructor(ctx: Content, env: Env) {
 		this.ctx = ctx;
 		this.env = env;
 	}

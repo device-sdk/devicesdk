@@ -114,6 +114,8 @@ export class BaseDevice extends DurableObject<Env> {
 		this._session = { websocket: server };
 		this._connectedSince = Date.now();
 
+		await this.ctx.storage.put("connectedSince", Date.now());
+
 		return new Response(null, {
 			status: 101,
 			webSocket: client,
@@ -429,6 +431,8 @@ export class BaseDevice extends DurableObject<Env> {
 		this.pendingCommands.clear();
 		this._session = undefined;
 		this._connectedSince = undefined;
+
+		await this.ctx.storage.delete("connectedSince");
 
 		// Clean up the user worker (restore it first if needed)
 		const worker = await this.getOrCreateUserWorker();

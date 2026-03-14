@@ -76,7 +76,7 @@ export class DeleteProject extends OpenAPIRoute {
 			success: true,
 			result: {
 				deleted: true,
-				project_id: projectId,
+				project_slug: projectId,
 			},
 		});
 	}

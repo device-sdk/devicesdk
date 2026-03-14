@@ -1,6 +1,6 @@
 {
 	"name": "@devicesdk/core",
-	"version": "0.0.3",
+	"version": "1.0.0",
 	"description": "CLI tool for developing and deploying DeviceSDK IoT applications.",
 	"author": "",
 	"main": "dist/index.js",

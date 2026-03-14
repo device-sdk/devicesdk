@@ -96,6 +96,31 @@ For state management:
 - **Logs** - Structured logging
 - **Webhooks / APIs** - Call your own services for external persistence
 
+## Device-to-Device Communication
+
+Devices within the same project can call methods on each other via the serverless runtime:
+
+```
+┌──────────────┐         ┌────────────────────┐         ┌──────────────┐
+│  Device A    │         │  Serverless Runtime │         │  Device B    │
+│  (Sensor)    │ ──WS──► │                    │ ──WS──► │  (Light)     │
+│              │         │  Sensor script:     │         │              │
+│              │         │  this.env.DEVICES   │         │              │
+│              │         │  ["light"].turnOn() │         │              │
+│              │         │       │             │         │              │
+│              │         │       ▼             │         │              │
+│              │         │  Light script:      │         │              │
+│              │         │  turnOn() executes  │         │              │
+│              │         │  result flows back  │         │              │
+└──────────────┘         └────────────────────┘         └──────────────┘
+```
+
+Key properties:
+- **Runtime-mediated** — RPC routes through the serverless runtime, never directly between devices
+- **Same project only** — devices can only call other devices in the same project
+- **Type-safe** — the CLI generates TypeScript types for autocomplete and compile-time checking
+- **Request-response** — callers await the return value; errors propagate back
+
 ## Security Model
 
 - **Device credentials** - Unique per device, embedded in firmware

@@ -19,6 +19,10 @@ Complete command-line interface documentation:
 
 - [**Overview**](/docs/cli/) - Installation and configuration
 
+## Guides
+
+- [**Inter-Device Communication**](/docs/guides/inter-device-communication/) - Call methods between devices with type-safe RPC
+
 ## Concepts
 
 Understand how DeviceSDK works:

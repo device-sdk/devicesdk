@@ -23,7 +23,7 @@ See [docs/quickstart.md](docs/quickstart.md) for a full tutorial on creating you
 | `packages/typescript-config` | `@repo/typescript-config` | Shared tsconfig base |
 | `apps/api` | `@devicesdk/api` | Cloudflare Workers API (Hono + D1 + R2 + Durable Objects) |
 | `apps/dashboard` | `@devicesdk/dashboard` | Vue 3 + Quasar SPA — project/device/token management |
-| `apps/simulation` | `@devicesdk/simulation` | Next.js device simulation UI (static export consumed by CLI) |
+| `apps/simulation` | `@devicesdk/simulation` | Vue 3 device simulation UI (static export consumed by CLI) |
 | `apps/website` | `@devicesdk/website` | Hugo + Tailwind marketing site |
 | `firmware/pico` | — | Raspberry Pi Pico W firmware (C++, lwIP WebSocket) |
 | `firmware/esp32` | — | ESP32 firmware (ESP-IDF, WebSocket) |
@@ -102,7 +102,9 @@ The `@devicesdk/cli` package provides the `devicesdk` command:
 
 Devices running custom firmware connect via WebSocket to Cloudflare Workers at the edge. Each device connection is managed by a Durable Object, which loads and executes the user's TypeScript device script in a sandboxed Worker.
 
-**Tech stack:** Hono (API framework), Chanfana (OpenAPI), D1/SQLite (database), R2 (script/firmware storage), Durable Objects (device connections), Vue 3 + Quasar (dashboard), Next.js (simulation UI), Hugo (website).
+Devices within the same project can call methods on each other via type-safe RPC (`this.env.DEVICES["other-device"].method()`). The CLI auto-generates `devicesdk-env.d.ts` with full TypeScript types for inter-device communication.
+
+**Tech stack:** Hono (API framework), Chanfana (OpenAPI), D1/SQLite (database), R2 (script/firmware storage), Durable Objects (device connections), Vue 3 + Quasar (dashboard), Vue 3 (simulation UI), Hugo (website).
 
 ## Firmware
 

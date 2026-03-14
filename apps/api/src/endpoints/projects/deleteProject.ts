@@ -1,4 +1,4 @@
-import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import type { AppContext, tableProjects } from "../../types";
 
@@ -76,7 +76,7 @@ export class DeleteProject extends OpenAPIRoute {
 			success: true,
 			result: {
 				deleted: true,
-				project_id: projectId,
+				project_slug: projectId,
 			},
 		});
 	}

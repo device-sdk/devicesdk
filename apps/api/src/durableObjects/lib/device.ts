@@ -180,6 +180,10 @@ export class BaseDevice extends DurableObject<Env> {
 						DEVICE: (this.ctx as any).exports.DeviceSender({
 							props: { deviceId, projectId },
 						}),
+						// Provide the DevicesBridge binding for inter-device RPC
+						__DEVICE_BRIDGE: (this.ctx as any).exports.DevicesBridge({
+							props: { projectId, userId },
+						}),
 						// Metadata for console override prefix in proxy entrypoint
 						__DEVICE_ID: deviceId,
 						__PROJECT_ID: projectId,
@@ -208,6 +212,45 @@ export class BaseDevice extends DurableObject<Env> {
 			});
 			throw new Error("Failed to initialize user worker");
 		}
+	}
+
+	/**
+	 * Handles an incoming inter-device RPC call.
+	 * Called by DevicesBridge when another device invokes a method on this device.
+	 */
+	async handleRemoteCall(request: {
+		methodName: string;
+		args: unknown[];
+		callDepth: number;
+		scriptMeta: {
+			userId: string;
+			projectId: string;
+			deviceId: string;
+			versionId: string;
+			entrypointName: string;
+		};
+	}): Promise<unknown> {
+		// Ensure deviceMeta is available (may not exist if device never connected via WS)
+		if (!this.deviceMeta) {
+			const stored =
+				await this.ctx.storage.get<typeof this.deviceMeta>("deviceMeta");
+			if (stored) {
+				this.deviceMeta = stored;
+			} else {
+				this.deviceMeta = request.scriptMeta;
+				await this.ctx.storage.put("deviceMeta", this.deviceMeta);
+			}
+		}
+
+		const userWorker = await this.getOrCreateUserWorker();
+		if (!userWorker.callMethod) {
+			throw new Error("User worker does not support remote method calls");
+		}
+		return userWorker.callMethod(
+			request.methodName,
+			request.args,
+			request.callDepth,
+		);
 	}
 
 	/**

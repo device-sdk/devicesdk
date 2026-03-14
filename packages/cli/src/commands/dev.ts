@@ -5,8 +5,9 @@ import fs from "fs/promises";
 import net from "net";
 import path from "path";
 import { fileURLToPath } from "url";
-import { type DeviceConfig, DeviceSDKConfig } from "../config.js";
+import type { DeviceConfig, DeviceSDKConfig } from "../config.js";
 import { loadConfig } from "../utils.js";
+import { generateDeviceTypes } from "./build.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -144,15 +145,6 @@ const buildEntryPoint = async (
 	});
 };
 
-function toClassName(deviceId: string): string {
-	return (
-		deviceId
-			.split("-")
-			.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-			.join("") + "Device"
-	);
-}
-
 const dev = async (options: { config?: string; port?: string }) => {
 	const configPathOption = options.config || ".";
 	let configPath = path.resolve(process.cwd(), configPathOption);
@@ -191,12 +183,15 @@ const dev = async (options: { config?: string; port?: string }) => {
 		const config = await loadConfig(options.config);
 		const configDir = path.dirname(configPath);
 
+		// Generate inter-device RPC type definitions
+		await generateDeviceTypes(config, configDir);
+
 		// Convert devices to DeviceWithClass format
 		const devicesWithClass: Record<string, DeviceWithClass> = {};
 		for (const [deviceId, device] of Object.entries(config.devices)) {
 			devicesWithClass[deviceId] = {
 				...device,
-				className: toClassName(deviceId),
+				className: device.entrypoint,
 				resolvedEntrypoint: path.resolve(configDir, device.main),
 			};
 		}

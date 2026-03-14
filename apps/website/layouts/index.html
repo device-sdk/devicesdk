@@ -31,13 +31,13 @@
                         <div class="code-window-dots"><span></span><span></span><span></span></div>
                         <span class="code-window-title">src/devices/device.ts</span>
                     </div>
-                    <pre><code><span class="syn-kw">import</span> { DeviceEntrypoint } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/runtime"</span>;
+                    <pre><code><span class="syn-kw">import</span> { DeviceEntrypoint } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/core"</span>;
 <span class="syn-kw">import</span> { Pico } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/core/devices/pico"</span>;
 
 <span class="syn-kw">export default class</span> <span class="syn-type">Device</span> <span class="syn-kw">extends</span> <span class="syn-type">DeviceEntrypoint</span> {
   <span class="syn-kw">async</span> <span class="syn-fn">onDeviceConnect</span>() {
     <span class="syn-cm">// Configure button on GPIO 14</span>
-    <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.configureGpioInput(<span class="syn-num">14</span>);
+    <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">configureGpioInputMonitoring</span>(<span class="syn-num">14</span>, <span class="syn-num">true</span>);
 
     <span class="syn-cm">// Init I2C display</span>
     <span class="syn-kw">const</span> display = Pico.<span class="syn-fn">i2c</span>({
@@ -50,7 +50,7 @@
 
   <span class="syn-kw">async</span> <span class="syn-fn">onMessage</span>(message) {
     <span class="syn-kw">if</span> (message.type === <span class="syn-str">"gpio_state_changed"</span>) {
-      <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">setGpioOutput</span>(<span class="syn-num">99</span>, <span class="syn-num">1</span>);
+      <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">setGpioState</span>(<span class="syn-num">99</span>, <span class="syn-str">"high"</span>);
       <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv.<span class="syn-fn">put</span>(<span class="syn-str">"count"</span>, ++<span class="syn-kw">this</span>.count);
     }
   }

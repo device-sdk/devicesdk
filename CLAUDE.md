@@ -25,7 +25,7 @@ cd apps/api && npx vitest run --config tests/vitest.config.mts -t "should create
 
 # Dashboard UI tests
 pnpm test:unit --filter @devicesdk/dashboard  # Vitest component tests (~2s)
-pnpm test:e2e --filter @devicesdk/dashboard   # Playwright E2E tests (~30s, starts API + dashboard servers)
+pnpm test:e2e --filter @devicesdk/dashboard   # Playwright E2E tests (62 tests, ~90s, starts API + dashboard servers)
 pnpm test --filter @devicesdk/dashboard        # Both component + E2E
 
 # Type checking
@@ -186,6 +186,9 @@ pnpm --filter @devicesdk/example-basic flash-local
 | Database schema | `apps/api/migrations/` (sequential SQL files) |
 | Table type definitions | `apps/api/src/types.d.ts` |
 | Query builder patterns | Existing endpoints + `.claude/skills/write-sql-queries/SKILL.md` |
+| Inter-device RPC types | `packages/core/src/index.ts` (`RemoteDevice`, `GetEnv`) |
+| DevicesBridge (inter-device RPC) | `apps/api/src/durableObjects/lib/devicesBridge.ts` |
+| CLI type generation | `packages/cli/src/commands/build.ts` (`generateDeviceTypes`) |
 
 ## Multi-Agent Safety
 

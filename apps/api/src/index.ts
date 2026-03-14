@@ -54,9 +54,15 @@ app.onError((err, c) => {
 		);
 	}
 
-	// Chanfana 3.x: validation errors flow through as HTTPException
-	if (err instanceof HTTPException) {
-		return err.getResponse();
+	// Chanfana 3.x: validation errors flow through as HTTPException.
+	// Also handle chanfana's internal HTTPException (different class from hono's)
+	// by duck-typing: any error with a numeric status and getResponse() method.
+	if (
+		err instanceof HTTPException ||
+		(typeof (err as { status?: unknown }).status === "number" &&
+			typeof (err as { getResponse?: unknown }).getResponse === "function")
+	) {
+		return (err as HTTPException).getResponse();
 	}
 
 	console.error(`Global error handler caught ${err.name}:${err.message}`, {
@@ -140,6 +146,7 @@ app.route("/v1/projects/:projectId/scripts", batchScriptsRouter);
 export default app;
 export { BaseDevice as Device } from "./durableObjects/lib/device";
 export { DeviceSender } from "./durableObjects/lib/deviceSender";
+export { DevicesBridge } from "./durableObjects/lib/devicesBridge";
 
 // export default Sentry.withSentry(
 //   env => ({

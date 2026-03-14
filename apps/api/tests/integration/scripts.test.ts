@@ -133,6 +133,104 @@ describe.sequential("Scripts endpoint", () => {
 		});
 	});
 
+	describe("GET /v1/projects/:projectId/devices/:deviceId/script", () => {
+		beforeAll(async () => {
+			// Upload a script in beforeAll so the R2 write persists across all
+			// tests in this block (isolatedStorage rolls back it() writes).
+			await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						entrypoint: "Device",
+						script:
+							"export class Device { async onMessage() {} async onDeviceConnect() {} }",
+						message: "For getScript test",
+					}),
+				},
+			);
+		});
+
+		it("should return the current script for a device with a deployed script", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(typeof json.result.script).toBe("string");
+			expect(json.result.version_id).toBeDefined();
+		});
+
+		it("should return 404 for a device with no script uploaded", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-no-script",
+						project_id: project.id,
+						device_slug: "sensor-no-script",
+						name: "No Script Sensor",
+						created_at: now,
+						updated_at: now,
+					},
+					onConflict: "IGNORE",
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/sensor-no-script/script`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 404 for a non-existent device", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/does-not-exist/script`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
+				{ method: "GET" },
+			);
+
+			expect(resp.status).toBe(401);
+		});
+	});
+
 	describe("GET /v1/projects/:projectId/devices/:deviceId/script/versions", () => {
 		it("should list all script versions for a device", async () => {
 			const now = Date.now();
@@ -353,6 +451,148 @@ describe.sequential("Scripts endpoint", () => {
 			expect(resp.status).toBe(400);
 			const json = await resp.json();
 			expect(json.success).toBe(false);
+		});
+	});
+
+	describe("GET /v1/projects/:projectId/devices/:deviceId/script/versions/:versionId", () => {
+		let versionId: string;
+
+		beforeAll(async () => {
+			// Upload a fresh script version to get a versionId that has both a DB record and an R2 file
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						entrypoint: "Device",
+						script:
+							"export class Device { async onMessage() {} async onDeviceConnect() { console.log('get-version test'); } }",
+						message: "Version for getVersion test",
+					}),
+				},
+			);
+			const json = await resp.json();
+			versionId = json.result.version_id;
+		});
+
+		it("should return a specific version by ID", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script/versions/${versionId}`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.version_id).toBe(versionId);
+			expect(json.result.message).toBe("Version for getVersion test");
+			expect(typeof json.result.script).toBe("string");
+			expect(typeof json.result.created_at).toBe("number");
+		});
+
+		it("should return 404 for a non-existent version", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script/versions/non-existent-version`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script/versions/${versionId}`,
+				{ method: "GET" },
+			);
+
+			expect(resp.status).toBe(401);
+		});
+	});
+
+	describe("POST /v1/projects/:projectId/devices/:deviceId/script/versions/:versionId/deploy", () => {
+		let versionId: string;
+
+		beforeAll(async () => {
+			// Upload a fresh script version to get a versionId with both a DB record and an R2 file
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						entrypoint: "Device",
+						script:
+							"export class Device { async onMessage() {} async onDeviceConnect() { console.log('deploy test'); } }",
+						message: "Version for deploy test",
+					}),
+				},
+			);
+			const json = await resp.json();
+			versionId = json.result.version_id;
+		});
+
+		it("should deploy a specific version (rollback)", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script/versions/${versionId}/deploy`,
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.version_id).toBe(versionId);
+			expect(json.result.device_id).toBe(device.device_slug);
+			expect(typeof json.result.deployed_at).toBe("number");
+			expect(typeof json.result.device_rebooted).toBe("boolean");
+		});
+
+		it("should return 404 for a non-existent version", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script/versions/non-existent-version/deploy`,
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script/versions/${versionId}/deploy`,
+				{ method: "POST" },
+			);
+
+			expect(resp.status).toBe(401);
 		});
 	});
 });

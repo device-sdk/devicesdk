@@ -14,6 +14,13 @@ export interface IUserDeviceWorker {
 
 	// Called when the alarm fires (if using alarms)
 	onAlarm?(): Promise<void>;
+
+	// Called for inter-device RPC — invokes a user-defined method by name
+	callMethod?(
+		name: string,
+		args: unknown[],
+		callDepth?: number,
+	): Promise<unknown>;
 }
 
 // KV storage interface for user code

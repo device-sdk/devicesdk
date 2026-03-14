@@ -138,4 +138,36 @@ describe.sequential("Tokens endpoint", () => {
 	// 	const json = await resp.json();
 	// 	expect(json.success).toBe(false);
 	// });
+
+	it("should return 404 when deleting a non-existent token", async () => {
+		const resp = await SELF.fetch(
+			"http://localhost/v1/tokens/non-existent-token-id",
+			{
+				method: "DELETE",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			},
+		);
+
+		expect(resp.status).toBe(404);
+		const json = await resp.json();
+		expect(json.success).toBe(false);
+	});
+
+	it("should return 401 without auth when listing tokens", async () => {
+		const resp = await SELF.fetch("http://localhost/v1/tokens", {
+			method: "GET",
+		});
+
+		expect(resp.status).toBe(401);
+	});
+
+	it("should return 401 without auth when creating a token", async () => {
+		const resp = await SELF.fetch("http://localhost/v1/tokens", {
+			method: "POST",
+		});
+
+		expect(resp.status).toBe(401);
+	});
 });

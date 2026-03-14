@@ -79,26 +79,23 @@
                         <div class="code-window-dots"><span></span><span></span><span></span></div>
                         <span class="code-window-title">src/devices/thermostat.ts</span>
                     </div>
-                    <pre><code><span class="syn-kw">import</span> { DeviceEntrypoint } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/runtime"</span>;
+                    <pre><code><span class="syn-kw">import</span> { DeviceEntrypoint } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/core"</span>;
 
 <span class="syn-kw">export default class</span> <span class="syn-type">Thermostat</span> <span class="syn-kw">extends</span> <span class="syn-type">DeviceEntrypoint</span> {
   <span class="syn-cm">// Called when device connects via WebSocket</span>
   <span class="syn-kw">async</span> <span class="syn-fn">onDeviceConnect</span>() {
-    <span class="syn-cm">// Monitor temp sensor on ADC pin 26</span>
-    <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">configureAdcMonitoring</span>(<span class="syn-num">26</span>, {
-      interval: <span class="syn-num">60000</span>,
-      onChange: <span class="syn-num">true</span>
-    });
+    <span class="syn-cm">// Monitor button on GPIO 14</span>
+    <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">configureGpioInputMonitoring</span>(<span class="syn-num">14</span>, <span class="syn-num">true</span>);
   }
 
   <span class="syn-cm">// Called for every device message</span>
   <span class="syn-kw">async</span> <span class="syn-fn">onMessage</span>(message) {
-    <span class="syn-kw">if</span> (message.type === <span class="syn-str">"adc_reading"</span>) {
-      <span class="syn-kw">const</span> temp = <span class="syn-kw">this</span>.<span class="syn-fn">toTemp</span>(message.payload.value);
-      <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv.<span class="syn-fn">put</span>(<span class="syn-str">"temp"</span>, temp);
+    <span class="syn-kw">if</span> (message.type === <span class="syn-str">"gpio_state_changed"</span>) {
+      <span class="syn-kw">const</span> pin = message.payload.pin;
+      <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv.<span class="syn-fn">put</span>(<span class="syn-str">"lastPin"</span>, pin);
 
-      <span class="syn-kw">if</span> (temp &lt; <span class="syn-num">20</span>) {
-        <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">setGpioOutput</span>(<span class="syn-num">15</span>, <span class="syn-num">1</span>);
+      <span class="syn-kw">if</span> (message.payload.state === <span class="syn-str">"low"</span>) {
+        <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">setGpioState</span>(<span class="syn-num">15</span>, <span class="syn-str">"high"</span>);
       }
     }
   }
@@ -124,9 +121,13 @@
                         <code class="font-mono text-emerald-400">this.env.DEVICE.kv</code>
                         <p class="text-zinc-500 mt-1">Type-safe key-value storage that persists across reboots</p>
                     </div>
-                    <div>
+                    <div class="border-b border-zinc-800 pb-3">
                         <code class="font-mono text-emerald-400">this.env.DEVICE.display</code>
                         <p class="text-zinc-500 mt-1">Fluent API for SSD1306 OLED drawing commands</p>
+                    </div>
+                    <div>
+                        <code class="font-mono text-emerald-400">this.env.DEVICES</code>
+                        <p class="text-zinc-500 mt-1">Call methods on other devices in your project with full type safety</p>
                     </div>
                 </div>
             </div>

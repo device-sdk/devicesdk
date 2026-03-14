@@ -1,4 +1,4 @@
-import { ApiException, OpenAPIRoute } from "chanfana";
+import { OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import type {
 	AppContext,

@@ -1,30 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# Temperature to Discord Example
 
-## Getting Started
+An example DeviceSDK project that reads temperature from an analog sensor connected to a Raspberry Pi Pico W and posts readings to a Discord channel via webhook.
 
-First, run the development server:
+## What it does
 
-```bash
-pnpm dev
-```
+- Reads analog voltage from a temperature sensor (e.g. MCP9700A) on GP26 every 30 seconds
+- Converts the raw ADC value to °C and °F using the sensor's transfer function
+- Posts the reading to a Discord channel via an incoming webhook
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Wiring
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Component | Pico W Pin |
+|-----------|------------|
+| Sensor Vout | GP26 (ADC0) |
+| Sensor VCC | 3.3V |
+| Sensor GND | GND |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+This example is wired for the **MCP9700A** (Microchip low-power linear temperature sensor). For other sensors, update the conversion formula in `temperatureSensor.ts`.
 
-## Learn More
+## Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. **Create a Discord webhook** — in your Discord server, go to *Server Settings → Integrations → Webhooks* and create a new webhook. Copy the webhook URL.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. **Edit `src/devices/temperatureSensor.ts`** — replace `YOUR_WEBHOOK_URL` in the `DISCORD_WEBHOOK_URL` constant with your actual webhook URL.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. **Edit `devicesdk.config.ts`** — replace `YOUR_WIFI_SSID` and `YOUR_WIFI_PASSWORD` with your Wi-Fi credentials.
 
-## Deploy on Vercel
+4. **Deploy and flash**:
+   ```bash
+   # Deploy the device script
+   pnpm --filter @devicesdk/example-temperature deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   # Flash the firmware onto your Pico W (hold BOOTSEL while connecting USB)
+   pnpm --filter @devicesdk/example-temperature flash
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Configuration
+
+| Constant | Default | Description |
+|----------|---------|-------------|
+| `TEMP_PIN` | `26` | GPIO pin connected to the sensor output (ADC0) |
+| `REPORT_INTERVAL_MS` | `30000` | How often to read and report temperature (ms) |
+| `DISCORD_WEBHOOK_URL` | — | Your Discord incoming webhook URL |

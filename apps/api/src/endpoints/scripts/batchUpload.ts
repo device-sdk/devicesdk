@@ -1,4 +1,4 @@
-import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 import { validateUserScript } from "../../foundation/scriptValidator";

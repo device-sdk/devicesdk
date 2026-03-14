@@ -119,7 +119,25 @@ describe("DeviceSDKConfigSchema", () => {
 		expect(result.devices["sensor"].main).toBe("./devices/sensor.ts");
 	});
 
-	it("should support backward compatibility with entrypoint field", () => {
+	it("should default main to entrypoint class name when main is omitted", () => {
+		const config = {
+			projectId: "my-project",
+			devices: {
+				sensor: {
+					entrypoint: "SensorDevice",
+					deviceType: "pico-w",
+					wifi: { ssid: "ssid", password: "pass" },
+				},
+			},
+		};
+		const result = DeviceSDKConfigSchema.safeParse(config);
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.devices["sensor"].main).toBe("SensorDevice");
+		}
+	});
+
+	it("should fail validation when entrypoint is a file path instead of a class name", () => {
 		const config = {
 			projectId: "my-project",
 			devices: {
@@ -131,9 +149,11 @@ describe("DeviceSDKConfigSchema", () => {
 			},
 		};
 		const result = DeviceSDKConfigSchema.safeParse(config);
-		expect(result.success).toBe(true);
-		if (result.success) {
-			expect(result.data.devices["sensor"].main).toBe("./devices/sensor.ts");
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0].message).toContain(
+				"'entrypoint' must be a valid TypeScript class name",
+			);
 		}
 	});
 });

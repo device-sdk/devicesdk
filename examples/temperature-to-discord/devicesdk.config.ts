@@ -1,10 +1,17 @@
-import { DeviceSDKConfig } from 'devicekit/dist/config';
+import { defineConfig } from "@devicesdk/cli";
 
-export const config: DeviceSDKConfig = {
+export default defineConfig({
+    projectId: "temperature-to-discord",
     devices: {
         temperatureSensor: {
-            className: "TemperatureSensor",
-            entryPoint: "./src/devices/temperatureSensor.ts",
+            entrypoint: "TemperatureSensor",
+            main: "./src/devices/temperatureSensor.ts",
+            deviceType: "pico-w",
+            name: "Temperature Sensor",
+            wifi: {
+                ssid: "YOUR_WIFI_SSID",
+                password: "YOUR_WIFI_PASSWORD",
+            },
         },
     },
-};
+});

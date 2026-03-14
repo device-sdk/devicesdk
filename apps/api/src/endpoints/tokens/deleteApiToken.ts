@@ -1,6 +1,6 @@
 import { contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
-import type { AppContext } from "../../types";
+import type { AppContext, tableTokens } from "../../types";
 
 export class DeleteApiToken extends OpenAPIRoute {
 	public schema = {
@@ -33,19 +33,30 @@ export class DeleteApiToken extends OpenAPIRoute {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { tokenId } = data.params;
 
-		const { success } = await qb
-			.delete({
+		const token = await qb
+			.fetchOne<tableTokens>({
 				tableName: "tokens",
 				where: {
 					conditions: ["user_id = ?1", "id = ?2"],
 					params: [user.id, tokenId],
 				},
 			})
-			.execute();
+			.execute()
+			.then((t) => t.results);
 
-		if (!success) {
+		if (!token) {
 			return c.json({ success: false, error: "Token not found" }, 404);
 		}
+
+		await qb
+			.delete({
+				tableName: "tokens",
+				where: {
+					conditions: ["id = ?1"],
+					params: [token.id],
+				},
+			})
+			.execute();
 
 		return c.json({ success: true }, 200);
 	}

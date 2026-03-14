@@ -65,7 +65,7 @@ describe.sequential("Logs endpoint", () => {
 						message: string;
 						created_at: number;
 					}>;
-					next_cursor: number | null;
+					next_cursor: string | null;
 				};
 			};
 			expect(json.success).toBe(true);
@@ -143,7 +143,7 @@ describe.sequential("Logs endpoint", () => {
 						message: string;
 						created_at: number;
 					}>;
-					next_cursor: number | null;
+					next_cursor: string | null;
 				};
 			};
 			expect(json.success).toBe(true);

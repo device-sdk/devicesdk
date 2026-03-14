@@ -91,6 +91,10 @@ describe.sequential("Projects endpoint", () => {
 		expect(resp.status).toBe(401);
 	});
 
+	// Skipped: chanfana 3.x correctly returns 400 for Zod validation failures,
+	// but internally throws an additional ZodError as an unhandled rejection in
+	// the vitest-pool-workers test environment, causing the test runner to exit
+	// with code 1. The production behavior (400 response) is correct.
 	it.skip("should return 400 if project_slug is invalid format", async () => {
 		const resp = await SELF.fetch("http://localhost/v1/projects", {
 			method: "POST",
@@ -176,5 +180,80 @@ describe.sequential("Projects endpoint", () => {
 		const json = await resp.json();
 		expect(json.success).toBe(true);
 		expect(json.result.project_slug).toBe("existing-project-400");
+	});
+
+	it("should return 404 when getting a non-existent project", async () => {
+		const resp = await SELF.fetch(
+			"http://localhost/v1/projects/does-not-exist",
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			},
+		);
+
+		expect(resp.status).toBe(404);
+		const json = await resp.json();
+		expect(json.success).toBe(false);
+	});
+
+	it("should delete a project and return project_slug", async () => {
+		await qb
+			.insert<tableProjects>({
+				tableName: "projects",
+				data: {
+					id: "proj-500",
+					user_id: TEST_USER_ID,
+					project_slug: "project-to-delete",
+					created_at: Date.now(),
+				},
+			})
+			.execute();
+
+		const resp = await SELF.fetch(
+			"http://localhost/v1/projects/project-to-delete",
+			{
+				method: "DELETE",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			},
+		);
+
+		expect(resp.status).toBe(200);
+		const json = await resp.json();
+		expect(json.success).toBe(true);
+		expect(json.result.deleted).toBe(true);
+		expect(json.result.project_slug).toBe("project-to-delete");
+
+		// Verify the project is actually gone
+		const deleted = await qb
+			.fetchOne<tableProjects>({
+				tableName: "projects",
+				where: {
+					conditions: ["project_slug = ?1", "user_id = ?2"],
+					params: ["project-to-delete", TEST_USER_ID],
+				},
+			})
+			.execute()
+			.then((p) => p.results);
+		expect(deleted).toBeFalsy();
+	});
+
+	it("should return 404 when deleting a non-existent project", async () => {
+		const resp = await SELF.fetch(
+			"http://localhost/v1/projects/does-not-exist",
+			{
+				method: "DELETE",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			},
+		);
+
+		expect(resp.status).toBe(404);
+		const json = await resp.json();
+		expect(json.success).toBe(false);
 	});
 });

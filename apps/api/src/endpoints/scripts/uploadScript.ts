@@ -1,4 +1,4 @@
-import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 import { validateUserScript } from "../../foundation/scriptValidator";
@@ -112,11 +112,12 @@ export class UploadScript extends OpenAPIRoute {
 		const versionId = crypto.randomUUID();
 		const r2 = c.env.SCRIPTS;
 
-		// Store the script in R2: /{userId}/{projectId}/{deviceId}/{versionId}.js
-		await r2.put(
-			`${user.id}/${project.id}/${device.id}/${versionId}.js`,
-			script,
-		);
+		// Store the script in R2 using slug-based paths to match the reading
+		// endpoints (getScript, getVersion, deployVersion) which use URL slugs.
+		// /{userId}/{projectSlug}/{deviceSlug}/{versionId}.js
+		await r2.put(`${user.id}/${projectId}/${deviceId}/${versionId}.js`, script);
+		// Write latest.js so getScript can return the currently deployed script.
+		await r2.put(`${user.id}/${projectId}/${deviceId}/latest.js`, script);
 
 		const now = Date.now();
 

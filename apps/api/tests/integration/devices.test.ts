@@ -126,9 +126,54 @@ describe.sequential("Devices endpoint", () => {
 
 			expect(resp.status).toBe(404);
 		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						device_id: "sensor-1",
+						name: "Test Sensor",
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(401);
+		});
 	});
 
 	describe("GET /v1/projects/:projectId/devices", () => {
+		it("should return 404 for non-existent project", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/non-existent/devices",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices",
+				{
+					method: "GET",
+				},
+			);
+
+			expect(resp.status).toBe(401);
+		});
+
 		it("should list all devices for a project", async () => {
 			const now = Date.now();
 			await qb
@@ -258,6 +303,57 @@ describe.sequential("Devices endpoint", () => {
 	});
 
 	describe("PUT /v1/projects/:projectId/devices/:deviceId", () => {
+		it("should return 404 for non-existent device", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/non-existent",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ name: "New Name" }),
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 404 for non-existent project", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/non-existent/devices/sensor-4",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ name: "New Name" }),
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/sensor-4",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ name: "New Name" }),
+				},
+			);
+
+			expect(resp.status).toBe(401);
+		});
+
 		it("should update a device", async () => {
 			const now = Date.now();
 			await qb
@@ -355,6 +451,33 @@ describe.sequential("Devices endpoint", () => {
 			);
 
 			expect(resp.status).toBe(404);
+		});
+
+		it("should return 404 for non-existent project", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/non-existent/devices/sensor-5",
+				{
+					method: "DELETE",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/sensor-5",
+				{
+					method: "DELETE",
+				},
+			);
+
+			expect(resp.status).toBe(401);
 		});
 	});
 });

@@ -1,4 +1,4 @@
-import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import type { AppContext, tableProjects } from "../../types";
 

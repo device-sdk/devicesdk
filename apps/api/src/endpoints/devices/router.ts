@@ -5,6 +5,7 @@ import { DeleteDevice } from "./deleteDevice";
 import { DeviceConnect } from "./deviceConnect";
 import { DownloadFirmware } from "./downloadFirmware";
 import { GetDevice } from "./getDevice";
+import { GetDeviceStatus } from "./getDeviceStatus";
 import { ListDevices } from "./listDevices";
 import { UpdateDevice } from "./updateDevice";
 
@@ -15,5 +16,6 @@ devicesRouter.post("/", CreateDevice);
 devicesRouter.get("/:deviceId", GetDevice);
 devicesRouter.put("/:deviceId", UpdateDevice);
 devicesRouter.delete("/:deviceId", DeleteDevice);
+devicesRouter.get("/:deviceId/status", GetDeviceStatus);
 devicesRouter.get("/:deviceId/connect/websocket", DeviceConnect);
 devicesRouter.post("/:deviceId/firmware", DownloadFirmware);

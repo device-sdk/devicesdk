@@ -111,6 +111,8 @@ export class BaseDevice extends DurableObject<Env> {
 		this.ctx.acceptWebSocket(server);
 		this._session = { websocket: server };
 
+		await this.ctx.storage.put("connectedSince", Date.now());
+
 		return new Response(null, {
 			status: 101,
 			webSocket: client,
@@ -383,6 +385,8 @@ export class BaseDevice extends DurableObject<Env> {
 		this.pendingCommands.clear();
 		this._session = undefined;
 
+		await this.ctx.storage.delete("connectedSince");
+
 		// Clean up the user worker (restore it first if needed)
 		const worker = await this.getOrCreateUserWorker();
 		if (worker) {
@@ -541,6 +545,22 @@ export class BaseDevice extends DurableObject<Env> {
 		const nextCursor = hasMore ? `${lastLog.created_at}:${lastLog.id}` : null;
 
 		return { logs, next_cursor: nextCursor };
+	}
+
+	/**
+	 * Returns the live WebSocket connection status of the device.
+	 * Uses getWebSockets() which is always authoritative for Hibernation API connections.
+	 */
+	async getConnectionStatus(): Promise<{
+		connected: boolean;
+		connectedSince: number | null;
+	}> {
+		const sockets = this.ctx.getWebSockets();
+		const connected = sockets.length > 0;
+		const connectedSince = connected
+			? ((await this.ctx.storage.get<number>("connectedSince")) ?? null)
+			: null;
+		return { connected, connectedSince };
 	}
 
 	/**

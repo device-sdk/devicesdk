@@ -59,10 +59,6 @@ describe("credentials", () => {
 
 	describe("loadCredentials", () => {
 		it("should return null when credentials file does not exist", async () => {
-			readFileSpy.mockRejectedValue(
-				Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
-			);
-
 			const result = await loadCredentials();
 			expect(result).toBeNull();
 		});
@@ -121,10 +117,6 @@ describe("credentials", () => {
 		});
 
 		it("should return null when no credentials exist", async () => {
-			readFileSpy.mockRejectedValue(
-				Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
-			);
-
 			const result = await getToken();
 			expect(result).toBeNull();
 		});
@@ -192,10 +184,6 @@ describe("credentials", () => {
 		});
 
 		it("should exit with code 3 when not authenticated", async () => {
-			readFileSpy.mockRejectedValue(
-				Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
-			);
-
 			await expect(requireAuth()).rejects.toThrow("process.exit");
 			expect(processExitSpy).toHaveBeenCalledWith(3);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(

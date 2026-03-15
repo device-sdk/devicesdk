@@ -47,10 +47,6 @@ describe("init command", () => {
 		writeFileSpy.mockResolvedValue(undefined);
 	});
 
-	afterEach(() => {
-		vi.clearAllMocks();
-	});
-
 	it("exits with code 2 for an unknown template", async () => {
 		await expect(init(undefined, { template: "nonexistent" })).rejects.toThrow(
 			/exit:2/,
@@ -62,8 +58,7 @@ describe("init command", () => {
 		// devicesdk.ts access resolves → file exists
 		accessSpy.mockResolvedValueOnce(undefined);
 
-		// process.exit(1) is caught by the inner try-catch but still recorded
-		await init();
+		await expect(init()).rejects.toThrow(/exit:1/);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});
 
@@ -113,12 +108,11 @@ describe("init command", () => {
 	});
 
 	it("does not overwrite an existing package.json", async () => {
-		// devicesdk.ts → doesn't exist, package.json → exists
-		accessSpy
-			.mockRejectedValueOnce(
-				Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
-			) // devicesdk.ts
-			.mockResolvedValueOnce(undefined); // package.json exists
+		// Use path-discriminating implementation to avoid coupling to call order
+		accessSpy.mockImplementation(async (p: Parameters<typeof fs.access>[0]) => {
+			if (String(p).endsWith("package.json")) return undefined; // package.json exists
+			throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+		});
 
 		await init();
 
@@ -140,7 +134,7 @@ describe("init command", () => {
 	});
 
 	it("skips git init when a .git directory already exists", async () => {
-		accessSpy.mockImplementation(async (p: fs.PathLike) => {
+		accessSpy.mockImplementation(async (p: Parameters<typeof fs.access>[0]) => {
 			if (String(p).endsWith(".git")) return undefined; // .git exists
 			throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
 		});

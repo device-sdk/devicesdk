@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeviceSDKApiError } from "../api.js";
 import logs, { formatLogLine } from "./logs.js";
 
+const POLL_INTERVAL_MS = 2000;
+
 vi.mock("../credentials.js", () => ({
 	requireAuth: vi.fn().mockResolvedValue("test-token"),
 }));
@@ -36,6 +38,20 @@ function makeEntry(
 }
 
 describe("formatLogLine", () => {
+	beforeEach(() => {
+		Object.defineProperty(process.stdout, "isTTY", {
+			value: true,
+			configurable: true,
+		});
+	});
+
+	afterEach(() => {
+		Object.defineProperty(process.stdout, "isTTY", {
+			value: undefined,
+			configurable: true,
+		});
+	});
+
 	it("formats a log entry with timestamp, level, and message", () => {
 		const entry = makeEntry({ level: "info", message: "test message" });
 		const line = formatLogLine(entry);
@@ -79,6 +95,17 @@ describe("formatLogLine", () => {
 		const line = formatLogLine(makeEntry({ level: "unknown" }));
 		expect(line).not.toContain("\x1b[");
 	});
+
+	it("suppresses color codes when stdout is not a TTY", () => {
+		Object.defineProperty(process.stdout, "isTTY", {
+			value: undefined,
+			configurable: true,
+		});
+		const line = formatLogLine(makeEntry({ level: "error" }));
+		expect(line).not.toContain("\x1b[");
+		expect(line).toContain("ERROR");
+		expect(line).toContain("hello");
+	});
 });
 
 describe("logs command", () => {
@@ -102,6 +129,8 @@ describe("logs command", () => {
 	afterEach(() => {
 		vi.useRealTimers();
 		vi.clearAllMocks();
+		// Remove any SIGINT listeners registered during tests
+		process.removeAllListeners("SIGINT");
 	});
 
 	describe("default (non-tail) mode", () => {
@@ -182,7 +211,7 @@ describe("logs command", () => {
 					next_cursor: "cursor-1",
 				})
 				.mockResolvedValueOnce({
-					logs: [makeEntry({ message: "new entry" })],
+					logs: [makeEntry({ id: "xyz", message: "new entry" })],
 					next_cursor: "cursor-2",
 				});
 
@@ -285,7 +314,38 @@ describe("logs command", () => {
 			// Should have made 3 calls total: initial + 2 polls
 			expect(apiMocks.getLogs).toHaveBeenCalledTimes(3);
 		});
+
+		it("does not print duplicate entries when next_cursor is null after initial fetch", async () => {
+			const entry = makeEntry({ id: "entry-1", message: "initial log" });
+			apiMocks.getLogs
+				.mockResolvedValueOnce({
+					logs: [entry],
+					next_cursor: null,
+				})
+				.mockResolvedValue({
+					logs: [entry],
+					next_cursor: null,
+				});
+
+			logs("proj", "dev", { tail: true, lines: 50 });
+
+			// Initial fetch
+			await vi.advanceTimersByTimeAsync(0);
+
+			// First poll — returns same entry
+			await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+
+			try {
+				process.emit("SIGINT");
+			} catch {
+				// expected
+			}
+
+			// Entry should only be printed once despite being returned twice
+			const logCalls = consoleSpy.mock.calls.filter((call) =>
+				String(call[0]).includes("initial log"),
+			);
+			expect(logCalls).toHaveLength(1);
+		});
 	});
 });
-
-const POLL_INTERVAL_MS = 2000;

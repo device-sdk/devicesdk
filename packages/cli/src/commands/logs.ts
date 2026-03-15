@@ -23,10 +23,9 @@ export function formatLogLine(entry: LogEntry): string {
 		hour: "2-digit",
 		minute: "2-digit",
 		second: "2-digit",
-		// @ts-expect-error fractionalSecondDigits is valid but not in older TS lib types
 		fractionalSecondDigits: 3,
 	});
-	const useColor = process.stdout.isTTY !== false;
+	const useColor = process.stdout.isTTY === true;
 	const color = useColor ? (LEVEL_COLORS[entry.level] ?? "") : "";
 	const reset = useColor && color ? RESET : "";
 	const level = entry.level.toUpperCase().padEnd(5);
@@ -43,7 +42,14 @@ export default async function logs(
 	if (options.tail) {
 		// Fetch initial batch to anchor the cursor
 		let cursor: string | null = null;
-		let initialized = false;
+		const seenIds = new Set<string>();
+
+		// Register SIGINT handler before any async work so Ctrl-C is always caught
+		const sigintHandler = () => {
+			console.log("\nStopped tailing.");
+			process.exit(0);
+		};
+		process.once("SIGINT", sigintHandler);
 
 		try {
 			const initial = await getLogs(token, projectId, deviceId, {
@@ -55,24 +61,20 @@ export default async function logs(
 				console.log("Waiting for logs...");
 			} else {
 				for (const entry of initial.logs) {
+					seenIds.add(entry.id);
 					console.log(formatLogLine(entry));
 				}
 			}
 
 			cursor = initial.next_cursor;
-			initialized = true;
 		} catch (err) {
+			process.removeListener("SIGINT", sigintHandler);
 			if (err instanceof DeviceSDKApiError && err.statusCode === 404) {
 				console.error(`✗ Error: Project or device not found.`);
 				process.exit(1);
 			}
 			throw err;
 		}
-
-		process.on("SIGINT", () => {
-			console.log("\nStopped tailing.");
-			process.exit(0);
-		});
 
 		// Polling loop
 		while (true) {
@@ -82,7 +84,7 @@ export default async function logs(
 
 			try {
 				const pollOptions: { cursor?: string; level?: string } = {};
-				if (initialized && cursor !== null) {
+				if (cursor !== null) {
 					pollOptions.cursor = cursor;
 				}
 				if (options.level) {
@@ -91,12 +93,14 @@ export default async function logs(
 
 				const result = await getLogs(token, projectId, deviceId, pollOptions);
 
-				if (result.logs.length > 0) {
-					for (const entry of result.logs) {
+				for (const entry of result.logs) {
+					if (!seenIds.has(entry.id)) {
+						seenIds.add(entry.id);
 						console.log(formatLogLine(entry));
 					}
-					cursor = result.next_cursor;
 				}
+				// Always advance cursor to avoid re-fetching the same page
+				cursor = result.next_cursor;
 			} catch (err) {
 				if (err instanceof DeviceSDKApiError && err.statusCode === 404) {
 					console.error(`✗ Error: Project or device not found.`);

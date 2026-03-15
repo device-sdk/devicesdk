@@ -577,7 +577,7 @@ export async function getLogs(
 ): Promise<LogsResponse> {
 	const params = new URLSearchParams();
 	if (options.cursor) params.set("cursor", options.cursor);
-	if (options.limit) params.set("limit", String(options.limit));
+	if (options.limit !== undefined) params.set("limit", String(options.limit));
 	if (options.level) params.set("level", options.level);
 
 	const query = params.toString() ? `?${params}` : "";

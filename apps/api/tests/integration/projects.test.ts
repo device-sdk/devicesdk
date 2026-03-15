@@ -256,4 +256,138 @@ describe.sequential("Projects endpoint", () => {
 		const json = await resp.json();
 		expect(json.success).toBe(false);
 	});
+
+	describe("PUT /v1/projects/:projectId", () => {
+		it("should update a project name", async () => {
+			await qb
+				.insert<tableProjects>({
+					tableName: "projects",
+					data: {
+						id: "proj-update-1",
+						user_id: TEST_USER_ID,
+						project_slug: "project-update-1",
+						created_at: Date.now(),
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/project-update-1",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ name: "My Updated Project" }),
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.project_slug).toBe("project-update-1");
+			expect(json.result.name).toBe("My Updated Project");
+		});
+
+		it("should update a project description", async () => {
+			await qb
+				.insert<tableProjects>({
+					tableName: "projects",
+					data: {
+						id: "proj-update-2",
+						user_id: TEST_USER_ID,
+						project_slug: "project-update-2",
+						created_at: Date.now(),
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/project-update-2",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ description: "A helpful description" }),
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.description).toBe("A helpful description");
+			expect(json.result.updated_at).toBeDefined();
+		});
+
+		it("should update both name and description", async () => {
+			await qb
+				.insert<tableProjects>({
+					tableName: "projects",
+					data: {
+						id: "proj-update-3",
+						user_id: TEST_USER_ID,
+						project_slug: "project-update-3",
+						created_at: Date.now(),
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/project-update-3",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						name: "Full Update",
+						description: "Full description update",
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.name).toBe("Full Update");
+			expect(json.result.description).toBe("Full description update");
+		});
+
+		it("should return 404 for a non-existent project", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/does-not-exist",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ name: "Ghost Project" }),
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/project-update-1",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ name: "No Auth" }),
+				},
+			);
+
+			expect(resp.status).toBe(401);
+		});
+	});
 });

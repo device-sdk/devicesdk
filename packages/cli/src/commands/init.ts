@@ -159,13 +159,11 @@ export default async function init(
 	const configPath = path.join(projectDir, "devicesdk.ts");
 
 	// Check if config already exists
-	try {
-		await fs.access(configPath);
+	const configExists = await fs.access(configPath).then(() => true).catch(() => false);
+	if (configExists) {
 		console.error("✗ Error: devicesdk.ts already exists\n");
 		console.error("  This directory is already a DeviceSDK project.");
 		process.exit(1);
-	} catch {
-		// File doesn't exist, continue
 	}
 
 	try {

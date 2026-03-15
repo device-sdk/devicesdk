@@ -1,4 +1,9 @@
-import { DeviceSDKApiError, getLogs, type LogEntry, type LogsResponse } from "../api.js";
+import {
+	DeviceSDKApiError,
+	getLogs,
+	type LogEntry,
+	type LogsResponse,
+} from "../api.js";
 import { requireAuth } from "../credentials.js";
 
 export const POLL_INTERVAL_MS = 2000;
@@ -97,12 +102,16 @@ export default async function logs(
 
 				for (const entry of result.logs) {
 					if (!seenIds.has(entry.id)) {
-						if (seenIds.size >= MAX_SEEN) {
-							// Drop oldest by clearing the set (entries are already printed)
-							seenIds.clear();
-						}
 						seenIds.add(entry.id);
 						console.log(formatLogLine(entry));
+					}
+				}
+				// Prevent unbounded growth: re-seed with only the current batch so
+				// the next poll won't reprint already-displayed entries after the clear.
+				if (seenIds.size >= MAX_SEEN) {
+					seenIds.clear();
+					for (const entry of result.logs) {
+						seenIds.add(entry.id);
 					}
 				}
 				// Always advance cursor to avoid re-fetching the same page

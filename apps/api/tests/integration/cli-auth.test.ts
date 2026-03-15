@@ -107,7 +107,7 @@ describe.sequential("CLI Authentication", () => {
 
 		test("should return error for expired code", async () => {
 			// Insert expired auth code
-			const deviceCode = "DSDK_DEVICE_" + "a".repeat(32);
+			const deviceCode = `DSDK_DEVICE_${"a".repeat(32)}`;
 			await env.DB.prepare(
 				`INSERT INTO cli_auth_codes (id, device_code, user_code, status, created_at, expires_at)
 				 VALUES (?, ?, ?, 'pending', ?, ?)`,
@@ -135,7 +135,7 @@ describe.sequential("CLI Authentication", () => {
 
 		test("should return denied status when user denies", async () => {
 			// Insert denied auth code
-			const deviceCode = "DSDK_DEVICE_" + "b".repeat(32);
+			const deviceCode = `DSDK_DEVICE_${"b".repeat(32)}`;
 			await env.DB.prepare(
 				`INSERT INTO cli_auth_codes (id, device_code, user_code, status, created_at, expires_at)
 				 VALUES (?, ?, ?, 'denied', ?, ?)`,
@@ -179,7 +179,7 @@ describe.sequential("CLI Authentication", () => {
 				.execute();
 
 			// Insert approved auth code
-			const deviceCode = "DSDK_DEVICE_" + "c".repeat(32);
+			const deviceCode = `DSDK_DEVICE_${"c".repeat(32)}`;
 			await env.DB.prepare(
 				`INSERT INTO cli_auth_codes (id, device_code, user_code, user_id, status, created_at, expires_at)
 				 VALUES (?, ?, ?, ?, 'approved', ?, ?)`,
@@ -248,8 +248,8 @@ describe.sequential("CLI Authentication", () => {
 				.execute();
 
 			// Create a token record
-			const refreshToken = "dsdk_refresh_" + "d".repeat(32);
-			const accessToken = "dsdk_" + "e".repeat(32);
+			const refreshToken = `dsdk_refresh_${"d".repeat(32)}`;
+			const accessToken = `dsdk_${"e".repeat(32)}`;
 			await env.DB.prepare(
 				`INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at)
 				 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -331,8 +331,8 @@ describe.sequential("CLI Authentication", () => {
 				.execute();
 
 			// Create an expired token record
-			const refreshToken = "dsdk_refresh_" + "f".repeat(32);
-			const accessToken = "dsdk_" + "g".repeat(32);
+			const refreshToken = `dsdk_refresh_${"f".repeat(32)}`;
+			const accessToken = `dsdk_${"g".repeat(32)}`;
 			await env.DB.prepare(
 				`INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at)
 				 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -392,8 +392,8 @@ describe.sequential("CLI Authentication", () => {
 				.execute();
 
 			// Create a CLI token to revoke
-			const refreshToken = "dsdk_refresh_" + "h".repeat(32);
-			const accessToken = "dsdk_" + "i".repeat(32);
+			const refreshToken = `dsdk_refresh_${"h".repeat(32)}`;
+			const accessToken = `dsdk_${"i".repeat(32)}`;
 			await env.DB.prepare(
 				`INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at)
 				 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -496,8 +496,8 @@ describe.sequential("CLI Authentication", () => {
 				.execute();
 
 			// Create a CLI token
-			const accessToken = "dsdk_" + "j".repeat(32);
-			const refreshToken = "dsdk_refresh_" + "k".repeat(32);
+			const accessToken = `dsdk_${"j".repeat(32)}`;
+			const refreshToken = `dsdk_refresh_${"k".repeat(32)}`;
 			await env.DB.prepare(
 				`INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at)
 				 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -553,8 +553,8 @@ describe.sequential("CLI Authentication", () => {
 				.execute();
 
 			// Create an expired CLI token
-			const accessToken = "dsdk_" + "l".repeat(32);
-			const refreshToken = "dsdk_refresh_" + "m".repeat(32);
+			const accessToken = `dsdk_${"l".repeat(32)}`;
+			const refreshToken = `dsdk_refresh_${"m".repeat(32)}`;
 			await env.DB.prepare(
 				`INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at)
 				 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -715,7 +715,7 @@ describe.sequential("CLI Authentication", () => {
 			)
 				.bind(
 					crypto.randomUUID(),
-					"DSDK_DEVICE_" + "n".repeat(32),
+					`DSDK_DEVICE_${"n".repeat(32)}`,
 					userCode,
 					Date.now(),
 					Date.now() + 900000,
@@ -796,7 +796,7 @@ describe.sequential("CLI Authentication", () => {
 			)
 				.bind(
 					authCodeId,
-					"DSDK_DEVICE_" + "o".repeat(32),
+					`DSDK_DEVICE_${"o".repeat(32)}`,
 					userCode,
 					Date.now(),
 					Date.now() + 900000,
@@ -865,7 +865,7 @@ describe.sequential("CLI Authentication", () => {
 			)
 				.bind(
 					authCodeId,
-					"DSDK_DEVICE_" + "p".repeat(32),
+					`DSDK_DEVICE_${"p".repeat(32)}`,
 					userCode,
 					Date.now(),
 					Date.now() + 900000,

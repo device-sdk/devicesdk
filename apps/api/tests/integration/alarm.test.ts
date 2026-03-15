@@ -41,6 +41,7 @@ function getTestDeviceStub(name: string) {
 		seedCronStorage(storage: CronStorage | null): Promise<void>;
 		getScheduledAlarmTime(): Promise<number | null>;
 		alarm(): Promise<void>;
+		testInitializeCrons(crons: Record<string, string>): Promise<void>;
 		kvPut(key: string, value: unknown): Promise<void>;
 		kvGet<T = unknown>(key: string): Promise<T | undefined>;
 		kvDelete(key: string): Promise<boolean>;
@@ -274,3 +275,76 @@ describe.sequential(
 		});
 	},
 );
+
+describe.sequential("TestDevice — initializeCrons behavior", () => {
+	it("schedules an alarm for a valid cron expression", async () => {
+		const stub = getTestDeviceStub("init-crons-test:device-1");
+		await stub.testInitializeCrons({ heartbeat: "*/5 * * * *" });
+		const alarmTime = await stub.getScheduledAlarmTime();
+		expect(alarmTime).not.toBeNull();
+		expect(alarmTime).toBeGreaterThan(Date.now());
+	});
+
+	it("clears storage and alarm when crons map is empty", async () => {
+		const stub = getTestDeviceStub("init-crons-test:device-2");
+		// First seed some crons so there's an existing alarm
+		await stub.testInitializeCrons({ heartbeat: "*/5 * * * *" });
+		expect(await stub.getScheduledAlarmTime()).not.toBeNull();
+
+		// Now clear the crons
+		await stub.testInitializeCrons({});
+		const alarmTime = await stub.getScheduledAlarmTime();
+		expect(alarmTime).toBeNull();
+	});
+
+	it("clears storage and alarm when all cron expressions are invalid", async () => {
+		const stub = getTestDeviceStub("init-crons-test:device-3");
+		// Seed a valid schedule first
+		const now = Date.now();
+		await stub.seedCronStorage({
+			old: { cron: "*/5 * * * *", nextFireAt: now + 60_000 },
+		});
+
+		// Now try to initialize with an invalid expression — should clear stale state
+		await stub.testInitializeCrons({ bad: "not-a-cron" });
+		const alarmTime = await stub.getScheduledAlarmTime();
+		expect(alarmTime).toBeNull();
+	});
+
+	it("preserves nextFireAt for an unchanged cron expression on reconnect", async () => {
+		const stub = getTestDeviceStub("init-crons-test:device-4");
+		const now = Date.now();
+		const existingFireAt = now + 270_000; // 4.5 minutes from now
+
+		// Seed existing schedule as if device had been connected before
+		await stub.seedCronStorage({
+			heartbeat: { cron: "*/5 * * * *", nextFireAt: existingFireAt },
+		});
+
+		// Re-initialize with the same expression (simulates a reconnect)
+		await stub.testInitializeCrons({ heartbeat: "*/5 * * * *" });
+
+		// The alarm should be set to the preserved fire time, not pushed out a full period
+		const alarmTime = await stub.getScheduledAlarmTime();
+		expect(alarmTime).toBe(existingFireAt);
+	});
+
+	it("resets nextFireAt when cron expression changes on reconnect", async () => {
+		const stub = getTestDeviceStub("init-crons-test:device-5");
+		const now = Date.now();
+		const oldFireAt = now + 270_000;
+
+		await stub.seedCronStorage({
+			heartbeat: { cron: "*/5 * * * *", nextFireAt: oldFireAt },
+		});
+
+		// Re-initialize with a changed expression
+		await stub.testInitializeCrons({ heartbeat: "*/10 * * * *" });
+
+		// Fire time should be recomputed from now, not the old value
+		const alarmTime = await stub.getScheduledAlarmTime();
+		expect(alarmTime).not.toBeNull();
+		expect(alarmTime).toBeGreaterThan(now);
+		expect(alarmTime).not.toBe(oldFireAt);
+	});
+});

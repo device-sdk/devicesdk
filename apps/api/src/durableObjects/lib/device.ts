@@ -500,7 +500,13 @@ export class BaseDevice extends DurableObject<Env> {
 			}
 		}
 
-		if (Object.keys(storage).length === 0) return;
+		if (Object.keys(storage).length === 0) {
+			// All cron expressions were invalid — clear any stale schedule so old crons
+			// don't keep firing with now-invalid expressions.
+			await this.ctx.storage.delete(CRON_STORAGE_KEY);
+			await this.ctx.storage.deleteAlarm();
+			return;
+		}
 
 		await this.ctx.storage.put(CRON_STORAGE_KEY, storage);
 
@@ -580,18 +586,35 @@ export class BaseDevice extends DurableObject<Env> {
 		// Resolve which crons are due and get the updated schedule.
 		// Uses the user script's current cron definitions if available so that
 		// added/removed/changed crons are reflected without requiring a reconnect.
-		const currentCrons = userWorker?.getCrons
+		const currentCrons = userWorker.getCrons
 			? await userWorker.getCrons()
 			: Object.fromEntries(
 					Object.entries(schedules).map(([name, e]) => [name, e.cron]),
 			  );
 
-		const { due, updated } = resolveDueCrons(
-			schedules,
-			currentCrons,
-			now,
-			nextCronTime,
-		);
+		let due: string[];
+		let updated: CronStorage;
+		try {
+			({ due, updated } = resolveDueCrons(
+				schedules,
+				currentCrons,
+				now,
+				nextCronTime,
+			));
+		} catch (err) {
+			// Invalid cron expression in user script — reschedule without advancing
+			// so no firings are permanently lost. The script can be fixed and redeployed.
+			console.error(
+				"Error resolving due crons — rescheduling without advancing:",
+				err,
+			);
+			const earliest = Object.values(schedules).reduce(
+				(min, s) => Math.min(min, s.nextFireAt),
+				Infinity,
+			);
+			await this.ctx.storage.setAlarm(Math.max(Date.now() + 60_000, earliest));
+			return;
+		}
 
 		// Dispatch onCron for each due schedule
 		for (const name of due) {

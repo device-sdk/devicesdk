@@ -11,6 +11,7 @@
 
 import { BaseDevice, CRON_STORAGE_KEY } from "./device";
 import type { CronStorage } from "./cronDispatch";
+import type { IUserDeviceWorker } from "./userWorkerTypes";
 
 export class TestDevice extends BaseDevice {
 	/**
@@ -30,5 +31,19 @@ export class TestDevice extends BaseDevice {
 		} else {
 			await this.ctx.storage.put(CRON_STORAGE_KEY, storage);
 		}
+	}
+
+	/**
+	 * Calls initializeCrons with a minimal mock worker that returns the given crons map.
+	 * Allows integration tests to exercise the initialize path without a real LOADER binding.
+	 */
+	async testInitializeCrons(crons: Record<string, string>): Promise<void> {
+		const mockWorker: IUserDeviceWorker = {
+			onDeviceConnect: async () => {},
+			onDeviceDisconnect: async () => {},
+			onMessage: async () => {},
+			getCrons: async () => crons,
+		};
+		await this.initializeCrons(mockWorker);
 	}
 }

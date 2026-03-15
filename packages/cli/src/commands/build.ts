@@ -1,8 +1,7 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import * as esbuild from "esbuild";
-import fs from "fs/promises";
-import path from "path";
-import { pathToFileURL } from "url";
-import { type DeviceSDKConfig, DeviceSDKConfigSchema } from "../config.js";
+import type { DeviceSDKConfig } from "../config.js";
 import { loadConfig } from "../utils.js";
 
 interface BuildOptions {

@@ -220,4 +220,13 @@ describe("formatResponse", () => {
 		};
 		expect(formatResponse(resp)).toContain("Error: Pin not configured");
 	});
+
+	it("formats unknown response type as raw JSON", () => {
+		const resp: DeviceCommandResponse = {
+			id: "abc",
+			type: "some_future_type",
+			payload: { value: 42 },
+		};
+		expect(formatResponse(resp)).toBe('{\n  "value": 42\n}');
+	});
 });

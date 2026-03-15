@@ -19,7 +19,7 @@ See [docs/quickstart.md](docs/quickstart.md) for a full tutorial on creating you
 | Package | Name | Description |
 |---|---|---|
 | `packages/core` | `@devicesdk/core` | Shared TypeScript types and device abstractions (published to npm) |
-| `packages/cli` | `@devicesdk/cli` | CLI tool (`devicesdk`) — init, build, dev, deploy, flash, logs |
+| `packages/cli` | `@devicesdk/cli` | CLI tool (`devicesdk`) — init, build, dev, deploy, flash, logs, status, inspect |
 | `packages/typescript-config` | `@repo/typescript-config` | Shared tsconfig base |
 | `apps/api` | `@devicesdk/api` | Cloudflare Workers API (Hono + D1 + R2 + Durable Objects) |
 | `apps/dashboard` | `@devicesdk/dashboard` | Vue 3 + Quasar SPA — project/device/token management |

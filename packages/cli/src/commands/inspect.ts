@@ -293,13 +293,14 @@ export default async function inspect(
 
 			// Confirm reboot to avoid accidental reboots
 			if (parsed.command.type === "reboot") {
+				busy = true;
 				rl.question("Reboot the device? [y/N] ", async (answer) => {
 					if (answer.toLowerCase() !== "y") {
 						console.log("Aborted.");
+						busy = false;
 						rl.prompt();
 						return;
 					}
-					busy = true;
 					try {
 						await executeCommand(
 							token,

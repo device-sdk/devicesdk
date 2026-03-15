@@ -102,6 +102,9 @@ export default async function status(
 			return { device, s };
 		});
 
+		// Pre-compute formatted last-seen strings once for consistent Date.now() snapshot
+		const formattedLastSeen = statuses.map((s) => formatLastSeen(s));
+
 		// Compute column widths
 		const maxDeviceLen = Math.max(
 			6, // "DEVICE"
@@ -134,7 +137,7 @@ export default async function status(
 			const version = formatVersion(s.current_version_id).padEnd(
 				maxVersionLen + 2,
 			);
-			const lastSeen = formatLastSeen(s).padEnd(maxLastSeenLen);
+			const lastSeen = formattedLastSeen[i].padEnd(maxLastSeenLen);
 
 			console.log(
 				`  ${device.device_id.padEnd(maxDeviceLen)}  ${dot}  ${version}  ${lastSeen}`,

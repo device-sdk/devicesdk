@@ -15,6 +15,7 @@ import {
 import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
 import { nextCronTime } from "./cronParser";
+import { resolveDueCrons, type CronStorage } from "./cronDispatch";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
 
 // Storage key for persisted cron schedule state.
@@ -24,13 +25,6 @@ export const CRON_STORAGE_KEY = "__internal:cron_schedules";
 
 // Prefix reserved for internal DO storage keys; blocked from user-facing kv API
 const INTERNAL_KEY_PREFIX = "__internal:";
-
-interface CronScheduleEntry {
-	cron: string;
-	nextFireAt: number;
-}
-
-type CronStorage = Record<string, CronScheduleEntry>;
 
 // Represents the WebSocket connection to the device.
 interface DeviceSession {
@@ -515,6 +509,10 @@ export class BaseDevice extends DurableObject<Env> {
 	/**
 	 * Handle alarms — dispatches named cron handlers defined in the user script.
 	 * After firing due crons, recalculates next fire times and reschedules the alarm.
+	 *
+	 * The pure dispatch logic (schedule sync + due-cron resolution) lives in
+	 * `resolveDueCrons()` in cronDispatch.ts so it can be unit-tested without a
+	 * Durable Object context or LOADER binding.
 	 */
 	async alarm(): Promise<void> {
 		const schedules = await this.ctx.storage.get<CronStorage>(CRON_STORAGE_KEY);
@@ -535,59 +533,38 @@ export class BaseDevice extends DurableObject<Env> {
 		const now = Date.now();
 		const userWorker = await this.getOrCreateUserWorker();
 
-		// Sync schedule entries with the latest cron definitions from the user script
-		if (userWorker?.getCrons) {
-			const currentCrons = await userWorker.getCrons();
+		// Resolve which crons are due and get the updated schedule.
+		// Uses the user script's current cron definitions if available so that
+		// added/removed/changed crons are reflected without requiring a reconnect.
+		const currentCrons = userWorker?.getCrons
+			? await userWorker.getCrons()
+			: Object.fromEntries(
+					Object.entries(schedules).map(([name, e]) => [name, e.cron]),
+			  );
 
-			// Remove crons that no longer exist
-			for (const name of Object.keys(schedules)) {
-				if (!(name in currentCrons)) {
-					delete schedules[name];
-				}
-			}
+		const { due, updated } = resolveDueCrons(
+			schedules,
+			currentCrons,
+			now,
+			nextCronTime,
+		);
 
-			// Add or update crons
-			for (const [name, expr] of Object.entries(currentCrons)) {
-				if (!(name in schedules) || schedules[name].cron !== expr) {
-					try {
-						schedules[name] = {
-							cron: expr,
-							nextFireAt: nextCronTime(expr, now),
-						};
-					} catch (err) {
-						console.error(`Invalid cron expression for "${name}": ${err}`);
-					}
-				}
-			}
-		}
-
-		// Fire all crons that are due
-		for (const [name, schedule] of Object.entries(schedules)) {
-			if (schedule.nextFireAt <= now) {
-				if (userWorker.onCron) {
-					try {
-						await userWorker.onCron(name);
-					} catch (error) {
-						console.error(`Error in user worker onCron("${name}"):`, error);
-					}
-				}
-				// Advance to the next occurrence
+		// Dispatch onCron for each due schedule
+		for (const name of due) {
+			if (userWorker?.onCron) {
 				try {
-					schedule.nextFireAt = nextCronTime(schedule.cron, now);
-				} catch (err) {
-					console.error(
-						`Failed to compute next cron time for "${name}": ${err}`,
-					);
-					delete schedules[name];
+					await userWorker.onCron(name);
+				} catch (error) {
+					console.error(`Error in user worker onCron("${name}"):`, error);
 				}
 			}
 		}
 
 		// Persist updated schedule and reschedule the next alarm
-		if (Object.keys(schedules).length > 0) {
-			await this.ctx.storage.put(CRON_STORAGE_KEY, schedules);
+		if (Object.keys(updated).length > 0) {
+			await this.ctx.storage.put(CRON_STORAGE_KEY, updated);
 			const earliest = Math.min(
-				...Object.values(schedules).map((s) => s.nextFireAt),
+				...Object.values(updated).map((s) => s.nextFireAt),
 			);
 			await this.ctx.storage.setAlarm(earliest);
 		} else {

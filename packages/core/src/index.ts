@@ -361,7 +361,7 @@ export class DeviceEntrypoint<Env = GetEnv> {
 	 *
 	 * @param name - The key from the `crons` object that triggered this call.
 	 */
-	onCron(_name: string) {
-		return;
+	onCron(_name: string): Promise<void> {
+		return Promise.resolve();
 	}
 }

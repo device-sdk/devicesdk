@@ -2,11 +2,7 @@ import { env, SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 import { D1QB } from "workers-qb";
 import type { tableDevices, tableProjects } from "../../src/types";
-import {
-	TEST_PROJECT_ID,
-	TEST_SESSION_TOKEN,
-	TEST_USER_ID,
-} from "../setup-test-data";
+import { TEST_PROJECT_ID, TEST_SESSION_TOKEN } from "../setup-test-data";
 
 describe.sequential("Logs endpoint", () => {
 	let qb: D1QB;

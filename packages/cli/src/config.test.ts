@@ -132,7 +132,7 @@ describe("DeviceSDKConfigSchema", () => {
 			},
 		};
 		const result = defineConfig(config);
-		expect(result.devices["sensor"].main).toBe("./devices/sensor.ts");
+		expect(result.devices.sensor.main).toBe("./devices/sensor.ts");
 	});
 
 	it("should default main to entrypoint class name when main is omitted", () => {
@@ -149,7 +149,7 @@ describe("DeviceSDKConfigSchema", () => {
 		const result = DeviceSDKConfigSchema.safeParse(config);
 		expect(result.success).toBe(true);
 		if (result.success) {
-			expect(result.data.devices["sensor"].main).toBe("SensorDevice");
+			expect(result.data.devices.sensor.main).toBe("SensorDevice");
 		}
 	});
 

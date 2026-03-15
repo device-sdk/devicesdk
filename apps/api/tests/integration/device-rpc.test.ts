@@ -6,7 +6,7 @@ import type {
 	tableDevices,
 	tableProjects,
 } from "../../src/types";
-import { TEST_PROJECT_ID, TEST_USER_ID } from "../setup-test-data";
+import { TEST_PROJECT_ID } from "../setup-test-data";
 
 describe.sequential("Inter-device RPC", () => {
 	let qb: D1QB;

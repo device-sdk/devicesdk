@@ -5,14 +5,8 @@ import type {
 	tableDeviceScripts,
 	tableDevices,
 	tableProjects,
-	tableUser,
-	tableUserSessions,
 } from "../../src/types";
-import {
-	TEST_PROJECT_ID,
-	TEST_SESSION_TOKEN,
-	TEST_USER_ID,
-} from "../setup-test-data";
+import { TEST_PROJECT_ID, TEST_SESSION_TOKEN } from "../setup-test-data";
 
 describe.sequential("Scripts endpoint", () => {
 	let qb: D1QB;

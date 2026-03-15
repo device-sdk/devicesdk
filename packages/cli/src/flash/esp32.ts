@@ -1,6 +1,6 @@
+import fs from "node:fs/promises";
+import os from "node:os";
 import { type ExecaError, execa } from "execa";
-import fs from "fs/promises";
-import os from "os";
 
 export interface ESP32FlashOptions {
 	firmwarePath: string;

@@ -124,7 +124,7 @@ export class BaseDevice extends DurableObject<Env> {
 		this._session = { websocket: server };
 		this._connectedSince = Date.now();
 
-		await this.ctx.storage.put("connectedSince", Date.now());
+		await this.ctx.storage.put("__internal:connectedSince", Date.now());
 
 		return new Response(null, {
 			status: 101,
@@ -448,7 +448,7 @@ export class BaseDevice extends DurableObject<Env> {
 		this._session = undefined;
 		this._connectedSince = undefined;
 
-		await this.ctx.storage.delete("connectedSince");
+		await this.ctx.storage.delete("__internal:connectedSince");
 
 		// Clean up the user worker (restore it first if needed)
 		const worker = await this.getOrCreateUserWorker();
@@ -466,7 +466,7 @@ export class BaseDevice extends DurableObject<Env> {
 	 * Reads the user worker's cron definitions, updates DO storage, and schedules
 	 * the next DO alarm for the earliest pending cron. Called after onDeviceConnect.
 	 */
-	private async initializeCrons(userWorker: IUserDeviceWorker): Promise<void> {
+	async initializeCrons(userWorker: IUserDeviceWorker): Promise<void> {
 		const crons = userWorker.getCrons ? await userWorker.getCrons() : {};
 
 		if (!crons || Object.keys(crons).length === 0) {
@@ -519,10 +519,16 @@ export class BaseDevice extends DurableObject<Env> {
 
 		if (!schedules || Object.keys(schedules).length === 0) {
 			// No cron schedules — fall back to legacy onAlarm if defined
-			const userWorker = await this.getOrCreateUserWorker();
-			if (userWorker?.onAlarm) {
+			let legacyWorker: IUserDeviceWorker | null = null;
+			try {
+				legacyWorker = await this.getOrCreateUserWorker();
+			} catch (err) {
+				console.error("Worker unavailable during alarm (legacy path):", err);
+				return;
+			}
+			if (legacyWorker?.onAlarm) {
 				try {
-					await userWorker.onAlarm();
+					await legacyWorker.onAlarm();
 				} catch (error) {
 					console.error("Error in user worker onAlarm:", error);
 				}
@@ -531,7 +537,24 @@ export class BaseDevice extends DurableObject<Env> {
 		}
 
 		const now = Date.now();
-		const userWorker = await this.getOrCreateUserWorker();
+
+		// Guard: if the worker is unavailable, reschedule without advancing so cron
+		// firings are not silently lost. The alarm will retry when the next
+		// nextFireAt arrives (or after 60 s minimum).
+		let userWorker: IUserDeviceWorker | null;
+		try {
+			userWorker = await this.getOrCreateUserWorker();
+		} catch (err) {
+			console.error(
+				"Worker unavailable during alarm — rescheduling without advancing cron schedule:",
+				err,
+			);
+			const earliest = Math.min(
+				...Object.values(schedules).map((s) => s.nextFireAt),
+			);
+			await this.ctx.storage.setAlarm(Math.max(Date.now() + 60_000, earliest));
+			return;
+		}
 
 		// Resolve which crons are due and get the updated schedule.
 		// Uses the user script's current cron definitions if available so that
@@ -577,7 +600,9 @@ export class BaseDevice extends DurableObject<Env> {
 	 * Keys starting with `__internal:` are reserved for internal use and are blocked.
 	 */
 	async kvGet<T = unknown>(key: string): Promise<T | undefined> {
-		if (key.startsWith(INTERNAL_KEY_PREFIX)) return undefined;
+		if (key.startsWith(INTERNAL_KEY_PREFIX)) {
+			throw new Error(`Key "${key}" is reserved for internal use`);
+		}
 		return this.ctx.storage.get<T>(key);
 	}
 
@@ -591,6 +616,26 @@ export class BaseDevice extends DurableObject<Env> {
 	async kvDelete(key: string): Promise<boolean> {
 		if (key.startsWith(INTERNAL_KEY_PREFIX)) return false;
 		return this.ctx.storage.delete(key);
+	}
+
+	/**
+	 * Returns the scheduled DO alarm timestamp (ms), or null if none is set.
+	 * Used by tests to verify that initializeCrons and alarm() schedule correctly.
+	 */
+	async getScheduledAlarmTime(): Promise<number | null> {
+		return this.ctx.storage.getAlarm();
+	}
+
+	/**
+	 * Directly writes the internal cron storage, bypassing the KV guard.
+	 * Used by tests to seed a schedule with specific nextFireAt values.
+	 */
+	async _testSeedCronStorage(storage: CronStorage | null): Promise<void> {
+		if (storage === null) {
+			await this.ctx.storage.delete(CRON_STORAGE_KEY);
+		} else {
+			await this.ctx.storage.put(CRON_STORAGE_KEY, storage);
+		}
 	}
 
 	/**

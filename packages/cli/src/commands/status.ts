@@ -102,10 +102,13 @@ export default async function status(
 			return { device, s };
 		});
 
-		// Pre-compute formatted last-seen strings once for consistent Date.now() snapshot
-		const formattedLastSeen = statuses.map((s) => formatLastSeen(s));
+		// Pre-compute formatted last-seen strings once for consistent Date.now() snapshot.
+		// Use error sentinel for devices whose fetch failed.
+		const formattedLastSeen = results.map((r) =>
+			r.status === "fulfilled" ? formatLastSeen(r.value) : "✗ error",
+		);
 
-		// Compute column widths
+		// Compute column widths from successfully fetched statuses only
 		const maxDeviceLen = Math.max(
 			6, // "DEVICE"
 			...rows.map(({ device }) => device.device_id.length),

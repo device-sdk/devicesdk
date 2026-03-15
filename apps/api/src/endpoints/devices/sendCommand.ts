@@ -135,17 +135,17 @@ export class SendDeviceCommand extends OpenAPIRoute {
 			return c.json({ success: false, error: "Device is not connected" }, 503);
 		}
 
-		if (doResult.status === 500) {
-			// Distinguish timeout from other errors
-			if (doResult.body.includes("Timeout")) {
-				return c.json(
-					{
-						success: false,
-						error: "Command timed out — device did not respond",
-					},
-					504,
-				);
-			}
+		if (doResult.status === 504) {
+			return c.json(
+				{
+					success: false,
+					error: "Command timed out — device did not respond",
+				},
+				504,
+			);
+		}
+
+		if (doResult.status !== 200) {
 			return c.json({ success: false, error: doResult.body }, 500);
 		}
 

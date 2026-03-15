@@ -254,6 +254,8 @@ export default async function inspect(
 
 		rl.prompt();
 
+		let busy = false;
+
 		rl.on("line", async (line) => {
 			const input = line.trim();
 
@@ -274,6 +276,13 @@ export default async function inspect(
 				return;
 			}
 
+			if (busy) {
+				console.log(
+					"\x1b[33mWaiting for previous command to complete...\x1b[0m",
+				);
+				return;
+			}
+
 			const parsed = parseCommand(input);
 
 			if ("error" in parsed) {
@@ -290,12 +299,28 @@ export default async function inspect(
 						rl.prompt();
 						return;
 					}
-					await executeCommand(token, projectId, deviceId, parsed.command, rl);
+					busy = true;
+					try {
+						await executeCommand(
+							token,
+							projectId,
+							deviceId,
+							parsed.command,
+							rl,
+						);
+					} finally {
+						busy = false;
+					}
 				});
 				return;
 			}
 
-			await executeCommand(token, projectId, deviceId, parsed.command, rl);
+			busy = true;
+			try {
+				await executeCommand(token, projectId, deviceId, parsed.command, rl);
+			} finally {
+				busy = false;
+			}
 		});
 
 		rl.on("close", () => {

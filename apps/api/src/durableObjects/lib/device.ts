@@ -827,12 +827,17 @@ export class BaseDevice extends DurableObject<Env> {
 	async handleCommand(
 		command: Omit<DeviceCommand, "id">,
 	): Promise<{ status: number; body: string }> {
-		const session = this.getSession();
-		if (
-			!session ||
-			session.websocket.readyState !== WebSocket.READY_STATE_OPEN
-		) {
+		const sockets = this.ctx.getWebSockets();
+		if (sockets.length === 0) {
 			return { status: 503, body: "Device not connected" };
+		}
+		const ws = sockets[0];
+		if (ws.readyState !== WebSocket.READY_STATE_OPEN) {
+			return { status: 503, body: "Device not connected" };
+		}
+		// Ensure _session is in sync with live socket after potential DO hibernation
+		if (!this._session) {
+			this._session = { websocket: ws };
 		}
 
 		const fullCommand: DeviceCommand = {
@@ -846,7 +851,8 @@ export class BaseDevice extends DurableObject<Env> {
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "An unknown error occurred";
-			return { status: 500, body: errorMessage };
+			const isTimeout = errorMessage.toLowerCase().includes("timeout");
+			return { status: isTimeout ? 504 : 500, body: errorMessage };
 		}
 	}
 

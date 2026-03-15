@@ -473,8 +473,9 @@ export class BaseDevice extends DurableObject<Env> {
 		const crons = userWorker.getCrons ? await userWorker.getCrons() : {};
 
 		if (!crons || Object.keys(crons).length === 0) {
-			// No crons defined — clear any previously stored schedule
+			// No crons defined — clear any previously stored schedule and cancel any pending alarm
 			await this.ctx.storage.delete(CRON_STORAGE_KEY);
+			await this.ctx.storage.deleteAlarm();
 			return;
 		}
 
@@ -503,8 +504,9 @@ export class BaseDevice extends DurableObject<Env> {
 
 		await this.ctx.storage.put(CRON_STORAGE_KEY, storage);
 
-		const earliest = Math.min(
-			...Object.values(storage).map((s) => s.nextFireAt),
+		const earliest = Object.values(storage).reduce(
+			(min, s) => Math.min(min, s.nextFireAt),
+			Infinity,
 		);
 		await this.ctx.storage.setAlarm(earliest);
 	}
@@ -552,8 +554,24 @@ export class BaseDevice extends DurableObject<Env> {
 				"Worker unavailable during alarm — rescheduling without advancing cron schedule:",
 				err,
 			);
-			const earliest = Math.min(
-				...Object.values(schedules).map((s) => s.nextFireAt),
+			const earliest = Object.values(schedules).reduce(
+				(min, s) => Math.min(min, s.nextFireAt),
+				Infinity,
+			);
+			await this.ctx.storage.setAlarm(Math.max(Date.now() + 60_000, earliest));
+			return;
+		}
+
+		// Guard: getOrCreateUserWorker could theoretically return null (e.g. if the
+		// implementation changes). Treat null like an exception — reschedule without
+		// advancing so cron firings are not silently lost.
+		if (userWorker === null) {
+			console.error(
+				"Worker returned null during alarm — rescheduling without advancing cron schedule",
+			);
+			const earliest = Object.values(schedules).reduce(
+				(min, s) => Math.min(min, s.nextFireAt),
+				Infinity,
 			);
 			await this.ctx.storage.setAlarm(Math.max(Date.now() + 60_000, earliest));
 			return;
@@ -589,8 +607,9 @@ export class BaseDevice extends DurableObject<Env> {
 		// Persist updated schedule and reschedule the next alarm
 		if (Object.keys(updated).length > 0) {
 			await this.ctx.storage.put(CRON_STORAGE_KEY, updated);
-			const earliest = Math.min(
-				...Object.values(updated).map((s) => s.nextFireAt),
+			const earliest = Object.values(updated).reduce(
+				(min, s) => Math.min(min, s.nextFireAt),
+				Infinity,
 			);
 			await this.ctx.storage.setAlarm(earliest);
 		} else {

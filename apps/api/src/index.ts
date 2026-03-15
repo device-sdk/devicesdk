@@ -147,6 +147,9 @@ export default app;
 export { BaseDevice as Device } from "./durableObjects/lib/device";
 export { DeviceSender } from "./durableObjects/lib/deviceSender";
 export { DevicesBridge } from "./durableObjects/lib/devicesBridge";
+// Test-only subclass — exposes seedCronStorage/getScheduledAlarmTime helpers for
+// integration tests. Bound as TEST_DEVICE in the miniflare/vitest config.
+// Not intended for use in production Workers.
 export { TestDevice } from "./durableObjects/lib/testDevice";
 
 // export default Sentry.withSentry(

@@ -22,8 +22,13 @@ export async function getDeviceConnectionStatus(
 
 	try {
 		return await stub.getConnectionStatus();
-	} catch {
-		// DO unreachable (never initialized) — device has never connected
+	} catch (err) {
+		// Log unexpected errors so they are visible in DO logs; the most common
+		// case is a DO that was never initialized (device has never connected).
+		console.error(
+			`getDeviceConnectionStatus failed for device ${deviceId} in project ${projectId}:`,
+			err,
+		);
 		return { connected: false, connectedSince: null };
 	}
 }

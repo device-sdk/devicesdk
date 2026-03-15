@@ -1,6 +1,5 @@
-import fs from "fs/promises";
-import os from "os";
-import path from "path";
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
 	createDevice,
 	createProject,

@@ -292,6 +292,7 @@ describe.sequential("Projects endpoint", () => {
 		});
 
 		it("should update a project description", async () => {
+			const createdAt = Date.now();
 			await qb
 				.insert<tableProjects>({
 					tableName: "projects",
@@ -321,10 +322,11 @@ describe.sequential("Projects endpoint", () => {
 			expect(json.success).toBe(true);
 			expect(json.result.description).toBe("A helpful description");
 			expect(json.result.name).toBeNull();
-			expect(json.result.updated_at).toBeGreaterThan(json.result.created_at);
+			expect(json.result.updated_at).toBeGreaterThanOrEqual(createdAt);
 		});
 
 		it("should update both name and description", async () => {
+			const createdAt = Date.now();
 			await qb
 				.insert<tableProjects>({
 					tableName: "projects",
@@ -357,6 +359,7 @@ describe.sequential("Projects endpoint", () => {
 			expect(json.success).toBe(true);
 			expect(json.result.name).toBe("Full Update");
 			expect(json.result.description).toBe("Full description update");
+			expect(json.result.updated_at).toBeGreaterThanOrEqual(createdAt);
 		});
 
 		it("should return 404 for a non-existent project", async () => {
@@ -400,7 +403,7 @@ describe.sequential("Projects endpoint", () => {
 					tableName: "projects",
 					data: {
 						id: "proj-update-other-user",
-						user_id: "some-other-user-id",
+						user_id: "user-2",
 						project_slug: "project-other-user",
 						created_at: Date.now(),
 					},

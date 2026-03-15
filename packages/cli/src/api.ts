@@ -556,6 +556,38 @@ export async function uploadScriptsBatch(
 	);
 }
 
+// Logs endpoints
+export interface LogEntry {
+	id: string;
+	level: string;
+	message: string;
+	created_at: number;
+}
+
+export interface LogsResponse {
+	logs: LogEntry[];
+	next_cursor: string | null;
+}
+
+export async function getLogs(
+	token: string,
+	projectId: string,
+	deviceId: string,
+	options: { cursor?: string; limit?: number; level?: string } = {},
+): Promise<LogsResponse> {
+	const params = new URLSearchParams();
+	if (options.cursor) params.set("cursor", options.cursor);
+	if (options.limit) params.set("limit", String(options.limit));
+	if (options.level) params.set("level", options.level);
+
+	const query = params.toString() ? `?${params}` : "";
+	return request<LogsResponse>(
+		`/v1/projects/${projectId}/devices/${deviceId}/logs${query}`,
+		{},
+		token,
+	);
+}
+
 // Token endpoints
 export interface ApiToken {
 	id: string;

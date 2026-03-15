@@ -84,23 +84,36 @@ export default async function status(
 			}
 		}
 
-		// Fetch live status for each device in parallel
-		const statuses = await Promise.all(
+		// Fetch live status for each device in parallel; partial failures show as offline
+		const settledStatuses = await Promise.allSettled(
 			devicesToShow.map((d) => getDeviceStatus(token, projectId, d.device_id)),
 		);
+		const rows = devicesToShow.map((device, i) => {
+			const result = settledStatuses[i];
+			const s: DeviceStatus =
+				result.status === "fulfilled"
+					? result.value
+					: {
+							connected: false,
+							connected_since: null,
+							last_connected_at: null,
+							current_version_id: null,
+						};
+			return { device, s };
+		});
 
 		// Compute column widths
 		const maxDeviceLen = Math.max(
 			6, // "DEVICE"
-			...devicesToShow.map((d) => d.device_id.length),
+			...rows.map(({ device }) => device.device_id.length),
 		);
 		const maxVersionLen = Math.max(
 			7, // "VERSION"
-			...statuses.map((s) => formatVersion(s.current_version_id).length),
+			...rows.map(({ s }) => formatVersion(s.current_version_id).length),
 		);
 		const maxLastSeenLen = Math.max(
 			9, // "LAST SEEN"
-			...statuses.map((s) => formatLastSeen(s).length),
+			...rows.map(({ s }) => formatLastSeen(s).length),
 		);
 
 		// Print header
@@ -116,10 +129,7 @@ export default async function status(
 		console.log(divider);
 
 		// Print each device row
-		for (let i = 0; i < devicesToShow.length; i++) {
-			const device = devicesToShow[i];
-			const s = statuses[i];
-
+		for (const { device, s } of rows) {
 			const dot = s.connected ? "● online " : "○ offline";
 			const version = formatVersion(s.current_version_id).padEnd(
 				maxVersionLen + 2,

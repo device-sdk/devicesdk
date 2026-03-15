@@ -28,7 +28,9 @@ function makeDevice(deviceId: string) {
 	return { device_id: deviceId, name: deviceId };
 }
 
-function makeStatus(overrides: Partial<import("../api.js").DeviceStatus> = {}): import("../api.js").DeviceStatus {
+function makeStatus(
+	overrides: Partial<import("../api.js").DeviceStatus> = {},
+): import("../api.js").DeviceStatus {
 	return {
 		connected: false,
 		connected_since: null,
@@ -87,7 +89,9 @@ describe("status command", () => {
 
 		await expect(status({})).rejects.toThrowError(/exit:3/);
 		expect(exitSpy).toHaveBeenCalledWith(3);
-		expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("No devices found"));
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("No devices found"),
+		);
 	});
 
 	it("renders offline device correctly", async () => {
@@ -127,7 +131,9 @@ describe("status command", () => {
 
 	it("renders — for device with no version", async () => {
 		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
-		apiMocks.getDeviceStatus.mockResolvedValue(makeStatus({ connected: false }));
+		apiMocks.getDeviceStatus.mockResolvedValue(
+			makeStatus({ connected: false }),
+		);
 
 		await status({});
 
@@ -193,5 +199,23 @@ describe("status command", () => {
 		await status({});
 
 		expect(apiMocks.getDeviceStatus).toHaveBeenCalledTimes(3);
+	});
+
+	it("shows remaining devices as offline when one status fetch fails", async () => {
+		apiMocks.listDevices.mockResolvedValue([
+			makeDevice("device-a"),
+			makeDevice("device-b"),
+		]);
+		apiMocks.getDeviceStatus
+			.mockResolvedValueOnce(
+				makeStatus({ connected: true, connected_since: Date.now() }),
+			)
+			.mockRejectedValueOnce(new DeviceSDKApiError("timeout", 503));
+
+		await status({});
+
+		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
+		expect(output).toContain("● online");
+		expect(output).toContain("○ offline");
 	});
 });

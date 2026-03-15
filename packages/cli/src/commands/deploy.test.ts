@@ -128,9 +128,7 @@ describe("deploy command", () => {
 		readFileSpy.mockResolvedValue("const x = 1;" as any);
 	});
 
-	afterEach(() => {
-		vi.clearAllMocks();
-	});
+	afterEach(() => {});
 
 	it("deploys a single device successfully using uploadScript", async () => {
 		await deploy({ device: "sensor-1" });
@@ -145,6 +143,17 @@ describe("deploy command", () => {
 		);
 		expect(apiMocks.uploadScriptsBatch).not.toHaveBeenCalled();
 		expect(exitSpy).not.toHaveBeenCalled();
+	});
+
+	it("exits when config has no devices", async () => {
+		const { loadConfig } = await import("../utils.js");
+		(loadConfig as any).mockResolvedValueOnce({
+			projectId: "test-project",
+			devices: {},
+		});
+
+		await expect(deploy()).rejects.toThrowError(/exit:6/);
+		expect(exitSpy).toHaveBeenCalledWith(5);
 	});
 
 	it("deploys all devices in batch when no device filter is specified", async () => {
@@ -211,6 +220,18 @@ describe("deploy command", () => {
 
 		await expect(deploy({ device: "sensor-1" })).rejects.toThrowError(/exit:6/);
 		expect(exitSpy).toHaveBeenCalledWith(5);
+	});
+
+	it("exits when createProject fails", async () => {
+		apiMocks.getProject.mockRejectedValueOnce(
+			new DeviceSDKApiError("not found", 404),
+		);
+		apiMocks.createProject.mockRejectedValueOnce(
+			new DeviceSDKApiError("forbidden", 403),
+		);
+
+		await expect(deploy({ device: "sensor-1" })).rejects.toThrowError(/exit:6/);
+		expect(exitSpy).toHaveBeenCalledWith(6);
 	});
 
 	it("skips upload during dry run", async () => {

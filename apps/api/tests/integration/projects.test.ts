@@ -1,12 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { D1QB } from "workers-qb";
-import type {
-	tableProjects,
-	tableProjectVersions,
-	tableUser,
-	tableUserSessions,
-} from "../../src/types";
+import type { tableProjects } from "../../src/types";
 import { TEST_SESSION_TOKEN, TEST_USER_ID } from "../setup-test-data";
 
 describe.sequential("Projects endpoint", () => {

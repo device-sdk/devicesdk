@@ -49,7 +49,7 @@ async function request<T>(
 	};
 
 	if (token) {
-		headers["Authorization"] = `Bearer ${token}`;
+		headers.Authorization = `Bearer ${token}`;
 	}
 
 	if (verboseLogging) {

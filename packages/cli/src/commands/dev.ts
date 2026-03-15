@@ -1,11 +1,11 @@
+import fs from "node:fs/promises";
+import net from "node:net";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import chokidar from "chokidar";
 import * as esbuild from "esbuild";
 import { type ExecaChildProcess, type ExecaError, execa } from "execa";
-import fs from "fs/promises";
-import net from "net";
-import path from "path";
-import { fileURLToPath } from "url";
-import type { DeviceConfig, DeviceSDKConfig } from "../config.js";
+import type { DeviceConfig } from "../config.js";
 import { loadConfig } from "../utils.js";
 import { generateDeviceTypes } from "./build.js";
 

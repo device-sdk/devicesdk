@@ -1,12 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { D1QB } from "workers-qb";
-import type {
-	tableDevices,
-	tableProjects,
-	tableUser,
-	tableUserSessions,
-} from "../../src/types";
+import type { tableDevices, tableProjects } from "../../src/types";
 import {
 	TEST_PROJECT_ID,
 	TEST_SESSION_TOKEN,

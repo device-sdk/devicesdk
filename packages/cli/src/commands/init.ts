@@ -1,6 +1,6 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { execa } from "execa";
-import fs from "fs/promises";
-import path from "path";
 import { createProject, DeviceSDKApiError } from "../api.js";
 import { requireAuth } from "../credentials.js";
 

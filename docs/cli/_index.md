@@ -52,6 +52,9 @@ All commands support these global flags:
 - [**devicesdk deploy**](/docs/cli/deploy/) - Deploy to production
 - [**devicesdk flash**](/docs/cli/flash/) - Flash firmware to device
 
+### Monitoring
+- [**devicesdk status**](/docs/cli/status/) - Show live connection status for project devices
+
 ## Getting Help
 
 Run any command with `--help` to see detailed usage:

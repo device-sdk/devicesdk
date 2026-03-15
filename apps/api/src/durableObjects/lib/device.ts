@@ -33,6 +33,8 @@ export class BaseDevice extends DurableObject<Env> {
 	private pendingCommands: Map<string, PendingCommand> = new Map();
 	private logWriteCount = 0;
 	private logsTableReady = false;
+	// In-memory only — cosmetic field, not durable. Avoids a storage write on the hot path.
+	private _connectedSince?: number;
 
 	// Device metadata from connection
 	private deviceMeta?: {
@@ -110,6 +112,7 @@ export class BaseDevice extends DurableObject<Env> {
 
 		this.ctx.acceptWebSocket(server);
 		this._session = { websocket: server };
+		this._connectedSince = Date.now();
 
 		return new Response(null, {
 			status: 101,
@@ -425,6 +428,7 @@ export class BaseDevice extends DurableObject<Env> {
 		}
 		this.pendingCommands.clear();
 		this._session = undefined;
+		this._connectedSince = undefined;
 
 		// Clean up the user worker (restore it first if needed)
 		const worker = await this.getOrCreateUserWorker();
@@ -584,6 +588,23 @@ export class BaseDevice extends DurableObject<Env> {
 		const nextCursor = hasMore ? `${lastLog.created_at}:${lastLog.id}` : null;
 
 		return { logs, next_cursor: nextCursor };
+	}
+
+	/**
+	 * Returns the live WebSocket connection status of the device.
+	 * Uses getWebSockets() which is always authoritative for Hibernation API connections.
+	 */
+	async getConnectionStatus(): Promise<{
+		connected: boolean;
+		connectedSince: number | null;
+	}> {
+		const sockets = this.ctx.getWebSockets();
+		const connected = sockets.length > 0;
+		// _connectedSince is in-memory only — set on connect, cleared on disconnect.
+		// After hibernation it will be undefined even if a socket exists, which is acceptable
+		// since connected_since is cosmetic (the connected boolean is always authoritative).
+		const connectedSince = connected ? (this._connectedSince ?? null) : null;
+		return { connected, connectedSince };
 	}
 
 	/**

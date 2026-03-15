@@ -8,6 +8,7 @@ import flash from "./commands/flash.js";
 import init from "./commands/init.js";
 import login from "./commands/login.js";
 import logout from "./commands/logout.js";
+import status from "./commands/status.js";
 import whoami from "./commands/whoami.js";
 
 export { defineConfig } from "./config.js";
@@ -103,5 +104,13 @@ program
 		"Reset method before flashing (default_reset or no_reset)",
 	)
 	.action((deviceId, options) => flash(deviceId, options));
+
+program
+	.command("status")
+	.description("Show live connection status for all devices in a project")
+	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
+	.option("-d, --device <id>", "Show status for a single device only")
+	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.action(status);
 
 program.parse(process.argv);

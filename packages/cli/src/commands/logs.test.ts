@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeviceSDKApiError } from "../api.js";
-import logs, { formatLogLine } from "./logs.js";
-
-const POLL_INTERVAL_MS = 2000;
+import logs, { formatLogLine, POLL_INTERVAL_MS } from "./logs.js";
 
 vi.mock("../credentials.js", () => ({
 	requireAuth: vi.fn().mockResolvedValue("test-token"),

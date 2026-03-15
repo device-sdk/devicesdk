@@ -19,7 +19,7 @@ See [docs/quickstart.md](docs/quickstart.md) for a full tutorial on creating you
 | Package | Name | Description |
 |---|---|---|
 | `packages/core` | `@devicesdk/core` | Shared TypeScript types and device abstractions (published to npm) |
-| `packages/cli` | `@devicesdk/cli` | CLI tool (`devicesdk`) — init, build, dev, deploy, flash |
+| `packages/cli` | `@devicesdk/cli` | CLI tool (`devicesdk`) — init, build, dev, deploy, flash, logs |
 | `packages/typescript-config` | `@repo/typescript-config` | Shared tsconfig base |
 | `apps/api` | `@devicesdk/api` | Cloudflare Workers API (Hono + D1 + R2 + Durable Objects) |
 | `apps/dashboard` | `@devicesdk/dashboard` | Vue 3 + Quasar SPA — project/device/token management |
@@ -97,6 +97,7 @@ The `@devicesdk/cli` package provides the `devicesdk` command:
 | `dev` | Local dev server with workerd-based simulator |
 | `deploy` | Deploy scripts to Cloudflare Workers |
 | `flash` | Flash firmware onto a Pico W or ESP32 |
+| `logs` | View and stream device logs (`--tail` for real-time) |
 | `status` | Show live connection status for devices in a project |
 
 ## Architecture

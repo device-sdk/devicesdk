@@ -1,7 +1,7 @@
-import { DeviceSDKApiError, getLogs, type LogEntry } from "../api.js";
+import { DeviceSDKApiError, getLogs, type LogEntry, type LogsResponse } from "../api.js";
 import { requireAuth } from "../credentials.js";
 
-const POLL_INTERVAL_MS = 2000;
+export const POLL_INTERVAL_MS = 2000;
 
 interface LogsOptions {
 	tail: boolean;
@@ -42,6 +42,8 @@ export default async function logs(
 	if (options.tail) {
 		// Fetch initial batch to anchor the cursor
 		let cursor: string | null = null;
+		// seenIds deduplicates entries when next_cursor is null; capped at 10 000 to avoid unbounded growth
+		const MAX_SEEN = 10_000;
 		const seenIds = new Set<string>();
 
 		// Register SIGINT handler before any async work so Ctrl-C is always caught
@@ -95,6 +97,10 @@ export default async function logs(
 
 				for (const entry of result.logs) {
 					if (!seenIds.has(entry.id)) {
+						if (seenIds.size >= MAX_SEEN) {
+							// Drop oldest by clearing the set (entries are already printed)
+							seenIds.clear();
+						}
 						seenIds.add(entry.id);
 						console.log(formatLogLine(entry));
 					}
@@ -112,7 +118,7 @@ export default async function logs(
 		}
 	} else {
 		// Default (non-tail) mode
-		let result: Awaited<ReturnType<typeof getLogs>>;
+		let result: LogsResponse;
 		try {
 			result = await getLogs(token, projectId, deviceId, {
 				limit: options.lines,

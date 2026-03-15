@@ -1,5 +1,5 @@
 import { env, SELF } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { D1QB } from "workers-qb";
 import type { tableDevices, tableProjects } from "../../src/types";
 import {
@@ -565,6 +565,23 @@ describe.sequential("Devices endpoint", () => {
 				})
 				.execute();
 
+			// Create a separate device used exclusively by the managed-token test
+			// so that the token creation on "first download" is genuinely exercised.
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-fw-token-test",
+						project_id: project.id,
+						device_slug: "fw-token-device",
+						name: "Firmware Token Test Device",
+						created_at: now,
+						updated_at: now,
+					},
+					onConflict: "IGNORE",
+				})
+				.execute();
+
 			// Build a minimal fake pico-w firmware containing all placeholder strings.
 			// The patching logic searches for these exact byte sequences, so the fake
 			// binary only needs to contain them in order (no real UF2 structure needed).
@@ -589,6 +606,28 @@ describe.sequential("Devices endpoint", () => {
 			// Use beforeAll so the R2 write persists across all tests in this block
 			// (isolatedStorage rolls back writes made inside individual it() calls).
 			await env.FIRMWARES.put("devicesdk-pico-w-client.uf2", fakeBytes);
+		});
+
+		afterAll(async () => {
+			await qb
+				.delete({
+					tableName: "devices",
+					where: {
+						conditions: ["id = ?1"],
+						params: ["device-fw-test"],
+					},
+				})
+				.execute();
+			await qb
+				.delete({
+					tableName: "devices",
+					where: {
+						conditions: ["id = ?1"],
+						params: ["device-fw-token-test"],
+					},
+				})
+				.execute();
+			await env.FIRMWARES.delete("devicesdk-pico-w-client.uf2");
 		});
 
 		it("should return 401 without auth", async () => {
@@ -682,11 +721,20 @@ describe.sequential("Devices endpoint", () => {
 			expect(resp.headers.get("Content-Disposition")).toContain(
 				"devicesdk-client.uf2",
 			);
+
+			// Verify the binary was actually patched — placeholder strings must be gone
+			const body = await resp.arrayBuffer();
+			const text = new TextDecoder().decode(body);
+			expect(text).not.toContain(OLD_SSID);
+			expect(text).not.toContain(OLD_PASS);
+			expect(text).not.toContain(OLD_HOST);
 		});
 
 		it("should create a managed token for the device on first firmware download", async () => {
+			// Uses fw-token-device (never downloaded before) so this is genuinely the first
+			// download for this device and token creation is triggered here, not by test 5.
 			await SELF.fetch(
-				"http://localhost/v1/projects/smart-home/devices/fw-device/firmware",
+				"http://localhost/v1/projects/smart-home/devices/fw-token-device/firmware",
 				{
 					method: "POST",
 					headers: {
@@ -703,7 +751,7 @@ describe.sequential("Devices endpoint", () => {
 					tableName: "tokens",
 					where: {
 						conditions: ["user_id = ?1", "description = ?2", "managed = ?3"],
-						params: [TEST_USER_ID, "fw-device authentication token", 1],
+						params: [TEST_USER_ID, "fw-token-device authentication token", 1],
 					},
 				})
 				.execute()

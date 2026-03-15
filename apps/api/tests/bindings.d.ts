@@ -3,6 +3,7 @@ import type { Env as AppEnv } from "../src/types";
 
 export type Env = AppEnv & {
 	MIGRATIONS: D1Migration[];
+	TEST_DEVICE: DurableObjectNamespace;
 };
 
 declare module "cloudflare:test" {

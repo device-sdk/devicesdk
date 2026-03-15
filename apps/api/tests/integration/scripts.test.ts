@@ -310,6 +310,47 @@ describe.sequential("Scripts endpoint", () => {
 			expect(json.success).toBe(true);
 			expect(json.result.length).toBe(0);
 		});
+
+		it("should return 404 for a non-existent project", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/non-existent-project/devices/${device.device_slug}/script/versions`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 404 for a non-existent device", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/non-existent-device/script/versions`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script/versions`,
+				{ method: "GET" },
+			);
+
+			expect(resp.status).toBe(401);
+		});
 	});
 
 	describe("PUT /v1/projects/:projectId/scripts (batch upload)", () => {

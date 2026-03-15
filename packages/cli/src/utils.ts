@@ -1,7 +1,7 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
-import fs from "fs/promises";
-import path from "path";
-import { pathToFileURL } from "url";
 import { ZodError, type z } from "zod";
 import { type DeviceSDKConfig, DeviceSDKConfigSchema } from "./config.js";
 

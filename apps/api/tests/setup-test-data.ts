@@ -1,7 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeAll } from "vitest";
 import { D1QB } from "workers-qb";
-import { hashPassword } from "../src/foundation/auth";
 import type { tableProjects, tableUser, tableUserSessions } from "../src/types";
 
 export const TEST_SESSION_TOKEN = "test-session-token";

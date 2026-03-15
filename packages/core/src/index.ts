@@ -336,7 +336,7 @@ export class DeviceEntrypoint<Env = GetEnv> {
 	}
 
 	// Called when a message is received from the device
-	onMessage(message: DeviceResponse) {
+	onMessage(_message: DeviceResponse) {
 		return;
 	}
 }

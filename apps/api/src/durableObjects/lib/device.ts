@@ -23,6 +23,9 @@ import type { IUserDeviceWorker } from "./userWorkerTypes";
 // code cannot accidentally corrupt scheduler state.
 export const CRON_STORAGE_KEY = "__internal:cron_schedules";
 
+// Storage key for the WebSocket connection timestamp.
+export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
+
 // Prefix reserved for internal DO storage keys; blocked from user-facing kv API
 const INTERNAL_KEY_PREFIX = "__internal:";
 
@@ -124,7 +127,7 @@ export class BaseDevice extends DurableObject<Env> {
 		this._session = { websocket: server };
 		this._connectedSince = Date.now();
 
-		await this.ctx.storage.put("__internal:connectedSince", Date.now());
+		await this.ctx.storage.put(CONNECTED_SINCE_KEY, Date.now());
 
 		return new Response(null, {
 			status: 101,
@@ -448,7 +451,7 @@ export class BaseDevice extends DurableObject<Env> {
 		this._session = undefined;
 		this._connectedSince = undefined;
 
-		await this.ctx.storage.delete("__internal:connectedSince");
+		await this.ctx.storage.delete(CONNECTED_SINCE_KEY);
 
 		// Clean up the user worker (restore it first if needed)
 		const worker = await this.getOrCreateUserWorker();
@@ -466,7 +469,7 @@ export class BaseDevice extends DurableObject<Env> {
 	 * Reads the user worker's cron definitions, updates DO storage, and schedules
 	 * the next DO alarm for the earliest pending cron. Called after onDeviceConnect.
 	 */
-	async initializeCrons(userWorker: IUserDeviceWorker): Promise<void> {
+	protected async initializeCrons(userWorker: IUserDeviceWorker): Promise<void> {
 		const crons = userWorker.getCrons ? await userWorker.getCrons() : {};
 
 		if (!crons || Object.keys(crons).length === 0) {
@@ -616,26 +619,6 @@ export class BaseDevice extends DurableObject<Env> {
 	async kvDelete(key: string): Promise<boolean> {
 		if (key.startsWith(INTERNAL_KEY_PREFIX)) return false;
 		return this.ctx.storage.delete(key);
-	}
-
-	/**
-	 * Returns the scheduled DO alarm timestamp (ms), or null if none is set.
-	 * Used by tests to verify that initializeCrons and alarm() schedule correctly.
-	 */
-	async getScheduledAlarmTime(): Promise<number | null> {
-		return this.ctx.storage.getAlarm();
-	}
-
-	/**
-	 * Directly writes the internal cron storage, bypassing the KV guard.
-	 * Used by tests to seed a schedule with specific nextFireAt values.
-	 */
-	async _testSeedCronStorage(storage: CronStorage | null): Promise<void> {
-		if (storage === null) {
-			await this.ctx.storage.delete(CRON_STORAGE_KEY);
-		} else {
-			await this.ctx.storage.put(CRON_STORAGE_KEY, storage);
-		}
 	}
 
 	/**

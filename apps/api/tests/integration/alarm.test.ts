@@ -7,7 +7,11 @@
  *    cannot read or corrupt internal scheduler state.
  * 2. Normal user kv operations continue to work correctly.
  * 3. kv storage isolation between device instances.
- * 4. initializeCrons() and alarm() scheduling behavior using test helpers.
+ * 4. initializeCrons() and alarm() scheduling behavior using TestDevice helpers.
+ *
+ * Test helper methods (seedCronStorage, getScheduledAlarmTime) live on TestDevice,
+ * a test-only subclass of BaseDevice, so they are not part of the production API
+ * surface. The TEST_DEVICE miniflare binding points to this subclass.
  *
  * Note: Testing that onCron() is actually called on the user script requires
  * the LOADER worker binding to dynamically instantiate user scripts, which is
@@ -18,12 +22,29 @@
 
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { CRON_STORAGE_KEY } from "../../src/durableObjects/lib/device";
+import { CRON_STORAGE_KEY, CONNECTED_SINCE_KEY } from "../../src/durableObjects/lib/device";
 import type { CronStorage } from "../../src/durableObjects/lib/cronDispatch";
 
+/** Production BaseDevice stub — tests the KV guard and normal operations. */
 function getDeviceStub(name: string) {
 	const id = env.DEVICE.idFromName(name);
 	return env.DEVICE.get(id);
+}
+
+/**
+ * TestDevice stub — exposes seedCronStorage / getScheduledAlarmTime helpers.
+ * Used only for tests that need to manipulate internal cron/alarm state.
+ */
+function getTestDeviceStub(name: string) {
+	const id = env.TEST_DEVICE.idFromName(name);
+	return env.TEST_DEVICE.get(id) as unknown as {
+		seedCronStorage(storage: CronStorage | null): Promise<void>;
+		getScheduledAlarmTime(): Promise<number | null>;
+		alarm(): Promise<void>;
+		kvPut(key: string, value: unknown): Promise<void>;
+		kvGet<T = unknown>(key: string): Promise<T | undefined>;
+		kvDelete(key: string): Promise<boolean>;
+	};
 }
 
 // Helper to call a DO RPC that is expected to throw and return the caught error.
@@ -43,6 +64,10 @@ describe.sequential("BaseDevice — kv guard for internal keys", () => {
 		expect(CRON_STORAGE_KEY.startsWith("__internal:")).toBe(true);
 	});
 
+	it("CONNECTED_SINCE_KEY uses the __internal: prefix", () => {
+		expect(CONNECTED_SINCE_KEY.startsWith("__internal:")).toBe(true);
+	});
+
 	it("kvPut rejects __internal: keys with an error", async () => {
 		const stub = getDeviceStub("kv-guard-test:device-1");
 		const err = await catchDoError(() =>
@@ -55,6 +80,15 @@ describe.sequential("BaseDevice — kv guard for internal keys", () => {
 	it("kvGet for __internal: key throws (consistent with kvPut)", async () => {
 		const stub = getDeviceStub("kv-guard-test:device-2");
 		const err = await catchDoError(() => stub.kvGet(CRON_STORAGE_KEY));
+		expect(err).not.toBeNull();
+		expect(err?.message).toMatch(/reserved for internal use/i);
+	});
+
+	it("kvPut rejects CONNECTED_SINCE_KEY with an error", async () => {
+		const stub = getDeviceStub("kv-guard-test:device-5");
+		const err = await catchDoError(() =>
+			stub.kvPut(CONNECTED_SINCE_KEY, Date.now()),
+		);
 		expect(err).not.toBeNull();
 		expect(err?.message).toMatch(/reserved for internal use/i);
 	});
@@ -149,35 +183,33 @@ describe.sequential("BaseDevice — kv isolation between device instances", () =
 	});
 });
 
-describe.sequential("BaseDevice — cron storage helpers", () => {
+describe.sequential("TestDevice — cron storage helpers", () => {
 	it("getScheduledAlarmTime returns null when no alarm is set", async () => {
-		const stub = getDeviceStub("alarm-helpers-test:device-1");
+		const stub = getTestDeviceStub("alarm-helpers-test:device-1");
 		const alarmTime = await stub.getScheduledAlarmTime();
 		expect(alarmTime).toBeNull();
 	});
 
-	it("_testSeedCronStorage writes to internal storage without throwing", async () => {
-		const stub = getDeviceStub("alarm-helpers-test:device-2");
+	it("seedCronStorage writes to internal storage without throwing", async () => {
+		const stub = getTestDeviceStub("alarm-helpers-test:device-2");
 		const now = Date.now();
 		const schedule: CronStorage = {
 			ping: { cron: "*/1 * * * *", nextFireAt: now + 30_000 },
 		};
-		await expect(
-			stub._testSeedCronStorage(schedule),
-		).resolves.toBeUndefined();
+		await expect(stub.seedCronStorage(schedule)).resolves.toBeUndefined();
 	});
 
-	it("_testSeedCronStorage with null clears cron storage", async () => {
-		const stub = getDeviceStub("alarm-helpers-test:device-3");
+	it("seedCronStorage with null clears cron storage", async () => {
+		const stub = getTestDeviceStub("alarm-helpers-test:device-3");
 		const now = Date.now();
 
 		// Seed something first
-		await stub._testSeedCronStorage({
+		await stub.seedCronStorage({
 			ping: { cron: "*/1 * * * *", nextFireAt: now + 1000 },
 		});
 
 		// Clear it
-		await stub._testSeedCronStorage(null);
+		await stub.seedCronStorage(null);
 
 		// alarm() with no schedules hits the legacy path — worker fails (no LOADER)
 		// but returns cleanly without setting an alarm
@@ -188,10 +220,10 @@ describe.sequential("BaseDevice — cron storage helpers", () => {
 });
 
 describe.sequential(
-	"BaseDevice — alarm() reschedules without advancing when worker unavailable",
+	"TestDevice — alarm() reschedules without advancing when worker unavailable",
 	() => {
 		it("reschedules when stored crons exist but worker cannot be loaded", async () => {
-			const stub = getDeviceStub("alarm-fallback-test:device-1");
+			const stub = getTestDeviceStub("alarm-fallback-test:device-1");
 			const now = Date.now();
 
 			// Seed a past-due schedule
@@ -201,7 +233,7 @@ describe.sequential(
 					nextFireAt: now - 1000, // already past due
 				},
 			};
-			await stub._testSeedCronStorage(schedule);
+			await stub.seedCronStorage(schedule);
 
 			// alarm() catches the worker init failure (LOADER unavailable in tests)
 			// and reschedules without advancing nextFireAt
@@ -213,7 +245,7 @@ describe.sequential(
 		});
 
 		it("reschedules at least 60s in the future to prevent tight retry loops", async () => {
-			const stub = getDeviceStub("alarm-fallback-test:device-2");
+			const stub = getTestDeviceStub("alarm-fallback-test:device-2");
 			const now = Date.now();
 
 			// Seed a schedule that was already past-due (very old)
@@ -223,7 +255,7 @@ describe.sequential(
 					nextFireAt: now - 999_000, // very old
 				},
 			};
-			await stub._testSeedCronStorage(schedule);
+			await stub.seedCronStorage(schedule);
 
 			await stub.alarm();
 
@@ -232,7 +264,7 @@ describe.sequential(
 		});
 
 		it("alarm() with no stored schedules does not reschedule on worker failure", async () => {
-			const stub = getDeviceStub("alarm-fallback-test:device-3");
+			const stub = getTestDeviceStub("alarm-fallback-test:device-3");
 
 			// No cron storage — alarm() hits the legacy path which just returns on failure
 			await stub.alarm();

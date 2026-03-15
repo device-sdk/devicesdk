@@ -984,5 +984,24 @@ describe.sequential("Devices endpoint", () => {
 
 			expect(resp.status).toBe(401);
 		});
+
+		it("should return connected: false and null connected_since via DO RPC when no WebSocket is active", async () => {
+			// Tests the getConnectionStatus() DO method directly via the DEVICE binding.
+			// The connected: true path (with a non-null connected_since) requires an
+			// active WebSocket connection which cannot be established in the miniflare
+			// test environment — that path is verified by E2E tests.
+			const doId = env.DEVICE.idFromName(
+				`${TEST_PROJECT_ID}:no-websocket-device`,
+			);
+			const stub = env.DEVICE.get(doId) as unknown as {
+				getConnectionStatus(): Promise<{
+					connected: boolean;
+					connectedSince: number | null;
+				}>;
+			};
+			const status = await stub.getConnectionStatus();
+			expect(status.connected).toBe(false);
+			expect(status.connectedSince).toBeNull();
+		});
 	});
 });

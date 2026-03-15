@@ -27,6 +27,11 @@ export default defineWorkersConfig({
 						ENV: "production",
 						SALT_TOKEN: "test-salt-token",
 					},
+					durableObjects: {
+						// TestDevice exposes test-only helpers (seedCronStorage,
+						// getScheduledAlarmTime) that are not on the production Device class.
+						TEST_DEVICE: "TestDevice",
+					},
 				},
 			},
 		},

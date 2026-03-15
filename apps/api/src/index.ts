@@ -147,6 +147,7 @@ export default app;
 export { BaseDevice as Device } from "./durableObjects/lib/device";
 export { DeviceSender } from "./durableObjects/lib/deviceSender";
 export { DevicesBridge } from "./durableObjects/lib/devicesBridge";
+export { TestDevice } from "./durableObjects/lib/testDevice";
 
 // export default Sentry.withSentry(
 //   env => ({

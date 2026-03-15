@@ -1,5 +1,5 @@
 import fs from "fs/promises";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DeviceSDKApiError } from "../api.js";
 import init from "./init.js";
 
@@ -15,21 +15,22 @@ vi.mock("../api.js", async (importOriginal) => {
 	const original = await importOriginal<typeof import("../api.js")>();
 	return {
 		...original,
-		createProject: (...args: any[]) => apiMocks.createProject(...args),
+		createProject: (...args: Parameters<typeof original.createProject>) =>
+			apiMocks.createProject(...args),
 	};
 });
 
-const execaMock = vi.fn().mockResolvedValue({});
+const execaMock = vi.hoisted(() => vi.fn().mockResolvedValue({}));
 vi.mock("execa", () => ({
-	execa: (...args: any[]) => execaMock(...args),
+	execa: execaMock,
 }));
 
 describe("init command", () => {
-	const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-		code?: number,
-	) => {
-		throw new Error(`exit:${code ?? 0}`);
-	}) as any);
+	const exitSpy = vi
+		.spyOn(process, "exit")
+		.mockImplementation((code?: number | string | null) => {
+			throw new Error(`exit:${code ?? 0}`);
+		});
 
 	const accessSpy = vi.spyOn(fs, "access");
 	const mkdirSpy = vi.spyOn(fs, "mkdir");

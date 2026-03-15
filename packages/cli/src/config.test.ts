@@ -56,6 +56,22 @@ describe("DeviceSDKConfigSchema", () => {
 		expect(result.success).toBe(true);
 	});
 
+	it("should validate config with esp32c61 device type", () => {
+		const config = {
+			projectId: "my-project",
+			devices: {
+				"esp-c61-sensor": {
+					entrypoint: "EspC61Device",
+					main: "./devices/espC61.ts",
+					deviceType: "esp32c61",
+					wifi: { ssid: "ssid", password: "pass" },
+				},
+			},
+		};
+		const result = DeviceSDKConfigSchema.safeParse(config);
+		expect(result.success).toBe(true);
+	});
+
 	it("should fail validation for a config with missing projectId", () => {
 		const config = {
 			devices: {

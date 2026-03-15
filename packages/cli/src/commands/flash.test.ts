@@ -79,6 +79,21 @@ function createEsp32Config() {
 	};
 }
 
+function createEsp32c61Config() {
+	return {
+		projectId: "test-project",
+		devices: {
+			"esp-c61-1": {
+				main: "./devices/espC61.ts",
+				deviceType: "esp32c61",
+				name: "ESP32-C61 One",
+				description: "An ESP32-C61 device",
+				wifi: { ssid: "ssid", password: "pass" },
+			},
+		},
+	};
+}
+
 describe("flash command", () => {
 	const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 		code?: number,
@@ -290,6 +305,42 @@ describe("flash command", () => {
 
 			await expect(flash("esp-1")).rejects.toThrowError(/exit:6/);
 			expect(exitSpy).toHaveBeenCalledWith(6);
+		});
+	});
+
+	describe("ESP32-C61 devices", () => {
+		it("routes esp32c61 devices to flashESP32 with correct chip name", async () => {
+			const { loadConfig } = await import("../utils.js");
+			(loadConfig as any).mockResolvedValueOnce(createEsp32c61Config());
+
+			await flash("esp-c61-1");
+
+			expect(flashEsp32Mocks.checkEsptoolInstalled).toHaveBeenCalled();
+			expect(apiMocks.downloadDeviceFirmware).toHaveBeenCalledWith(
+				"test-token",
+				"test-project",
+				"esp-c61-1",
+				expect.objectContaining({ ssid: "ssid", password: "pass" }),
+				"esp32c61",
+				{ host: undefined },
+			);
+			expect(flashEsp32Mocks.flashESP32).toHaveBeenCalledWith(
+				expect.objectContaining({
+					firmwarePath: expect.stringContaining("esp32c61-client.bin"),
+					chipName: "esp32c61",
+				}),
+			);
+			expect(flashPicoMock).not.toHaveBeenCalled();
+		});
+
+		it("exits when esptool is not installed for esp32c61", async () => {
+			const { loadConfig } = await import("../utils.js");
+			(loadConfig as any).mockResolvedValueOnce(createEsp32c61Config());
+			flashEsp32Mocks.checkEsptoolInstalled.mockResolvedValueOnce(false);
+
+			await expect(flash("esp-c61-1")).rejects.toThrowError(/exit:6/);
+			expect(exitSpy).toHaveBeenCalledWith(6);
+			expect(apiMocks.downloadDeviceFirmware).not.toHaveBeenCalled();
 		});
 	});
 });

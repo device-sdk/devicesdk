@@ -38,7 +38,17 @@ npx @devicesdk/cli deploy
 
 Your code is now running on DeviceSDK network, ready to handle real device connections.
 
-## Step 3: View in Dashboard
+## Step 3: Stream Logs
+
+Tail device output directly from the terminal — the recommended debugging workflow after deploying:
+
+```bash
+npx @devicesdk/cli logs <project-id> <device-id> --tail
+```
+
+New log entries stream in as they arrive. Press **Ctrl-C** to stop. See [`devicesdk logs`](/docs/cli/logs/) for filtering by level and other options.
+
+## Step 4: View in Dashboard
 
 Visit your [dashboard](https://dash.devicesdk.com) to:
 - See your deployed projects

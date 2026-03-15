@@ -8,6 +8,7 @@ import flash from "./commands/flash.js";
 import init from "./commands/init.js";
 import login from "./commands/login.js";
 import logout from "./commands/logout.js";
+import logs from "./commands/logs.js";
 import status from "./commands/status.js";
 import whoami from "./commands/whoami.js";
 
@@ -78,6 +79,23 @@ program
 	.option("--dry-run", "Validate without uploading")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
 	.action(deploy);
+
+program
+	.command("logs <project-id> <device-id>")
+	.description("View logs for a deployed device")
+	.option("-f, --tail", "Continuously tail new log entries")
+	.option("-n, --lines <number>", "Number of log lines to show", "50")
+	.option(
+		"--level <level>",
+		"Filter by log level: log, info, warn, error, debug",
+	)
+	.action((projectId, deviceId, options) =>
+		logs(projectId, deviceId, {
+			tail: options.tail ?? false,
+			lines: Number(options.lines),
+			level: options.level,
+		}),
+	);
 
 program
 	.command("flash <device-id>")

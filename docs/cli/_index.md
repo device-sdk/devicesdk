@@ -55,6 +55,9 @@ All commands support these global flags:
 ### Monitoring
 - [**devicesdk status**](/docs/cli/status/) - Show live connection status for project devices
 
+### Debugging
+- [**devicesdk logs**](/docs/cli/logs/) - View and stream device logs
+
 ## Getting Help
 
 Run any command with `--help` to see detailed usage:

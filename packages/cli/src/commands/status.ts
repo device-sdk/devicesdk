@@ -80,7 +80,7 @@ export default async function status(
 				console.error(
 					`✗ Device "${options.device}" not found in project "${projectId}".`,
 				);
-				process.exit(3);
+				process.exit(1);
 			}
 		}
 

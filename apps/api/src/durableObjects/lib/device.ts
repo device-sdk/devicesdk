@@ -17,8 +17,13 @@ import { getProxyEntrypoint } from "./classProxy";
 import { nextCronTime } from "./cronParser";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
 
-// Storage key for persisted cron schedule state
-const CRON_STORAGE_KEY = "__cron_schedules";
+// Storage key for persisted cron schedule state.
+// Uses the __internal: prefix which is blocked in kvPut/kvGet/kvDelete so user
+// code cannot accidentally corrupt scheduler state.
+export const CRON_STORAGE_KEY = "__internal:cron_schedules";
+
+// Prefix reserved for internal DO storage keys; blocked from user-facing kv API
+const INTERNAL_KEY_PREFIX = "__internal:";
 
 interface CronScheduleEntry {
 	cron: string;
@@ -477,11 +482,21 @@ export class BaseDevice extends DurableObject<Env> {
 		}
 
 		const now = Date.now();
+		// Read existing schedule so we can preserve nextFireAt for unchanged entries.
+		// This prevents a reconnect from pushing a cron's next fire time out by a full
+		// period (e.g. a watchdog that fires every minute won't be delayed by a reconnect
+		// that happens 58 seconds in).
+		const existing =
+			(await this.ctx.storage.get<CronStorage>(CRON_STORAGE_KEY)) ?? {};
 		const storage: CronStorage = {};
 
 		for (const [name, expr] of Object.entries(crons)) {
 			try {
-				storage[name] = { cron: expr, nextFireAt: nextCronTime(expr, now) };
+				const prev = existing[name];
+				// Preserve the scheduled fire time if the cron expression hasn't changed
+				const nextFireAt =
+					prev && prev.cron === expr ? prev.nextFireAt : nextCronTime(expr, now);
+				storage[name] = { cron: expr, nextFireAt };
 			} catch (err) {
 				console.error(`Invalid cron expression for "${name}": ${err}`);
 			}
@@ -521,7 +536,7 @@ export class BaseDevice extends DurableObject<Env> {
 		const userWorker = await this.getOrCreateUserWorker();
 
 		// Sync schedule entries with the latest cron definitions from the user script
-		if (userWorker.getCrons) {
+		if (userWorker?.getCrons) {
 			const currentCrons = await userWorker.getCrons();
 
 			// Remove crons that no longer exist
@@ -581,17 +596,23 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * KV storage methods for user scripts
+	 * KV storage methods for user scripts.
+	 * Keys starting with `__internal:` are reserved for internal use and are blocked.
 	 */
 	async kvGet<T = unknown>(key: string): Promise<T | undefined> {
+		if (key.startsWith(INTERNAL_KEY_PREFIX)) return undefined;
 		return this.ctx.storage.get<T>(key);
 	}
 
 	async kvPut<T>(key: string, value: T): Promise<void> {
+		if (key.startsWith(INTERNAL_KEY_PREFIX)) {
+			throw new Error(`Key "${key}" is reserved for internal use`);
+		}
 		await this.ctx.storage.put(key, value);
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
+		if (key.startsWith(INTERNAL_KEY_PREFIX)) return false;
 		return this.ctx.storage.delete(key);
 	}
 

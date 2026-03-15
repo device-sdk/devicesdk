@@ -85,7 +85,7 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     	  target.env = Object.assign({}, target.env, { DEVICES: callScopedDevices });
     	  return target[name](...args);
     	},
-    	getCrons: () => target.crons ?? {},
+    	getCrons: async () => target.crons ?? {},
     	onCron: (...args) => target.onCron?.(...args),
     }
   }

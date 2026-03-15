@@ -1,9 +1,11 @@
 /**
- * Integration tests for the BaseDevice cron schedule storage.
+ * Integration tests for the BaseDevice cron schedule storage and kv guard.
  *
- * These tests exercise the DO's kv storage interface and verify that cron
- * schedule state is correctly stored and retrieved — covering the storage
- * layer that `initializeCrons()` and `alarm()` rely on.
+ * These tests cover:
+ * 1. The `__internal:` key prefix guard in kvPut/kvGet/kvDelete — user code
+ *    cannot read or corrupt internal scheduler state.
+ * 2. Normal user kv operations continue to work correctly.
+ * 3. kv storage isolation between device instances.
  *
  * Note: Full end-to-end tests of alarm dispatch (alarm() → onCron() being
  * called inside a user script) require the LOADER worker binding to dynamically
@@ -13,125 +15,111 @@
 
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-
-// The internal storage key used by BaseDevice for cron schedules.
-// Matches the `CRON_STORAGE_KEY` constant in device.ts.
-const CRON_STORAGE_KEY = "__cron_schedules";
+import { CRON_STORAGE_KEY } from "../../src/durableObjects/lib/device";
 
 function getDeviceStub(name: string) {
 	const id = env.DEVICE.idFromName(name);
 	return env.DEVICE.get(id);
 }
 
-describe.sequential("BaseDevice — cron schedule storage", () => {
-	describe("kv storage for cron state", () => {
-		it("stores and retrieves a cron schedule entry via kv", async () => {
-			const stub = getDeviceStub("cron-storage-test:device-1");
-			const schedule = {
-				heartbeat: { cron: "*/5 * * * *", nextFireAt: Date.now() + 300_000 },
-			};
-
-			await stub.kvPut(CRON_STORAGE_KEY, schedule);
-			const retrieved = await stub.kvGet<typeof schedule>(CRON_STORAGE_KEY);
-
-			expect(retrieved).toEqual(schedule);
-		});
-
-		it("returns undefined when cron schedule has not been initialized", async () => {
-			const stub = getDeviceStub("cron-storage-test:device-no-schedule");
-			const retrieved = await stub.kvGet(CRON_STORAGE_KEY);
-
-			expect(retrieved).toBeUndefined();
-		});
-
-		it("deletes a cron schedule entry", async () => {
-			const stub = getDeviceStub("cron-storage-test:device-delete");
-			const schedule = {
-				watchdog: { cron: "*/1 * * * *", nextFireAt: Date.now() + 60_000 },
-			};
-
-			await stub.kvPut(CRON_STORAGE_KEY, schedule);
-			const before = await stub.kvGet(CRON_STORAGE_KEY);
-			expect(before).toEqual(schedule);
-
-			const deleted = await stub.kvDelete(CRON_STORAGE_KEY);
-			expect(deleted).toBe(true);
-
-			const after = await stub.kvGet(CRON_STORAGE_KEY);
-			expect(after).toBeUndefined();
-		});
-
-		it("kvDelete returns false for a key that does not exist", async () => {
-			const stub = getDeviceStub("cron-storage-test:device-delete-missing");
-			const result = await stub.kvDelete(CRON_STORAGE_KEY);
-			expect(result).toBe(false);
-		});
-
-		it("overwrites an existing cron schedule with new entries", async () => {
-			const stub = getDeviceStub("cron-storage-test:device-overwrite");
-			const initial = {
-				old: { cron: "0 * * * *", nextFireAt: Date.now() + 1_000 },
-			};
-			const updated = {
-				new: { cron: "*/5 * * * *", nextFireAt: Date.now() + 5_000 },
-			};
-
-			await stub.kvPut(CRON_STORAGE_KEY, initial);
-			await stub.kvPut(CRON_STORAGE_KEY, updated);
-
-			const retrieved = await stub.kvGet<typeof updated>(CRON_STORAGE_KEY);
-			expect(retrieved).toEqual(updated);
-			expect(retrieved).not.toHaveProperty("old");
-		});
-
-		it("stores multiple named schedules in a single object", async () => {
-			const stub = getDeviceStub("cron-storage-test:device-multi");
-			const now = Date.now();
-			const schedules = {
-				heartbeat: { cron: "*/5 * * * *", nextFireAt: now + 300_000 },
-				dailyReport: { cron: "0 8 * * *", nextFireAt: now + 3_600_000 },
-				watchdog: { cron: "*/1 * * * *", nextFireAt: now + 60_000 },
-			};
-
-			await stub.kvPut(CRON_STORAGE_KEY, schedules);
-			const retrieved = await stub.kvGet<typeof schedules>(CRON_STORAGE_KEY);
-
-			expect(retrieved).toEqual(schedules);
-			expect(Object.keys(retrieved ?? {})).toHaveLength(3);
-		});
+describe.sequential("BaseDevice — kv guard for internal keys", () => {
+	it("CRON_STORAGE_KEY uses the __internal: prefix", () => {
+		expect(CRON_STORAGE_KEY.startsWith("__internal:")).toBe(true);
 	});
 
-	describe("kv isolation between device instances", () => {
-		it("each device DO instance has independent kv storage", async () => {
-			const stubA = getDeviceStub("cron-isolation-test:device-a");
-			const stubB = getDeviceStub("cron-isolation-test:device-b");
+	it("kvPut rejects __internal: keys with an error", async () => {
+		const stub = getDeviceStub("kv-guard-test:device-1");
+		await expect(stub.kvPut(CRON_STORAGE_KEY, { foo: "bar" })).rejects.toThrow(
+			/reserved for internal use/i,
+		);
+	});
 
-			await stubA.kvPut(CRON_STORAGE_KEY, {
-				heartbeat: { cron: "*/5 * * * *", nextFireAt: Date.now() + 300_000 },
-			});
+	it("kvGet for __internal: key returns undefined (no data leakage)", async () => {
+		const stub = getDeviceStub("kv-guard-test:device-2");
+		const result = await stub.kvGet(CRON_STORAGE_KEY);
+		expect(result).toBeUndefined();
+	});
 
-			// Device B should not see device A's cron schedules
-			const resultB = await stubB.kvGet(CRON_STORAGE_KEY);
-			expect(resultB).toBeUndefined();
-		});
+	it("kvDelete for __internal: key returns false (no-op)", async () => {
+		const stub = getDeviceStub("kv-guard-test:device-3");
+		const result = await stub.kvDelete(CRON_STORAGE_KEY);
+		expect(result).toBe(false);
+	});
 
-		it("deleting from one device does not affect another", async () => {
-			const stubC = getDeviceStub("cron-isolation-test:device-c");
-			const stubD = getDeviceStub("cron-isolation-test:device-d");
-			const schedule = {
-				test: { cron: "0 * * * *", nextFireAt: Date.now() + 3_600_000 },
-			};
+	it("arbitrary __internal: prefixed keys are also blocked", async () => {
+		const stub = getDeviceStub("kv-guard-test:device-4");
+		await expect(stub.kvPut("__internal:anything", "value")).rejects.toThrow();
+		expect(await stub.kvGet("__internal:anything")).toBeUndefined();
+		expect(await stub.kvDelete("__internal:anything")).toBe(false);
+	});
+});
 
-			await stubC.kvPut(CRON_STORAGE_KEY, schedule);
-			await stubD.kvPut(CRON_STORAGE_KEY, schedule);
+describe.sequential("BaseDevice — user kv operations", () => {
+	it("stores and retrieves a user value", async () => {
+		const stub = getDeviceStub("kv-user-test:device-1");
+		await stub.kvPut("temperature", 23.5);
+		const result = await stub.kvGet<number>("temperature");
+		expect(result).toBe(23.5);
+	});
 
-			await stubC.kvDelete(CRON_STORAGE_KEY);
+	it("returns undefined for a key that does not exist", async () => {
+		const stub = getDeviceStub("kv-user-test:device-no-key");
+		const result = await stub.kvGet("missing");
+		expect(result).toBeUndefined();
+	});
 
-			const resultC = await stubC.kvGet(CRON_STORAGE_KEY);
-			const resultD = await stubD.kvGet<typeof schedule>(CRON_STORAGE_KEY);
+	it("deletes a user key and returns true", async () => {
+		const stub = getDeviceStub("kv-user-test:device-delete");
+		await stub.kvPut("sensor", { reading: 42 });
+		const deleted = await stub.kvDelete("sensor");
+		expect(deleted).toBe(true);
+		expect(await stub.kvGet("sensor")).toBeUndefined();
+	});
 
-			expect(resultC).toBeUndefined();
-			expect(resultD).toEqual(schedule);
-		});
+	it("kvDelete returns false for a missing user key", async () => {
+		const stub = getDeviceStub("kv-user-test:device-delete-missing");
+		const result = await stub.kvDelete("nonexistent");
+		expect(result).toBe(false);
+	});
+
+	it("overwrites an existing user key", async () => {
+		const stub = getDeviceStub("kv-user-test:device-overwrite");
+		await stub.kvPut("state", "on");
+		await stub.kvPut("state", "off");
+		expect(await stub.kvGet("state")).toBe("off");
+	});
+
+	it("stores multiple independent keys", async () => {
+		const stub = getDeviceStub("kv-user-test:device-multi");
+		await stub.kvPut("keyA", 1);
+		await stub.kvPut("keyB", 2);
+		expect(await stub.kvGet("keyA")).toBe(1);
+		expect(await stub.kvGet("keyB")).toBe(2);
+	});
+});
+
+describe.sequential("BaseDevice — kv isolation between device instances", () => {
+	it("each device DO instance has independent kv storage", async () => {
+		const stubA = getDeviceStub("kv-isolation-test:device-a");
+		const stubB = getDeviceStub("kv-isolation-test:device-b");
+
+		await stubA.kvPut("shared-key", "device-a-value");
+
+		// Device B should not see device A's value
+		const resultB = await stubB.kvGet("shared-key");
+		expect(resultB).toBeUndefined();
+	});
+
+	it("deleting from one device does not affect another", async () => {
+		const stubC = getDeviceStub("kv-isolation-test:device-c");
+		const stubD = getDeviceStub("kv-isolation-test:device-d");
+
+		await stubC.kvPut("mykey", "c");
+		await stubD.kvPut("mykey", "d");
+
+		await stubC.kvDelete("mykey");
+
+		expect(await stubC.kvGet("mykey")).toBeUndefined();
+		expect(await stubD.kvGet("mykey")).toBe("d");
 	});
 });

@@ -23,7 +23,7 @@ export interface IUserDeviceWorker {
 	): Promise<unknown>;
 
 	// Returns the cron schedule definitions (name → cron expression)
-	getCrons?(): Record<string, string>;
+	getCrons?(): Promise<Record<string, string>>;
 
 	// Called when a named cron fires
 	onCron?(name: string): Promise<void>;

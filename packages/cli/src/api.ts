@@ -326,6 +326,25 @@ export async function createDevice(
 	);
 }
 
+export interface DeviceStatus {
+	connected: boolean;
+	connected_since: number | null;
+	last_connected_at: number | null;
+	current_version_id: string | null;
+}
+
+export async function getDeviceStatus(
+	token: string,
+	projectId: string,
+	deviceId: string,
+): Promise<DeviceStatus> {
+	return request<DeviceStatus>(
+		`/v1/projects/${projectId}/devices/${deviceId}/status`,
+		{},
+		token,
+	);
+}
+
 export async function deleteDevice(
 	token: string,
 	projectId: string,

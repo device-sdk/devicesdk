@@ -131,6 +131,45 @@ describe.sequential("Scripts endpoint", () => {
 
 			expect(resp.status).toBe(404);
 		});
+
+		it("should return 404 for non-existent project", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/non-existent-project/devices/${device.device_slug}/script`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						entrypoint: "Device",
+						script:
+							"export class Device { async onMessage() {} async onDeviceConnect() {} }",
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
+				{
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						entrypoint: "Device",
+						script:
+							"export class Device { async onMessage() {} async onDeviceConnect() {} }",
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(401);
+		});
 	});
 
 	describe("GET /v1/projects/:projectId/devices/:deviceId/script", () => {
@@ -208,6 +247,22 @@ describe.sequential("Scripts endpoint", () => {
 		it("should return 404 for a non-existent device", async () => {
 			const resp = await SELF.fetch(
 				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/does-not-exist/script`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 404 for a non-existent project", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/non-existent-project/devices/${device.device_slug}/script`,
 				{
 					method: "GET",
 					headers: {
@@ -493,6 +548,55 @@ describe.sequential("Scripts endpoint", () => {
 			const json = await resp.json();
 			expect(json.success).toBe(false);
 		});
+
+		it("should return 404 for non-existent project", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/non-existent-project/scripts",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						message: "Project not found test",
+						devices: {
+							"sensor-scripts-1": {
+								entrypoint: "Device",
+								script:
+									"export class Device { async onMessage() {} async onDeviceConnect() {} }",
+							},
+						},
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/scripts`,
+				{
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						message: "Auth test",
+						devices: {
+							"sensor-scripts-1": {
+								entrypoint: "Device",
+								script:
+									"export class Device { async onMessage() {} async onDeviceConnect() {} }",
+							},
+						},
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(401);
+		});
 	});
 
 	describe("GET /v1/projects/:projectId/devices/:deviceId/script/versions/:versionId", () => {
@@ -543,6 +647,38 @@ describe.sequential("Scripts endpoint", () => {
 		it("should return 404 for a non-existent version", async () => {
 			const resp = await SELF.fetch(
 				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script/versions/non-existent-version`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 404 for a non-existent project", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/non-existent-project/devices/${device.device_slug}/script/versions/${versionId}`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 404 for a non-existent device", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/non-existent-device/script/versions/${versionId}`,
 				{
 					method: "GET",
 					headers: {
@@ -614,6 +750,38 @@ describe.sequential("Scripts endpoint", () => {
 		it("should return 404 for a non-existent version", async () => {
 			const resp = await SELF.fetch(
 				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script/versions/non-existent-version/deploy`,
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 404 for a non-existent project", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/non-existent-project/devices/${device.device_slug}/script/versions/${versionId}/deploy`,
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 404 for a non-existent device", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/non-existent-device/script/versions/${versionId}/deploy`,
 				{
 					method: "POST",
 					headers: {

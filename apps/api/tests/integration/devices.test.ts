@@ -417,6 +417,42 @@ describe.sequential("Devices endpoint", () => {
 			expect(json.result.name).toBe("New Name");
 			expect(json.result.description).toBe("New description");
 		});
+
+		it("should update only device name, leaving description unchanged", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-4b",
+						project_id: project.id,
+						device_slug: "sensor-4b",
+						name: "Original Name",
+						description: "Original description",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/sensor-4b",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ name: "Updated Name" }),
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.name).toBe("Updated Name");
+			expect(json.result.description).toBe("Original description");
+		});
 	});
 
 	describe("DELETE /v1/projects/:projectId/devices/:deviceId", () => {
@@ -499,6 +535,118 @@ describe.sequential("Devices endpoint", () => {
 				"http://localhost/v1/projects/smart-home/devices/sensor-5",
 				{
 					method: "DELETE",
+				},
+			);
+
+			expect(resp.status).toBe(401);
+		});
+	});
+
+	describe("GET /v1/projects/:projectId/devices/:deviceId/status", () => {
+		it("should return connected: false for a device that has never connected", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-status-1",
+						project_id: project.id,
+						device_slug: "status-sensor",
+						name: "Status Sensor",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/status-sensor/status",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.connected).toBe(false);
+			expect(json.result.connected_since).toBeNull();
+			expect(json.result.last_connected_at).toBeNull();
+			expect(json.result.current_version_id).toBeNull();
+		});
+
+		it("should return last_connected_at and current_version_id from the database", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-status-2",
+						project_id: project.id,
+						device_slug: "status-sensor-2",
+						name: "Status Sensor 2",
+						last_connected_at: now - 60000,
+						current_version_id: "abc123def456789012345678",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/status-sensor-2/status",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.connected).toBe(false);
+			expect(json.result.last_connected_at).toBe(now - 60000);
+			expect(json.result.current_version_id).toBe("abc123def456789012345678");
+		});
+
+		it("should return 404 for unknown project", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/no-such-project/devices/status-sensor/status",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+		});
+
+		it("should return 404 for unknown device", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/no-such-device/status",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+		});
+
+		it("should return 401 without auth token", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/status-sensor/status",
+				{
+					method: "GET",
 				},
 			);
 

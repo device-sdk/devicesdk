@@ -97,6 +97,7 @@ The `@devicesdk/cli` package provides the `devicesdk` command:
 | `dev` | Local dev server with workerd-based simulator |
 | `deploy` | Deploy scripts to Cloudflare Workers |
 | `flash` | Flash firmware onto a Pico W or ESP32 |
+| `status` | Show live connection status for devices in a project |
 
 ## Architecture
 

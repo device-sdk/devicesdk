@@ -821,6 +821,36 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
+	 * Sends a hardware command to the device and returns the result.
+	 * Called from the sendCommand API endpoint.
+	 */
+	async handleCommand(
+		command: Omit<DeviceCommand, "id">,
+	): Promise<{ status: number; body: string }> {
+		const session = this.getSession();
+		if (
+			!session ||
+			session.websocket.readyState !== WebSocket.READY_STATE_OPEN
+		) {
+			return { status: 503, body: "Device not connected" };
+		}
+
+		const fullCommand: DeviceCommand = {
+			...command,
+			id: crypto.randomUUID(),
+		} as DeviceCommand;
+
+		try {
+			const response = await this.sendCommandAndWaitForResponse(fullCommand);
+			return { status: 200, body: JSON.stringify(response) };
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "An unknown error occurred";
+			return { status: 500, body: errorMessage };
+		}
+	}
+
+	/**
 	 * Triggers a device reboot for script deployment.
 	 * Called from upload/deploy endpoints to restart the device so it loads the new script version.
 	 */

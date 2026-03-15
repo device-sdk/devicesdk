@@ -108,6 +108,20 @@ ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip_
 ```
 **Rule**: Always check `CONFIG_SOC_RMT_SUPPORTED` in `build/config/sdkconfig.h` before using RMT-dependent APIs. ESP32-C61 only has SPI (`CONFIG_SOC_GPSPI_SUPPORTED`).
 
+### Calling `stub.fetch()` on a DO in tests causes "Isolated storage failed"
+**Date**: 2026-03-15
+**Question/Problem**: Integration tests that call `stub.fetch()` on a Durable Object fail with "Isolated storage failed. Expected .sqlite, got ...sqlite-shm". Tests using RPC methods on the same DO work fine.
+**Root Cause**: When a DO is accessed via `stub.fetch()` in the `@cloudflare/vitest-pool-workers` test environment, Miniflare initializes SQLite in WAL mode, creating `.sqlite-shm` and `.sqlite-wal` files. The test isolation checker expects only `.sqlite` files after teardown, so it fails.
+**Solution**: Expose business logic through RPC methods on the DO class (e.g., `handleCommand()`) instead of routing through `stub.fetch()`. RPC methods work cleanly in tests without triggering WAL file creation issues.
+**Rule**: In API endpoints that need to call into a DO, use RPC (direct method calls on the stub) rather than `stub.fetch()`. This is also consistent with how `getConnectionStatus()`, `triggerRebootForDeploy()`, etc. work.
+
+### `z.enum()` in chanfana 3.x request body schema causes unhandled Zod v4 errors
+**Date**: 2026-03-15
+**Question/Problem**: Using `z.enum(VALUES)` in a chanfana `OpenAPIRoute` request body schema causes all requests to that endpoint to fail with 500 — even requests with valid enum values. Chanfana's `validateRequest()` throws a `TypeError: Cannot read properties of undefined (reading '_zod')` for valid inputs, and fails to catch Zod v4's `ZodError` for invalid enum values.
+**Root Cause**: Chanfana 3.2.x was not fully updated for Zod v4's internal API. The `z.enum()` type combined with the schema's `strictObject` wrapping causes parsing failures. Chanfana catches `instanceof ZodError` but Zod v4's error class behaves differently.
+**Solution**: Use `z.string()` in the chanfana schema and do the enum validation manually in the `handle()` method with an explicit `includes()` check, returning a 400 response.
+**Rule**: Avoid `z.enum()` in chanfana body schemas when using Zod v4. Validate enum-like fields manually in the handler.
+
 ### ESP32-C61-DevKitC-1 onboard LED is an addressable WS2812 on GPIO 8
 **Date**: 2026-02-19
 **Question/Problem**: Setting GPIO 5 (or any simple GPIO) high/low doesn't blink the onboard LED. The LED appears always on or unresponsive to GPIO toggling.

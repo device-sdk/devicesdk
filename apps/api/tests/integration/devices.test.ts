@@ -1182,4 +1182,134 @@ describe.sequential("Devices endpoint", () => {
 			expect(resp.status).toBe(401);
 		});
 	});
+
+	describe("POST /v1/projects/:projectId/devices/:deviceId/command", () => {
+		it("should return 401 without auth token", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/cmd-sensor/command",
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						type: "get_pin_state",
+						payload: { pin: 5, mode: "digital" },
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(401);
+		});
+
+		it("should return 404 for non-existent project", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/no-such-project/devices/cmd-sensor/command",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						type: "get_pin_state",
+						payload: { pin: 5, mode: "digital" },
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+			expect(json.error).toContain("Project not found");
+		});
+
+		it("should return 404 for non-existent device", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/no-such-device/command",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						type: "get_pin_state",
+						payload: { pin: 5, mode: "digital" },
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+			expect(json.error).toContain("Device not found");
+		});
+
+		it("should return 400 for unknown command type", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-cmd-1",
+						project_id: project.id,
+						device_slug: "cmd-sensor-1",
+						name: "Command Sensor",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/cmd-sensor-1/command",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ type: "unknown_command", payload: {} }),
+				},
+			);
+
+			expect(resp.status).toBe(400);
+		});
+
+		it("should return 503 when device is not connected", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-cmd-2",
+						project_id: project.id,
+						device_slug: "cmd-sensor-2",
+						name: "Command Sensor 2",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/cmd-sensor-2/command",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						type: "get_pin_state",
+						payload: { pin: 5, mode: "digital" },
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(503);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+			expect(json.error).toContain("not connected");
+		});
+	});
 });

@@ -417,6 +417,42 @@ describe.sequential("Devices endpoint", () => {
 			expect(json.result.name).toBe("New Name");
 			expect(json.result.description).toBe("New description");
 		});
+
+		it("should update only device name, leaving description unchanged", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-4b",
+						project_id: project.id,
+						device_slug: "sensor-4b",
+						name: "Original Name",
+						description: "Original description",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/sensor-4b",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ name: "Updated Name" }),
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.name).toBe("Updated Name");
+			expect(json.result.description).toBe("Original description");
+		});
 	});
 
 	describe("DELETE /v1/projects/:projectId/devices/:deviceId", () => {

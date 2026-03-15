@@ -170,4 +170,68 @@ describe.sequential("Tokens endpoint", () => {
 
 		expect(resp.status).toBe(401);
 	});
+
+	it("should return 401 without auth when deleting a token", async () => {
+		const resp = await SELF.fetch("http://localhost/v1/tokens/some-token-id", {
+			method: "DELETE",
+		});
+
+		expect(resp.status).toBe(401);
+	});
+
+	it("should create a token with a description", async () => {
+		const resp = await SELF.fetch("http://localhost/v1/tokens", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+			},
+			body: JSON.stringify({ description: "My CI token" }),
+		});
+
+		expect(resp.status).toBe(201);
+		const json = await resp.json();
+		expect(json.success).toBe(true);
+		expect(json.result.description).toBe("My CI token");
+	});
+
+	it("should surface description when listing tokens", async () => {
+		const createResp = await SELF.fetch("http://localhost/v1/tokens", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+			},
+			body: JSON.stringify({ description: "Prod deploy key" }),
+		});
+		const createJson = await createResp.json();
+		const tokenId = createJson.result.id;
+
+		const listResp = await SELF.fetch("http://localhost/v1/tokens", {
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+			},
+		});
+		const listJson = await listResp.json();
+		const created = listJson.result.find(
+			(t: { id: string }) => t.id === tokenId,
+		);
+		expect(created).toBeDefined();
+		expect(created.description).toBe("Prod deploy key");
+	});
+
+	it("should create a token without a description when body is omitted", async () => {
+		const resp = await SELF.fetch("http://localhost/v1/tokens", {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+			},
+		});
+
+		expect(resp.status).toBe(201);
+		const json = await resp.json();
+		expect(json.success).toBe(true);
+		expect(json.result.description == null).toBe(true);
+	});
 });

@@ -7,6 +7,18 @@ export class CreateApiToken extends OpenAPIRoute {
 		tags: ["Tokens"],
 		summary: "Create a new API token",
 		operationId: "tokens-create",
+		request: {
+			body: {
+				content: {
+					"application/json": {
+						schema: z.object({
+							description: z.string().max(100).optional(),
+						}),
+					},
+				},
+				required: false,
+			},
+		},
 		responses: {
 			"201": {
 				description: "Returns the new API token",
@@ -17,6 +29,7 @@ export class CreateApiToken extends OpenAPIRoute {
 							id: z.string(),
 							token: z.string(),
 							created_at: z.number(),
+							description: z.string().nullable().optional(),
 						}),
 					}),
 				),
@@ -30,6 +43,8 @@ export class CreateApiToken extends OpenAPIRoute {
 	public async handle(c: AppContext) {
 		const user = c.get("user");
 		const qb = c.get("qb");
+		const data = await this.getValidatedData<typeof this.schema>();
+		const description = data.body?.description;
 
 		const { results: countResult } = await qb
 			.fetchOne<{ count: number }>({
@@ -54,8 +69,9 @@ export class CreateApiToken extends OpenAPIRoute {
 					user_id: user.id,
 					token: crypto.randomUUID().replaceAll("-", ""),
 					created_at: Date.now(),
+					...(description ? { description } : {}),
 				},
-				returning: ["id", "token", "created_at"],
+				returning: ["id", "token", "created_at", "description"],
 			})
 			.execute()
 			.then((t) => t.results);

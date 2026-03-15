@@ -69,7 +69,7 @@ export default async function status(
 		if (devices.length === 0) {
 			console.log(`Project: ${projectId}\n`);
 			console.log("No devices found.");
-			process.exit(0);
+			process.exit(3);
 		}
 
 		// Filter by device if requested
@@ -100,10 +100,7 @@ export default async function status(
 		);
 		const maxLastSeenLen = Math.max(
 			9, // "LAST SEEN"
-			...statuses.map((s, i) => {
-				void i;
-				return formatLastSeen(s).length;
-			}),
+			...statuses.map((s) => formatLastSeen(s).length),
 		);
 
 		// Print header

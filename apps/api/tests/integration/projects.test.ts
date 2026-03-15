@@ -288,6 +288,7 @@ describe.sequential("Projects endpoint", () => {
 			expect(json.success).toBe(true);
 			expect(json.result.project_slug).toBe("project-update-1");
 			expect(json.result.name).toBe("My Updated Project");
+			expect(json.result.description).toBeNull();
 		});
 
 		it("should update a project description", async () => {
@@ -319,7 +320,8 @@ describe.sequential("Projects endpoint", () => {
 			const json = await resp.json();
 			expect(json.success).toBe(true);
 			expect(json.result.description).toBe("A helpful description");
-			expect(json.result.updated_at).toBeDefined();
+			expect(json.result.name).toBeNull();
+			expect(json.result.updated_at).toBeGreaterThan(json.result.created_at);
 		});
 
 		it("should update both name and description", async () => {
@@ -388,6 +390,38 @@ describe.sequential("Projects endpoint", () => {
 			);
 
 			expect(resp.status).toBe(401);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 403/404 when a different user tries to update the project", async () => {
+			await qb
+				.insert<tableProjects>({
+					tableName: "projects",
+					data: {
+						id: "proj-update-other-user",
+						user_id: "some-other-user-id",
+						project_slug: "project-other-user",
+						created_at: Date.now(),
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/project-other-user",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ name: "Hijacked" }),
+				},
+			);
+
+			expect(resp.status).toBeOneOf([403, 404]);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
 		});
 	});
 });

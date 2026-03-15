@@ -1,15 +1,15 @@
 import fs from "node:fs/promises";
-import path from "node:path";
+import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateDeviceTypes } from "./build.js";
 
 describe("generateDeviceTypes", () => {
-	let writeFileSpy: ReturnType<typeof vi.spyOn>;
+	let writeFileSpy: MockInstance;
 
 	beforeEach(() => {
 		writeFileSpy = vi
 			.spyOn(fs, "writeFile")
-			.mockResolvedValue(undefined as never);
+			.mockImplementation(() => Promise.resolve());
 	});
 
 	afterEach(() => {
@@ -41,8 +41,7 @@ describe("generateDeviceTypes", () => {
 		);
 
 		expect(writeFileSpy).toHaveBeenCalledOnce();
-		const [outPath, content] = writeFileSpy.mock.calls[0] as [string, string];
-		expect(outPath).toBe(path.join("/project", "devicesdk-env.d.ts"));
+		const [, content] = writeFileSpy.mock.calls[0] as [string, string];
 		expect(content).toContain(
 			'import type { TempSensor } from "./src/devices/tempSensor"',
 		);
@@ -67,6 +66,7 @@ describe("generateDeviceTypes", () => {
 			"/project",
 		);
 
+		expect(writeFileSpy).toHaveBeenCalledOnce();
 		const [, content] = writeFileSpy.mock.calls[0] as [string, string];
 		expect(content).toContain('from "./devices/sensor"');
 		expect(content).not.toContain("sensor.ts");
@@ -88,6 +88,7 @@ describe("generateDeviceTypes", () => {
 			"/project",
 		);
 
+		expect(writeFileSpy).toHaveBeenCalledOnce();
 		const [, content] = writeFileSpy.mock.calls[0] as [string, string];
 		expect(content).toContain('from "./devices/sensor"');
 	});
@@ -108,6 +109,7 @@ describe("generateDeviceTypes", () => {
 			"/project",
 		);
 
+		expect(writeFileSpy).toHaveBeenCalledOnce();
 		const [, content] = writeFileSpy.mock.calls[0] as [string, string];
 		expect(content).toContain('from "../shared/sensor"');
 		expect(content).not.toContain('from "./../shared/sensor"');
@@ -135,6 +137,7 @@ describe("generateDeviceTypes", () => {
 			"/project",
 		);
 
+		expect(writeFileSpy).toHaveBeenCalledOnce();
 		const [, content] = writeFileSpy.mock.calls[0] as [string, string];
 		// First occurrence uses the class name directly
 		expect(content).toContain('import type { MyDevice } from "./devices/a"');
@@ -174,6 +177,7 @@ describe("generateDeviceTypes", () => {
 			"/project",
 		);
 
+		expect(writeFileSpy).toHaveBeenCalledOnce();
 		const [, content] = writeFileSpy.mock.calls[0] as [string, string];
 		expect(content).toContain(
 			'import type { GenericDevice } from "./devices/one"',
@@ -246,6 +250,7 @@ describe("generateDeviceTypes", () => {
 			"/some/custom/dir",
 		);
 
+		expect(writeFileSpy).toHaveBeenCalledOnce();
 		const [outPath] = writeFileSpy.mock.calls[0] as [string, string];
 		expect(outPath).toBe("/some/custom/dir/devicesdk-env.d.ts");
 	});
@@ -266,6 +271,7 @@ describe("generateDeviceTypes", () => {
 			"/project",
 		);
 
+		expect(writeFileSpy).toHaveBeenCalledOnce();
 		const [, content] = writeFileSpy.mock.calls[0] as [string, string];
 		expect(content).toContain('import type { GetEnv } from "@devicesdk/core"');
 	});

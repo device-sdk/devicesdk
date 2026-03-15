@@ -109,6 +109,14 @@ describe.sequential("Projects endpoint", () => {
 		expect(resp.status).toBe(400);
 	});
 
+	it("should return 401 without auth when listing projects", async () => {
+		const resp = await SELF.fetch("http://localhost/v1/projects", {
+			method: "GET",
+		});
+
+		expect(resp.status).toBe(401);
+	});
+
 	it("should list all projects for a user", async () => {
 		await qb
 			.insert<tableProjects>({
@@ -182,6 +190,17 @@ describe.sequential("Projects endpoint", () => {
 		expect(json.result.project_slug).toBe("existing-project-400");
 	});
 
+	it("should return 401 without auth when getting a single project", async () => {
+		const resp = await SELF.fetch(
+			"http://localhost/v1/projects/existing-project-400",
+			{
+				method: "GET",
+			},
+		);
+
+		expect(resp.status).toBe(401);
+	});
+
 	it("should return 404 when getting a non-existent project", async () => {
 		const resp = await SELF.fetch(
 			"http://localhost/v1/projects/does-not-exist",
@@ -239,6 +258,17 @@ describe.sequential("Projects endpoint", () => {
 			.execute()
 			.then((p) => p.results);
 		expect(deleted).toBeFalsy();
+	});
+
+	it("should return 401 without auth when deleting a project", async () => {
+		const resp = await SELF.fetch(
+			"http://localhost/v1/projects/project-to-delete",
+			{
+				method: "DELETE",
+			},
+		);
+
+		expect(resp.status).toBe(401);
 	});
 
 	it("should return 404 when deleting a non-existent project", async () => {

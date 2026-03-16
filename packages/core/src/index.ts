@@ -329,7 +329,7 @@ export class DeviceEntrypoint<Env = GetEnv> {
 	 *
 	 * @example
 	 * crons = {
-	 *   heartbeat: '*/5 * * * *',  // every 5 minutes
+	 *   heartbeat: '0-59/5 * * * *', // every 5 minutes (step notation)
 	 *   dailyReport: '0 8 * * *',    // every day at 08:00 UTC
 	 * };
 	 */

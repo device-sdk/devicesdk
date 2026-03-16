@@ -102,12 +102,6 @@ export default async function status(
 			return { device, s };
 		});
 
-		// Pre-compute formatted last-seen strings once for consistent Date.now() snapshot.
-		// Use error sentinel for devices whose fetch failed.
-		const formattedLastSeen = results.map((r) =>
-			r.status === "fulfilled" ? formatLastSeen(r.value) : "✗ error",
-		);
-
 		// Compute column widths from successfully fetched statuses only
 		const maxDeviceLen = Math.max(
 			6, // "DEVICE"
@@ -140,7 +134,7 @@ export default async function status(
 			const version = formatVersion(s.current_version_id).padEnd(
 				maxVersionLen + 2,
 			);
-			const lastSeen = formattedLastSeen[i].padEnd(maxLastSeenLen);
+			const lastSeen = formatLastSeen(s).padEnd(maxLastSeenLen);
 
 			console.log(
 				`  ${device.device_id.padEnd(maxDeviceLen)}  ${dot}  ${version}  ${lastSeen}`,

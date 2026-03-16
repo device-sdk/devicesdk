@@ -147,9 +147,10 @@ export default app;
 export { BaseDevice as Device } from "./durableObjects/lib/device";
 export { DeviceSender } from "./durableObjects/lib/deviceSender";
 export { DevicesBridge } from "./durableObjects/lib/devicesBridge";
-// Test-only subclass — exposes seedCronStorage/getScheduledAlarmTime helpers for
-// integration tests. Bound as TEST_DEVICE in the miniflare/vitest config.
-// Not intended for use in production Workers.
+// TEST ONLY — do NOT add TestDevice to wrangler.jsonc durable_objects.bindings.
+// It bypasses internal guards and must never be deployed as a production DO binding.
+// Exported here solely because miniflare requires DO classes to come from the main
+// worker script; auxiliary worker TypeScript resolution is not supported by miniflare.
 export { TestDevice } from "./durableObjects/lib/testDevice";
 
 // export default Sentry.withSentry(

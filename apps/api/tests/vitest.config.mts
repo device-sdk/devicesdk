@@ -27,6 +27,13 @@ export default defineWorkersConfig({
 						ENV: "production",
 						SALT_TOKEN: "test-salt-token",
 					},
+					durableObjects: {
+						// TestDevice exposes test-only helpers (seedCronStorage,
+						// getScheduledAlarmTime) that are not on the production Device class.
+						// It must be exported from the main worker script so miniflare can
+						// resolve it here; see src/index.ts for the corresponding export.
+						TEST_DEVICE: "TestDevice",
+					},
 				},
 			},
 		},

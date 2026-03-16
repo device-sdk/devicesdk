@@ -320,6 +320,21 @@ export class DeviceEntrypoint<Env = GetEnv> {
 	ctx: Content;
 	env: Env;
 
+	/**
+	 * Named cron schedules for this device script.
+	 *
+	 * Keys are arbitrary schedule names; values are standard 5-field cron expressions
+	 * (minute hour dom month dow, all in UTC). When a cron fires, `onCron` is called
+	 * with the matching name.
+	 *
+	 * @example
+	 * crons = {
+	 *   heartbeat: '0-59/5 * * * *', // every 5 minutes (step notation)
+	 *   dailyReport: '0 8 * * *',    // every day at 08:00 UTC
+	 * };
+	 */
+	crons?: Record<string, string>;
+
 	constructor(ctx: Content, env: Env) {
 		this.ctx = ctx;
 		this.env = env;
@@ -338,5 +353,15 @@ export class DeviceEntrypoint<Env = GetEnv> {
 	// Called when a message is received from the device
 	onMessage(_message: DeviceResponse) {
 		return;
+	}
+
+	/**
+	 * Called when a named cron defined in `crons` fires.
+	 * Override this method to handle scheduled work.
+	 *
+	 * @param name - The key from the `crons` object that triggered this call.
+	 */
+	onCron(_name: string): Promise<void> {
+		return Promise.resolve();
 	}
 }

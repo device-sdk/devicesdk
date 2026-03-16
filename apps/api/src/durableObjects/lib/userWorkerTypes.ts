@@ -21,6 +21,12 @@ export interface IUserDeviceWorker {
 		args: unknown[],
 		callDepth?: number,
 	): Promise<unknown>;
+
+	// Returns the cron schedule definitions (name → cron expression)
+	getCrons?(): Promise<Record<string, string>>;
+
+	// Called when a named cron fires
+	onCron?(name: string): Promise<void>;
 }
 
 // KV storage interface for user code

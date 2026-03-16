@@ -69,7 +69,7 @@ export default async function status(
 		if (devices.length === 0) {
 			console.log(`Project: ${projectId}\n`);
 			console.log("No devices found.");
-			process.exit(3);
+			return;
 		}
 
 		// Filter by device if requested
@@ -80,29 +80,29 @@ export default async function status(
 				console.error(
 					`✗ Device "${options.device}" not found in project "${projectId}".`,
 				);
-				process.exit(3);
+				process.exit(1);
 			}
 		}
 
-		// Fetch live status for each device in parallel; partial failures show as offline
+		// Fetch live status for each device in parallel; partial failures show as error
 		const settledStatuses = await Promise.allSettled(
 			devicesToShow.map((d) => getDeviceStatus(token, projectId, d.device_id)),
 		);
 		const rows = devicesToShow.map((device, i) => {
 			const result = settledStatuses[i];
-			const s: DeviceStatus =
-				result.status === "fulfilled"
-					? result.value
-					: {
-							connected: false,
-							connected_since: null,
-							last_connected_at: null,
-							current_version_id: null,
-						};
-			return { device, s };
+			const errored = result.status === "rejected";
+			const s: DeviceStatus = errored
+				? {
+						connected: false,
+						connected_since: null,
+						last_connected_at: null,
+						current_version_id: null,
+					}
+				: result.value;
+			return { device, s, errored };
 		});
 
-		// Compute column widths
+		// Compute column widths from successfully fetched statuses only
 		const maxDeviceLen = Math.max(
 			6, // "DEVICE"
 			...rows.map(({ device }) => device.device_id.length),
@@ -129,8 +129,12 @@ export default async function status(
 		console.log(divider);
 
 		// Print each device row
-		for (const { device, s } of rows) {
-			const dot = s.connected ? "● online " : "○ offline";
+		for (const { device, s, errored } of rows) {
+			const dot = errored
+				? "⚠ error  "
+				: s.connected
+					? "● online "
+					: "○ offline";
 			const version = formatVersion(s.current_version_id).padEnd(
 				maxVersionLen + 2,
 			);

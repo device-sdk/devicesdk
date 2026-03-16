@@ -14,7 +14,32 @@ import {
 } from "../../foundation/consts";
 import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
+import { type CronStorage, resolveDueCrons } from "./cronDispatch";
+import { nextCronTime } from "./cronParser";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
+
+// Storage key for persisted cron schedule state.
+// Uses the __internal: prefix which is blocked in kvPut/kvGet/kvDelete so user
+// code cannot accidentally corrupt scheduler state.
+export const CRON_STORAGE_KEY = "__internal:cron_schedules";
+
+/** Returns the earliest nextFireAt across all schedules. */
+function earliestFireTime(schedules: CronStorage): number {
+	return Object.values(schedules).reduce(
+		(min, s) => Math.min(min, s.nextFireAt),
+		Infinity,
+	);
+}
+
+// Storage key for the WebSocket connection timestamp.
+// Written on connect and deleted on disconnect. Not currently read back — the
+// in-memory `_connectedSince` field is used for live requests. This persists
+// to durable storage so that a future hibernation-recovery path can restore
+// the connection timestamp without requiring the client to reconnect.
+export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
+
+// Prefix reserved for internal DO storage keys; blocked from user-facing kv API
+const INTERNAL_KEY_PREFIX = "__internal:";
 
 // Represents the WebSocket connection to the device.
 interface DeviceSession {
@@ -113,6 +138,8 @@ export class BaseDevice extends DurableObject<Env> {
 		this.ctx.acceptWebSocket(server);
 		this._session = { websocket: server };
 		this._connectedSince = Date.now();
+
+		await this.ctx.storage.put(CONNECTED_SINCE_KEY, Date.now());
 
 		return new Response(null, {
 			status: 101,
@@ -358,6 +385,12 @@ export class BaseDevice extends DurableObject<Env> {
 				} catch (error) {
 					console.error("Error in user worker onDeviceConnect:", error);
 				}
+				// Initialize cron schedules from the user script after connect
+				try {
+					await this.initializeCrons(userWorker);
+				} catch (error) {
+					console.error("Error initializing cron schedules:", error);
+				}
 				return;
 			}
 
@@ -430,6 +463,8 @@ export class BaseDevice extends DurableObject<Env> {
 		this._session = undefined;
 		this._connectedSince = undefined;
 
+		await this.ctx.storage.delete(CONNECTED_SINCE_KEY);
+
 		// Clean up the user worker (restore it first if needed)
 		const worker = await this.getOrCreateUserWorker();
 		if (worker) {
@@ -443,31 +478,209 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * Handle alarms - forward to user worker if available
+	 * Reads the user worker's cron definitions, updates DO storage, and schedules
+	 * the next DO alarm for the earliest pending cron. Called after onDeviceConnect.
+	 */
+	protected async initializeCrons(
+		userWorker: IUserDeviceWorker,
+	): Promise<void> {
+		const crons = userWorker.getCrons ? await userWorker.getCrons() : {};
+
+		if (!crons || Object.keys(crons).length === 0) {
+			// No crons defined — clear any previously stored schedule and cancel any pending alarm
+			await this.ctx.storage.delete(CRON_STORAGE_KEY);
+			await this.ctx.storage.deleteAlarm();
+			return;
+		}
+
+		const now = Date.now();
+		// Read existing schedule so we can preserve nextFireAt for unchanged entries.
+		// This prevents a reconnect from pushing a cron's next fire time out by a full
+		// period (e.g. a watchdog that fires every minute won't be delayed by a reconnect
+		// that happens 58 seconds in).
+		const existing =
+			(await this.ctx.storage.get<CronStorage>(CRON_STORAGE_KEY)) ?? {};
+		const storage: CronStorage = {};
+
+		for (const [name, expr] of Object.entries(crons)) {
+			try {
+				const prev = existing[name];
+				// Preserve the scheduled fire time if the cron expression hasn't changed
+				const nextFireAt =
+					prev && prev.cron === expr
+						? prev.nextFireAt
+						: nextCronTime(expr, now);
+				storage[name] = { cron: expr, nextFireAt };
+			} catch (err) {
+				console.error(`Invalid cron expression for "${name}": ${err}`);
+			}
+		}
+
+		if (Object.keys(storage).length === 0) {
+			// All cron expressions were invalid — clear any stale schedule so old crons
+			// don't keep firing with now-invalid expressions.
+			await this.ctx.storage.delete(CRON_STORAGE_KEY);
+			await this.ctx.storage.deleteAlarm();
+			return;
+		}
+
+		await this.ctx.storage.put(CRON_STORAGE_KEY, storage);
+
+		await this.ctx.storage.setAlarm(earliestFireTime(storage));
+	}
+
+	/**
+	 * Handle alarms — dispatches named cron handlers defined in the user script.
+	 * After firing due crons, recalculates next fire times and reschedules the alarm.
+	 *
+	 * The pure dispatch logic (schedule sync + due-cron resolution) lives in
+	 * `resolveDueCrons()` in cronDispatch.ts so it can be unit-tested without a
+	 * Durable Object context or LOADER binding.
 	 */
 	async alarm(): Promise<void> {
-		const userWorker = await this.getOrCreateUserWorker();
-		if (userWorker?.onAlarm) {
+		const schedules = await this.ctx.storage.get<CronStorage>(CRON_STORAGE_KEY);
+
+		if (!schedules || Object.keys(schedules).length === 0) {
+			// No cron schedules — fall back to legacy onAlarm if defined
+			let legacyWorker: IUserDeviceWorker | null = null;
 			try {
-				await userWorker.onAlarm();
-			} catch (error) {
-				console.error("Error in user worker onAlarm:", error);
+				legacyWorker = await this.getOrCreateUserWorker();
+			} catch (err) {
+				console.error("Worker unavailable during alarm (legacy path):", err);
+				return;
 			}
+			if (legacyWorker?.onAlarm) {
+				try {
+					await legacyWorker.onAlarm();
+				} catch (error) {
+					console.error("Error in user worker onAlarm:", error);
+				}
+			}
+			return;
+		}
+
+		const now = Date.now();
+
+		// Guard: if the worker is unavailable, reschedule without advancing so cron
+		// firings are not silently lost. The alarm will retry when the next
+		// nextFireAt arrives (or after 60 s minimum).
+		let userWorker: IUserDeviceWorker | null;
+		try {
+			userWorker = await this.getOrCreateUserWorker();
+		} catch (err) {
+			console.error(
+				"Worker unavailable during alarm — rescheduling without advancing cron schedule:",
+				err,
+			);
+			await this.ctx.storage.setAlarm(
+				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
+			);
+			return;
+		}
+
+		// Guard: getOrCreateUserWorker could theoretically return null (e.g. if the
+		// implementation changes). Treat null like an exception — reschedule without
+		// advancing so cron firings are not silently lost.
+		if (userWorker === null) {
+			console.error(
+				"Worker returned null during alarm — rescheduling without advancing cron schedule",
+			);
+			await this.ctx.storage.setAlarm(
+				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
+			);
+			return;
+		}
+
+		// Resolve which crons are due and get the updated schedule.
+		// Uses the user script's current cron definitions if available so that
+		// added/removed/changed crons are reflected without requiring a reconnect.
+		// Wrapped in try/catch: if the RPC throws (e.g. worker evicted mid-alarm),
+		// fall back to stored cron expressions so no firings are silently lost.
+		let currentCrons: Record<string, string>;
+		try {
+			currentCrons = userWorker.getCrons
+				? await userWorker.getCrons()
+				: Object.fromEntries(
+						Object.entries(schedules).map(([name, e]) => [name, e.cron]),
+					);
+		} catch (err) {
+			console.error(
+				"getCrons() RPC failed during alarm — falling back to stored cron expressions:",
+				err,
+			);
+			currentCrons = Object.fromEntries(
+				Object.entries(schedules).map(([name, e]) => [name, e.cron]),
+			);
+		}
+
+		let due: string[];
+		let updated: CronStorage;
+		try {
+			({ due, updated } = resolveDueCrons(
+				schedules,
+				currentCrons,
+				now,
+				nextCronTime,
+			));
+		} catch (err) {
+			// Invalid cron expression in user script — reschedule without advancing
+			// so no firings are permanently lost. The script can be fixed and redeployed.
+			console.error(
+				"Error resolving due crons — rescheduling without advancing:",
+				err,
+			);
+			await this.ctx.storage.setAlarm(
+				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
+			);
+			return;
+		}
+
+		// Dispatch onCron for each due schedule
+		for (const name of due) {
+			if (userWorker.onCron) {
+				try {
+					await userWorker.onCron(name);
+				} catch (error) {
+					console.error(`Error in user worker onCron("${name}"):`, error);
+				}
+			}
+		}
+
+		// Persist updated schedule and reschedule the next alarm
+		if (Object.keys(updated).length > 0) {
+			await this.ctx.storage.put(CRON_STORAGE_KEY, updated);
+			await this.ctx.storage.setAlarm(earliestFireTime(updated));
+		} else {
+			// All crons were removed — clear stored schedule and cancel the
+			// now-orphaned alarm so it doesn't fire a ghost wake-up.
+			await this.ctx.storage.delete(CRON_STORAGE_KEY);
+			await this.ctx.storage.deleteAlarm();
 		}
 	}
 
 	/**
-	 * KV storage methods for user scripts
+	 * KV storage methods for user scripts.
+	 * Keys starting with `__internal:` are reserved for internal use and are blocked.
 	 */
 	async kvGet<T = unknown>(key: string): Promise<T | undefined> {
+		if (key.startsWith(INTERNAL_KEY_PREFIX)) {
+			throw new Error(`Key "${key}" is reserved for internal use`);
+		}
 		return this.ctx.storage.get<T>(key);
 	}
 
 	async kvPut<T>(key: string, value: T): Promise<void> {
+		if (key.startsWith(INTERNAL_KEY_PREFIX)) {
+			throw new Error(`Key "${key}" is reserved for internal use`);
+		}
 		await this.ctx.storage.put(key, value);
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
+		// Returns false (no-op) rather than throwing — deletes are idempotent,
+		// so silently ignoring an attempt to delete a reserved key is safe.
+		// kvGet and kvPut throw for reserved keys to prevent accidental reads/writes.
+		if (key.startsWith(INTERNAL_KEY_PREFIX)) return false;
 		return this.ctx.storage.delete(key);
 	}
 

@@ -1,4 +1,4 @@
-import * as readline from "readline";
+import * as readline from "node:readline";
 import {
 	type DeviceCommandRequest,
 	type DeviceCommandResponse,
@@ -38,7 +38,7 @@ export function parseCommand(input: string): ParseResult | ParseError {
 	// gpio read <pin>
 	if (cmd === "gpio" && parts[1] === "read") {
 		const pin = parseInt(parts[2], 10);
-		if (isNaN(pin)) return { error: `Invalid pin number: ${parts[2]}` };
+		if (Number.isNaN(pin)) return { error: `Invalid pin number: ${parts[2]}` };
 		return {
 			command: { type: "get_pin_state", payload: { pin, mode: "digital" } },
 		};
@@ -47,7 +47,7 @@ export function parseCommand(input: string): ParseResult | ParseError {
 	// gpio write <pin> high|low
 	if (cmd === "gpio" && parts[1] === "write") {
 		const pin = parseInt(parts[2], 10);
-		if (isNaN(pin)) return { error: `Invalid pin number: ${parts[2]}` };
+		if (Number.isNaN(pin)) return { error: `Invalid pin number: ${parts[2]}` };
 		const state = parts[3]?.toLowerCase();
 		if (state !== "high" && state !== "low") {
 			return {
@@ -62,7 +62,7 @@ export function parseCommand(input: string): ParseResult | ParseError {
 	// adc read <pin>
 	if (cmd === "adc" && parts[1] === "read") {
 		const pin = parseInt(parts[2], 10);
-		if (isNaN(pin)) return { error: `Invalid pin number: ${parts[2]}` };
+		if (Number.isNaN(pin)) return { error: `Invalid pin number: ${parts[2]}` };
 		return {
 			command: { type: "get_pin_state", payload: { pin, mode: "analog" } },
 		};
@@ -73,9 +73,11 @@ export function parseCommand(input: string): ParseResult | ParseError {
 		const pin = parseInt(parts[1], 10);
 		const frequency = parseInt(parts[2], 10);
 		const duty_cycle = parseFloat(parts[3]);
-		if (isNaN(pin)) return { error: `Invalid pin number: ${parts[1]}` };
-		if (isNaN(frequency)) return { error: `Invalid frequency: ${parts[2]}` };
-		if (isNaN(duty_cycle)) return { error: `Invalid duty cycle: ${parts[3]}` };
+		if (Number.isNaN(pin)) return { error: `Invalid pin number: ${parts[1]}` };
+		if (Number.isNaN(frequency))
+			return { error: `Invalid frequency: ${parts[2]}` };
+		if (Number.isNaN(duty_cycle))
+			return { error: `Invalid duty cycle: ${parts[3]}` };
 		return {
 			command: {
 				type: "set_pwm_state",
@@ -87,7 +89,7 @@ export function parseCommand(input: string): ParseResult | ParseError {
 	// i2c scan [bus]
 	if (cmd === "i2c" && parts[1] === "scan") {
 		const bus = parts[2] !== undefined ? parseInt(parts[2], 10) : 0;
-		if (isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
+		if (Number.isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
 		return {
 			command: { type: "i2c_scan", payload: { bus } },
 		};
@@ -98,13 +100,14 @@ export function parseCommand(input: string): ParseResult | ParseError {
 		const bus = parseInt(parts[2], 10);
 		const sda_pin = parseInt(parts[3], 10);
 		const scl_pin = parseInt(parts[4], 10);
-		if (isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
-		if (isNaN(sda_pin)) return { error: `Invalid SDA pin: ${parts[3]}` };
-		if (isNaN(scl_pin)) return { error: `Invalid SCL pin: ${parts[4]}` };
+		if (Number.isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
+		if (Number.isNaN(sda_pin)) return { error: `Invalid SDA pin: ${parts[3]}` };
+		if (Number.isNaN(scl_pin)) return { error: `Invalid SCL pin: ${parts[4]}` };
 		const payload: Record<string, unknown> = { bus, sda_pin, scl_pin };
 		if (parts[5] !== undefined) {
 			const frequency = parseInt(parts[5], 10);
-			if (isNaN(frequency)) return { error: `Invalid frequency: ${parts[5]}` };
+			if (Number.isNaN(frequency))
+				return { error: `Invalid frequency: ${parts[5]}` };
 			payload.frequency = frequency;
 		}
 		return { command: { type: "i2c_configure", payload } };
@@ -115,9 +118,9 @@ export function parseCommand(input: string): ParseResult | ParseError {
 		const bus = parseInt(parts[2], 10);
 		const address = parts[3];
 		const bytes_to_read = parseInt(parts[4], 10);
-		if (isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
+		if (Number.isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
 		if (!address) return { error: "Missing I2C address" };
-		if (isNaN(bytes_to_read))
+		if (Number.isNaN(bytes_to_read))
 			return { error: `Invalid byte count: ${parts[4]}` };
 		const payload: Record<string, unknown> = { bus, address, bytes_to_read };
 		if (parts[5] !== undefined) {
@@ -130,7 +133,7 @@ export function parseCommand(input: string): ParseResult | ParseError {
 	if (cmd === "i2c" && parts[1] === "write") {
 		const bus = parseInt(parts[2], 10);
 		const address = parts[3];
-		if (isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
+		if (Number.isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
 		if (!address) return { error: "Missing I2C address" };
 		const data = parts.slice(4);
 		if (data.length === 0) return { error: "Missing data bytes to write" };
@@ -142,7 +145,7 @@ export function parseCommand(input: string): ParseResult | ParseError {
 	// monitor <pin> [pull]
 	if (cmd === "monitor") {
 		const pin = parseInt(parts[1], 10);
-		if (isNaN(pin)) return { error: `Invalid pin number: ${parts[1]}` };
+		if (Number.isNaN(pin)) return { error: `Invalid pin number: ${parts[1]}` };
 		const payload: Record<string, unknown> = { pin, enable: true };
 		if (parts[2] !== undefined) {
 			const pull = parts[2].toLowerCase();

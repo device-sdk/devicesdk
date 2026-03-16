@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DeviceSDKApiError } from "../api.js";
 import status from "./status.js";
 
 vi.mock("../credentials.js", () => ({

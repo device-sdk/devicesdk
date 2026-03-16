@@ -23,6 +23,14 @@ import type { IUserDeviceWorker } from "./userWorkerTypes";
 // code cannot accidentally corrupt scheduler state.
 export const CRON_STORAGE_KEY = "__internal:cron_schedules";
 
+/** Returns the earliest nextFireAt across all schedules. */
+function earliestFireTime(schedules: CronStorage): number {
+	return Object.values(schedules).reduce(
+		(min, s) => Math.min(min, s.nextFireAt),
+		Infinity,
+	);
+}
+
 // Storage key for the WebSocket connection timestamp.
 export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
 
@@ -514,11 +522,7 @@ export class BaseDevice extends DurableObject<Env> {
 
 		await this.ctx.storage.put(CRON_STORAGE_KEY, storage);
 
-		const earliest = Object.values(storage).reduce(
-			(min, s) => Math.min(min, s.nextFireAt),
-			Infinity,
-		);
-		await this.ctx.storage.setAlarm(earliest);
+		await this.ctx.storage.setAlarm(earliestFireTime(storage));
 	}
 
 	/**
@@ -564,11 +568,9 @@ export class BaseDevice extends DurableObject<Env> {
 				"Worker unavailable during alarm — rescheduling without advancing cron schedule:",
 				err,
 			);
-			const earliest = Object.values(schedules).reduce(
-				(min, s) => Math.min(min, s.nextFireAt),
-				Infinity,
+			await this.ctx.storage.setAlarm(
+				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
 			);
-			await this.ctx.storage.setAlarm(Math.max(Date.now() + 60_000, earliest));
 			return;
 		}
 
@@ -579,11 +581,9 @@ export class BaseDevice extends DurableObject<Env> {
 			console.error(
 				"Worker returned null during alarm — rescheduling without advancing cron schedule",
 			);
-			const earliest = Object.values(schedules).reduce(
-				(min, s) => Math.min(min, s.nextFireAt),
-				Infinity,
+			await this.ctx.storage.setAlarm(
+				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
 			);
-			await this.ctx.storage.setAlarm(Math.max(Date.now() + 60_000, earliest));
 			return;
 		}
 
@@ -612,11 +612,9 @@ export class BaseDevice extends DurableObject<Env> {
 				"Error resolving due crons — rescheduling without advancing:",
 				err,
 			);
-			const earliest = Object.values(schedules).reduce(
-				(min, s) => Math.min(min, s.nextFireAt),
-				Infinity,
+			await this.ctx.storage.setAlarm(
+				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
 			);
-			await this.ctx.storage.setAlarm(Math.max(Date.now() + 60_000, earliest));
 			return;
 		}
 
@@ -634,11 +632,7 @@ export class BaseDevice extends DurableObject<Env> {
 		// Persist updated schedule and reschedule the next alarm
 		if (Object.keys(updated).length > 0) {
 			await this.ctx.storage.put(CRON_STORAGE_KEY, updated);
-			const earliest = Object.values(updated).reduce(
-				(min, s) => Math.min(min, s.nextFireAt),
-				Infinity,
-			);
-			await this.ctx.storage.setAlarm(earliest);
+			await this.ctx.storage.setAlarm(earliestFireTime(updated));
 		} else {
 			// All crons were removed — clear stored schedule and cancel the
 			// now-orphaned alarm so it doesn't fire a ghost wake-up.

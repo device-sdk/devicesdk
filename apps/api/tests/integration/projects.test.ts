@@ -86,7 +86,6 @@ describe.sequential("Projects endpoint", () => {
 		expect(resp.status).toBe(401);
 	});
 
-	// Skipped: chanfana 3.x correctly returns 400 for Zod validation failures,
 	it("should return 400 if project_slug is invalid format", async () => {
 		const resp = await SELF.fetch("http://localhost/v1/projects", {
 			method: "POST",
@@ -99,6 +98,9 @@ describe.sequential("Projects endpoint", () => {
 			}),
 		});
 		expect(resp.status).toBe(400);
+		const json = await resp.json();
+		expect(json.success).toBe(false);
+		expect(json.error).toContain("Invalid project_slug format");
 	});
 
 	it("should return 401 without auth when listing projects", async () => {

@@ -159,6 +159,7 @@ describe.sequential("Devices endpoint", () => {
 			expect(resp.status).toBe(400);
 			const json = await resp.json();
 			expect(json.success).toBe(false);
+			expect(json.error).toContain("Invalid device_id format");
 		});
 
 		it("should return 400 for device_id starting with a digit", async () => {
@@ -180,6 +181,7 @@ describe.sequential("Devices endpoint", () => {
 			expect(resp.status).toBe(400);
 			const json = await resp.json();
 			expect(json.success).toBe(false);
+			expect(json.error).toContain("Invalid device_id format");
 		});
 
 		it("should return 400 for device_id with spaces", async () => {
@@ -201,6 +203,7 @@ describe.sequential("Devices endpoint", () => {
 			expect(resp.status).toBe(400);
 			const json = await resp.json();
 			expect(json.success).toBe(false);
+			expect(json.error).toContain("Invalid device_id format");
 		});
 	});
 

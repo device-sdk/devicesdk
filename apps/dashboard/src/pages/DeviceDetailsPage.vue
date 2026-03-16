@@ -435,9 +435,10 @@ export default class BlinkDevice extends DeviceEntrypoint {
     this.ledOn = false;
     await this.env.DEVICE.setGpioState(LED_PIN, 'low');
 
-    this.blinkTimer = setInterval(async () => {
+    this.blinkTimer = setInterval(() => {
       this.ledOn = !this.ledOn;
-      await this.env.DEVICE.setGpioState(LED_PIN, this.ledOn ? 'high' : 'low');
+      this.env.DEVICE.setGpioState(LED_PIN, this.ledOn ? 'high' : 'low')
+        .catch((err) => console.error('Blink GPIO error:', err));
     }, INTERVAL_MS);
   }
 
@@ -594,7 +595,7 @@ export default class PwmMotorControl extends DeviceEntrypoint {
     console.info(\`PWM started on GP\${PWM_PIN} @ \${FREQUENCY} Hz — sweeping 5%–10%\`);
 
     // Sweep duty cycle back and forth
-    this.sweepTimer = setInterval(async () => {
+    this.sweepTimer = setInterval(() => {
       if (this.ascending) {
         this.dutyCycle = Math.min(0.10, this.dutyCycle + STEP_SIZE);
         if (this.dutyCycle >= 0.10) this.ascending = false;
@@ -602,7 +603,8 @@ export default class PwmMotorControl extends DeviceEntrypoint {
         this.dutyCycle = Math.max(0.05, this.dutyCycle - STEP_SIZE);
         if (this.dutyCycle <= 0.05) this.ascending = true;
       }
-      await this.env.DEVICE.setPwmState(PWM_PIN, FREQUENCY, this.dutyCycle);
+      this.env.DEVICE.setPwmState(PWM_PIN, FREQUENCY, this.dutyCycle)
+        .catch((err) => console.error('PWM sweep error:', err));
     }, STEP_MS);
   }
 

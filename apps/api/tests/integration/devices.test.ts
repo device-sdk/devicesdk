@@ -139,6 +139,69 @@ describe.sequential("Devices endpoint", () => {
 
 			expect(resp.status).toBe(401);
 		});
+
+		it("should return 400 for device_id with uppercase letters", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						device_id: "Sensor-1",
+						name: "Invalid Sensor",
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(400);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 400 for device_id starting with a digit", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						device_id: "1sensor",
+						name: "Invalid Sensor",
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(400);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
+
+		it("should return 400 for device_id with spaces", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						device_id: "my sensor",
+						name: "Invalid Sensor",
+					}),
+				},
+			);
+
+			expect(resp.status).toBe(400);
+			const json = await resp.json();
+			expect(json.success).toBe(false);
+		});
 	});
 
 	describe("GET /v1/projects/:projectId/devices", () => {

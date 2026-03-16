@@ -426,7 +426,7 @@ import { DeviceEntrypoint } from '@devicesdk/core';
 const LED_PIN = 99;          // Onboard LED (virtual pin 99)
 const INTERVAL_MS = 1000;    // Blink every 1 second
 
-export class BlinkDevice extends DeviceEntrypoint {
+export default class BlinkDevice extends DeviceEntrypoint {
   private blinkTimer: ReturnType<typeof setInterval> | null = null;
   private ledOn = false;
 
@@ -463,7 +463,7 @@ import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
 const TEMP_PIN = 26;               // GP26 (ADC0)
 const REPORT_INTERVAL_MS = 10_000; // Read every 10 seconds
 
-export class TemperatureMonitor extends DeviceEntrypoint {
+export default class TemperatureMonitor extends DeviceEntrypoint {
   async onDeviceConnect() {
     console.info('Temperature monitor connected');
 
@@ -489,9 +489,9 @@ export class TemperatureMonitor extends DeviceEntrypoint {
     if (message.type === 'pin_state_update' && message.payload.pin === TEMP_PIN) {
       const raw = message.payload.value;
 
-      // Convert raw ADC (0–65535 on Pico) → voltage → °C
+      // Convert raw ADC (0–4095 on Pico, 12-bit) → voltage → °C
       // Formula for MCP9700A: Vout = 500mV + 10mV/°C
-      const voltage = (raw / 65535) * 3.3;
+      const voltage = (raw / 4095) * 3.3;
       const tempC = (voltage - 0.5) / 0.01;
       const tempF = tempC * 1.8 + 32;
 
@@ -518,7 +518,7 @@ const SCL_PIN = 1;
 const BMP280_ADDRESS = '0x76';
 const READ_INTERVAL_MS = 5_000;
 
-export class I2CSensorReader extends DeviceEntrypoint {
+export default class I2CSensorReader extends DeviceEntrypoint {
   private readTimer: ReturnType<typeof setInterval> | null = null;
 
   async onDeviceConnect() {
@@ -534,7 +534,9 @@ export class I2CSensorReader extends DeviceEntrypoint {
     await this.env.DEVICE.i2cWrite(I2C_BUS, BMP280_ADDRESS, ['0xF4', '0xB7']);
     console.info('BMP280 initialised — reading every 5s');
 
-    this.readTimer = setInterval(() => this.readSensor(), READ_INTERVAL_MS);
+    this.readTimer = setInterval(() => {
+      this.readSensor().catch((err) => console.error('I2C read error:', err));
+    }, READ_INTERVAL_MS);
   }
 
   async onDeviceDisconnect() {
@@ -579,7 +581,7 @@ const FREQUENCY = 50;     // 50 Hz for standard servo
 const STEP_MS = 20;       // Step every 20ms
 const STEP_SIZE = 0.001;  // Duty cycle step (0.1% per tick)
 
-export class PwmMotorControl extends DeviceEntrypoint {
+export default class PwmMotorControl extends DeviceEntrypoint {
   private sweepTimer: ReturnType<typeof setInterval> | null = null;
   private dutyCycle = 0.05;   // Start at 5% (servo min position)
   private ascending = true;
@@ -594,10 +596,10 @@ export class PwmMotorControl extends DeviceEntrypoint {
     // Sweep duty cycle back and forth
     this.sweepTimer = setInterval(async () => {
       if (this.ascending) {
-        this.dutyCycle += STEP_SIZE;
+        this.dutyCycle = Math.min(0.10, this.dutyCycle + STEP_SIZE);
         if (this.dutyCycle >= 0.10) this.ascending = false;
       } else {
-        this.dutyCycle -= STEP_SIZE;
+        this.dutyCycle = Math.max(0.05, this.dutyCycle - STEP_SIZE);
         if (this.dutyCycle <= 0.05) this.ascending = true;
       }
       await this.env.DEVICE.setPwmState(PWM_PIN, FREQUENCY, this.dutyCycle);
@@ -626,7 +628,10 @@ import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
 const BUTTON_PIN = 20;  // GP20
 const LED_PIN = 99;     // Onboard LED (virtual pin 99)
 
-export class ButtonLedToggle extends DeviceEntrypoint {
+export default class ButtonLedToggle extends DeviceEntrypoint {
+  private lastPressAt = 0;
+  private readonly DEBOUNCE_MS = 50;
+
   // NOTE: Use DEVICE.kv for state that must survive reconnections.
   // Class properties are reset every time the device reconnects.
 
@@ -654,6 +659,10 @@ export class ButtonLedToggle extends DeviceEntrypoint {
       message.payload.pin === BUTTON_PIN &&
       message.payload.state === 'low'
     ) {
+      const now = Date.now();
+      if (now - this.lastPressAt < this.DEBOUNCE_MS) return;
+      this.lastPressAt = now;
+
       const ledOn = !((await this.env.DEVICE.kv.get<boolean>('ledOn')) ?? false);
 
       // Persist BEFORE updating hardware so state is never lost
@@ -678,7 +687,7 @@ import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
 // Pins to monitor — add or remove as needed
 const MONITORED_PINS: number[] = [16, 17];
 
-export class GpioInputMonitor extends DeviceEntrypoint {
+export default class GpioInputMonitor extends DeviceEntrypoint {
   async onDeviceConnect() {
     console.info('GPIO input monitor connected');
 

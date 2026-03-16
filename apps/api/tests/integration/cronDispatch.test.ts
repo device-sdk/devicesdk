@@ -13,8 +13,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-	resolveDueCrons,
 	type CronStorage,
+	resolveDueCrons,
 } from "../../src/durableObjects/lib/cronDispatch";
 
 // A simple stub for computeNext that returns `after + interval`.
@@ -29,7 +29,12 @@ describe("resolveDueCrons — due detection", () => {
 		const stored: CronStorage = {
 			heartbeat: { cron: "*/5 * * * *", nextFireAt: NOW + 1000 },
 		};
-		const { due } = resolveDueCrons(stored, { heartbeat: "*/5 * * * *" }, NOW, stubComputeNext);
+		const { due } = resolveDueCrons(
+			stored,
+			{ heartbeat: "*/5 * * * *" },
+			NOW,
+			stubComputeNext,
+		);
 		expect(due).toEqual([]);
 	});
 
@@ -37,7 +42,12 @@ describe("resolveDueCrons — due detection", () => {
 		const stored: CronStorage = {
 			heartbeat: { cron: "*/5 * * * *", nextFireAt: NOW },
 		};
-		const { due } = resolveDueCrons(stored, { heartbeat: "*/5 * * * *" }, NOW, stubComputeNext);
+		const { due } = resolveDueCrons(
+			stored,
+			{ heartbeat: "*/5 * * * *" },
+			NOW,
+			stubComputeNext,
+		);
 		expect(due).toContain("heartbeat");
 	});
 
@@ -45,14 +55,19 @@ describe("resolveDueCrons — due detection", () => {
 		const stored: CronStorage = {
 			heartbeat: { cron: "*/5 * * * *", nextFireAt: NOW - 1 },
 		};
-		const { due } = resolveDueCrons(stored, { heartbeat: "*/5 * * * *" }, NOW, stubComputeNext);
+		const { due } = resolveDueCrons(
+			stored,
+			{ heartbeat: "*/5 * * * *" },
+			NOW,
+			stubComputeNext,
+		);
 		expect(due).toContain("heartbeat");
 	});
 
 	it("returns multiple due crons when several are past their nextFireAt", () => {
 		const stored: CronStorage = {
 			heartbeat: { cron: "*/5 * * * *", nextFireAt: NOW - 100 },
-			report:    { cron: "0 8 * * *",   nextFireAt: NOW - 200 },
+			report: { cron: "0 8 * * *", nextFireAt: NOW - 200 },
 		};
 		const { due } = resolveDueCrons(
 			stored,
@@ -67,8 +82,8 @@ describe("resolveDueCrons — due detection", () => {
 
 	it("only returns due crons, leaving non-due ones absent from due list", () => {
 		const stored: CronStorage = {
-			due:    { cron: "*/5 * * * *", nextFireAt: NOW - 1 },
-			notDue: { cron: "0 8 * * *",   nextFireAt: NOW + 10_000 },
+			due: { cron: "*/5 * * * *", nextFireAt: NOW - 1 },
+			notDue: { cron: "0 8 * * *", nextFireAt: NOW + 10_000 },
 		};
 		const { due } = resolveDueCrons(
 			stored,
@@ -174,7 +189,7 @@ describe("resolveDueCrons — schedule sync", () => {
 	it("handles empty currentCrons (all crons removed)", () => {
 		const stored: CronStorage = {
 			heartbeat: { cron: "*/5 * * * *", nextFireAt: NOW - 1 },
-			report:    { cron: "0 8 * * *",   nextFireAt: NOW - 1 },
+			report: { cron: "0 8 * * *", nextFireAt: NOW - 1 },
 		};
 		const { due, updated } = resolveDueCrons(stored, {}, NOW, stubComputeNext);
 		expect(due).toHaveLength(0);
@@ -185,16 +200,21 @@ describe("resolveDueCrons — schedule sync", () => {
 describe("resolveDueCrons — combined scenarios", () => {
 	it("fires due cron, preserves future cron, drops removed cron, adds new cron", () => {
 		const stored: CronStorage = {
-			due:     { cron: "*/5 * * * *", nextFireAt: NOW - 100 },
-			future:  { cron: "0 8 * * *",   nextFireAt: NOW + 3600_000 },
-			removed: { cron: "1 1 * * *",   nextFireAt: NOW + 1000 },
+			due: { cron: "*/5 * * * *", nextFireAt: NOW - 100 },
+			future: { cron: "0 8 * * *", nextFireAt: NOW + 3600_000 },
+			removed: { cron: "1 1 * * *", nextFireAt: NOW + 1000 },
 		};
 		const currentCrons = {
-			due:     "*/5 * * * *",
-			future:  "0 8 * * *",
+			due: "*/5 * * * *",
+			future: "0 8 * * *",
 			newCron: "30 12 * * *",
 		};
-		const { due, updated } = resolveDueCrons(stored, currentCrons, NOW, stubComputeNext);
+		const { due, updated } = resolveDueCrons(
+			stored,
+			currentCrons,
+			NOW,
+			stubComputeNext,
+		);
 
 		expect(due).toEqual(["due"]);
 		expect(updated.due.nextFireAt).toBe(NOW + INTERVAL); // advanced

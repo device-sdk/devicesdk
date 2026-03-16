@@ -69,7 +69,7 @@ export default async function status(
 		if (devices.length === 0) {
 			console.log(`Project: ${projectId}\n`);
 			console.log("No devices found.");
-			process.exit(3);
+			return;
 		}
 
 		// Filter by device if requested

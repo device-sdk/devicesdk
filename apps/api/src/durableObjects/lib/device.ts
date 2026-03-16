@@ -14,8 +14,8 @@ import {
 } from "../../foundation/consts";
 import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
+import { type CronStorage, resolveDueCrons } from "./cronDispatch";
 import { nextCronTime } from "./cronParser";
-import { resolveDueCrons, type CronStorage } from "./cronDispatch";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
 
 // Storage key for persisted cron schedule state.
@@ -469,7 +469,9 @@ export class BaseDevice extends DurableObject<Env> {
 	 * Reads the user worker's cron definitions, updates DO storage, and schedules
 	 * the next DO alarm for the earliest pending cron. Called after onDeviceConnect.
 	 */
-	protected async initializeCrons(userWorker: IUserDeviceWorker): Promise<void> {
+	protected async initializeCrons(
+		userWorker: IUserDeviceWorker,
+	): Promise<void> {
 		const crons = userWorker.getCrons ? await userWorker.getCrons() : {};
 
 		if (!crons || Object.keys(crons).length === 0) {
@@ -493,7 +495,9 @@ export class BaseDevice extends DurableObject<Env> {
 				const prev = existing[name];
 				// Preserve the scheduled fire time if the cron expression hasn't changed
 				const nextFireAt =
-					prev && prev.cron === expr ? prev.nextFireAt : nextCronTime(expr, now);
+					prev && prev.cron === expr
+						? prev.nextFireAt
+						: nextCronTime(expr, now);
 				storage[name] = { cron: expr, nextFireAt };
 			} catch (err) {
 				console.error(`Invalid cron expression for "${name}": ${err}`);
@@ -590,7 +594,7 @@ export class BaseDevice extends DurableObject<Env> {
 			? await userWorker.getCrons()
 			: Object.fromEntries(
 					Object.entries(schedules).map(([name, e]) => [name, e.cron]),
-			  );
+				);
 
 		let due: string[];
 		let updated: CronStorage;
@@ -618,7 +622,7 @@ export class BaseDevice extends DurableObject<Env> {
 
 		// Dispatch onCron for each due schedule
 		for (const name of due) {
-			if (userWorker?.onCron) {
+			if (userWorker.onCron) {
 				try {
 					await userWorker.onCron(name);
 				} catch (error) {
@@ -636,7 +640,10 @@ export class BaseDevice extends DurableObject<Env> {
 			);
 			await this.ctx.storage.setAlarm(earliest);
 		} else {
+			// All crons were removed — clear stored schedule and cancel the
+			// now-orphaned alarm so it doesn't fire a ghost wake-up.
 			await this.ctx.storage.delete(CRON_STORAGE_KEY);
+			await this.ctx.storage.deleteAlarm();
 		}
 	}
 
@@ -659,6 +666,9 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
+		// Returns false (no-op) rather than throwing — deletes are idempotent,
+		// so silently ignoring an attempt to delete a reserved key is safe.
+		// kvGet and kvPut throw for reserved keys to prevent accidental reads/writes.
 		if (key.startsWith(INTERNAL_KEY_PREFIX)) return false;
 		return this.ctx.storage.delete(key);
 	}

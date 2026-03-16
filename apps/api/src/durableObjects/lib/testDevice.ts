@@ -9,8 +9,8 @@
  * Usage: bind TEST_DEVICE → TestDevice in the miniflare/vitest config.
  */
 
-import { BaseDevice, CRON_STORAGE_KEY } from "./device";
 import type { CronStorage } from "./cronDispatch";
+import { BaseDevice, CRON_STORAGE_KEY } from "./device";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
 
 export class TestDevice extends BaseDevice {
@@ -22,6 +22,15 @@ export class TestDevice extends BaseDevice {
 	}
 
 	/**
+	 * Triggers the DO alarm handler directly.
+	 * `alarm` is a reserved DO lifecycle method and cannot be called over JSRPC;
+	 * this wrapper delegates to it so tests can invoke the alarm path.
+	 */
+	async triggerAlarm(): Promise<void> {
+		await this.alarm();
+	}
+
+	/**
 	 * Seeds the internal cron storage directly, bypassing the KV guard.
 	 * Pass null to clear the schedule.
 	 */
@@ -30,6 +39,38 @@ export class TestDevice extends BaseDevice {
 			await this.ctx.storage.delete(CRON_STORAGE_KEY);
 		} else {
 			await this.ctx.storage.put(CRON_STORAGE_KEY, storage);
+		}
+	}
+
+	/**
+	 * testKvPut: wraps kvPut and returns the error message instead of throwing.
+	 *
+	 * When a DO method throws synchronously, the workerd I/O framework logs an
+	 * "uncaught exception" before the rejection propagates to the test. This breaks
+	 * vitest-pool-workers' isolated storage cleanup. Returning the error as a value
+	 * avoids the workerd-level exception while still letting tests verify the guard.
+	 */
+	async testKvPut<T>(key: string, value: T): Promise<string | null> {
+		try {
+			await this.kvPut(key, value);
+			return null;
+		} catch (e) {
+			return (e as Error).message;
+		}
+	}
+
+	/**
+	 * testKvGet: wraps kvGet and returns the error message instead of throwing.
+	 * See testKvPut for the rationale.
+	 */
+	async testKvGet<T = unknown>(
+		key: string,
+	): Promise<{ value: T | undefined; error: string | null }> {
+		try {
+			const value = await this.kvGet<T>(key);
+			return { value, error: null };
+		} catch (e) {
+			return { value: undefined, error: (e as Error).message };
 		}
 	}
 

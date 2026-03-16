@@ -37,12 +37,16 @@ let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
 	consoleOutput = [];
 	consoleErrors = [];
-	consoleLogSpy = vi.spyOn(console, "log").mockImplementation((...args: any[]) => {
-		consoleOutput.push(args.join(" "));
-	});
-	consoleErrorSpy = vi.spyOn(console, "error").mockImplementation((...args: any[]) => {
-		consoleErrors.push(args.join(" "));
-	});
+	consoleLogSpy = vi
+		.spyOn(console, "log")
+		.mockImplementation((...args: any[]) => {
+			consoleOutput.push(args.join(" "));
+		});
+	consoleErrorSpy = vi
+		.spyOn(console, "error")
+		.mockImplementation((...args: any[]) => {
+			consoleErrors.push(args.join(" "));
+		});
 });
 
 afterEach(() => {
@@ -185,9 +189,9 @@ describe("status command — device filtering", () => {
 			"process.exit called",
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
-		expect(
-			consoleErrors.some((line) => line.includes("nonexistent")),
-		).toBe(true);
+		expect(consoleErrors.some((line) => line.includes("nonexistent"))).toBe(
+			true,
+		);
 
 		exitSpy.mockRestore();
 	});

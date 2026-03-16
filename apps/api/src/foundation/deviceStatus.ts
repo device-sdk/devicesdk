@@ -23,10 +23,11 @@ export async function getDeviceConnectionStatus(
 	try {
 		return await stub.getConnectionStatus();
 	} catch (err) {
-		// Log unexpected errors so they are visible in DO logs; the most common
-		// case is a DO that was never initialized (device has never connected).
-		console.error(
-			`getDeviceConnectionStatus failed for device ${deviceId} in project ${projectId}:`,
+		// Most common case: DO not yet initialized (device has never connected).
+		// Log at debug level — this is expected, not an error condition.
+		// Genuine RPC failures also land here; inspect `err` to escalate if needed.
+		console.debug(
+			`getDeviceConnectionStatus: DO unreachable for ${deviceId} in ${projectId} — likely never connected`,
 			err,
 		);
 		return { connected: false, connectedSince: null };

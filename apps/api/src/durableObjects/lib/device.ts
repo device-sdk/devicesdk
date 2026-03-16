@@ -32,6 +32,10 @@ function earliestFireTime(schedules: CronStorage): number {
 }
 
 // Storage key for the WebSocket connection timestamp.
+// Written on connect and deleted on disconnect. Not currently read back — the
+// in-memory `_connectedSince` field is used for live requests. This persists
+// to durable storage so that a future hibernation-recovery path can restore
+// the connection timestamp without requiring the client to reconnect.
 export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
 
 // Prefix reserved for internal DO storage keys; blocked from user-facing kv API
@@ -590,11 +594,24 @@ export class BaseDevice extends DurableObject<Env> {
 		// Resolve which crons are due and get the updated schedule.
 		// Uses the user script's current cron definitions if available so that
 		// added/removed/changed crons are reflected without requiring a reconnect.
-		const currentCrons = userWorker.getCrons
-			? await userWorker.getCrons()
-			: Object.fromEntries(
-					Object.entries(schedules).map(([name, e]) => [name, e.cron]),
-				);
+		// Wrapped in try/catch: if the RPC throws (e.g. worker evicted mid-alarm),
+		// fall back to stored cron expressions so no firings are silently lost.
+		let currentCrons: Record<string, string>;
+		try {
+			currentCrons = userWorker.getCrons
+				? await userWorker.getCrons()
+				: Object.fromEntries(
+						Object.entries(schedules).map(([name, e]) => [name, e.cron]),
+					);
+		} catch (err) {
+			console.error(
+				"getCrons() RPC failed during alarm — falling back to stored cron expressions:",
+				err,
+			);
+			currentCrons = Object.fromEntries(
+				Object.entries(schedules).map(([name, e]) => [name, e.cron]),
+			);
+		}
 
 		let due: string[];
 		let updated: CronStorage;

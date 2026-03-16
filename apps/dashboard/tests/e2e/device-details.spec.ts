@@ -91,7 +91,7 @@ test.describe("Device details page", () => {
       // Editor should now contain the template code (textarea value, not visible text)
       await expect(
         page.getByPlaceholder("// Enter your device script here..."),
-      ).toHaveValue(/Basic Blink template/);
+      ).toHaveValue(/LED_PIN/);
     });
 
     test("shows character count", async ({ page }) => {
@@ -146,7 +146,7 @@ test.describe("Device details page", () => {
       // Wait for template to load into editor
       await expect(
         page.getByPlaceholder("// Enter your device script here..."),
-      ).toHaveValue(/Basic Blink template/);
+      ).toHaveValue(/LED_PIN/);
 
       // Deploy button should now be enabled
       await expect(deployBtn).toBeEnabled();

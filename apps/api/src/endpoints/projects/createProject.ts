@@ -12,14 +12,7 @@ export class CreateProject extends OpenAPIRoute {
 		request: {
 			body: contentJson(
 				z.object({
-					project_slug: z
-						.string()
-						.min(1)
-						.max(36)
-						.regex(
-							projectSlugRegex,
-							"Must be lowercase alphanumeric with hyphens, starting with a letter",
-						),
+					project_slug: z.string().min(1).max(36),
 					name: z.string().max(100).optional(),
 					description: z.string().max(500).optional(),
 				}),
@@ -58,6 +51,17 @@ export class CreateProject extends OpenAPIRoute {
 			data.body;
 
 		const projectSlug = body.project_slug;
+
+		if (!projectSlugRegex.test(projectSlug)) {
+			return c.json(
+				{
+					success: false,
+					error:
+						"Invalid project_slug format. Must be lowercase alphanumeric with hyphens, starting with a letter.",
+				},
+				400,
+			);
+		}
 
 		// Check if project already exists
 		const existingProject = await qb

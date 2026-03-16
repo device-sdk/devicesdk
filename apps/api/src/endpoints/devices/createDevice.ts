@@ -15,14 +15,7 @@ export class CreateDevice extends OpenAPIRoute {
 			}),
 			body: contentJson(
 				z.object({
-					device_id: z
-						.string()
-						.min(1)
-						.max(36)
-						.regex(
-							deviceSlugRegex,
-							"Must be lowercase alphanumeric with hyphens, starting with a letter",
-						),
+					device_id: z.string().min(1).max(36),
 					name: z.string().max(100).optional(),
 					description: z.string().max(500).optional(),
 				}),
@@ -63,6 +56,17 @@ export class CreateDevice extends OpenAPIRoute {
 		const { projectId } = data.params;
 
 		const deviceSlug = data.body.device_id;
+
+		if (!deviceSlugRegex.test(deviceSlug)) {
+			return c.json(
+				{
+					success: false,
+					error:
+						"Invalid device_id format. Must be lowercase alphanumeric with hyphens, starting with a letter.",
+				},
+				400,
+			);
+		}
 
 		// Find the project
 		const project = await qb

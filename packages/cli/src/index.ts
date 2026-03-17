@@ -6,6 +6,7 @@ import deploy from "./commands/deploy.js";
 import dev from "./commands/dev.js";
 import flash from "./commands/flash.js";
 import init from "./commands/init.js";
+import inspect from "./commands/inspect.js";
 import login from "./commands/login.js";
 import logout from "./commands/logout.js";
 import logs from "./commands/logs.js";
@@ -130,5 +131,14 @@ program
 	.option("-d, --device <id>", "Show status for a single device only")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
 	.action(status);
+
+program
+	.command("inspect <device-id>")
+	.description(
+		"Interactive hardware inspection — send commands to a connected device",
+	)
+	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("--project <id>", "Project ID (if no devicesdk.ts config)")
+	.action((deviceId, options) => inspect(deviceId, options));
 
 program.parse(process.argv);

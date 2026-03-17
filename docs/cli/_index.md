@@ -52,8 +52,9 @@ All commands support these global flags:
 - [**devicesdk deploy**](/docs/cli/deploy/) - Deploy to production
 - [**devicesdk flash**](/docs/cli/flash/) - Flash firmware to device
 
-### Monitoring
+### Device Management
 - [**devicesdk status**](/docs/cli/status/) - Show live connection status for project devices
+- [**devicesdk inspect**](/docs/cli/inspect/) - Interactive hardware inspection REPL
 
 ### Debugging
 - [**devicesdk logs**](/docs/cli/logs/) - View and stream device logs

@@ -821,6 +821,42 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
+	 * Sends a hardware command to the device and returns the result.
+	 * Called from the sendCommand API endpoint.
+	 */
+	async handleCommand(
+		command: Omit<DeviceCommand, "id">,
+	): Promise<{ status: number; body: string }> {
+		const sockets = this.ctx.getWebSockets();
+		if (sockets.length === 0) {
+			return { status: 503, body: "Device not connected" };
+		}
+		const ws = sockets[0];
+		if (ws.readyState !== WebSocket.READY_STATE_OPEN) {
+			return { status: 503, body: "Device not connected" };
+		}
+		// Ensure _session is in sync with live socket after potential DO hibernation
+		if (!this._session) {
+			this._session = { websocket: ws };
+		}
+
+		const fullCommand: DeviceCommand = {
+			...command,
+			id: crypto.randomUUID(),
+		} as DeviceCommand;
+
+		try {
+			const response = await this.sendCommandAndWaitForResponse(fullCommand);
+			return { status: 200, body: JSON.stringify(response) };
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "An unknown error occurred";
+			const isTimeout = errorMessage.toLowerCase().includes("timeout");
+			return { status: isTimeout ? 504 : 500, body: errorMessage };
+		}
+	}
+
+	/**
 	 * Triggers a device reboot for script deployment.
 	 * Called from upload/deploy endpoints to restart the device so it loads the new script version.
 	 */

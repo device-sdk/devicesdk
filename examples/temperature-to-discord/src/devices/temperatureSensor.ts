@@ -9,6 +9,15 @@ export class TemperatureSensor extends DeviceEntrypoint {
 		console.log("Temperature sensor disconnected");
 	}
 
+	/**
+	 * Call this from your device firmware whenever a temperature reading is ready.
+	 * For example, inside onDeviceConnect or a polling loop:
+	 *
+	 *   await this.sendTemperatureToDiscord(sensor.readCelsius());
+	 *
+	 * Requires DISCORD_WEBHOOK_URL to be set before deploying:
+	 *   devicesdk env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+	 */
 	async sendTemperatureToDiscord(temperatureCelsius: number) {
 		const webhookUrl = await this.env.VARS.get("DISCORD_WEBHOOK_URL");
 		if (!webhookUrl) {

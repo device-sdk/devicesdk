@@ -21,7 +21,7 @@ devicesdk status [flags]
 The `status` command shows the live connection status of all devices in your project. For each device it displays:
 
 - **DEVICE** — the device slug
-- **STATUS** — `● online` or `○ offline`
+- **STATUS** — `● online`, `○ offline`, or `⚠ error` (status fetch failed)
 - **VERSION** — the first 8 characters of the deployed script version ID
 - **LAST SEEN** — how long ago the device last connected (or "never" if it has never connected)
 

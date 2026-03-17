@@ -219,5 +219,40 @@ describe("nextCronTime", () => {
 			}
 			expect(hours).toEqual([9, 10, 11]);
 		});
+
+		it("minute range 0-20 wraps to next hour after the 20th minute", () => {
+			// At minute 21 of an hour, "0-20 * * * *" has exhausted its range.
+			// The next fire should be at minute 0 of the NEXT hour, not stuck in the current one.
+			const at21 = Date.UTC(2024, 0, 1, 6, 21, 0, 0);
+			const next = nextCronTime("0-20 * * * *", at21);
+			const d = new Date(next);
+			expect(d.getUTCHours()).toBe(7); // advanced to the next hour
+			expect(d.getUTCMinutes()).toBe(0);
+		});
+
+		it("comma-separated DOW fires only on the listed weekdays", () => {
+			// "0 0 * * 1,5" — midnight only on Monday(1) and Friday(5)
+			const expr = "0 0 * * 1,5";
+			let t = JAN_1_2024; // 2024-01-01 is a Monday
+			const days: number[] = [];
+			for (let i = 0; i < 8; i++) {
+				t = nextCronTime(expr, t);
+				days.push(new Date(t).getUTCDay());
+			}
+			// Should only be Mon(1) or Fri(5)
+			expect(days.every((d) => d === 1 || d === 5)).toBe(true);
+			// Should never fire on other days
+			expect(days.some((d) => d === 0 || d === 2 || d === 3 || d === 4 || d === 6)).toBe(false);
+		});
+
+		it("minute expression wraps to next hour when past the listed minute", () => {
+			// "15 * * * *" fires at :15 every hour.
+			// Starting at minute 16, the next fire should be at the NEXT hour's :15.
+			const at16 = Date.UTC(2024, 0, 1, 6, 16, 0, 0);
+			const next = nextCronTime("15 * * * *", at16);
+			const d = new Date(next);
+			expect(d.getUTCHours()).toBe(7); // next hour
+			expect(d.getUTCMinutes()).toBe(15);
+		});
 	});
 });

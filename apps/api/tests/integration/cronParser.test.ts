@@ -112,6 +112,53 @@ describe("nextCronTime", () => {
 		});
 	});
 
+	describe("year-boundary (Dec→Jan)", () => {
+		it("fires in January when starting from late December", () => {
+			// Dec 31, 2023 at 23:50 — next fire of "0 0 1 1 *" is Jan 1, 2024 at 00:00
+			const dec31_2023 = Date.UTC(2023, 11, 31, 23, 50, 0, 0);
+			const next = nextCronTime("0 0 1 1 *", dec31_2023);
+			const d = new Date(next);
+			expect(d.getUTCFullYear()).toBe(2024);
+			expect(d.getUTCMonth()).toBe(0); // January (0-indexed)
+			expect(d.getUTCDate()).toBe(1);
+			expect(d.getUTCHours()).toBe(0);
+			expect(d.getUTCMinutes()).toBe(0);
+		});
+
+		it("fires at the correct hour on Jan 1 even when starting seconds before midnight", () => {
+			// Dec 31 at 23:59 — "0 6 1 1 *" fires Jan 1 at 06:00
+			const almostMidnight = Date.UTC(2023, 11, 31, 23, 59, 0, 0);
+			const next = nextCronTime("0 6 1 1 *", almostMidnight);
+			const d = new Date(next);
+			expect(d.getUTCFullYear()).toBe(2024);
+			expect(d.getUTCMonth()).toBe(0);
+			expect(d.getUTCDate()).toBe(1);
+			expect(d.getUTCHours()).toBe(6);
+		});
+	});
+
+	describe("range N-M wrapping (dom range vs month length)", () => {
+		it("dom range 29-31 skips February in a non-leap year and fires in March", () => {
+			// Start Jan 31, 2023 — "0 0 29-31 * *" should skip Feb (no Feb 29-31 in 2023)
+			// and fire on Mar 29
+			const jan31_2023 = Date.UTC(2023, 0, 31, 23, 59, 0, 0);
+			const next = nextCronTime("0 0 29-31 * *", jan31_2023);
+			const d = new Date(next);
+			expect(d.getUTCMonth()).toBe(2); // March (0-indexed)
+			expect(d.getUTCDate()).toBe(29);
+		});
+
+		it("dom range 30-31 fires at the 30th in a 31-day month after skipping shorter months", () => {
+			// Start Sep 30, 2024 (September has 30 days) — "0 0 30-31 * *" should next fire Oct 30
+			const sep30_2024 = Date.UTC(2024, 8, 30, 1, 0, 0, 0); // Sep 30 at 01:00
+			const next = nextCronTime("0 0 30-31 * *", sep30_2024);
+			const d = new Date(next);
+			// Oct has 31 days, so Oct 30 should be the next match
+			expect(d.getUTCMonth()).toBe(9); // October (0-indexed)
+			expect(d.getUTCDate()).toBe(30);
+		});
+	});
+
 	describe("error cases", () => {
 		it("throws for step of 0", () => {
 			expect(() => nextCronTime("*/0 * * * *", JAN_1_2024)).toThrow();

@@ -109,6 +109,7 @@ describe("status command", () => {
 		expect(output).toContain("○ offline");
 		expect(output).toContain("abcdef12"); // first 8 chars of version
 		expect(output).toContain("sensor-1");
+		expect(output).toMatch(/\d+h ago/); // formatRelativeTime: 2h ago
 	});
 
 	it("renders online device with connectedSince", async () => {
@@ -125,7 +126,24 @@ describe("status command", () => {
 
 		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
 		expect(output).toContain("● online");
-		expect(output).toContain("connected");
+		expect(output).toMatch(/connected \d+m ago/); // formatRelativeTime: "connected 3m ago"
+	});
+
+	it("renders recently connected device with seconds format", async () => {
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
+		apiMocks.getDeviceStatus.mockResolvedValue(
+			makeStatus({
+				connected: true,
+				connected_since: Date.now() - 30 * 1000, // 30s ago
+				current_version_id: "abcdef1234567890",
+			}),
+		);
+
+		await status({});
+
+		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
+		expect(output).toContain("● online");
+		expect(output).toMatch(/connected \d+s ago/); // formatRelativeTime: "connected 30s ago"
 	});
 
 	it("renders — for device with no version", async () => {

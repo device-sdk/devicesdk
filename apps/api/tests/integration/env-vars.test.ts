@@ -239,6 +239,38 @@ describe.sequential("Env Vars endpoint", () => {
 			expect(resp.status).toBe(400);
 		});
 
+		it("should reject invalid key format (starts with digit)", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/env`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ vars: { "1INVALID_KEY": "value" } }),
+				},
+			);
+
+			expect(resp.status).toBe(400);
+		});
+
+		it("should reject invalid key format (contains dash)", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/env`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ vars: { "MY-KEY": "value" } }),
+				},
+			);
+
+			expect(resp.status).toBe(400);
+		});
+
 		it("should reject value exceeding 4096 bytes", async () => {
 			const resp = await SELF.fetch(
 				`http://localhost/v1/projects/${TEST_PROJECT_ID}/env`,

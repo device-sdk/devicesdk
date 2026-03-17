@@ -37,6 +37,7 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     // Strip internal bindings from user-facing env
     const { __DEVICE_BRIDGE: bridge, __DEVICE_ID: _did, __PROJECT_ID: _pid, __ENV_VARS: _envVarsJson, ...publicEnv } = this.env;
 
+    /** @type {Record<string, string>} */
     let _envVars = {};
     try { _envVars = _envVarsJson ? JSON.parse(_envVarsJson) : {}; } catch {}
     const VARS = {

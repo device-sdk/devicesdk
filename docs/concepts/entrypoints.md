@@ -247,7 +247,14 @@ Entrypoint methods should complete quickly:
 4. **Keep state minimal** - Only store what's needed
 5. **Be idempotent** - Handle duplicate messages gracefully
 
+## Cron Scheduling
+
+Device scripts can define named cron schedules using the `crons` property, and handle them via the `onCron` lifecycle method. This lets you run periodic tasks (e.g., sending heartbeats, polling sensors) without a persistent connection.
+
+See [Cron Scheduling](/docs/concepts/cron-scheduling/) for a full reference.
+
 ## Next Steps
 
 - [Your First Device](/docs/first-device/) - Build a complete example
 - [Platform Architecture](/docs/concepts/architecture/) - System overview
+- [Cron Scheduling](/docs/concepts/cron-scheduling/) - Run periodic tasks on a schedule

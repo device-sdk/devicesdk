@@ -296,12 +296,24 @@ export interface DeviceSenderProps {
 export type Content = {};
 
 // Backward-compat type aliases — deprecated, use UserWorkerEnv instead
+
+// Lifecycle methods and internal properties excluded from the remote interface
+type LifecycleMethods =
+	| "onDeviceConnect"
+	| "onDeviceDisconnect"
+	| "onMessage"
+	| "onAlarm"
+	| "onCron";
+type InternalProps = "env" | "ctx";
+
 /** @deprecated Use UserWorkerEnv instead */
 export type RemoteDevice<T> = {
-	[K in keyof T as T[K] extends (...args: infer _A) => infer _R
-		? K
-		: never]: T[K] extends (...args: infer A) => infer R
-		? (...args: A) => R
+	[K in keyof T as K extends LifecycleMethods | InternalProps
+		? never
+		: T[K] extends (...args: infer _A) => infer _R
+			? K
+			: never]: T[K] extends (...args: infer A) => infer R
+		? (...args: A) => Promise<Awaited<R>>
 		: never;
 };
 
@@ -324,7 +336,7 @@ export class DeviceEntrypoint<Env = UserWorkerEnv> {
 	 * (minute hour dom month dow, all in UTC). When a cron fires, `onCron` is called
 	 * with the matching name.
 	 *
-	 * Example: `"&#42;/5 * * * *"` runs every 5 minutes; `"0 8 * * *"` runs daily at 08:00 UTC.
+	 * Example: `"0 8 * * *"` runs daily at 08:00 UTC; `"0 * * * *"` runs every hour.
 	 */
 	crons?: Record<string, string>;
 

@@ -86,6 +86,32 @@ describe("nextCronTime", () => {
 		});
 	});
 
+	describe("range-with-step syntax (N-M/S)", () => {
+		it("1-5/2 for minutes fires at 1, 3, 5", () => {
+			const expr = "1-5/2 * * * *";
+			const base = Date.UTC(2024, 0, 1, 6, 0, 0, 0);
+			const fireTimes: number[] = [];
+			let t = base;
+			for (let i = 0; i < 3; i++) {
+				t = nextCronTime(expr, t);
+				fireTimes.push(new Date(t).getUTCMinutes());
+			}
+			expect(fireTimes).toEqual([1, 3, 5]);
+		});
+
+		it("0-12/4 for hours fires at 0, 4, 8, 12", () => {
+			const expr = "0 0-12/4 * * *";
+			const base = Date.UTC(2024, 0, 1, 0, 0, 0, 0) - 1;
+			const fireTimes: number[] = [];
+			let t = base;
+			for (let i = 0; i < 4; i++) {
+				t = nextCronTime(expr, t);
+				fireTimes.push(new Date(t).getUTCHours());
+			}
+			expect(fireTimes).toEqual([0, 4, 8, 12]);
+		});
+	});
+
 	describe("error cases", () => {
 		it("throws for step of 0", () => {
 			expect(() => nextCronTime("*/0 * * * *", JAN_1_2024)).toThrow();
@@ -95,12 +121,23 @@ describe("nextCronTime", () => {
 			expect(() => nextCronTime("* * * * * *", JAN_1_2024)).toThrow(/5 fields/);
 		});
 
+		it("throws for 4 fields (too few)", () => {
+			expect(() => nextCronTime("* * * *", JAN_1_2024)).toThrow(/5 fields/);
+		});
+
 		it("throws for hour value out of range", () => {
 			expect(() => nextCronTime("0 25 * * *", JAN_1_2024)).toThrow();
 		});
 
 		it("throws for invalid (non-numeric) field value", () => {
 			expect(() => nextCronTime("abc * * * *", JAN_1_2024)).toThrow();
+		});
+
+		it("throws for impossible date (Feb 30) that never occurs", () => {
+			// February never has a 30th — the parser should throw after 1 year
+			expect(() => nextCronTime("0 0 30 2 *", JAN_1_2024)).toThrow(
+				/No valid fire time/,
+			);
 		});
 	});
 

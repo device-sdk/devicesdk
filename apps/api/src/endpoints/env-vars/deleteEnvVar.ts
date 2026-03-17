@@ -1,10 +1,6 @@
 import { contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
-import type {
-	AppContext,
-	tableProjectEnvVars,
-	tableProjects,
-} from "../../types";
+import type { AppContext, tableProjects } from "../../types";
 
 export class DeleteEnvVar extends OpenAPIRoute {
 	public schema = {
@@ -57,30 +53,15 @@ export class DeleteEnvVar extends OpenAPIRoute {
 			return c.json({ success: false, error: "Project not found" }, 404);
 		}
 
-		const existing = await qb
-			.fetchOne<tableProjectEnvVars>({
-				tableName: "project_env_vars",
-				where: {
-					conditions: ["project_id = ?1", "key = ?2"],
-					params: [project.id, key],
-				},
-			})
-			.execute()
-			.then((r) => r.results);
+		const result = await c.env.DB.prepare(
+			"DELETE FROM project_env_vars WHERE project_id = ? AND key = ?",
+		)
+			.bind(project.id, key)
+			.run();
 
-		if (!existing) {
+		if (result.meta.changes === 0) {
 			return c.json({ success: false, error: "Env var not found" }, 404);
 		}
-
-		await qb
-			.delete({
-				tableName: "project_env_vars",
-				where: {
-					conditions: ["project_id = ?1", "key = ?2"],
-					params: [project.id, key],
-				},
-			})
-			.execute();
 
 		return c.json({
 			success: true,

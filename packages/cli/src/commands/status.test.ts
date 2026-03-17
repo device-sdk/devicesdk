@@ -84,11 +84,10 @@ describe("status command", () => {
 		);
 	});
 
-	it("exits 0 when project has no devices", async () => {
+	it("prints 'No devices found' when project has no devices", async () => {
 		apiMocks.listDevices.mockResolvedValue([]);
 
-		await expect(status({})).rejects.toThrowError(/exit:0/);
-		expect(exitSpy).toHaveBeenCalledWith(0);
+		await expect(status({})).resolves.toBeUndefined();
 		expect(consoleSpy).toHaveBeenCalledWith(
 			expect.stringContaining("No devices found"),
 		);
@@ -201,7 +200,7 @@ describe("status command", () => {
 		expect(apiMocks.getDeviceStatus).toHaveBeenCalledTimes(3);
 	});
 
-	it("shows remaining devices as offline when one status fetch fails", async () => {
+	it("shows error indicator for failed status fetch, online for successful", async () => {
 		apiMocks.listDevices.mockResolvedValue([
 			makeDevice("device-a"),
 			makeDevice("device-b"),
@@ -216,6 +215,6 @@ describe("status command", () => {
 
 		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
 		expect(output).toContain("● online");
-		expect(output).toContain("○ offline");
+		expect(output).toContain("⚠ error");
 	});
 });

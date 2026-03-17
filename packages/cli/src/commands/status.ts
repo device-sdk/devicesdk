@@ -86,7 +86,7 @@ export default async function status(
 
 		// Fetch live status for each device in parallel
 		// Use allSettled so a single device failure doesn't abort the whole command —
-		// failed devices are shown as offline instead.
+		// failed devices are shown with a warning indicator instead of aborting.
 		const settledStatuses = await Promise.allSettled(
 			devicesToShow.map((d) => getDeviceStatus(token, projectId, d.device_id)),
 		);
@@ -99,6 +99,9 @@ export default async function status(
 						last_connected_at: null,
 						current_version_id: null,
 					},
+		);
+		const statusErrors: boolean[] = settledStatuses.map(
+			(result) => result.status === "rejected",
 		);
 
 		// Compute column widths
@@ -132,7 +135,11 @@ export default async function status(
 			const device = devicesToShow[i];
 			const s = statuses[i];
 
-			const dot = s.connected ? "● online " : "○ offline";
+			const dot = statusErrors[i]
+				? "⚠ error  "
+				: s.connected
+					? "● online "
+					: "○ offline";
 			const version = formatVersion(s.current_version_id).padEnd(
 				maxVersionLen + 2,
 			);

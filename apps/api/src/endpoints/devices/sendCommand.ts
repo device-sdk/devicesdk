@@ -145,15 +145,27 @@ export class SendDeviceCommand extends OpenAPIRoute {
 			);
 		}
 
-		if (doResult.status !== 200) {
+		if (doResult.status === 500) {
 			return c.json({ success: false, error: doResult.body }, 500);
 		}
 
-		const deviceResponse = JSON.parse(doResult.body) as {
+		let deviceResponse: {
 			id: string;
 			type: string;
 			payload: Record<string, unknown>;
 		};
+		try {
+			deviceResponse = JSON.parse(doResult.body) as {
+				id: string;
+				type: string;
+				payload: Record<string, unknown>;
+			};
+		} catch {
+			return c.json(
+				{ success: false, error: "Invalid response from device" },
+				500,
+			);
+		}
 
 		return c.json({
 			success: true,

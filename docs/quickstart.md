@@ -57,12 +57,29 @@ Visit your [dashboard](https://dash.devicesdk.com) to:
 - Manage device credentials
 - Track version history
 
+## Step 4: Store Secrets with Environment Variables
+
+Keep API keys and credentials out of your source code using project-scoped environment variables:
+
+```bash
+npx @devicesdk/cli env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+Access them in your device script:
+
+```typescript
+const webhookUrl = await this.env.VARS.get("DISCORD_WEBHOOK_URL");
+```
+
+See [**Environment Variables**](/docs/concepts/env-vars/) for the full reference.
+
 ## Next Steps
 
 Now that you have a working project:
 
 - [**Your First Device**](/docs/first-device/) - Learn how to build device entrypoints
 - [**CLI Reference**](/docs/cli/) - Explore all available commands
+- [**Environment Variables**](/docs/concepts/env-vars/) - Store secrets outside your code
 - [**Platform Architecture**](/docs/concepts/architecture/) - Understand how DeviceSDK works
 
 ## Need Help?

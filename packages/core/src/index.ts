@@ -224,6 +224,9 @@ export type CommandResponseTypeMap = {
 	configure_gpio_input_monitoring: CommandAck;
 };
 
+// Env var key validation: uppercase letters, digits, underscores, max 64 chars, must start with a letter
+export const ENV_VAR_KEY_REGEX = /^[A-Z][A-Z0-9_]{0,63}$/;
+
 // KV storage interface for user code
 export interface KVInterface {
 	get<T = unknown>(key: string): Promise<T | undefined>;
@@ -231,45 +234,21 @@ export interface KVInterface {
 	delete(key: string): Promise<boolean>;
 }
 
-// --- Inter-Device RPC Types ---
+// Environment variables interface for user code
+export interface EnvVarsInterface {
+	get(key: string): Promise<string | undefined>;
+	getAll(): Promise<Record<string, string>>;
+}
 
-// Lifecycle methods and internal properties excluded from remote interface
-type LifecycleMethods =
-	| "onDeviceConnect"
-	| "onDeviceDisconnect"
-	| "onMessage"
-	| "onAlarm";
-type InternalProps = "env" | "ctx";
-
-// Extracts public non-lifecycle methods and wraps return types in Promise for RPC transport.
-// TypeScript's keyof naturally excludes private/protected members.
-export type RemoteDevice<T> = {
-	[K in keyof T as K extends LifecycleMethods | InternalProps
-		? never
-		: T[K] extends (...args: infer _A) => infer _R
-			? K
-			: never]: T[K] extends (...args: infer A) => infer R
-		? (...args: A) => Promise<Awaited<R>>
-		: never;
-};
-
-// Maps device slugs to their remote interfaces
-type RemoteDevices<T> = {
-	[K in keyof T]: T[K] extends object ? RemoteDevice<T[K]> : never;
-};
-
-// Helper: given a ProjectDevices map, returns the full env type
-export type GetEnv<ProjectDevices = {}> = {
+// The env that the dynamic worker will receive
+export type UserWorkerEnv<ProjectDevices = {}> = {
+	// Binding to send messages/commands to the IoT device via the DO
 	DEVICE: DeviceSenderInterface;
-	DEVICES: RemoteDevices<ProjectDevices>;
-};
 
-// Internal type for the dynamic worker's raw env (before proxy wrapping)
-export type UserWorkerEnv = {
-	DEVICE: DeviceSenderInterface;
-	__DEVICE_BRIDGE?: unknown;
-	__DEVICE_ID?: string;
-	__PROJECT_ID?: string;
+	DEVICES: ProjectDevices;
+
+	// Project-scoped environment variables
+	VARS: EnvVarsInterface;
 };
 
 // Interface for the DeviceSender binding provided to user code
@@ -316,7 +295,25 @@ export interface DeviceSenderProps {
 
 export type Content = {};
 
-export class DeviceEntrypoint<Env = GetEnv> {
+// Backward-compat type aliases — deprecated, use UserWorkerEnv instead
+/** @deprecated Use UserWorkerEnv instead */
+export type RemoteDevice<T> = {
+	[K in keyof T as T[K] extends (...args: infer _A) => infer _R
+		? K
+		: never]: T[K] extends (...args: infer A) => infer R
+		? (...args: A) => R
+		: never;
+};
+
+/** @deprecated Use UserWorkerEnv instead */
+type RemoteDevices<T> = {
+	[K in keyof T]: T[K] extends object ? RemoteDevice<T[K]> : never;
+};
+
+/** @deprecated Use UserWorkerEnv instead */
+export type GetEnv<ProjectDevices = {}> = UserWorkerEnv<ProjectDevices>;
+
+export class DeviceEntrypoint<Env = UserWorkerEnv> {
 	ctx: Content;
 	env: Env;
 
@@ -327,11 +324,7 @@ export class DeviceEntrypoint<Env = GetEnv> {
 	 * (minute hour dom month dow, all in UTC). When a cron fires, `onCron` is called
 	 * with the matching name.
 	 *
-	 * @example
-	 * crons = {
-	 *   heartbeat: '0-59/5 * * * *', // every 5 minutes (step notation)
-	 *   dailyReport: '0 8 * * *',    // every day at 08:00 UTC
-	 * };
+	 * Example: `"&#42;/5 * * * *"` runs every 5 minutes; `"0 8 * * *"` runs daily at 08:00 UTC.
 	 */
 	crons?: Record<string, string>;
 
@@ -361,7 +354,7 @@ export class DeviceEntrypoint<Env = GetEnv> {
 	 *
 	 * @param name - The key from the `crons` object that triggered this call.
 	 */
-	onCron(_name: string): Promise<void> {
-		return Promise.resolve();
+	onCron(_name: string) {
+		return;
 	}
 }

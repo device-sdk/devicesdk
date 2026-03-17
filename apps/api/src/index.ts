@@ -14,6 +14,7 @@ import {
 	cliAuthRouterPreAuth,
 } from "./endpoints/cli-auth/router";
 import { devicesRouter } from "./endpoints/devices/router";
+import { envVarsRouter } from "./endpoints/env-vars/router";
 import { logsRouter } from "./endpoints/logs/router";
 import { projectsRouter } from "./endpoints/projects/router";
 import { batchScriptsRouter, scriptsRouter } from "./endpoints/scripts/router";
@@ -138,6 +139,7 @@ app.post("/v1/auth/logout", handleLogout);
 app.route("/v1/user", userRouter);
 app.route("/v1/projects", projectsRouter);
 app.route("/v1/tokens", tokensRouter);
+app.route("/v1/projects/:projectId/env", envVarsRouter);
 app.route("/v1/projects/:projectId/devices", devicesRouter);
 app.route("/v1/projects/:projectId/devices/:deviceId/script", scriptsRouter);
 app.route("/v1/projects/:projectId/devices/:deviceId/logs", logsRouter);
@@ -147,6 +149,7 @@ export default app;
 export { BaseDevice as Device } from "./durableObjects/lib/device";
 export { DeviceSender } from "./durableObjects/lib/deviceSender";
 export { DevicesBridge } from "./durableObjects/lib/devicesBridge";
+
 // TEST ONLY — do NOT add TestDevice to wrangler.jsonc durable_objects.bindings.
 // It bypasses internal guards and must never be deployed as a production DO binding.
 // Exported here solely because miniflare requires DO classes to come from the main

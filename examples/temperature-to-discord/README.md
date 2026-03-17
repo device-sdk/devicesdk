@@ -1,44 +1,47 @@
-# Temperature to Discord Example
+# temperature-to-discord
 
-An example DeviceSDK project that reads temperature from an analog sensor connected to a Raspberry Pi Pico W and posts readings to a Discord channel via webhook.
-
-## What it does
-
-- Reads analog voltage from a temperature sensor (e.g. MCP9700A) on GP26 every 30 seconds
-- Converts the raw ADC value to °C and °F using the sensor's transfer function
-- Posts the reading to a Discord channel via an incoming webhook
-
-## Wiring
-
-| Component | Pico W Pin |
-|-----------|------------|
-| Sensor Vout | GP26 (ADC0) |
-| Sensor VCC | 3.3V |
-| Sensor GND | GND |
-
-This example is wired for the **MCP9700A** (Microchip low-power linear temperature sensor). For other sensors, update the conversion formula in `temperatureSensor.ts`.
+A DeviceSDK example that reads temperature from a sensor and posts readings to a Discord channel via webhook.
 
 ## Setup
 
-1. **Create a Discord webhook** — in your Discord server, go to *Server Settings → Integrations → Webhooks* and create a new webhook. Copy the webhook URL.
+### 1. Install dependencies
 
-2. **Edit `src/devices/temperatureSensor.ts`** — replace `YOUR_WEBHOOK_URL` in the `DISCORD_WEBHOOK_URL` constant with your actual webhook URL.
+```bash
+npm install
+```
 
-3. **Edit `devicesdk.config.ts`** — replace `YOUR_WIFI_SSID` and `YOUR_WIFI_PASSWORD` with your Wi-Fi credentials.
+### 2. Set your Discord webhook URL
 
-4. **Deploy and flash**:
-   ```bash
-   # Deploy the device script
-   pnpm --filter @devicesdk/example-temperature deploy
+Store the webhook URL as an environment variable — never hardcode it in source:
 
-   # Flash the firmware onto your Pico W (hold BOOTSEL while connecting USB)
-   pnpm --filter @devicesdk/example-temperature flash
-   ```
+```bash
+npx @devicesdk/cli env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_URL
+```
 
-## Configuration
+To get a Discord webhook URL: open your Discord channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL.
 
-| Constant | Default | Description |
-|----------|---------|-------------|
-| `TEMP_PIN` | `26` | GPIO pin connected to the sensor output (ADC0) |
-| `REPORT_INTERVAL_MS` | `30000` | How often to read and report temperature (ms) |
-| `DISCORD_WEBHOOK_URL` | — | Your Discord incoming webhook URL |
+### 3. Deploy
+
+```bash
+npx @devicesdk/cli deploy
+```
+
+### 4. Connect your device
+
+Flash firmware onto your microcontroller and connect it to the deployed project. When `sendTemperatureToDiscord()` is called from your device firmware, it will post the reading to Discord.
+
+## How it works
+
+The device script reads the webhook URL from `this.env.VARS` at runtime:
+
+```typescript
+const webhookUrl = await this.env.VARS.get("DISCORD_WEBHOOK_URL");
+```
+
+This keeps the secret out of your source code and out of your script bundle. You can rotate the URL at any time with `devicesdk env set` — changes take effect on the next device reconnect or deploy.
+
+## Environment variables reference
+
+| Variable | Description |
+|---|---|
+| `DISCORD_WEBHOOK_URL` | Discord incoming webhook URL for the target channel |

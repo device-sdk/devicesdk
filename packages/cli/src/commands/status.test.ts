@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DeviceSDKApiError } from "../api.js";
 import status from "./status.js";
 
 vi.mock("../credentials.js", () => ({
@@ -20,274 +21,201 @@ vi.mock("../api.js", async (importOriginal) => {
 });
 
 vi.mock("../utils.js", () => ({
-	loadConfig: vi
-		.fn()
-		.mockImplementation(() =>
-			Promise.resolve({ projectId: "test-project", devices: {} }),
-		),
+	loadConfig: vi.fn().mockResolvedValue({ projectId: "test-project" }),
 }));
 
-// Capture console output for assertions
-let consoleOutput: string[] = [];
-let consoleErrors: string[] = [];
-let consoleLogSpy: ReturnType<typeof vi.spyOn>;
-let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+function makeDevice(deviceId: string) {
+	return { device_id: deviceId, name: deviceId };
+}
 
-beforeEach(() => {
-	consoleOutput = [];
-	consoleErrors = [];
-	consoleLogSpy = vi
-		.spyOn(console, "log")
-		.mockImplementation((...args: any[]) => {
-			consoleOutput.push(args.join(" "));
-		});
-	consoleErrorSpy = vi
+function makeStatus(
+	overrides: Partial<import("../api.js").DeviceStatus> = {},
+): import("../api.js").DeviceStatus {
+	return {
+		connected: false,
+		connected_since: null,
+		last_connected_at: null,
+		current_version_id: null,
+		...overrides,
+	};
+}
+
+describe("status command", () => {
+	const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+		code?: number,
+	) => {
+		throw new Error(`exit:${code ?? 0}`);
+	}) as any);
+
+	const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	const consoleErrorSpy = vi
 		.spyOn(console, "error")
-		.mockImplementation((...args: any[]) => {
-			consoleErrors.push(args.join(" "));
-		});
-});
+		.mockImplementation(() => {});
 
-afterEach(() => {
-	consoleLogSpy.mockRestore();
-	consoleErrorSpy.mockRestore();
-	vi.clearAllMocks();
-});
-
-describe("status command — no devices", () => {
-	it("prints 'No devices found' and returns cleanly when no devices exist", async () => {
-		apiMocks.listDevices.mockResolvedValue([]);
-
-		await expect(status()).resolves.toBeUndefined();
-
-		expect(
-			consoleOutput.some((line) => line.includes("No devices found")),
-		).toBe(true);
+	beforeEach(() => {
+		vi.clearAllMocks();
 	});
 
-	it("does not call getDeviceStatus when no devices exist", async () => {
-		apiMocks.listDevices.mockResolvedValue([]);
-		await status();
-		expect(apiMocks.getDeviceStatus).not.toHaveBeenCalled();
+	afterEach(() => {
+		vi.clearAllMocks();
 	});
-});
 
-describe("status command — device listing", () => {
-	it("prints the project ID header", async () => {
-		apiMocks.listDevices.mockResolvedValue([{ device_id: "device-1" }]);
-		apiMocks.getDeviceStatus.mockResolvedValue({
-			connected: false,
-			connected_since: null,
-			last_connected_at: null,
-			current_version_id: null,
-		});
+	it("reads projectId from config when no --project flag", async () => {
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
+		apiMocks.getDeviceStatus.mockResolvedValue(makeStatus());
 
-		await status();
+		await status({});
 
-		expect(consoleOutput.some((line) => line.includes("test-project"))).toBe(
-			true,
+		expect(apiMocks.listDevices).toHaveBeenCalledWith(
+			"test-token",
+			"test-project",
 		);
 	});
 
-	it("shows offline status for a disconnected device", async () => {
-		apiMocks.listDevices.mockResolvedValue([{ device_id: "device-1" }]);
-		apiMocks.getDeviceStatus.mockResolvedValue({
-			connected: false,
-			connected_since: null,
-			last_connected_at: null,
-			current_version_id: null,
-		});
+	it("uses --project flag override instead of config", async () => {
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
+		apiMocks.getDeviceStatus.mockResolvedValue(makeStatus());
 
-		await status();
+		await status({ project: "override-project" });
 
-		const rows = consoleOutput.join("\n");
-		expect(rows).toContain("offline");
-		expect(rows).toContain("device-1");
+		expect(apiMocks.listDevices).toHaveBeenCalledWith(
+			"test-token",
+			"override-project",
+		);
 	});
 
-	it("shows online status for a connected device", async () => {
-		apiMocks.listDevices.mockResolvedValue([{ device_id: "device-2" }]);
-		apiMocks.getDeviceStatus.mockResolvedValue({
-			connected: true,
-			connected_since: Date.now() - 5_000,
-			last_connected_at: null,
-			current_version_id: "abc123def456",
-		});
+	it("exits 0 when project has no devices", async () => {
+		apiMocks.listDevices.mockResolvedValue([]);
 
-		await status();
-
-		const rows = consoleOutput.join("\n");
-		expect(rows).toContain("online");
-		expect(rows).toContain("device-2");
-		expect(rows).toContain("abc123de"); // truncated to 8 chars
+		await expect(status({})).rejects.toThrowError(/exit:0/);
+		expect(exitSpy).toHaveBeenCalledWith(0);
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("No devices found"),
+		);
 	});
 
-	it("shows version truncated to 8 chars", async () => {
-		apiMocks.listDevices.mockResolvedValue([{ device_id: "device-3" }]);
-		apiMocks.getDeviceStatus.mockResolvedValue({
-			connected: false,
-			connected_since: null,
-			last_connected_at: null,
-			current_version_id: "aabbccdd1122334455",
-		});
+	it("renders offline device correctly", async () => {
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
+		apiMocks.getDeviceStatus.mockResolvedValue(
+			makeStatus({
+				connected: false,
+				last_connected_at: Date.now() - 2 * 60 * 60 * 1000, // 2h ago
+				current_version_id: "abcdef1234567890",
+			}),
+		);
 
-		await status();
+		await status({});
 
-		const rows = consoleOutput.join("\n");
-		expect(rows).toContain("aabbccdd");
-		expect(rows).not.toContain("aabbccdd1122334455");
+		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
+		expect(output).toContain("○ offline");
+		expect(output).toContain("abcdef12"); // first 8 chars of version
+		expect(output).toContain("sensor-1");
 	});
 
-	it("shows — for null version", async () => {
-		apiMocks.listDevices.mockResolvedValue([{ device_id: "device-4" }]);
-		apiMocks.getDeviceStatus.mockResolvedValue({
-			connected: false,
-			connected_since: null,
-			last_connected_at: null,
-			current_version_id: null,
-		});
+	it("renders online device with connectedSince", async () => {
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
+		apiMocks.getDeviceStatus.mockResolvedValue(
+			makeStatus({
+				connected: true,
+				connected_since: Date.now() - 3 * 60 * 1000, // 3m ago
+				current_version_id: "abcdef1234567890",
+			}),
+		);
 
-		await status();
+		await status({});
 
-		const rows = consoleOutput.join("\n");
-		expect(rows).toContain("—");
+		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
+		expect(output).toContain("● online");
+		expect(output).toContain("connected");
 	});
-});
 
-describe("status command — device filtering", () => {
-	it("filters to only the requested device", async () => {
+	it("renders — for device with no version", async () => {
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
+		apiMocks.getDeviceStatus.mockResolvedValue(
+			makeStatus({ connected: false }),
+		);
+
+		await status({});
+
+		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
+		expect(output).toContain("—");
+		expect(output).toContain("never");
+	});
+
+	it("filters by --device flag", async () => {
 		apiMocks.listDevices.mockResolvedValue([
-			{ device_id: "device-a" },
-			{ device_id: "device-b" },
+			makeDevice("sensor-1"),
+			makeDevice("sensor-2"),
 		]);
-		apiMocks.getDeviceStatus.mockResolvedValue({
-			connected: false,
-			connected_since: null,
-			last_connected_at: null,
-			current_version_id: null,
-		});
+		apiMocks.getDeviceStatus.mockResolvedValue(makeStatus());
 
-		await status({ device: "device-a" });
+		await status({ device: "sensor-1" });
 
 		expect(apiMocks.getDeviceStatus).toHaveBeenCalledTimes(1);
 		expect(apiMocks.getDeviceStatus).toHaveBeenCalledWith(
 			"test-token",
 			"test-project",
-			"device-a",
+			"sensor-1",
 		);
 	});
 
-	it("exits with error when filtered device not found", async () => {
-		apiMocks.listDevices.mockResolvedValue([{ device_id: "device-a" }]);
+	it("exits 1 when --device flag specifies unknown device", async () => {
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
 
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
-			throw new Error("process.exit called");
-		});
-
-		await expect(status({ device: "nonexistent" })).rejects.toThrow(
-			"process.exit called",
-		);
+		await expect(status({ device: "unknown" })).rejects.toThrowError(/exit:1/);
 		expect(exitSpy).toHaveBeenCalledWith(1);
-		expect(consoleErrors.some((line) => line.includes("nonexistent"))).toBe(
-			true,
+	});
+
+	it("exits 1 when project is not found (404)", async () => {
+		apiMocks.listDevices.mockRejectedValueOnce(
+			new DeviceSDKApiError("not found", 404),
 		);
 
-		exitSpy.mockRestore();
+		await expect(status({})).rejects.toThrowError(/exit:1/);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(consoleErrorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("not found"),
+		);
 	});
-});
 
-describe("status command — error rows", () => {
-	it("shows error row for a device whose status fetch failed", async () => {
+	it("exits 1 on generic API error", async () => {
+		apiMocks.listDevices.mockRejectedValueOnce(
+			new DeviceSDKApiError("server error", 500),
+		);
+
+		await expect(status({})).rejects.toThrowError(/exit:1/);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+	});
+
+	it("fetches status for all devices in parallel", async () => {
+		const devices = [
+			makeDevice("device-a"),
+			makeDevice("device-b"),
+			makeDevice("device-c"),
+		];
+		apiMocks.listDevices.mockResolvedValue(devices);
+		apiMocks.getDeviceStatus.mockResolvedValue(makeStatus());
+
+		await status({});
+
+		expect(apiMocks.getDeviceStatus).toHaveBeenCalledTimes(3);
+	});
+
+	it("shows remaining devices as offline when one status fetch fails", async () => {
 		apiMocks.listDevices.mockResolvedValue([
-			{ device_id: "device-ok" },
-			{ device_id: "device-fail" },
+			makeDevice("device-a"),
+			makeDevice("device-b"),
 		]);
 		apiMocks.getDeviceStatus
-			.mockResolvedValueOnce({
-				connected: false,
-				connected_since: null,
-				last_connected_at: null,
-				current_version_id: null,
-			})
-			.mockRejectedValueOnce(new Error("network error"));
+			.mockResolvedValueOnce(
+				makeStatus({ connected: true, connected_since: Date.now() }),
+			)
+			.mockRejectedValueOnce(new DeviceSDKApiError("timeout", 503));
 
-		// Should not throw
-		await expect(status()).resolves.toBeUndefined();
+		await status({});
 
-		const rows = consoleOutput.join("\n");
-		expect(rows).toContain("device-ok");
-		expect(rows).toContain("device-fail");
-		expect(rows).toContain("error");
-	});
-
-	it("still shows successful devices when one fails", async () => {
-		apiMocks.listDevices.mockResolvedValue([
-			{ device_id: "device-good" },
-			{ device_id: "device-bad" },
-		]);
-		apiMocks.getDeviceStatus
-			.mockResolvedValueOnce({
-				connected: true,
-				connected_since: Date.now() - 1000,
-				last_connected_at: null,
-				current_version_id: "v1v1v1v1",
-			})
-			.mockRejectedValueOnce(new Error("timeout"));
-
-		await status();
-
-		const rows = consoleOutput.join("\n");
-		expect(rows).toContain("online");
-		expect(rows).toContain("device-good");
-		expect(rows).toContain("device-bad");
-	});
-});
-
-describe("status command — formatRelativeTime", () => {
-	it("shows last_connected_at as relative time for offline device", async () => {
-		const fiveMinutesAgo = Date.now() - 5 * 60_000;
-		apiMocks.listDevices.mockResolvedValue([{ device_id: "device-1" }]);
-		apiMocks.getDeviceStatus.mockResolvedValue({
-			connected: false,
-			connected_since: null,
-			last_connected_at: fiveMinutesAgo,
-			current_version_id: null,
-		});
-
-		await status();
-
-		const rows = consoleOutput.join("\n");
-		expect(rows).toMatch(/\d+m ago/);
-	});
-
-	it("shows 'never' for a device that has never connected", async () => {
-		apiMocks.listDevices.mockResolvedValue([{ device_id: "device-1" }]);
-		apiMocks.getDeviceStatus.mockResolvedValue({
-			connected: false,
-			connected_since: null,
-			last_connected_at: null,
-			current_version_id: null,
-		});
-
-		await status();
-
-		const rows = consoleOutput.join("\n");
-		expect(rows).toContain("never");
-	});
-
-	it("shows 'connected Xs ago' for a freshly connected device", async () => {
-		const connectedSince = Date.now() - 3_000; // 3 seconds ago
-		apiMocks.listDevices.mockResolvedValue([{ device_id: "device-1" }]);
-		apiMocks.getDeviceStatus.mockResolvedValue({
-			connected: true,
-			connected_since: connectedSince,
-			last_connected_at: null,
-			current_version_id: null,
-		});
-
-		await status();
-
-		const rows = consoleOutput.join("\n");
-		expect(rows).toMatch(/connected \d+s ago/);
+		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
+		expect(output).toContain("● online");
+		expect(output).toContain("○ offline");
 	});
 });

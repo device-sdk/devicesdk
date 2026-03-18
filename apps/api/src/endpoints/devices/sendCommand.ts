@@ -145,7 +145,7 @@ export class SendDeviceCommand extends OpenAPIRoute {
 			);
 		}
 
-		if (doResult.status === 500) {
+		if (doResult.status !== 200) {
 			return c.json({ success: false, error: doResult.body }, 500);
 		}
 

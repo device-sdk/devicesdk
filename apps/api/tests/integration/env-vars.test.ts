@@ -445,4 +445,5 @@ describe.sequential("Env Vars endpoint", () => {
 			expect(resp.status).toBe(404);
 		});
 	});
+
 });

@@ -257,54 +257,45 @@ export default async function inspect(
 
 		rl.prompt();
 
-		let busy = false;
+		// Serial queue — ensures commands don't interleave on piped input
+		let commandQueue: Promise<void> = Promise.resolve();
 
-		rl.on("line", async (line) => {
-			const input = line.trim();
+		rl.on("line", (line) => {
+			commandQueue = commandQueue.then(async () => {
+				const input = line.trim();
 
-			if (!input) {
-				rl.prompt();
-				return;
-			}
+				if (!input) {
+					rl.prompt();
+					return;
+				}
 
-			if (input === "exit" || input === "quit") {
-				console.log("Goodbye.");
-				rl.close();
-				process.exit(0);
-			}
+				if (input === "exit" || input === "quit") {
+					rl.close(); // 'close' event handler logs "Goodbye." and calls process.exit(0)
+					return;
+				}
 
-			if (input === "help") {
-				printHelp();
-				rl.prompt();
-				return;
-			}
+				if (input === "help") {
+					printHelp();
+					rl.prompt();
+					return;
+				}
 
-			if (busy) {
-				console.log(
-					"\x1b[33mWaiting for previous command to complete...\x1b[0m",
-				);
-				return;
-			}
+				const parsed = parseCommand(input);
 
-			const parsed = parseCommand(input);
+				if ("error" in parsed) {
+					console.error(`\x1b[33m${parsed.error}\x1b[0m`);
+					rl.prompt();
+					return;
+				}
 
-			if ("error" in parsed) {
-				console.error(`\x1b[33m${parsed.error}\x1b[0m`);
-				rl.prompt();
-				return;
-			}
-
-			// Confirm reboot to avoid accidental reboots
-			if (parsed.command.type === "reboot") {
-				busy = true;
-				rl.question("Reboot the device? [y/N] ", async (answer) => {
-					if (answer.toLowerCase() !== "y") {
-						console.log("Aborted.");
-						busy = false;
-						rl.prompt();
-						return;
-					}
-					try {
+				// Confirm reboot to avoid accidental reboots
+				if (parsed.command.type === "reboot") {
+					rl.question("Reboot the device? [y/N] ", async (answer) => {
+						if (answer.toLowerCase() !== "y") {
+							console.log("Aborted.");
+							rl.prompt();
+							return;
+						}
 						await executeCommand(
 							token,
 							projectId,
@@ -312,19 +303,12 @@ export default async function inspect(
 							parsed.command,
 							rl,
 						);
-					} finally {
-						busy = false;
-					}
-				});
-				return;
-			}
+					});
+					return;
+				}
 
-			busy = true;
-			try {
 				await executeCommand(token, projectId, deviceId, parsed.command, rl);
-			} finally {
-				busy = false;
-			}
+			});
 		});
 
 		rl.on("close", () => {

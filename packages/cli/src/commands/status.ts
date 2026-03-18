@@ -107,11 +107,11 @@ export default async function status(
 		// Compute column widths
 		const maxDeviceLen = Math.max(
 			6, // "DEVICE"
-			...devicesToShow.map((d) => d.device_id.length),
+			...rows.map((r) => r.device.device_id.length),
 		);
 		const maxVersionLen = Math.max(
 			7, // "VERSION"
-			...statuses.map((s) => formatVersion(s.current_version_id).length),
+			...rows.map((r) => formatVersion(r.s.current_version_id).length),
 		);
 		const maxLastSeenLen = Math.max(
 			9, // "LAST SEEN"

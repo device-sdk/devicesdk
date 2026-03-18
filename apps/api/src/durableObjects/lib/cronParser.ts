@@ -51,6 +51,9 @@ function parseCronField(field: string, min: number, max: number): number[] {
 			const dashIdx = part.indexOf("-");
 			const start = parseInt(part.slice(0, dashIdx), 10);
 			const end = parseInt(part.slice(dashIdx + 1), 10);
+			if (Number.isNaN(start) || Number.isNaN(end)) {
+				throw new Error(`Invalid cron range: ${part}`);
+			}
 			for (let i = start; i <= end; i++) {
 				values.add(i);
 			}
@@ -59,6 +62,11 @@ function parseCronField(field: string, min: number, max: number): number[] {
 			const n = parseInt(part, 10);
 			if (Number.isNaN(n)) {
 				throw new Error(`Invalid cron value: ${part}`);
+			}
+			if (n < min || n > max) {
+				throw new Error(
+					`Value ${n} out of range [${min}, ${max}] in cron field: ${part}`,
+				);
 			}
 			values.add(n);
 		}

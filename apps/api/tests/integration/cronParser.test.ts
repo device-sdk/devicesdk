@@ -242,7 +242,9 @@ describe("nextCronTime", () => {
 			// Should only be Mon(1) or Fri(5)
 			expect(days.every((d) => d === 1 || d === 5)).toBe(true);
 			// Should never fire on other days
-			expect(days.some((d) => d === 0 || d === 2 || d === 3 || d === 4 || d === 6)).toBe(false);
+			expect(
+				days.some((d) => d === 0 || d === 2 || d === 3 || d === 4 || d === 6),
+			).toBe(false);
 		});
 
 		it("minute expression wraps to next hour when past the listed minute", () => {

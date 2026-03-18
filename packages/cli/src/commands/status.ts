@@ -104,6 +104,8 @@ export default async function status(
 			(result) => result.status === "rejected",
 		);
 
+		const rows = devicesToShow.map((device, i) => ({ device, s: statuses[i] }));
+
 		// Compute column widths
 		const maxDeviceLen = Math.max(
 			6, // "DEVICE"

@@ -35,7 +35,15 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     console.debug = (...args) => { _debug(prefix, ...args); persist('debug', args); };
 
     // Strip internal bindings from user-facing env
-    const { __DEVICE_BRIDGE: bridge, __DEVICE_ID: _did, __PROJECT_ID: _pid, ...publicEnv } = this.env;
+    const { __DEVICE_BRIDGE: bridge, __DEVICE_ID: _did, __PROJECT_ID: _pid, __ENV_VARS: _envVarsJson, ...publicEnv } = this.env;
+
+    /** @type {Record<string, string>} */
+    let _envVars = {};
+    try { _envVars = _envVarsJson ? JSON.parse(_envVarsJson) : {}; } catch {}
+    const VARS = {
+      get: async (key) => _envVars[key],
+      getAll: async () => ({ ..._envVars }),
+    };
 
     const devicesProxy = new Proxy({}, {
       get(_, deviceSlug) {
@@ -52,7 +60,7 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
       }
     });
 
-    const env = Object.assign({}, publicEnv, { DEVICES: devicesProxy });
+    const env = Object.assign({}, publicEnv, { DEVICES: devicesProxy, VARS });
     const target = new ${entrypointName}(this.ctx, env);
 
     const BLOCKED_METHODS = new Set([${blockedMethodsLiteral}]);
@@ -62,6 +70,8 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     	onDeviceConnect: (...args) => target.onDeviceConnect(...args),
     	onDeviceDisconnect: (...args) => target.onDeviceDisconnect(...args),
     	onAlarm: (...args) => target.onAlarm(...args),
+    	getCrons: async () => target.crons ?? {},
+    	onCron: (...args) => target.onCron?.(...args),
     	callMethod: (name, args, callDepth) => {
     	  if (BLOCKED_METHODS.has(name)) throw new Error('Cannot call "' + name + '" remotely');
     	  const userProto = Object.getPrototypeOf(target);
@@ -85,8 +95,6 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     	  target.env = Object.assign({}, target.env, { DEVICES: callScopedDevices });
     	  return target[name](...args);
     	},
-    	getCrons: async () => target.crons ?? {},
-    	onCron: (...args) => target.onCron?.(...args),
     }
   }
 }`;

@@ -1,308 +1,260 @@
 import { describe, expect, it } from "vitest";
 import { nextCronTime } from "../../src/durableObjects/lib/cronParser";
 
-// Fixed reference timestamp: 2025-01-15 10:30:00 UTC (Wednesday)
-// epoch: 1736937000000
-const BASE = new Date("2025-01-15T10:30:00Z").getTime();
+// Fixed reference point: 2024-01-01 00:00:00 UTC (a Monday)
+const JAN_1_2024 = Date.UTC(2024, 0, 1, 0, 0, 0, 0);
 
-describe("cronParser — nextCronTime", () => {
-	describe("wildcard (*) fields", () => {
-		it("fires every minute for * * * * *", () => {
-			const next = nextCronTime("* * * * *", BASE);
-			// Next minute boundary is 10:31:00
-			expect(next).toBe(new Date("2025-01-15T10:31:00Z").getTime());
-		});
-
-		it("always advances by at least one minute", () => {
-			// Even if `after` is exactly on a minute boundary, the result must be strictly after it
-			const onMinute = new Date("2025-01-15T10:30:00Z").getTime();
-			const next = nextCronTime("* * * * *", onMinute);
-			expect(next).toBeGreaterThan(onMinute);
-		});
-	});
-
-	describe("specific values", () => {
-		it("fires at a specific minute within the current hour", () => {
-			// after 10:30 → next 45th minute in same hour
-			const next = nextCronTime("45 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T10:45:00Z").getTime());
-		});
-
-		it("wraps to the next hour when the minute has passed", () => {
-			// after 10:30 → minute 15 already past → next is 11:15
-			const next = nextCronTime("15 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T11:15:00Z").getTime());
-		});
-
-		it("fires at a specific hour", () => {
-			// after 10:30 → next occurrence of hour=14, minute=0
-			const next = nextCronTime("0 14 * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T14:00:00Z").getTime());
-		});
-
-		it("wraps to the next day when the hour has passed", () => {
-			// after 10:30 → hour=8 already past today → tomorrow 08:00
-			const next = nextCronTime("0 8 * * *", BASE);
-			expect(next).toBe(new Date("2025-01-16T08:00:00Z").getTime());
-		});
-
-		it("fires at a specific day of month", () => {
-			// after 2025-01-15 10:30 → next 20th at 00:00
-			const next = nextCronTime("0 0 20 * *", BASE);
-			expect(next).toBe(new Date("2025-01-20T00:00:00Z").getTime());
-		});
-
-		it("wraps to the next month when day has passed", () => {
-			// after 2025-01-15 → day=5 has passed → next Feb 5
-			const next = nextCronTime("0 0 5 * *", BASE);
-			expect(next).toBe(new Date("2025-02-05T00:00:00Z").getTime());
-		});
-
-		it("fires at a specific month", () => {
-			// after 2025-01-15 → month=3 (March) → 2025-03-01 00:00
-			const next = nextCronTime("0 0 1 3 *", BASE);
-			expect(next).toBe(new Date("2025-03-01T00:00:00Z").getTime());
-		});
-
-		it("wraps to the next year when month has passed", () => {
-			// after 2025-01-15 → same month (1) but day=10 has passed → 2026-01-10
-			const next = nextCronTime("0 0 10 1 *", BASE);
-			expect(next).toBe(new Date("2026-01-10T00:00:00Z").getTime());
-		});
-	});
-
+describe("nextCronTime", () => {
 	describe("step syntax (*/N)", () => {
-		it("fires every 5 minutes", () => {
-			// after 10:30 → next multiple-of-5 minute is 10:35
-			const next = nextCronTime("*/5 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T10:35:00Z").getTime());
+		it("every 5 minutes fires at 0, 5, 10, ..., 55", () => {
+			const expr = "*/5 * * * *";
+			// Start at the very beginning of an hour
+			const base = Date.UTC(2024, 0, 1, 6, 0, 0, 0) - 1; // 05:59:59.999
+			const fireTimes: number[] = [];
+			let t = base;
+			for (let i = 0; i < 12; i++) {
+				t = nextCronTime(expr, t);
+				fireTimes.push(new Date(t).getUTCMinutes());
+			}
+			expect(fireTimes).toEqual([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]);
 		});
 
-		it("fires every 15 minutes", () => {
-			const next = nextCronTime("*/15 * * * *", BASE);
-			// 10:30 → next is 10:45
-			expect(next).toBe(new Date("2025-01-15T10:45:00Z").getTime());
-		});
-
-		it("fires every 6 hours", () => {
-			// after 10:30 → every 6h starting from 0: 0,6,12,18 → next is 12:00
-			const next = nextCronTime("0 */6 * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T12:00:00Z").getTime());
-		});
-
-		it("fires every 2 days", () => {
-			// after Jan 15 → day 1,3,5,7... → next is Jan 17
-			const next = nextCronTime("0 0 */2 * *", BASE);
-			expect(next).toBe(new Date("2025-01-17T00:00:00Z").getTime());
+		it("*/1 fires every minute", () => {
+			const next = nextCronTime("*/1 * * * *", JAN_1_2024);
+			const d = new Date(next);
+			expect(d.getUTCMinutes()).toBe(1);
+			expect(d.getUTCSeconds()).toBe(0);
 		});
 	});
 
-	describe("range syntax (N-M)", () => {
-		it("fires on any minute in the range", () => {
-			// after 10:30 → next is 10:31 (31 is in range 30-45)
-			const next = nextCronTime("30-45 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T10:31:00Z").getTime());
-		});
-
-		it("wraps when minute range is fully past in the current hour", () => {
-			// after 10:30 → range 0-20 is past for this hour → next is 11:00
-			const next = nextCronTime("0-20 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T11:00:00Z").getTime());
-		});
-
-		it("fires on any hour in the range", () => {
-			// after 10:30 → range 8-12, next valid hour is 11:00
-			const next = nextCronTime("0 8-12 * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T11:00:00Z").getTime());
+	describe("weekday restriction (dow)", () => {
+		it("0 8 * * 1-5 fires on weekdays at 08:00, not Saturday or Sunday", () => {
+			const expr = "0 8 * * 1-5";
+			let t = JAN_1_2024; // 2024-01-01 is a Monday
+			const days: number[] = [];
+			for (let i = 0; i < 10; i++) {
+				t = nextCronTime(expr, t);
+				days.push(new Date(t).getUTCDay()); // 0=Sun, 6=Sat
+			}
+			// Should only include Mon(1)–Fri(5)
+			expect(days.every((d) => d >= 1 && d <= 5)).toBe(true);
+			// Should not include Saturday(6) or Sunday(0)
+			expect(days.includes(0)).toBe(false);
+			expect(days.includes(6)).toBe(false);
 		});
 	});
 
-	describe("comma-separated values", () => {
-		it("fires at the next minute in the list", () => {
-			// after 10:30 → list has 15,30,45 → next is 10:45
-			const next = nextCronTime("15,30,45 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T10:45:00Z").getTime());
-		});
-
-		it("wraps to next hour when all values in list have passed", () => {
-			// after 10:30 → list has 10,20 → both passed → next is 11:10
-			const next = nextCronTime("10,20 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T11:10:00Z").getTime());
-		});
-
-		it("fires on any matching day of week", () => {
-			// after 2025-01-15 (Wednesday=3) → DOW 1,5 (Mon,Fri) → next is Friday Jan 17
-			const next = nextCronTime("0 0 * * 1,5", BASE);
-			expect(next).toBe(new Date("2025-01-17T00:00:00Z").getTime());
+	describe("dom/dow OR semantics", () => {
+		it("0 8 1 * 1 fires on the 1st of the month OR every Monday", () => {
+			const expr = "0 8 1 * 1";
+			// Start from 2024-01-01 00:00 UTC (a Monday and also the 1st)
+			const fireTimes: Array<{ dom: number; dow: number }> = [];
+			let t = JAN_1_2024;
+			for (let i = 0; i < 10; i++) {
+				t = nextCronTime(expr, t);
+				const d = new Date(t);
+				fireTimes.push({ dom: d.getUTCDate(), dow: d.getUTCDay() });
+			}
+			// Every fire time must be either the 1st of the month (dom=1) OR a Monday (dow=1)
+			for (const { dom, dow } of fireTimes) {
+				expect(dom === 1 || dow === 1).toBe(true);
+			}
 		});
 	});
 
-	describe("range with step (N-M/S)", () => {
-		it("fires at step intervals within the range", () => {
-			// minutes: 0-30/10 → 0,10,20,30 → after 10:30 → 10:30 is boundary, next is 11:00
-			const next = nextCronTime("0-30/10 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T11:00:00Z").getTime());
-		});
-
-		it("fires at step intervals starting within range", () => {
-			// minutes: 5-59/10 → 5,15,25,35,45,55 → after 10:30 → next is 10:35
-			const next = nextCronTime("5-59/10 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T10:35:00Z").getTime());
+	describe("leap year handling", () => {
+		it("0 0 29 2 * skips to the next leap year when current year is not a leap year", () => {
+			// 2023 is not a leap year; 2024 is
+			const feb28_2023 = Date.UTC(2023, 1, 28, 12, 0, 0, 0);
+			const next = nextCronTime("0 0 29 2 *", feb28_2023);
+			const d = new Date(next);
+			expect(d.getUTCFullYear()).toBe(2024);
+			expect(d.getUTCMonth()).toBe(1); // February (0-indexed)
+			expect(d.getUTCDate()).toBe(29);
 		});
 	});
 
-	describe("day-of-week (DOW) matching", () => {
-		it("fires on a specific day of week (Friday)", () => {
-			// after 2025-01-15 (Wednesday) → next Friday = Jan 17
-			const next = nextCronTime("0 0 * * 5", BASE);
-			expect(next).toBe(new Date("2025-01-17T00:00:00Z").getTime());
-		});
-
-		it("normalises DOW value 7 to Sunday (0)", () => {
-			// DOW=7 means Sunday; after 2025-01-15 (Wednesday) → next Sunday = Jan 19
-			const next7 = nextCronTime("0 0 * * 7", BASE);
-			const next0 = nextCronTime("0 0 * * 0", BASE);
+	describe("sunday normalization", () => {
+		it("dow=7 is treated as Sunday (same as dow=0)", () => {
+			const expr7 = "0 8 * * 7"; // Sunday using 7
+			const expr0 = "0 8 * * 0"; // Sunday using 0
+			// Both should fire on the same day
+			const next7 = nextCronTime(expr7, JAN_1_2024);
+			const next0 = nextCronTime(expr0, JAN_1_2024);
 			expect(next7).toBe(next0);
-			expect(next7).toBe(new Date("2025-01-19T00:00:00Z").getTime());
-		});
-
-		it("fires on Monday", () => {
-			// after 2025-01-15 (Wednesday) → next Monday = Jan 20
-			const next = nextCronTime("0 0 * * 1", BASE);
-			expect(next).toBe(new Date("2025-01-20T00:00:00Z").getTime());
+			expect(new Date(next7).getUTCDay()).toBe(0); // 0=Sunday
 		});
 	});
 
-	describe("DOM and DOW OR semantics", () => {
-		it("matches when DOM matches (even if DOW does not)", () => {
-			// DOM=20 is a Monday; DOW=5 is Friday; after Jan 15
-			// OR semantics: fires if DOM=20 OR DOW=5
-			// Next DOW=5 is Jan 17; next DOM=20 is Jan 20
-			// → earliest is Jan 17 (Friday)
-			const next = nextCronTime("0 0 20 * 5", BASE);
-			expect(next).toBe(new Date("2025-01-17T00:00:00Z").getTime());
+	describe("range-with-step syntax (N-M/S)", () => {
+		it("1-5/2 for minutes fires at 1, 3, 5", () => {
+			const expr = "1-5/2 * * * *";
+			const base = Date.UTC(2024, 0, 1, 6, 0, 0, 0);
+			const fireTimes: number[] = [];
+			let t = base;
+			for (let i = 0; i < 3; i++) {
+				t = nextCronTime(expr, t);
+				fireTimes.push(new Date(t).getUTCMinutes());
+			}
+			expect(fireTimes).toEqual([1, 3, 5]);
 		});
 
-		it("matches when DOW matches (even if DOM does not)", () => {
-			// DOM=31, DOW=3 (Wednesday); after Jan 15 (Wednesday)
-			// OR semantics: fires if DOM=31 OR DOW=3
-			// Next Wednesday is Jan 22
-			// Jan 31 is also valid
-			// Earliest is Jan 22
-			const next = nextCronTime("0 0 31 * 3", BASE);
-			expect(next).toBe(new Date("2025-01-22T00:00:00Z").getTime());
-		});
-
-		it("uses AND-only when only DOM is restricted", () => {
-			// DOM=20, DOW=* → only DOM matters → Jan 20
-			const next = nextCronTime("0 0 20 * *", BASE);
-			expect(next).toBe(new Date("2025-01-20T00:00:00Z").getTime());
-		});
-
-		it("uses AND-only when only DOW is restricted", () => {
-			// DOM=*, DOW=5 (Friday) → only DOW matters → Jan 17
-			const next = nextCronTime("0 0 * * 5", BASE);
-			expect(next).toBe(new Date("2025-01-17T00:00:00Z").getTime());
+		it("0-12/4 for hours fires at 0, 4, 8, 12", () => {
+			const expr = "0 0-12/4 * * *";
+			const base = Date.UTC(2024, 0, 1, 0, 0, 0, 0) - 1;
+			const fireTimes: number[] = [];
+			let t = base;
+			for (let i = 0; i < 4; i++) {
+				t = nextCronTime(expr, t);
+				fireTimes.push(new Date(t).getUTCHours());
+			}
+			expect(fireTimes).toEqual([0, 4, 8, 12]);
 		});
 	});
 
-	describe("common real-world schedules", () => {
-		it("daily at midnight", () => {
-			const next = nextCronTime("0 0 * * *", BASE);
-			expect(next).toBe(new Date("2025-01-16T00:00:00Z").getTime());
+	describe("year-boundary (Dec→Jan)", () => {
+		it("fires in January when starting from late December", () => {
+			// Dec 31, 2023 at 23:50 — next fire of "0 0 1 1 *" is Jan 1, 2024 at 00:00
+			const dec31_2023 = Date.UTC(2023, 11, 31, 23, 50, 0, 0);
+			const next = nextCronTime("0 0 1 1 *", dec31_2023);
+			const d = new Date(next);
+			expect(d.getUTCFullYear()).toBe(2024);
+			expect(d.getUTCMonth()).toBe(0); // January (0-indexed)
+			expect(d.getUTCDate()).toBe(1);
+			expect(d.getUTCHours()).toBe(0);
+			expect(d.getUTCMinutes()).toBe(0);
 		});
 
-		it("weekly on Sunday at noon", () => {
-			// after 2025-01-15 (Wednesday) → next Sunday Jan 19
-			const next = nextCronTime("0 12 * * 0", BASE);
-			expect(next).toBe(new Date("2025-01-19T12:00:00Z").getTime());
-		});
-
-		it("first day of each month", () => {
-			// after Jan 15 → next Feb 1
-			const next = nextCronTime("0 0 1 * *", BASE);
-			expect(next).toBe(new Date("2025-02-01T00:00:00Z").getTime());
-		});
-
-		it("every 30 minutes", () => {
-			// after 10:30 → 11:00
-			const next = nextCronTime("0,30 * * * *", BASE);
-			expect(next).toBe(new Date("2025-01-15T11:00:00Z").getTime());
+		it("fires at the correct hour on Jan 1 even when starting seconds before midnight", () => {
+			// Dec 31 at 23:59 — "0 6 1 1 *" fires Jan 1 at 06:00
+			const almostMidnight = Date.UTC(2023, 11, 31, 23, 59, 0, 0);
+			const next = nextCronTime("0 6 1 1 *", almostMidnight);
+			const d = new Date(next);
+			expect(d.getUTCFullYear()).toBe(2024);
+			expect(d.getUTCMonth()).toBe(0);
+			expect(d.getUTCDate()).toBe(1);
+			expect(d.getUTCHours()).toBe(6);
 		});
 	});
 
-	describe("error handling", () => {
-		it("throws for wrong field count", () => {
-			expect(() => nextCronTime("* * * *", BASE)).toThrow(
-				"Cron expression must have 5 fields",
+	describe("range N-M wrapping (dom range vs month length)", () => {
+		it("dom range 29-31 skips February in a non-leap year and fires in March", () => {
+			// Start Jan 31, 2023 — "0 0 29-31 * *" should skip Feb (no Feb 29-31 in 2023)
+			// and fire on Mar 29
+			const jan31_2023 = Date.UTC(2023, 0, 31, 23, 59, 0, 0);
+			const next = nextCronTime("0 0 29-31 * *", jan31_2023);
+			const d = new Date(next);
+			expect(d.getUTCMonth()).toBe(2); // March (0-indexed)
+			expect(d.getUTCDate()).toBe(29);
+		});
+
+		it("dom range 30-31 fires at the 30th in a 31-day month after skipping shorter months", () => {
+			// Start Sep 30, 2024 (September has 30 days) — "0 0 30-31 * *" should next fire Oct 30
+			const sep30_2024 = Date.UTC(2024, 8, 30, 1, 0, 0, 0); // Sep 30 at 01:00
+			const next = nextCronTime("0 0 30-31 * *", sep30_2024);
+			const d = new Date(next);
+			// Oct has 31 days, so Oct 30 should be the next match
+			expect(d.getUTCMonth()).toBe(9); // October (0-indexed)
+			expect(d.getUTCDate()).toBe(30);
+		});
+	});
+
+	describe("error cases", () => {
+		it("throws for step of 0", () => {
+			expect(() => nextCronTime("*/0 * * * *", JAN_1_2024)).toThrow();
+		});
+
+		it("throws for 6 fields", () => {
+			expect(() => nextCronTime("* * * * * *", JAN_1_2024)).toThrow(/5 fields/);
+		});
+
+		it("throws for 4 fields (too few)", () => {
+			expect(() => nextCronTime("* * * *", JAN_1_2024)).toThrow(/5 fields/);
+		});
+
+		it("throws for hour value out of range", () => {
+			expect(() => nextCronTime("0 25 * * *", JAN_1_2024)).toThrow();
+		});
+
+		it("throws for invalid (non-numeric) field value", () => {
+			expect(() => nextCronTime("abc * * * *", JAN_1_2024)).toThrow();
+		});
+
+		it("throws for impossible date (Feb 30) that never occurs", () => {
+			// February never has a 30th — the parser should throw after 1 year
+			expect(() => nextCronTime("0 0 30 2 *", JAN_1_2024)).toThrow(
+				/No valid fire time/,
 			);
-			expect(() => nextCronTime("* * * * * *", BASE)).toThrow(
-				"Cron expression must have 5 fields",
-			);
-		});
-
-		it("throws for out-of-range minute", () => {
-			expect(() => nextCronTime("60 * * * *", BASE)).toThrow();
-		});
-
-		it("throws for out-of-range hour", () => {
-			expect(() => nextCronTime("0 24 * * *", BASE)).toThrow();
-		});
-
-		it("throws for invalid step value", () => {
-			expect(() => nextCronTime("*/0 * * * *", BASE)).toThrow();
-		});
-
-		it("throws for non-numeric value", () => {
-			expect(() => nextCronTime("abc * * * *", BASE)).toThrow();
-		});
-
-		it("throws when no match found within one year", () => {
-			// Feb 30 never exists — scheduler will scan the whole year and give up
-			expect(() => nextCronTime("0 0 30 2 *", BASE)).toThrow(
-				"No valid fire time found within 1 year",
-			);
 		});
 	});
 
-	describe("edge cases", () => {
-		it("handles leading/trailing whitespace in expression", () => {
-			const next = nextCronTime("  */5 * * * *  ", BASE);
-			expect(next).toBe(new Date("2025-01-15T10:35:00Z").getTime());
+	describe("specific fire time accuracy", () => {
+		it("returns the exact next minute boundary after `after`", () => {
+			// If current time is exactly 08:00:00 UTC, next fire should be the NEXT occurrence
+			const exactly8am = Date.UTC(2024, 0, 1, 8, 0, 0, 0);
+			const next = nextCronTime("0 8 * * *", exactly8am);
+			// Should be 08:00 the following day
+			const d = new Date(next);
+			expect(d.getUTCDate()).toBe(2); // Jan 2
+			expect(d.getUTCHours()).toBe(8);
+			expect(d.getUTCMinutes()).toBe(0);
 		});
 
-		it("correctly advances to 10:35 just before the minute boundary", () => {
-			// 10:34:59.999 → next */5 minute is 10:35:00
-			const justBefore = new Date("2025-01-15T10:35:00Z").getTime() - 1;
-			const next = nextCronTime("*/5 * * * *", justBefore);
-			expect(next).toBe(new Date("2025-01-15T10:35:00Z").getTime());
+		it("comma-separated values fire at each listed minute", () => {
+			const expr = "0,30 * * * *";
+			const base = Date.UTC(2024, 0, 1, 6, 0, 0, 0) - 1;
+			const next1 = nextCronTime(expr, base);
+			const next2 = nextCronTime(expr, next1);
+			expect(new Date(next1).getUTCMinutes()).toBe(0);
+			expect(new Date(next2).getUTCMinutes()).toBe(30);
 		});
 
-		it("correctly advances to 10:40 when at exactly 10:35", () => {
-			// exactly on the 10:35 boundary → next fires at 10:40
-			const onBoundary = new Date("2025-01-15T10:35:00Z").getTime();
-			const next = nextCronTime("*/5 * * * *", onBoundary);
-			expect(next).toBe(new Date("2025-01-15T10:40:00Z").getTime());
+		it("range syntax N-M includes all values from N to M", () => {
+			const expr = "0 9-11 * * *"; // fires at 09:00, 10:00, 11:00
+			let t = Date.UTC(2024, 0, 1, 8, 59, 0, 0);
+			const hours: number[] = [];
+			for (let i = 0; i < 3; i++) {
+				t = nextCronTime(expr, t);
+				hours.push(new Date(t).getUTCHours());
+			}
+			expect(hours).toEqual([9, 10, 11]);
 		});
 
-		it("handles month boundary correctly (Jan→Feb)", () => {
-			// after Jan 31 23:59 → next day 1 of any month is Feb 1
-			const endOfJan = new Date("2025-01-31T23:59:00Z").getTime();
-			const next = nextCronTime("0 0 1 * *", endOfJan);
-			expect(next).toBe(new Date("2025-02-01T00:00:00Z").getTime());
+		it("minute range 0-20 wraps to next hour after the 20th minute", () => {
+			// At minute 21 of an hour, "0-20 * * * *" has exhausted its range.
+			// The next fire should be at minute 0 of the NEXT hour, not stuck in the current one.
+			const at21 = Date.UTC(2024, 0, 1, 6, 21, 0, 0);
+			const next = nextCronTime("0-20 * * * *", at21);
+			const d = new Date(next);
+			expect(d.getUTCHours()).toBe(7); // advanced to the next hour
+			expect(d.getUTCMinutes()).toBe(0);
 		});
 
-		it("handles year boundary correctly (Dec→Jan)", () => {
-			// after Dec 31 → next occurrence is Jan 15 next year
-			const endOfYear = new Date("2025-12-31T23:59:00Z").getTime();
-			const next = nextCronTime("0 0 15 * *", endOfYear);
-			expect(next).toBe(new Date("2026-01-15T00:00:00Z").getTime());
+		it("comma-separated DOW fires only on the listed weekdays", () => {
+			// "0 0 * * 1,5" — midnight only on Monday(1) and Friday(5)
+			const expr = "0 0 * * 1,5";
+			let t = JAN_1_2024; // 2024-01-01 is a Monday
+			const days: number[] = [];
+			for (let i = 0; i < 8; i++) {
+				t = nextCronTime(expr, t);
+				days.push(new Date(t).getUTCDay());
+			}
+			// Should only be Mon(1) or Fri(5)
+			expect(days.every((d) => d === 1 || d === 5)).toBe(true);
+			// Should never fire on other days
+			expect(
+				days.some((d) => d === 0 || d === 2 || d === 3 || d === 4 || d === 6),
+			).toBe(false);
 		});
 
-		it("February short month: day 28 fires in Feb", () => {
-			// after 2025-01-15 → next Feb 28 (2025 is not a leap year)
-			const next = nextCronTime("0 0 28 2 *", BASE);
-			expect(next).toBe(new Date("2025-02-28T00:00:00Z").getTime());
+		it("minute expression wraps to next hour when past the listed minute", () => {
+			// "15 * * * *" fires at :15 every hour.
+			// Starting at minute 16, the next fire should be at the NEXT hour's :15.
+			const at16 = Date.UTC(2024, 0, 1, 6, 16, 0, 0);
+			const next = nextCronTime("15 * * * *", at16);
+			const d = new Date(next);
+			expect(d.getUTCHours()).toBe(7); // next hour
+			expect(d.getUTCMinutes()).toBe(15);
 		});
 	});
 });

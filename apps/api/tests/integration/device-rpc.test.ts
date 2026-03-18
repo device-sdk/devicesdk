@@ -287,7 +287,7 @@ describe.sequential("Inter-device RPC", () => {
 			expect(code).toContain("__DEVICE_BRIDGE: bridge");
 			expect(code).toContain("publicEnv");
 			expect(code).toContain(
-				"Object.assign({}, publicEnv, { DEVICES: devicesProxy })",
+				"Object.assign({}, publicEnv, { DEVICES: devicesProxy, VARS })",
 			);
 		});
 

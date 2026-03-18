@@ -84,36 +84,40 @@ export default async function status(
 			}
 		}
 
-		// Fetch live status for each device in parallel; partial failures show as error
+		// Fetch live status for each device in parallel
+		// Use allSettled so a single device failure doesn't abort the whole command —
+		// failed devices are shown with a warning indicator instead of aborting.
 		const settledStatuses = await Promise.allSettled(
 			devicesToShow.map((d) => getDeviceStatus(token, projectId, d.device_id)),
 		);
-		const rows = devicesToShow.map((device, i) => {
-			const result = settledStatuses[i];
-			const errored = result.status === "rejected";
-			const s: DeviceStatus = errored
-				? {
+		const statuses: DeviceStatus[] = settledStatuses.map((result) =>
+			result.status === "fulfilled"
+				? result.value
+				: {
 						connected: false,
 						connected_since: null,
 						last_connected_at: null,
 						current_version_id: null,
-					}
-				: result.value;
-			return { device, s, errored };
-		});
+					},
+		);
+		const statusErrors: boolean[] = settledStatuses.map(
+			(result) => result.status === "rejected",
+		);
 
-		// Compute column widths from successfully fetched statuses only
+		const rows = devicesToShow.map((device, i) => ({ device, s: statuses[i] }));
+
+		// Compute column widths
 		const maxDeviceLen = Math.max(
 			6, // "DEVICE"
-			...rows.map(({ device }) => device.device_id.length),
+			...rows.map((r) => r.device.device_id.length),
 		);
 		const maxVersionLen = Math.max(
 			7, // "VERSION"
-			...rows.map(({ s }) => formatVersion(s.current_version_id).length),
+			...rows.map((r) => formatVersion(r.s.current_version_id).length),
 		);
 		const maxLastSeenLen = Math.max(
 			9, // "LAST SEEN"
-			...rows.map(({ s }) => formatLastSeen(s).length),
+			...statuses.map((s) => formatLastSeen(s).length),
 		);
 
 		// Print header
@@ -129,8 +133,11 @@ export default async function status(
 		console.log(divider);
 
 		// Print each device row
-		for (const { device, s, errored } of rows) {
-			const dot = errored
+		for (let i = 0; i < devicesToShow.length; i++) {
+			const device = devicesToShow[i];
+			const s = statuses[i];
+
+			const dot = statusErrors[i]
 				? "⚠ error  "
 				: s.connected
 					? "● online "

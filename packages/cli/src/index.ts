@@ -4,6 +4,7 @@ import { Command } from "commander";
 import build from "./commands/build.js";
 import deploy from "./commands/deploy.js";
 import dev from "./commands/dev.js";
+import { envList, envSet, envUnset } from "./commands/env.js";
 import flash from "./commands/flash.js";
 import init from "./commands/init.js";
 import inspect from "./commands/inspect.js";
@@ -140,5 +141,31 @@ program
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
 	.option("--project <id>", "Project ID (if no devicesdk.ts config)")
 	.action((deviceId, options) => inspect(deviceId, options));
+
+// Env var commands
+const envCmd = program
+	.command("env")
+	.description("Manage project environment variables");
+
+envCmd
+	.command("set <pairs...>")
+	.description("Set one or more env vars (KEY=VALUE format)")
+	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
+	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.action((pairs, options) => envSet(pairs, options));
+
+envCmd
+	.command("list")
+	.description("List env var keys for the project (values are never shown)")
+	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
+	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.action((options) => envList(options));
+
+envCmd
+	.command("unset <key>")
+	.description("Remove an env var")
+	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
+	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.action((key, options) => envUnset(key, options));
 
 program.parse(process.argv);

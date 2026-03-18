@@ -20,16 +20,10 @@ Every entrypoint extends `DeviceEntrypoint`:
 import { DeviceEntrypoint } from '@devicesdk/core';
 
 export default class MyDevice extends DeviceEntrypoint {
-  // Optional: named cron schedules (5-field UTC cron expressions)
-  crons = {
-    heartbeat: '0-59/5 * * * *',  // every 5 minutes
-  };
-
   // Lifecycle methods
   async onDeviceConnect() { }
   async onMessage(message: DeviceResponse) { }
   async onDeviceDisconnect() { }
-  async onCron(name: string) { }
 }
 ```
 
@@ -83,7 +77,7 @@ Called when a device disconnects.
 async onDeviceDisconnect() {
   // Cleanup
   console.info(`Device disconnected`);
-
+  
   // Update status
   await this.env.DEVICE.kv.put(`status`, 'offline');
 }
@@ -94,43 +88,6 @@ async onDeviceDisconnect() {
 - Cleanup resources
 - Log disconnect event
 - Trigger alerts
-
-### onCron
-
-Called when a named schedule defined in `crons` fires. Override this to handle periodic work without needing firmware changes.
-
-```typescript
-crons = {
-  heartbeat: '*/5 * * * *',   // every 5 minutes
-  dailyReport: '0 8 * * *',   // every day at 08:00 UTC
-};
-
-async onCron(name: string) {
-  if (name === 'heartbeat') {
-    const reading = await this.env.DEVICE.i2cRead(0, '0x76', 6);
-    console.info('Sensor reading:', reading);
-
-    // Reschedule is automatic — the platform advances the schedule for you
-  }
-
-  if (name === 'dailyReport') {
-    const summary = await this.env.DEVICE.kv.get('dailySummary');
-    // send to webhook, etc.
-  }
-}
-```
-
-**Use cases:**
-- Periodic sensor polling (e.g. every 5 minutes)
-- Watchdog timer (detect silent/stuck devices)
-- Scheduled one-shot actions (e.g. turn LED off at midnight)
-- Daily or weekly reports
-
-**Notes:**
-- Only one alarm can be pending at a time. The platform manages this automatically when using `crons`.
-- The cron fires even if the device is offline — `onCron()` runs in the serverless runtime.
-- Hardware commands inside `onCron()` throw if the device is disconnected; wrap them in try/catch.
-- Crons run in UTC. Use standard 5-field format: `minute hour dom month dow`.
 
 ## Environment Bindings
 
@@ -290,7 +247,14 @@ Entrypoint methods should complete quickly:
 4. **Keep state minimal** - Only store what's needed
 5. **Be idempotent** - Handle duplicate messages gracefully
 
+## Cron Scheduling
+
+Device scripts can define named cron schedules using the `crons` property, and handle them via the `onCron` lifecycle method. This lets you run periodic tasks (e.g., sending heartbeats, polling sensors) without a persistent connection.
+
+See [Cron Scheduling](/docs/concepts/cron-scheduling/) for a full reference.
+
 ## Next Steps
 
 - [Your First Device](/docs/first-device/) - Build a complete example
 - [Platform Architecture](/docs/concepts/architecture/) - System overview
+- [Cron Scheduling](/docs/concepts/cron-scheduling/) - Run periodic tasks on a schedule

@@ -15,18 +15,18 @@ export interface IUserDeviceWorker {
 	// Called when the alarm fires (if using alarms)
 	onAlarm?(): Promise<void>;
 
+	// Returns the cron schedule definitions (name → cron expression)
+	getCrons?(): Promise<Record<string, string>> | Record<string, string>;
+
+	// Called when a named cron fires
+	onCron?(name: string): Promise<void>;
+
 	// Called for inter-device RPC — invokes a user-defined method by name
 	callMethod?(
 		name: string,
 		args: unknown[],
 		callDepth?: number,
 	): Promise<unknown>;
-
-	// Returns the cron schedule definitions (name → cron expression)
-	getCrons?(): Promise<Record<string, string>>;
-
-	// Called when a named cron fires
-	onCron?(name: string): Promise<void>;
 }
 
 // KV storage interface for user code

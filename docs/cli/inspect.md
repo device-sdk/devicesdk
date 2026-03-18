@@ -1,92 +1,83 @@
 ---
 title: devicesdk inspect
-description: Interactive hardware inspection — send commands directly to a connected device from your terminal
+description: Interactive REPL for sending hardware commands to a connected device
 social_image: /og-images/docs/cli/inspect.png
 ---
 
 ## Usage
 
 ```bash
-devicesdk inspect <device-id> [flags]
+devicesdk inspect <device> [flags]
 ```
+
+## Arguments
+
+- `<device>` - Device slug to connect to (required)
 
 ## Flags
 
-- `--project <id>` - Project ID (if no `devicesdk.ts` config file is present)
-- `-c, --config <path>` - Path to the `devicesdk.ts` config file
+- `--project <id>` - Project ID (overrides config file)
+- `--config <path>` - Path to config file (default: `devicesdk.ts`)
 
 ## Description
 
-`devicesdk inspect` opens an interactive REPL that lets you send hardware commands directly to a connected device without writing or deploying a device script. This is useful for verifying hardware wiring, debugging sensors, and exploring pin states in real-time.
+The `inspect` command opens an interactive REPL (Read-Eval-Print Loop) that lets you send hardware commands directly to a connected device and see the results in real time. This is useful for debugging hardware, testing pin states, and exploring I2C peripherals without writing code.
 
-The device must have an active WebSocket connection (i.e. the firmware must be running and connected to the DeviceSDK platform). If the device is offline, commands will return an error but the REPL will remain open so you can retry once the device connects.
+The device must be online (connected to the DeviceSDK platform) for commands to work.
+
+Commands are sent sequentially — if you send input via a pipe, each command waits for a response before the next is processed.
 
 ## Available Commands
 
 | Command | Description |
-|---|---|
-| `gpio read <pin>` | Read digital pin state (returns HIGH or LOW) |
-| `gpio write <pin> high\|low` | Set GPIO output state |
-| `adc read <pin>` | Read analog pin value (0–4095 on most boards) |
-| `pwm <pin> <frequency> <duty_cycle>` | Set PWM output (frequency in Hz, duty cycle 0–100) |
-| `i2c scan [bus]` | Scan for I2C devices on a bus (default bus 0) |
-| `i2c configure <bus> <sda> <scl> [freq]` | Configure I2C bus pins (frequency in Hz, default 100000) |
+|---------|-------------|
+| `gpio read <pin>` | Read digital pin state (HIGH or LOW) |
+| `gpio write <pin> high\|low` | Set a GPIO output pin |
+| `adc read <pin>` | Read analog pin value |
+| `pwm <pin> <frequency> <duty_cycle>` | Set PWM output |
+| `i2c scan [bus]` | Scan for I2C devices on a bus (default: bus 0) |
+| `i2c configure <bus> <sda> <scl> [freq]` | Configure I2C bus pins and frequency |
 | `i2c read <bus> <addr> <bytes> [register]` | Read bytes from an I2C device |
 | `i2c write <bus> <addr> <data...>` | Write bytes to an I2C device |
-| `monitor <pin> [up\|down\|none]` | Enable GPIO input monitoring with optional pull resistor |
+| `monitor <pin> [up\|down\|none]` | Enable GPIO input change monitoring |
 | `reboot` | Reboot the device (prompts for confirmation) |
 | `help` | Show available commands |
-| `exit` / Ctrl-C | Exit inspect mode |
+| `exit` / `quit` / Ctrl-C | Exit inspect mode |
 
 ## Examples
 
-### Verify an LED is on the correct pin
-
-```
-devicesdk:my-device> gpio write 2 high
-OK
-devicesdk:my-device> gpio write 2 low
-OK
+Open inspect session for a device:
+```bash
+devicesdk inspect temperature-sensor
 ```
 
-### Read a button state
-
-```
-devicesdk:my-device> gpio read 14
-Pin 14: LOW
+Specify project explicitly:
+```bash
+devicesdk inspect temperature-sensor --project my-project-id
 ```
 
-### Scan for I2C sensors
-
-```
-devicesdk:my-device> i2c scan
-Found 2 device(s) on bus 0: 0x3C, 0x76
+Pipe commands for automation:
+```bash
+echo "gpio read 5" | devicesdk inspect temperature-sensor
 ```
 
-### Read from a BME280 pressure sensor (I2C address 0x76)
+## Interactive Session Example
 
 ```
-devicesdk:my-device> i2c configure 0 21 22
-OK
-devicesdk:my-device> i2c read 0 0x76 6 0xF7
-Read from 0x76: [0x51, 0x4C, 0x00, 0x84, 0xD1, 0x00]
+Connecting to device "temperature-sensor" in project "my-project"...
+Type "help" for available commands, "exit" to quit.
+
+devicesdk:temperature-sensor> gpio read 5
+Pin 5: HIGH
+devicesdk:temperature-sensor> i2c scan
+Found 1 device(s) on bus 0: 0x48
+devicesdk:temperature-sensor> i2c read 0 0x48 2
+Read from 0x48: [0x1A, 0xC0]
+devicesdk:temperature-sensor> exit
+Goodbye.
 ```
 
-### Read an analog sensor value
+## Exit Codes
 
-```
-devicesdk:my-device> adc read 34
-Pin 34 (analog): 2048
-```
-
-## Error Handling
-
-- **Device not connected** — the REPL stays open; retry the command once the device connects
-- **Command timeout** — the device did not respond within 5 seconds; the REPL stays open
-- **Concurrent commands** — typing a command while one is in flight will show a warning and discard the input
-
-## Notes
-
-- The `reboot` command prompts for confirmation (`[y/N]`) to prevent accidental reboots
-- I2C addresses can be specified in hex (`0x76`) or decimal (`118`)
-- The REPL prompt shows the device ID: `devicesdk:<device-id>>`
+- `0` — clean exit (user typed `exit` or closed the REPL)
+- `1` — authentication error or unhandled API error

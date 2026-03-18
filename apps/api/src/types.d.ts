@@ -110,6 +110,15 @@ export type tableTokens = {
 	managed?: number;
 };
 
+export type tableProjectEnvVars = {
+	id: string;
+	project_id: string;
+	key: string;
+	value: string;
+	created_at: number;
+	updated_at: number;
+};
+
 export interface Variables {
 	user: tableUser;
 	qb: D1QB;

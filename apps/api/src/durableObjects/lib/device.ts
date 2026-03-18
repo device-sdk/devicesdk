@@ -196,6 +196,16 @@ export class BaseDevice extends DurableObject<Env> {
 
 				const userCode = await scriptObject.text();
 
+				// Fetch project env vars from D1 to inject into the sandbox
+				const envVarsResult = await this.env.DB.prepare(
+					"SELECT key, value FROM project_env_vars WHERE project_id = ?",
+				)
+					.bind(projectId)
+					.all<{ key: string; value: string }>();
+				const envVarsMap: Record<string, string> = Object.fromEntries(
+					(envVarsResult.results ?? []).map((r) => [r.key, r.value]),
+				);
+
 				return {
 					compatibilityDate: "2025-11-25",
 					mainModule: "main.js",
@@ -215,6 +225,8 @@ export class BaseDevice extends DurableObject<Env> {
 						// Metadata for console override prefix in proxy entrypoint
 						__DEVICE_ID: deviceId,
 						__PROJECT_ID: projectId,
+						// Project-scoped environment variables
+						__ENV_VARS: JSON.stringify(envVarsMap),
 					},
 					// Block network access for sandboxing
 					globalOutbound: null,

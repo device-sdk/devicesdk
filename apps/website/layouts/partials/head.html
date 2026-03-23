@@ -246,3 +246,24 @@
 </style>
 
 <link rel="icon" href="/logo.svg" sizes="any" type="image/svg+xml">
+
+{{ if .IsHome }}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "DeviceSDK",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, macOS, Windows",
+  "description": "IoT platform for writing TypeScript scripts that run in the cloud and control ESP32 and Raspberry Pi Pico devices in real time — no embedded C required.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "Free tier available. Paid plans from $5/month."
+  },
+  "url": "https://devicesdk.com",
+  "sameAs": "https://discord.gg/WuNhbXGsBy"
+}
+</script>
+{{ end }}

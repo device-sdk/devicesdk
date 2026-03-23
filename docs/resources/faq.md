@@ -13,10 +13,31 @@ DeviceSDK is a platform for building IoT applications with TypeScript. It runs y
 ### How is this different from other IoT platforms?
 
 - **TypeScript-first** - Full TypeScript support, not just configuration
+- **Cloud-side logic** - Your script runs in the cloud and talks to your device over WebSocket — no reflashing to update behavior
 - **Distributed execution** - Code runs globally, near your devices
 - **Developer-friendly** - Built-in simulator, modern tooling
 - **Pay per message** - No uptime charges
 - **Simple integration** - Use your preferred APIs and services
+
+### Do I need to know C or C++ to use DeviceSDK?
+
+No. DeviceSDK ships pre-built firmware for ESP32 and Raspberry Pi Pico — you never touch C or C++. All your logic is written in TypeScript and runs in the cloud. The firmware is open source, but you don't need to modify it.
+
+### How is DeviceSDK different from Arduino?
+
+Arduino requires you to write C/C++ and flash new code to the device every time you make a change. With DeviceSDK, your TypeScript script runs in the cloud and sends commands to your device over a persistent WebSocket connection. You can update and redeploy your logic in seconds without touching the device.
+
+### How is DeviceSDK different from ESPHome?
+
+ESPHome uses YAML to configure smart home automations that run on-device. DeviceSDK is a general-purpose IoT platform for writing arbitrary TypeScript logic — HTTP calls, data processing, multi-device orchestration, conditional workflows — that runs in the cloud and controls hardware in real time. It's not limited to home automation use cases.
+
+### Does it work with MicroPython?
+
+No. DeviceSDK uses its own pre-built firmware (written in C/C++) that handles the WebSocket connection to the cloud. Your application code is TypeScript running server-side — not Python on the device. This approach gives you faster iteration (no reflash cycle) and access to the full npm ecosystem.
+
+### Can I use DeviceSDK for production or commercial projects?
+
+Yes. DeviceSDK is designed for production use. It supports multiple devices per project, API tokens for CI/CD, cron-based scheduling, fleet management via the dashboard, and persistent KV storage. The paid tier is $5/month for up to 5 million messages.
 
 ### Do I need to know any specific cloud platform?
 
@@ -51,18 +72,12 @@ Yes. Configure daily and monthly limits in the dashboard to avoid surprises.
 
 Currently supported:
 - Raspberry Pi Pico W
-- Raspberry Pi Pico 2W
-
-Coming soon:
-- ESP32 series
+- Raspberry Pi Pico 2 W
+- ESP32-C61 (ESP32 series)
 
 ### Can I use Raspberry Pi (full computer)?
 
 Not yet. DeviceSDK targets microcontrollers, not Linux computers.
-
-### Will you support ESP32?
-
-Yes! ESP32 support is in development.
 
 ### Can I request hardware support?
 

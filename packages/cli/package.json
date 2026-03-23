@@ -2,6 +2,7 @@
 	"name": "@devicesdk/cli",
 	"version": "0.1.0",
 	"description": "CLI tool for developing and deploying DeviceSDK IoT applications.",
+	"keywords": ["iot", "typescript", "esp32", "raspberry-pi-pico", "microcontroller", "firmware", "websocket", "edge", "cli", "hardware", "embedded", "deploy", "flash"],
 	"author": "",
 	"main": "dist/index.js",
 	"bin": {

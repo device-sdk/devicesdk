@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Get from zero to your first deployment in under 15 minutes
+description: "Get started with DeviceSDK in 15 minutes. Write a TypeScript device script, test it in the local simulator, and deploy to your ESP32 or Raspberry Pi Pico W."
 social_image: /og-images/docs/quickstart.png
 ---
 

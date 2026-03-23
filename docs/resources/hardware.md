@@ -1,6 +1,6 @@
 ---
 title: Hardware Compatibility
-description: Supported microcontrollers and hardware platforms
+description: "Supported hardware for DeviceSDK: ESP32-C61, Raspberry Pi Pico W, and Pico 2 W. Full GPIO, PWM, ADC, I2C, SPI, UART, and addressable LED support."
 social_image: /og-images/docs/resources/hardware.png
 ---
 

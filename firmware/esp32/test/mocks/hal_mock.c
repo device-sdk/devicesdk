@@ -112,3 +112,57 @@ int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t le
     }
     return g_hal_mock.i2c_read_return > 0 ? g_hal_mock.i2c_read_return : (int)bytes_to_copy;
 }
+
+float iotkit_hal_get_temperature(void) {
+    return 25.0f;
+}
+
+bool iotkit_hal_watchdog_configure(uint32_t timeout_ms, bool enable) {
+    (void)timeout_ms;
+    (void)enable;
+    return true;
+}
+
+void iotkit_hal_watchdog_feed(void) {
+}
+
+bool iotkit_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) {
+    (void)bus; (void)clk_pin; (void)mosi_pin; (void)miso_pin; (void)cs_pin; (void)frequency; (void)mode;
+    return true;
+}
+
+spi_transfer_result_t iotkit_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) {
+    (void)bus; (void)data; (void)len;
+    spi_transfer_result_t result;
+    memset(&result, 0, sizeof(result));
+    return result;
+}
+
+bool iotkit_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) {
+    (void)bus; (void)data; (void)len;
+    return true;
+}
+
+spi_transfer_result_t iotkit_hal_spi_read(uint8_t bus, size_t len) {
+    (void)bus; (void)len;
+    spi_transfer_result_t result;
+    memset(&result, 0, sizeof(result));
+    return result;
+}
+
+bool iotkit_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) {
+    (void)port; (void)tx_pin; (void)rx_pin; (void)baud_rate; (void)data_bits; (void)stop_bits; (void)parity;
+    return true;
+}
+
+bool iotkit_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) {
+    (void)port; (void)data; (void)len;
+    return true;
+}
+
+uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) {
+    (void)port; (void)bytes_to_read; (void)timeout_ms;
+    uart_read_result_t result;
+    memset(&result, 0, sizeof(result));
+    return result;
+}

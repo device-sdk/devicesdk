@@ -161,6 +161,86 @@ static void process_worker_responses(void) {
                     break;
                 }
 
+                case CMD_GET_TEMPERATURE:
+                    cJSON_AddStringToObject(response, "type", "temperature_result");
+                    cJSON_AddNumberToObject(payload_obj, "celsius", resp.data.temperature.celsius);
+                    break;
+
+                case CMD_WATCHDOG_CONFIGURE:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "watchdog_configure");
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_WATCHDOG_FEED:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "watchdog_feed");
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_SPI_CONFIGURE:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "spi_configure");
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_SPI_TRANSFER: {
+                    cJSON_AddStringToObject(response, "type", "spi_transfer_result");
+                    cJSON *spi_data = cJSON_CreateArray();
+                    for (size_t i = 0; i < resp.data.spi.data_len; i++) {
+                        char hex_str[8];
+                        snprintf(hex_str, sizeof(hex_str), "0x%02X", resp.data.spi.data[i]);
+                        cJSON_AddItemToArray(spi_data, cJSON_CreateString(hex_str));
+                    }
+                    cJSON_AddItemToObject(payload_obj, "data", spi_data);
+                    cJSON_AddNumberToObject(payload_obj, "length", resp.data.spi.data_len);
+                    break;
+                }
+
+                case CMD_SPI_WRITE:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "spi_write");
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_SPI_READ: {
+                    cJSON_AddStringToObject(response, "type", "spi_read_result");
+                    cJSON *spi_read_data = cJSON_CreateArray();
+                    for (size_t i = 0; i < resp.data.spi.data_len; i++) {
+                        char hex_str[8];
+                        snprintf(hex_str, sizeof(hex_str), "0x%02X", resp.data.spi.data[i]);
+                        cJSON_AddItemToArray(spi_read_data, cJSON_CreateString(hex_str));
+                    }
+                    cJSON_AddItemToObject(payload_obj, "data", spi_read_data);
+                    cJSON_AddNumberToObject(payload_obj, "length", resp.data.spi.data_len);
+                    break;
+                }
+
+                case CMD_UART_CONFIGURE:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "uart_configure");
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_UART_WRITE:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "uart_write");
+                    cJSON_AddStringToObject(payload_obj, "status", "success");
+                    break;
+
+                case CMD_UART_READ: {
+                    cJSON_AddStringToObject(response, "type", "uart_read_result");
+                    cJSON *uart_data = cJSON_CreateArray();
+                    for (size_t i = 0; i < resp.data.uart_read.data_len; i++) {
+                        char hex_str[8];
+                        snprintf(hex_str, sizeof(hex_str), "0x%02X", resp.data.uart_read.data[i]);
+                        cJSON_AddItemToArray(uart_data, cJSON_CreateString(hex_str));
+                    }
+                    cJSON_AddItemToObject(payload_obj, "data", uart_data);
+                    cJSON_AddNumberToObject(payload_obj, "bytes_read", resp.data.uart_read.data_len);
+                    break;
+                }
+
                 case CMD_DISPLAY_UPDATE:
                     cJSON_AddStringToObject(response, "type", "command_ack");
                     cJSON_AddStringToObject(payload_obj, "command", "display_update");

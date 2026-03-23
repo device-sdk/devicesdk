@@ -375,6 +375,158 @@ export function useSimulator() {
 				};
 			}
 
+			case "get_temperature": {
+				addLog("Temperature: 25.0°C (simulated)", "get_temperature");
+				return {
+					id: command.id,
+					type: "temperature_result",
+					payload: { celsius: 25.0 },
+				};
+			}
+
+			case "watchdog_configure": {
+				const enable = command.payload.enable;
+				const ms = command.payload.timeout_ms;
+				addLog(
+					`Watchdog ${enable ? `enabled (${ms}ms)` : "disabled"} (simulated)`,
+					"watchdog_configure",
+				);
+				return {
+					id: command.id,
+					type: "command_ack",
+					payload: { command_type: command.type },
+				};
+			}
+
+			case "watchdog_feed": {
+				addLog("Watchdog fed (simulated)", "watchdog_feed");
+				return {
+					id: command.id,
+					type: "command_ack",
+					payload: { command_type: command.type },
+				};
+			}
+
+			case "spi_configure": {
+				addLog(
+					`SPI bus ${command.payload.bus} configured: CLK=GP${command.payload.clk_pin}, MOSI=GP${command.payload.mosi_pin}, MISO=GP${command.payload.miso_pin}, CS=GP${command.payload.cs_pin}`,
+					"spi_configure",
+				);
+				return {
+					id: command.id,
+					type: "command_ack",
+					payload: { command_type: command.type },
+				};
+			}
+
+			case "spi_transfer": {
+				const zeros = Array.from(
+					{ length: command.payload.data.length },
+					() => "0x00",
+				);
+				addLog(
+					`SPI transfer on bus ${command.payload.bus}: ${command.payload.data.length} bytes`,
+					"spi_transfer",
+				);
+				return {
+					id: command.id,
+					type: "spi_transfer_result",
+					payload: { bus: command.payload.bus, data: zeros },
+				};
+			}
+
+			case "spi_write": {
+				addLog(
+					`SPI write on bus ${command.payload.bus}: [${command.payload.data.join(", ")}]`,
+					"spi_write",
+				);
+				return {
+					id: command.id,
+					type: "command_ack",
+					payload: { command_type: command.type },
+				};
+			}
+
+			case "spi_read": {
+				const zeros = Array.from(
+					{ length: command.payload.bytes_to_read },
+					() => "0x00",
+				);
+				addLog(
+					`SPI read on bus ${command.payload.bus}: ${command.payload.bytes_to_read} bytes`,
+					"spi_read",
+				);
+				return {
+					id: command.id,
+					type: "spi_read_result",
+					payload: { bus: command.payload.bus, data: zeros },
+				};
+			}
+
+			case "uart_configure": {
+				addLog(
+					`UART port ${command.payload.port} configured: TX=GP${command.payload.tx_pin}, RX=GP${command.payload.rx_pin}, ${command.payload.baud_rate} baud`,
+					"uart_configure",
+				);
+				return {
+					id: command.id,
+					type: "command_ack",
+					payload: { command_type: command.type },
+				};
+			}
+
+			case "uart_write": {
+				addLog(
+					`UART write port ${command.payload.port}: [${command.payload.data.join(", ")}]`,
+					"uart_write",
+				);
+				return {
+					id: command.id,
+					type: "command_ack",
+					payload: { command_type: command.type },
+				};
+			}
+
+			case "uart_read": {
+				addLog(
+					`UART read port ${command.payload.port}: ${command.payload.bytes_to_read} bytes (simulated)`,
+					"uart_read",
+				);
+				return {
+					id: command.id,
+					type: "uart_read_result",
+					payload: {
+						port: command.payload.port,
+						data: [],
+						bytes_read: 0,
+					},
+				};
+			}
+
+			case "pio_ws2812_configure": {
+				addLog(
+					`WS2812 configured: pin GP${command.payload.pin}, ${command.payload.num_leds} LEDs`,
+					"pio_ws2812_configure",
+				);
+				return {
+					id: command.id,
+					type: "command_ack",
+					payload: { command_type: command.type },
+				};
+			}
+
+			case "pio_ws2812_update": {
+				addLog(
+					`WS2812 update: ${command.payload.pixels.length} pixels`,
+					"pio_ws2812_update",
+				);
+				return {
+					id: command.id,
+					type: "command_ack",
+					payload: { command_type: command.type },
+				};
+			}
+
 			default:
 				return {
 					id: command.id,

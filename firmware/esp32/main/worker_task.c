@@ -48,6 +48,16 @@ static void handle_i2c_configure(const worker_command_t *cmd, worker_response_t 
 static void handle_i2c_scan(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_i2c_write(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_i2c_read(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_get_temperature(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_watchdog_configure(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_watchdog_feed(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_spi_configure(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_spi_transfer(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_spi_write(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_spi_read(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_uart_configure(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_uart_write(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_uart_read(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_display_update(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_reboot(const worker_command_t *cmd, worker_response_t *resp);
 
@@ -94,6 +104,36 @@ worker_response_t worker_execute_command(const worker_command_t *cmd) {
             break;
         case CMD_I2C_READ:
             handle_i2c_read(cmd, &resp);
+            break;
+        case CMD_GET_TEMPERATURE:
+            handle_get_temperature(cmd, &resp);
+            break;
+        case CMD_WATCHDOG_CONFIGURE:
+            handle_watchdog_configure(cmd, &resp);
+            break;
+        case CMD_WATCHDOG_FEED:
+            handle_watchdog_feed(cmd, &resp);
+            break;
+        case CMD_SPI_CONFIGURE:
+            handle_spi_configure(cmd, &resp);
+            break;
+        case CMD_SPI_TRANSFER:
+            handle_spi_transfer(cmd, &resp);
+            break;
+        case CMD_SPI_WRITE:
+            handle_spi_write(cmd, &resp);
+            break;
+        case CMD_SPI_READ:
+            handle_spi_read(cmd, &resp);
+            break;
+        case CMD_UART_CONFIGURE:
+            handle_uart_configure(cmd, &resp);
+            break;
+        case CMD_UART_WRITE:
+            handle_uart_write(cmd, &resp);
+            break;
+        case CMD_UART_READ:
+            handle_uart_read(cmd, &resp);
             break;
         case CMD_DISPLAY_UPDATE:
             handle_display_update(cmd, &resp);
@@ -318,6 +358,140 @@ static void handle_i2c_read(const worker_command_t *cmd, worker_response_t *resp
     resp->data.i2c_read.bus = bus;
     resp->data.i2c_read.address = addr;
     resp->data.i2c_read.data_len = (size_t)result;
+}
+
+static void handle_get_temperature(const worker_command_t *cmd, worker_response_t *resp) {
+    (void)cmd;
+    float celsius = iotkit_hal_get_temperature();
+    if (celsius <= -999.0f) {
+        set_error(resp, "Failed to read temperature");
+        return;
+    }
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.temperature.celsius = celsius;
+}
+
+static void handle_watchdog_configure(const worker_command_t *cmd, worker_response_t *resp) {
+    uint32_t timeout_ms = cmd->payload.watchdog_configure.timeout_ms;
+    bool enable = cmd->payload.watchdog_configure.enable;
+
+    if (!iotkit_hal_watchdog_configure(timeout_ms, enable)) {
+        set_error(resp, "Failed to configure watchdog");
+        return;
+    }
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_watchdog_feed(const worker_command_t *cmd, worker_response_t *resp) {
+    (void)cmd;
+    iotkit_hal_watchdog_feed();
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_spi_configure(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t bus = cmd->payload.spi_configure.bus;
+    uint8_t clk = cmd->payload.spi_configure.clk_pin;
+    uint8_t mosi = cmd->payload.spi_configure.mosi_pin;
+    uint8_t miso = cmd->payload.spi_configure.miso_pin;
+    uint8_t cs = cmd->payload.spi_configure.cs_pin;
+    uint32_t freq = cmd->payload.spi_configure.frequency;
+    uint8_t mode = cmd->payload.spi_configure.mode;
+
+    if (!iotkit_hal_spi_configure(bus, clk, mosi, miso, cs, freq, mode)) {
+        set_error(resp, "Failed to configure SPI");
+        return;
+    }
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_spi_transfer(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t bus = cmd->payload.spi_data.bus;
+    const uint8_t *data = cmd->payload.spi_data.data;
+    size_t len = cmd->payload.spi_data.data_len;
+
+    spi_transfer_result_t result = iotkit_hal_spi_transfer(bus, data, len);
+    if (result.len == 0) {
+        set_error(resp, "SPI transfer failed");
+        return;
+    }
+    resp->status = RESPONSE_SUCCESS;
+    memcpy(resp->data.spi.data, result.data, result.len);
+    resp->data.spi.data_len = result.len;
+}
+
+static void handle_spi_write(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t bus = cmd->payload.spi_data.bus;
+    const uint8_t *data = cmd->payload.spi_data.data;
+    size_t len = cmd->payload.spi_data.data_len;
+
+    if (!iotkit_hal_spi_write(bus, data, len)) {
+        set_error(resp, "SPI write failed");
+        return;
+    }
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_spi_read(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t bus = cmd->payload.spi_read.bus;
+    size_t len = cmd->payload.spi_read.length;
+
+    if (len > MAX_SPI_RESPONSE_DATA) {
+        set_error(resp, "SPI read length too large");
+        return;
+    }
+
+    spi_transfer_result_t result = iotkit_hal_spi_read(bus, len);
+    if (result.len == 0) {
+        set_error(resp, "SPI read failed");
+        return;
+    }
+    resp->status = RESPONSE_SUCCESS;
+    memcpy(resp->data.spi.data, result.data, result.len);
+    resp->data.spi.data_len = result.len;
+}
+
+static void handle_uart_configure(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t port = cmd->payload.uart_configure.port;
+    uint8_t tx = cmd->payload.uart_configure.tx_pin;
+    uint8_t rx = cmd->payload.uart_configure.rx_pin;
+    uint32_t baud = cmd->payload.uart_configure.baud_rate;
+    uint8_t data_bits = cmd->payload.uart_configure.data_bits;
+    uint8_t stop_bits = cmd->payload.uart_configure.stop_bits;
+    uint8_t parity = cmd->payload.uart_configure.parity;
+
+    if (!iotkit_hal_uart_configure(port, tx, rx, baud, data_bits, stop_bits, parity)) {
+        set_error(resp, "Failed to configure UART");
+        return;
+    }
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_uart_write(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t port = cmd->payload.uart_write.port;
+    const uint8_t *data = cmd->payload.uart_write.data;
+    size_t len = cmd->payload.uart_write.data_len;
+
+    if (!iotkit_hal_uart_write(port, data, len)) {
+        set_error(resp, "UART write failed");
+        return;
+    }
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_uart_read(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t port = cmd->payload.uart_read.port;
+    size_t bytes_to_read = cmd->payload.uart_read.bytes_to_read;
+    uint32_t timeout_ms = cmd->payload.uart_read.timeout_ms;
+
+    if (bytes_to_read > MAX_UART_RESPONSE_DATA) {
+        set_error(resp, "UART read length too large");
+        return;
+    }
+
+    uart_read_result_t result = iotkit_hal_uart_read(port, bytes_to_read, timeout_ms);
+    resp->status = RESPONSE_SUCCESS;
+    memcpy(resp->data.uart_read.data, result.data, result.len);
+    resp->data.uart_read.data_len = result.len;
 }
 
 static void handle_display_update(const worker_command_t *cmd, worker_response_t *resp) {

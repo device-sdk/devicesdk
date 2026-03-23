@@ -17,6 +17,16 @@ typedef enum {
 } gpio_pull_t;
 
 typedef struct {
+    uint8_t data[256];
+    size_t len;
+} spi_transfer_result_t;
+
+typedef struct {
+    uint8_t data[256];
+    size_t len;
+} uart_read_result_t;
+
+typedef struct {
     uint8_t addresses[128];
     uint8_t count;
 } i2c_scan_result_t;
@@ -50,5 +60,27 @@ const i2c_config_t* hal_i2c_get_config(uint8_t bus);
 void hal_i2c_reset(uint8_t bus);
 
 void hal_blink_led(uint32_t duration_ms);
+
+// Temperature sensor
+float hal_get_temperature(void);
+
+// Watchdog timer
+bool hal_watchdog_configure(uint32_t timeout_ms, bool enable);
+void hal_watchdog_feed(void);
+
+// SPI
+bool hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode);
+spi_transfer_result_t hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len);
+bool hal_spi_write(uint8_t bus, const uint8_t *data, size_t len);
+spi_transfer_result_t hal_spi_read(uint8_t bus, size_t len);
+
+// UART
+bool hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity);
+bool hal_uart_write(uint8_t port, const uint8_t *data, size_t len);
+uart_read_result_t hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms);
+
+// PIO / WS2812
+bool hal_pio_ws2812_configure(uint8_t pin, uint16_t num_leds);
+bool hal_pio_ws2812_update(const uint8_t *pixel_data, size_t len);
 
 #endif // HAL_H

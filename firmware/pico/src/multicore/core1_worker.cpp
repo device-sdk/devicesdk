@@ -424,6 +424,186 @@ static void handle_display_update(const worker_command_t* cmd, worker_response_t
     resp->data.display.bytes_written = total_written;
 }
 
+// === Temperature handler ===
+
+static void handle_get_temperature(const worker_command_t* cmd, worker_response_t* resp) {
+    (void)cmd;
+    float celsius = hal_get_temperature();
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.temperature.celsius = celsius;
+}
+
+// === Watchdog handlers ===
+
+static void handle_watchdog_configure(const worker_command_t* cmd, worker_response_t* resp) {
+    uint32_t timeout_ms = cmd->payload.watchdog_configure.timeout_ms;
+    bool enable = cmd->payload.watchdog_configure.enable;
+
+    if (!hal_watchdog_configure(timeout_ms, enable)) {
+        set_error(resp, "Failed to configure watchdog (cannot disable once enabled)");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_watchdog_feed(const worker_command_t* cmd, worker_response_t* resp) {
+    (void)cmd;
+    hal_watchdog_feed();
+    resp->status = RESPONSE_SUCCESS;
+}
+
+// === SPI handlers ===
+
+static void handle_spi_configure(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t bus = cmd->payload.spi_configure.bus;
+    uint8_t clk = cmd->payload.spi_configure.clk_pin;
+    uint8_t mosi = cmd->payload.spi_configure.mosi_pin;
+    uint8_t miso = cmd->payload.spi_configure.miso_pin;
+    uint8_t cs = cmd->payload.spi_configure.cs_pin;
+    uint32_t freq = cmd->payload.spi_configure.frequency;
+    uint8_t mode = cmd->payload.spi_configure.mode;
+
+    if (!hal_spi_configure(bus, clk, mosi, miso, cs, freq, mode)) {
+        set_error(resp, "Failed to configure SPI");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_spi_transfer(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t bus = cmd->payload.spi_transfer.bus;
+    const uint8_t* data = cmd->payload.spi_transfer.data;
+    size_t len = cmd->payload.spi_transfer.data_len;
+
+    spi_transfer_result_t result = hal_spi_transfer(bus, data, len);
+    if (result.len == 0) {
+        set_error(resp, "SPI transfer failed");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+    memcpy(resp->data.spi.data, result.data, result.len);
+    resp->data.spi.data_len = result.len;
+}
+
+static void handle_spi_write(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t bus = cmd->payload.spi_transfer.bus;
+    const uint8_t* data = cmd->payload.spi_transfer.data;
+    size_t len = cmd->payload.spi_transfer.data_len;
+
+    if (!hal_spi_write(bus, data, len)) {
+        set_error(resp, "SPI write failed");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_spi_read(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t bus = cmd->payload.spi_read.bus;
+    size_t len = cmd->payload.spi_read.length;
+
+    if (len > MAX_SPI_RESPONSE_DATA) {
+        set_error(resp, "SPI read length too large");
+        return;
+    }
+
+    spi_transfer_result_t result = hal_spi_read(bus, len);
+    if (result.len == 0) {
+        set_error(resp, "SPI read failed");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+    memcpy(resp->data.spi.data, result.data, result.len);
+    resp->data.spi.data_len = result.len;
+}
+
+// === UART handlers ===
+
+static void handle_uart_configure(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t port = cmd->payload.uart_configure.port;
+    uint8_t tx = cmd->payload.uart_configure.tx_pin;
+    uint8_t rx = cmd->payload.uart_configure.rx_pin;
+    uint32_t baud = cmd->payload.uart_configure.baud_rate;
+    uint8_t data_bits = cmd->payload.uart_configure.data_bits;
+    uint8_t stop_bits = cmd->payload.uart_configure.stop_bits;
+    uint8_t parity = cmd->payload.uart_configure.parity;
+
+    if (!hal_uart_configure(port, tx, rx, baud, data_bits, stop_bits, parity)) {
+        set_error(resp, "Failed to configure UART");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_uart_write(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t port = cmd->payload.uart_write.port;
+    const uint8_t* data = cmd->payload.uart_write.data;
+    size_t len = cmd->payload.uart_write.data_len;
+
+    if (!hal_uart_write(port, data, len)) {
+        set_error(resp, "UART write failed");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_uart_read(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t port = cmd->payload.uart_read.port;
+    size_t bytes = cmd->payload.uart_read.bytes_to_read;
+    uint32_t timeout = cmd->payload.uart_read.timeout_ms;
+
+    if (bytes > MAX_UART_RESPONSE_DATA) {
+        set_error(resp, "UART read length too large");
+        return;
+    }
+
+    uart_read_result_t result = hal_uart_read(port, bytes, timeout);
+
+    resp->status = RESPONSE_SUCCESS;
+    memcpy(resp->data.uart_read.data, result.data, result.len);
+    resp->data.uart_read.data_len = result.len;
+}
+
+// === PIO WS2812 handlers ===
+
+static void handle_pio_ws2812_configure(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t pin = cmd->payload.pio_ws2812_configure.pin;
+    uint16_t num_leds = cmd->payload.pio_ws2812_configure.num_leds;
+
+    if (!hal_pio_ws2812_configure(pin, num_leds)) {
+        set_error(resp, "Failed to configure WS2812");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+}
+
+static void handle_pio_ws2812_update(const worker_command_t* cmd, worker_response_t* resp) {
+    (void)cmd;
+
+    // Read pixel data from shared buffer
+    uint8_t pixel_data[MAX_WS2812_BUFFER_SIZE];
+    size_t pixel_len = 0;
+
+    if (!shared_ws2812_buffer_read(pixel_data, &pixel_len)) {
+        set_error(resp, "No WS2812 pixel data available");
+        return;
+    }
+
+    if (!hal_pio_ws2812_update(pixel_data, pixel_len)) {
+        set_error(resp, "Failed to update WS2812 LEDs");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+}
+
 static void handle_reboot(const worker_command_t* cmd, worker_response_t* resp) {
     (void)cmd;
     resp->status = RESPONSE_SUCCESS;
@@ -468,6 +648,42 @@ static worker_response_t execute_command(const worker_command_t* cmd) {
         case CMD_I2C_BATCH_WRITE:
             // TODO: implement batch write
             set_error(&resp, "Batch write not yet implemented");
+            break;
+        case CMD_GET_TEMPERATURE:
+            handle_get_temperature(cmd, &resp);
+            break;
+        case CMD_WATCHDOG_CONFIGURE:
+            handle_watchdog_configure(cmd, &resp);
+            break;
+        case CMD_WATCHDOG_FEED:
+            handle_watchdog_feed(cmd, &resp);
+            break;
+        case CMD_SPI_CONFIGURE:
+            handle_spi_configure(cmd, &resp);
+            break;
+        case CMD_SPI_TRANSFER:
+            handle_spi_transfer(cmd, &resp);
+            break;
+        case CMD_SPI_WRITE:
+            handle_spi_write(cmd, &resp);
+            break;
+        case CMD_SPI_READ:
+            handle_spi_read(cmd, &resp);
+            break;
+        case CMD_UART_CONFIGURE:
+            handle_uart_configure(cmd, &resp);
+            break;
+        case CMD_UART_WRITE:
+            handle_uart_write(cmd, &resp);
+            break;
+        case CMD_UART_READ:
+            handle_uart_read(cmd, &resp);
+            break;
+        case CMD_PIO_WS2812_CONFIGURE:
+            handle_pio_ws2812_configure(cmd, &resp);
+            break;
+        case CMD_PIO_WS2812_UPDATE:
+            handle_pio_ws2812_update(cmd, &resp);
             break;
         case CMD_DISPLAY_UPDATE:
             handle_display_update(cmd, &resp);

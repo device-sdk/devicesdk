@@ -124,6 +124,130 @@ export class DeviceSender extends WorkerEntrypoint<
 		});
 	}
 
+	async getTemperature(): Promise<DeviceResponse> {
+		return this.sendCommandAndWait({
+			type: "get_temperature",
+			payload: {},
+		});
+	}
+
+	async watchdogConfigure(timeoutMs: number, enable: boolean): Promise<void> {
+		await this.sendCommand({
+			type: "watchdog_configure",
+			payload: { timeout_ms: timeoutMs, enable },
+		});
+	}
+
+	async watchdogFeed(): Promise<void> {
+		await this.sendCommand({
+			type: "watchdog_feed",
+			payload: {},
+		});
+	}
+
+	async spiConfigure(
+		bus: number,
+		clkPin: number,
+		mosiPin: number,
+		misoPin: number,
+		csPin: number,
+		frequency: number,
+		mode: 0 | 1 | 2 | 3,
+	): Promise<void> {
+		await this.sendCommand({
+			type: "spi_configure",
+			payload: {
+				bus,
+				clk_pin: clkPin,
+				mosi_pin: mosiPin,
+				miso_pin: misoPin,
+				cs_pin: csPin,
+				frequency,
+				mode,
+			},
+		});
+	}
+
+	async spiTransfer(bus: number, data: string[]): Promise<DeviceResponse> {
+		return this.sendCommandAndWait({
+			type: "spi_transfer",
+			payload: { bus, data },
+		});
+	}
+
+	async spiWrite(bus: number, data: string[]): Promise<void> {
+		await this.sendCommand({
+			type: "spi_write",
+			payload: { bus, data },
+		});
+	}
+
+	async spiRead(bus: number, bytesToRead: number): Promise<DeviceResponse> {
+		return this.sendCommandAndWait({
+			type: "spi_read",
+			payload: { bus, bytes_to_read: bytesToRead },
+		});
+	}
+
+	async uartConfigure(
+		port: number,
+		txPin: number,
+		rxPin: number,
+		baudRate: number,
+		dataBits?: 5 | 6 | 7 | 8,
+		stopBits?: 1 | 2,
+		parity?: "none" | "even" | "odd",
+	): Promise<void> {
+		await this.sendCommand({
+			type: "uart_configure",
+			payload: {
+				port,
+				tx_pin: txPin,
+				rx_pin: rxPin,
+				baud_rate: baudRate,
+				data_bits: dataBits,
+				stop_bits: stopBits,
+				parity,
+			},
+		});
+	}
+
+	async uartWrite(port: number, data: string[]): Promise<void> {
+		await this.sendCommand({
+			type: "uart_write",
+			payload: { port, data },
+		});
+	}
+
+	async uartRead(
+		port: number,
+		bytesToRead: number,
+		timeoutMs?: number,
+	): Promise<DeviceResponse> {
+		return this.sendCommandAndWait({
+			type: "uart_read",
+			payload: {
+				port,
+				bytes_to_read: bytesToRead,
+				timeout_ms: timeoutMs,
+			},
+		});
+	}
+
+	async pioWs2812Configure(pin: number, numLeds: number): Promise<void> {
+		await this.sendCommand({
+			type: "pio_ws2812_configure",
+			payload: { pin, num_leds: numLeds },
+		});
+	}
+
+	async pioWs2812Update(pixels: [number, number, number][]): Promise<void> {
+		await this.sendCommand({
+			type: "pio_ws2812_update",
+			payload: { pixels },
+		});
+	}
+
 	async persistLog(level: string, message: string): Promise<void> {
 		await this.getDoStub().persistLog(level, message);
 	}

@@ -105,9 +105,14 @@ target_link_libraries(devicesdk-client
         hardware_adc
         hardware_i2c
         hardware_watchdog
+        hardware_spi
+        hardware_uart
+        hardware_pio
 )
 
 # Set the Wi-Fi country code
 add_compile_definitions(CYW43_COUNTRY_PT)
+
+pico_generate_pio_header(devicesdk-client ${CMAKE_CURRENT_LIST_DIR}/src/ws2812.pio)
 
 pico_add_extra_outputs(devicesdk-client)

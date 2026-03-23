@@ -83,11 +83,7 @@ Standard GPIO pin numbers (GP0-GP28) are used directly:
 
 ```typescript
 // GPIO 25 (onboard LED)
-await this.env.DEVICE.send({
-  type: 'gpio_write',
-  pin: 25,
-  value: 1
-});
+await this.env.DEVICE.setGpioState(25, 'high');
 ```
 
 ### Pico W ADC Pins
@@ -113,49 +109,220 @@ Standard GPIO pin numbers are used directly. The onboard LED pin varies by board
 
 ```typescript
 // ESP32 onboard LED (GPIO 2)
-await this.env.DEVICE.send({
-  type: 'gpio_write',
-  pin: 2,
-  value: 1
-});
+await this.env.DEVICE.setGpioState(2, 'high');
 
 // ESP32-C61 onboard LED (GPIO 5)
-await this.env.DEVICE.send({
-  type: 'gpio_write',
-  pin: 5,
-  value: 1
+await this.env.DEVICE.setGpioState(5, 'high');
+```
+
+## Platform Feature Availability
+
+| Feature | ESP32 | Pico | Simulator | Notes |
+|---------|:-----:|:----:|:---------:|-------|
+| GPIO digital I/O | Yes | Yes | Yes | |
+| GPIO input monitoring | Yes | Yes | Yes | Pull up/down/none |
+| PWM output | Yes | Yes | Yes | |
+| ADC analog read | Yes | Yes | Yes | ESP32: ADC1 only (ADC2 blocked by WiFi) |
+| I2C master | Yes | Yes | Yes | 2 buses, configure/scan/read/write |
+| I2C batch write | Yes | Yes | Yes | Reduces round-trips for multi-register writes |
+| OLED display (SSD1306/SH1106) | Yes | Yes | Yes | Full drawing API in @devicesdk/core |
+| SPI master | Yes | Yes | Simulated | ESP32: SPI3; Pico: SPI0/SPI1 |
+| UART serial | Yes | Yes | Simulated | ESP32: UART0 reserved for debug |
+| On-die temperature sensor | Yes | Yes | Simulated | No external hardware needed |
+| Watchdog timer | Yes | Yes | Simulated | Pico: cannot disable once enabled |
+| Addressable LEDs (WS2812) | No | Yes | Simulated | Pico only via PIO |
+| Device reboot | Yes | Yes | No | |
+
+"Simulated" means the simulator returns mock responses without real hardware.
+
+### GPIO Digital I/O
+
+Set any GPIO pin high or low. Use `setGpioState()` for output and `getPinState()` for reading:
+
+```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
+export default class BlinkDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    const LED_PIN = 25; // Pico W — use 2 for ESP32
+
+    for (let i = 0; i < 5; i++) {
+      await this.env.DEVICE.setGpioState(LED_PIN, 'high');
+      await new Promise(r => setTimeout(r, 500));
+      await this.env.DEVICE.setGpioState(LED_PIN, 'low');
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+}
+```
+
+### GPIO Input Monitoring
+
+Monitor a pin for state changes. The device will push `gpio_state_changed` events to your `onMessage` handler:
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+
+export default class ButtonDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    // Monitor pin 15 with internal pull-up resistor
+    await this.env.DEVICE.configureGpioInputMonitoring(15, true, 'up');
+  }
+
+  onMessage(message: DeviceResponse) {
+    if (message.type === 'gpio_state_changed') {
+      console.log(`Pin ${message.payload.pin} is now ${message.payload.state}`);
+    }
+  }
+}
+```
+
+### PWM Output
+
+Control LED brightness, servo motors, or buzzer tones with pulse-width modulation:
+
+```typescript
+// Set pin 16 to 1kHz at 50% duty cycle
+await this.env.DEVICE.setPwmState(16, 1000, 0.5);
+
+// Dim an LED to 25% brightness (low frequency for LEDs)
+await this.env.DEVICE.setPwmState(25, 1000, 0.25);
+
+// Stop PWM output (0% duty cycle)
+await this.env.DEVICE.setPwmState(16, 1000, 0);
+```
+
+### ADC Analog Read
+
+Read analog voltage (0-3.3V, 12-bit resolution) from ADC-capable pins:
+
+```typescript
+// Read analog value from pin 26 (Pico ADC0)
+const result = await this.env.DEVICE.getPinState(26, 'analog');
+if (result.type === 'pin_state_update') {
+  const voltage = (result.payload.value / 4095) * 3.3;
+  console.log(`Voltage: ${voltage.toFixed(2)}V`);
+}
+```
+
+On ESP32, only ADC1 pins are available for analog reads because ADC2 is used by WiFi.
+
+### I2C
+
+Configure I2C bus pins, scan for devices, and read/write registers. Data values are hex strings (e.g., `"0x3C"`):
+
+```typescript
+// Configure I2C bus 0 with SDA on pin 4, SCL on pin 5
+await this.env.DEVICE.sendCommand({
+  type: 'i2c_configure',
+  payload: { bus: 0, sda_pin: 4, scl_pin: 5, frequency: 400000 }
+});
+
+// Scan for connected devices
+const scanResult = await this.env.DEVICE.i2cScan(0);
+if (scanResult.type === 'i2c_scan_result') {
+  console.log('Found devices:', scanResult.payload.addresses_found);
+}
+
+// Write to a device register
+await this.env.DEVICE.i2cWrite(0, '0x3C', ['0x00', '0xAE']);
+
+// Read 2 bytes from register 0xD0
+const readResult = await this.env.DEVICE.i2cRead(0, '0x3C', 2, '0xD0');
+```
+
+Use batch writes to reduce round-trips when writing multiple registers:
+
+```typescript
+// Write multiple register sequences in one command
+await this.env.DEVICE.sendCommand({
+  type: 'i2c_batch_write',
+  payload: {
+    bus: 0,
+    address: '0x3C',
+    writes: [
+      ['0x00', '0xAE'],  // Display OFF
+      ['0x00', '0xD5'],  // Set display clock
+      ['0x00', '0x80'],  // Clock value
+    ]
+  }
 });
 ```
 
-## Peripheral Support
-
-### GPIO
-✅ Digital input/output
-✅ Pull-up/pull-down resistors
-✅ Interrupt-driven monitoring
-
-### ADC
-✅ 12-bit analog input
-✅ 0-3.3V range
-✅ Continuous sampling
-
-### PWM
-✅ 16 independent channels
-✅ Configurable frequency
-✅ Duty cycle control
-
-### I2C
-✅ Master mode
-✅ Standard (100kHz) and Fast (400kHz)
-⚠️ Slave mode not yet supported
-
 ### SPI
-✅ Master mode
-⚠️ Slave mode not yet supported
+
+Full-duplex communication with SPI peripherals. See the [Using SPI](/docs/guides/using-spi/) guide for details.
+
+```typescript
+// Configure SPI bus
+await this.env.DEVICE.spiConfigure(0, 18, 19, 16, 17, 1000000, 0);
+
+// Full-duplex transfer (sends and receives simultaneously)
+const result = await this.env.DEVICE.spiTransfer(0, ['0x9F', '0x00', '0x00']);
+```
 
 ### UART
-✅ Serial communication
-✅ Configurable baud rate
+
+Serial communication with external modules. See the [Using UART](/docs/guides/using-uart/) guide for details.
+
+```typescript
+// Configure UART port 1 at 9600 baud
+await this.env.DEVICE.uartConfigure(1, 4, 5, 9600);
+
+// Write data
+await this.env.DEVICE.uartWrite(1, ['0x48', '0x65', '0x6C', '0x6C', '0x6F']);
+
+// Read up to 32 bytes with a 1-second timeout
+const result = await this.env.DEVICE.uartRead(1, 32, 1000);
+```
+
+### On-Die Temperature Sensor
+
+Read the microcontroller's built-in temperature sensor (no external hardware required):
+
+```typescript
+const result = await this.env.DEVICE.getTemperature();
+if (result.type === 'temperature_result') {
+  console.log(`CPU temp: ${result.payload.celsius.toFixed(1)}C`);
+}
+```
+
+### Watchdog Timer
+
+Reset the device automatically if your code stops responding. Feed the watchdog periodically to prevent resets:
+
+```typescript
+// Enable watchdog with 8-second timeout
+await this.env.DEVICE.watchdogConfigure(8000, true);
+
+// Feed the watchdog in your main loop
+await this.env.DEVICE.watchdogFeed();
+```
+
+On Pico, the watchdog cannot be disabled once enabled -- you must continue feeding it or the device will reboot.
+
+### Addressable LEDs (WS2812)
+
+Drive WS2812/NeoPixel LED strips from Pico devices using PIO. See the [Addressable LEDs](/docs/guides/addressable-leds/) guide for details.
+
+```typescript
+// Configure 8 LEDs on pin 2
+await this.env.DEVICE.pioWs2812Configure(2, 8);
+
+// Set all LEDs to green
+const green: [number, number, number][] = Array.from({ length: 8 }, () => [0, 255, 0]);
+await this.env.DEVICE.pioWs2812Update(green);
+```
+
+### Device Reboot
+
+Programmatically restart the device:
+
+```typescript
+await this.env.DEVICE.reboot();
+```
+
+The WebSocket connection will drop after reboot. The device will reconnect automatically and trigger `onDeviceConnect` again.
 
 ## Power Specifications
 
@@ -219,24 +386,18 @@ Flash this code to verify hardware. Use the correct LED pin for your board:
 - **ESP32-C61**: pin `5`
 
 ```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
 const LED_PIN = 25; // Pico W — use 2 for ESP32, 5 for ESP32-C61
 
 export default class TestDevice extends DeviceEntrypoint {
   async onDeviceConnect() {
     // Blink LED 5 times
     for (let i = 0; i < 5; i++) {
-      await this.env.DEVICE.send({
-        type: 'gpio_write',
-        pin: LED_PIN,
-        value: 1
-      });
-      await this.sleep(500);
-      await this.env.DEVICE.send({
-        type: 'gpio_write',
-        pin: LED_PIN,
-        value: 0
-      });
-      await this.sleep(500);
+      await this.env.DEVICE.setGpioState(LED_PIN, 'high');
+      await new Promise(r => setTimeout(r, 500));
+      await this.env.DEVICE.setGpioState(LED_PIN, 'low');
+      await new Promise(r => setTimeout(r, 500));
     }
   }
 }

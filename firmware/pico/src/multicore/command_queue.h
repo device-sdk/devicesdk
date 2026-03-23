@@ -7,6 +7,8 @@
 // Maximum sizes for variable-length data in commands
 #define MAX_MESSAGE_ID_LEN 64
 #define MAX_I2C_DATA_LEN 256
+#define MAX_SPI_DATA_LEN 256
+#define MAX_UART_DATA_LEN 256
 
 // Command types for Core 1 worker
 typedef enum {
@@ -25,6 +27,28 @@ typedef enum {
     CMD_I2C_WRITE,
     CMD_I2C_READ,
     CMD_I2C_BATCH_WRITE,
+
+    // Temperature sensor
+    CMD_GET_TEMPERATURE,
+
+    // Watchdog timer
+    CMD_WATCHDOG_CONFIGURE,
+    CMD_WATCHDOG_FEED,
+
+    // SPI commands
+    CMD_SPI_CONFIGURE,
+    CMD_SPI_TRANSFER,
+    CMD_SPI_WRITE,
+    CMD_SPI_READ,
+
+    // UART commands
+    CMD_UART_CONFIGURE,
+    CMD_UART_WRITE,
+    CMD_UART_READ,
+
+    // PIO / WS2812 commands
+    CMD_PIO_WS2812_CONFIGURE,
+    CMD_PIO_WS2812_UPDATE,
 
     // Display commands (uses shared buffer for large framebuffer data)
     CMD_DISPLAY_UPDATE,
@@ -89,6 +113,67 @@ typedef struct {
     int reg;  // -1 for no register
 } i2c_read_payload_t;
 
+// Watchdog configure payload
+typedef struct {
+    uint32_t timeout_ms;
+    bool enable;
+} watchdog_configure_payload_t;
+
+// SPI configure payload
+typedef struct {
+    uint8_t bus;
+    uint8_t clk_pin;
+    uint8_t mosi_pin;
+    uint8_t miso_pin;
+    uint8_t cs_pin;
+    uint32_t frequency;
+    uint8_t mode;
+} spi_configure_payload_t;
+
+// SPI transfer payload
+typedef struct {
+    uint8_t bus;
+    uint8_t data[MAX_SPI_DATA_LEN];
+    size_t data_len;
+} spi_transfer_payload_t;
+
+// SPI read payload
+typedef struct {
+    uint8_t bus;
+    size_t length;
+} spi_read_payload_t;
+
+// UART configure payload
+typedef struct {
+    uint8_t port;
+    uint8_t tx_pin;
+    uint8_t rx_pin;
+    uint32_t baud_rate;
+    uint8_t data_bits;
+    uint8_t stop_bits;
+    uint8_t parity;
+} uart_configure_payload_t;
+
+// UART write payload
+typedef struct {
+    uint8_t port;
+    uint8_t data[MAX_UART_DATA_LEN];
+    size_t data_len;
+} uart_write_payload_t;
+
+// UART read payload
+typedef struct {
+    uint8_t port;
+    size_t bytes_to_read;
+    uint32_t timeout_ms;
+} uart_read_payload_t;
+
+// PIO WS2812 configure payload
+typedef struct {
+    uint8_t pin;
+    uint16_t num_leds;
+} pio_ws2812_configure_payload_t;
+
 // Display update payload (framebuffer data in shared buffer)
 typedef struct {
     uint8_t bus;
@@ -107,6 +192,14 @@ typedef union {
     i2c_scan_payload_t i2c_scan;
     i2c_write_payload_t i2c_write;
     i2c_read_payload_t i2c_read;
+    watchdog_configure_payload_t watchdog_configure;
+    spi_configure_payload_t spi_configure;
+    spi_transfer_payload_t spi_transfer;
+    spi_read_payload_t spi_read;
+    uart_configure_payload_t uart_configure;
+    uart_write_payload_t uart_write;
+    uart_read_payload_t uart_read;
+    pio_ws2812_configure_payload_t pio_ws2812_configure;
     display_update_payload_t display;
 } command_payload_t;
 

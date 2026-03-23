@@ -15,6 +15,16 @@ bool iotkit_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uin
 i2c_scan_result_t iotkit_hal_i2c_scan(uint8_t bus) { (void)bus; i2c_scan_result_t r = {0}; return r; }
 bool iotkit_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len) { (void)bus; (void)address; (void)data; (void)len; return true; }
 int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t len, int reg) { (void)bus; (void)address; (void)buffer; (void)len; (void)reg; return 0; }
+float iotkit_hal_get_temperature(void) { return 25.0f; }
+bool iotkit_hal_watchdog_configure(uint32_t timeout_ms, bool enable) { (void)timeout_ms; (void)enable; return true; }
+void iotkit_hal_watchdog_feed(void) {}
+bool iotkit_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) { (void)bus; (void)clk_pin; (void)mosi_pin; (void)miso_pin; (void)cs_pin; (void)frequency; (void)mode; return true; }
+spi_transfer_result_t iotkit_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) { (void)bus; (void)data; (void)len; spi_transfer_result_t r = {0}; return r; }
+bool iotkit_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) { (void)bus; (void)data; (void)len; return true; }
+spi_transfer_result_t iotkit_hal_spi_read(uint8_t bus, size_t len) { (void)bus; (void)len; spi_transfer_result_t r = {0}; return r; }
+bool iotkit_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) { (void)port; (void)tx_pin; (void)rx_pin; (void)baud_rate; (void)data_bits; (void)stop_bits; (void)parity; return true; }
+bool iotkit_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) { (void)port; (void)data; (void)len; return true; }
+uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) { (void)port; (void)bytes_to_read; (void)timeout_ms; uart_read_result_t r = {0}; return r; }
 
 #else
 
@@ -22,6 +32,10 @@ int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t le
 #include "driver/ledc.h"
 #include "esp_adc/adc_oneshot.h"
 #include "driver/i2c_master.h"
+#include "driver/temperature_sensor.h"
+#include "driver/spi_master.h"
+#include "driver/uart.h"
+#include "esp_task_wdt.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -64,6 +78,19 @@ typedef struct {
 
 static i2c_device_cache_entry_t i2c_device_cache[2][MAX_I2C_DEVICES_PER_BUS];
 static int i2c_device_cache_count[2] = {0, 0};
+
+// Temperature sensor
+static temperature_sensor_handle_t temp_sensor_handle = NULL;
+
+// Watchdog
+static bool wdt_subscribed = false;
+
+// SPI
+static spi_device_handle_t spi_device_handles[2] = {NULL, NULL};
+static bool spi_bus_initialized[2] = {false, false};
+
+// UART
+static bool uart_port_initialized[3] = {false, false, false};
 
 static i2c_master_dev_handle_t get_or_create_i2c_device(uint8_t bus, uint8_t address) {
     if (bus > 1 || !i2c_bus_handles[bus]) return NULL;
@@ -377,6 +404,345 @@ int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t le
         return -1;
     }
     return (int)len;
+}
+
+// === Temperature Sensor ===
+
+float iotkit_hal_get_temperature(void) {
+    if (!temp_sensor_handle) {
+        temperature_sensor_config_t config = TEMPERATURE_SENSOR_CONFIG_DEFAULT(-10, 80);
+        esp_err_t ret = temperature_sensor_install(&config, &temp_sensor_handle);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to install temperature sensor: %s", esp_err_to_name(ret));
+            return -999.0f;
+        }
+        ret = temperature_sensor_enable(temp_sensor_handle);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to enable temperature sensor: %s", esp_err_to_name(ret));
+            temperature_sensor_uninstall(temp_sensor_handle);
+            temp_sensor_handle = NULL;
+            return -999.0f;
+        }
+    }
+
+    float celsius = 0.0f;
+    esp_err_t ret = temperature_sensor_get_celsius(temp_sensor_handle, &celsius);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read temperature: %s", esp_err_to_name(ret));
+        return -999.0f;
+    }
+    return celsius;
+}
+
+// === Watchdog Timer ===
+
+bool iotkit_hal_watchdog_configure(uint32_t timeout_ms, bool enable) {
+    esp_err_t ret;
+
+    if (enable) {
+        esp_task_wdt_config_t wdt_config = {
+            .timeout_ms = timeout_ms,
+            .idle_core_mask = 0,
+            .trigger_panic = true,
+        };
+        ret = esp_task_wdt_reconfigure(&wdt_config);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to reconfigure watchdog: %s", esp_err_to_name(ret));
+            return false;
+        }
+
+        if (!wdt_subscribed) {
+            ret = esp_task_wdt_add(NULL);
+            if (ret != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to add task to watchdog: %s", esp_err_to_name(ret));
+                return false;
+            }
+            wdt_subscribed = true;
+        }
+        ESP_LOGI(TAG, "Watchdog configured: timeout=%lu ms", (unsigned long)timeout_ms);
+    } else {
+        if (wdt_subscribed) {
+            ret = esp_task_wdt_delete(NULL);
+            if (ret != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to remove task from watchdog: %s", esp_err_to_name(ret));
+                return false;
+            }
+            wdt_subscribed = false;
+        }
+        ESP_LOGI(TAG, "Watchdog disabled for current task");
+    }
+    return true;
+}
+
+void iotkit_hal_watchdog_feed(void) {
+    if (wdt_subscribed) {
+        esp_err_t ret = esp_task_wdt_reset();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to feed watchdog: %s", esp_err_to_name(ret));
+        }
+    }
+}
+
+// === SPI ===
+
+bool iotkit_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) {
+    // Use SPI3_HOST (SPI2 may be used by LED strip)
+    spi_host_device_t host = SPI3_HOST;
+
+    if (bus > 1) {
+        ESP_LOGE(TAG, "Invalid SPI bus: %d (must be 0 or 1)", bus);
+        return false;
+    }
+
+    // Clean up existing device and bus if configured
+    if (spi_device_handles[bus]) {
+        spi_bus_remove_device(spi_device_handles[bus]);
+        spi_device_handles[bus] = NULL;
+    }
+    if (spi_bus_initialized[bus]) {
+        spi_bus_free(host);
+        spi_bus_initialized[bus] = false;
+    }
+
+    spi_bus_config_t bus_cfg = {
+        .mosi_io_num = mosi_pin,
+        .miso_io_num = miso_pin,
+        .sclk_io_num = clk_pin,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 256,
+    };
+
+    esp_err_t ret = spi_bus_initialize(host, &bus_cfg, SPI_DMA_CH_AUTO);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize SPI bus %d: %s", bus, esp_err_to_name(ret));
+        return false;
+    }
+    spi_bus_initialized[bus] = true;
+
+    spi_device_interface_config_t dev_cfg = {
+        .mode = mode,
+        .clock_speed_hz = (int)frequency,
+        .spics_io_num = cs_pin,
+        .queue_size = 1,
+    };
+
+    ret = spi_bus_add_device(host, &dev_cfg, &spi_device_handles[bus]);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to add SPI device on bus %d: %s", bus, esp_err_to_name(ret));
+        spi_bus_free(host);
+        spi_bus_initialized[bus] = false;
+        return false;
+    }
+
+    ESP_LOGI(TAG, "SPI bus %d configured: CLK=%d, MOSI=%d, MISO=%d, CS=%d, freq=%lu Hz, mode=%d",
+             bus, clk_pin, mosi_pin, miso_pin, cs_pin, (unsigned long)frequency, mode);
+    return true;
+}
+
+spi_transfer_result_t iotkit_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) {
+    spi_transfer_result_t result = {0};
+
+    if (bus > 1 || !spi_device_handles[bus]) {
+        ESP_LOGE(TAG, "SPI bus %d not configured", bus);
+        return result;
+    }
+
+    if (len > sizeof(result.data)) {
+        ESP_LOGE(TAG, "SPI transfer length %zu exceeds max %zu", len, sizeof(result.data));
+        return result;
+    }
+
+    uint8_t tx_buf[256];
+    uint8_t rx_buf[256];
+    memcpy(tx_buf, data, len);
+    memset(rx_buf, 0, len);
+
+    spi_transaction_t trans = {
+        .length = len * 8,
+        .tx_buffer = tx_buf,
+        .rx_buffer = rx_buf,
+    };
+
+    esp_err_t ret = spi_device_transmit(spi_device_handles[bus], &trans);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "SPI transfer failed on bus %d: %s", bus, esp_err_to_name(ret));
+        return result;
+    }
+
+    memcpy(result.data, rx_buf, len);
+    result.len = len;
+    return result;
+}
+
+bool iotkit_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) {
+    if (bus > 1 || !spi_device_handles[bus]) {
+        ESP_LOGE(TAG, "SPI bus %d not configured", bus);
+        return false;
+    }
+
+    if (len > 256) {
+        ESP_LOGE(TAG, "SPI write length %zu exceeds max 256", len);
+        return false;
+    }
+
+    spi_transaction_t trans = {
+        .length = len * 8,
+        .tx_buffer = data,
+        .rx_buffer = NULL,
+    };
+
+    esp_err_t ret = spi_device_transmit(spi_device_handles[bus], &trans);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "SPI write failed on bus %d: %s", bus, esp_err_to_name(ret));
+        return false;
+    }
+    return true;
+}
+
+spi_transfer_result_t iotkit_hal_spi_read(uint8_t bus, size_t len) {
+    spi_transfer_result_t result = {0};
+
+    if (bus > 1 || !spi_device_handles[bus]) {
+        ESP_LOGE(TAG, "SPI bus %d not configured", bus);
+        return result;
+    }
+
+    if (len > sizeof(result.data)) {
+        ESP_LOGE(TAG, "SPI read length %zu exceeds max %zu", len, sizeof(result.data));
+        return result;
+    }
+
+    uint8_t tx_buf[256];
+    uint8_t rx_buf[256];
+    memset(tx_buf, 0, len);
+    memset(rx_buf, 0, len);
+
+    spi_transaction_t trans = {
+        .length = len * 8,
+        .tx_buffer = tx_buf,
+        .rx_buffer = rx_buf,
+    };
+
+    esp_err_t ret = spi_device_transmit(spi_device_handles[bus], &trans);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "SPI read failed on bus %d: %s", bus, esp_err_to_name(ret));
+        return result;
+    }
+
+    memcpy(result.data, rx_buf, len);
+    result.len = len;
+    return result;
+}
+
+// === UART ===
+
+bool iotkit_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) {
+    if (port == 0) {
+        ESP_LOGE(TAG, "UART port 0 is reserved for debug console");
+        return false;
+    }
+    if (port > 2) {
+        ESP_LOGE(TAG, "Invalid UART port: %d (must be 1 or 2)", port);
+        return false;
+    }
+
+    // Clean up existing port if configured
+    if (uart_port_initialized[port]) {
+        uart_driver_delete(port);
+        uart_port_initialized[port] = false;
+    }
+
+    uart_word_length_t word_len;
+    switch (data_bits) {
+        case 5: word_len = UART_DATA_5_BITS; break;
+        case 6: word_len = UART_DATA_6_BITS; break;
+        case 7: word_len = UART_DATA_7_BITS; break;
+        default: word_len = UART_DATA_8_BITS; break;
+    }
+
+    uart_stop_bits_t stop;
+    switch (stop_bits) {
+        case 2: stop = UART_STOP_BITS_2; break;
+        default: stop = UART_STOP_BITS_1; break;
+    }
+
+    uart_parity_t par;
+    switch (parity) {
+        case 1: par = UART_PARITY_ODD; break;
+        case 2: par = UART_PARITY_EVEN; break;
+        default: par = UART_PARITY_DISABLE; break;
+    }
+
+    uart_config_t uart_config = {
+        .baud_rate = (int)baud_rate,
+        .data_bits = word_len,
+        .parity = par,
+        .stop_bits = stop,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+
+    esp_err_t ret = uart_driver_install(port, 1024, 0, 0, NULL, 0);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to install UART driver for port %d: %s", port, esp_err_to_name(ret));
+        return false;
+    }
+
+    ret = uart_param_config(port, &uart_config);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to configure UART port %d: %s", port, esp_err_to_name(ret));
+        uart_driver_delete(port);
+        return false;
+    }
+
+    ret = uart_set_pin(port, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set UART pins for port %d: %s", port, esp_err_to_name(ret));
+        uart_driver_delete(port);
+        return false;
+    }
+
+    uart_port_initialized[port] = true;
+    ESP_LOGI(TAG, "UART port %d configured: TX=%d, RX=%d, baud=%lu", port, tx_pin, rx_pin, (unsigned long)baud_rate);
+    return true;
+}
+
+bool iotkit_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) {
+    if (port == 0 || port > 2 || !uart_port_initialized[port]) {
+        ESP_LOGE(TAG, "UART port %d not configured", port);
+        return false;
+    }
+
+    int written = uart_write_bytes(port, data, len);
+    if (written < 0) {
+        ESP_LOGE(TAG, "UART write failed on port %d", port);
+        return false;
+    }
+    return true;
+}
+
+uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) {
+    uart_read_result_t result = {0};
+
+    if (port == 0 || port > 2 || !uart_port_initialized[port]) {
+        ESP_LOGE(TAG, "UART port %d not configured", port);
+        return result;
+    }
+
+    if (bytes_to_read > sizeof(result.data)) {
+        bytes_to_read = sizeof(result.data);
+    }
+
+    TickType_t ticks = timeout_ms / portTICK_PERIOD_MS;
+    int read_len = uart_read_bytes(port, result.data, bytes_to_read, ticks);
+    if (read_len < 0) {
+        ESP_LOGE(TAG, "UART read failed on port %d", port);
+        return result;
+    }
+
+    result.len = (size_t)read_len;
+    return result;
 }
 
 #endif // UNIT_TEST

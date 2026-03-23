@@ -10,6 +10,8 @@
 #define MAX_ERROR_MSG_LEN 128
 #define MAX_I2C_SCAN_RESULTS 128
 #define MAX_I2C_READ_DATA 256
+#define MAX_SPI_RESPONSE_DATA 256
+#define MAX_UART_RESPONSE_DATA 256
 
 // Response status
 typedef enum {
@@ -48,6 +50,23 @@ typedef struct {
     uint32_t frequency;
 } i2c_configure_response_data_t;
 
+// Temperature response data
+typedef struct {
+    float celsius;
+} temperature_response_data_t;
+
+// SPI transfer/read response data
+typedef struct {
+    uint8_t data[MAX_SPI_RESPONSE_DATA];
+    size_t data_len;
+} spi_response_data_t;
+
+// UART read response data
+typedef struct {
+    uint8_t data[MAX_UART_RESPONSE_DATA];
+    size_t data_len;
+} uart_read_response_data_t;
+
 // Display update response data
 typedef struct {
     uint8_t width;
@@ -63,6 +82,9 @@ typedef union {
     i2c_scan_response_data_t i2c_scan;
     i2c_read_response_data_t i2c_read;
     i2c_configure_response_data_t i2c_configure;
+    temperature_response_data_t temperature;
+    spi_response_data_t spi;
+    uart_read_response_data_t uart_read;
     display_update_response_data_t display;
 } response_data_t;
 

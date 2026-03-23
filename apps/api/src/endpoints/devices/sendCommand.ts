@@ -15,6 +15,18 @@ const VALID_COMMAND_TYPES = [
 	"display_update",
 	"configure_gpio_input_monitoring",
 	"reboot",
+	"get_temperature",
+	"watchdog_configure",
+	"watchdog_feed",
+	"spi_configure",
+	"spi_transfer",
+	"spi_write",
+	"spi_read",
+	"uart_configure",
+	"uart_write",
+	"uart_read",
+	"pio_ws2812_configure",
+	"pio_ws2812_update",
 ] as const;
 
 const commandBodySchema = z.object({

@@ -49,4 +49,26 @@ bool shared_display_buffer_is_ready(void);
 // Get global shared display buffer (for direct mutex access if needed)
 shared_display_buffer_t* get_shared_display_buffer(void);
 
+// === WS2812 shared buffer ===
+
+#define MAX_WS2812_LEDS 256
+#define MAX_WS2812_BUFFER_SIZE (MAX_WS2812_LEDS * 3)
+
+// Shared WS2812 pixel buffer structure
+typedef struct {
+    mutex_t mutex;
+    uint8_t data[MAX_WS2812_BUFFER_SIZE];
+    size_t length;
+    bool ready;
+} shared_ws2812_buffer_t;
+
+// Core 0: Write pixel data to shared buffer
+bool shared_ws2812_buffer_write(const uint8_t* data, size_t length);
+
+// Core 1: Read pixel data from shared buffer
+bool shared_ws2812_buffer_read(uint8_t* data, size_t* length);
+
+// Get global shared WS2812 buffer
+shared_ws2812_buffer_t* get_shared_ws2812_buffer(void);
+
 #endif // SHARED_BUFFERS_H

@@ -313,6 +313,292 @@ void handle_websocket_message(const picojson::value& v) {
             send_error("Missing bus, address, or length parameter");
         }
     }
+    // === GET TEMPERATURE ===
+    else if (type == "get_temperature") {
+        cmd.type = CMD_GET_TEMPERATURE;
+        queue_command(&cmd);
+    }
+    // === WATCHDOG CONFIGURE ===
+    else if (type == "watchdog_configure") {
+        auto timeout_it = payload.find("timeout_ms");
+        auto enable_it = payload.find("enable");
+
+        if (timeout_it != payload.end() && timeout_it->second.is<double>() &&
+            enable_it != payload.end() && enable_it->second.is<bool>()) {
+
+            cmd.type = CMD_WATCHDOG_CONFIGURE;
+            cmd.payload.watchdog_configure.timeout_ms = (uint32_t)timeout_it->second.get<double>();
+            cmd.payload.watchdog_configure.enable = enable_it->second.get<bool>();
+
+            queue_command(&cmd);
+        } else {
+            send_error("Missing timeout_ms or enable parameter");
+        }
+    }
+    // === WATCHDOG FEED ===
+    else if (type == "watchdog_feed") {
+        cmd.type = CMD_WATCHDOG_FEED;
+        queue_command(&cmd);
+    }
+    // === SPI CONFIGURE ===
+    else if (type == "spi_configure") {
+        auto bus_it = payload.find("bus");
+        auto clk_it = payload.find("clk_pin");
+        auto mosi_it = payload.find("mosi_pin");
+        auto miso_it = payload.find("miso_pin");
+        auto cs_it = payload.find("cs_pin");
+        auto freq_it = payload.find("frequency");
+        auto mode_it = payload.find("mode");
+
+        if (bus_it != payload.end() && bus_it->second.is<double>() &&
+            clk_it != payload.end() && clk_it->second.is<double>() &&
+            mosi_it != payload.end() && mosi_it->second.is<double>() &&
+            miso_it != payload.end() && miso_it->second.is<double>() &&
+            cs_it != payload.end() && cs_it->second.is<double>()) {
+
+            cmd.type = CMD_SPI_CONFIGURE;
+            cmd.payload.spi_configure.bus = (uint8_t)bus_it->second.get<double>();
+            cmd.payload.spi_configure.clk_pin = (uint8_t)clk_it->second.get<double>();
+            cmd.payload.spi_configure.mosi_pin = (uint8_t)mosi_it->second.get<double>();
+            cmd.payload.spi_configure.miso_pin = (uint8_t)miso_it->second.get<double>();
+            cmd.payload.spi_configure.cs_pin = (uint8_t)cs_it->second.get<double>();
+            cmd.payload.spi_configure.frequency = freq_it != payload.end() && freq_it->second.is<double>()
+                ? (uint32_t)freq_it->second.get<double>()
+                : 1000000;  // Default 1MHz
+            cmd.payload.spi_configure.mode = mode_it != payload.end() && mode_it->second.is<double>()
+                ? (uint8_t)mode_it->second.get<double>()
+                : 0;  // Default mode 0
+
+            queue_command(&cmd);
+        } else {
+            send_error("Missing bus, clk_pin, mosi_pin, miso_pin, or cs_pin parameter");
+        }
+    }
+    // === SPI TRANSFER ===
+    else if (type == "spi_transfer") {
+        auto bus_it = payload.find("bus");
+        auto data_it = payload.find("data");
+
+        if (bus_it != payload.end() && bus_it->second.is<double>() &&
+            data_it != payload.end() && data_it->second.is<picojson::array>()) {
+
+            cmd.type = CMD_SPI_TRANSFER;
+            cmd.payload.spi_transfer.bus = (uint8_t)bus_it->second.get<double>();
+
+            const picojson::array& data_arr = data_it->second.get<picojson::array>();
+            size_t len = data_arr.size();
+            if (len > MAX_SPI_DATA_LEN) {
+                send_error("SPI data too large");
+                return;
+            }
+
+            for (size_t i = 0; i < len; i++) {
+                if (data_arr[i].is<std::string>()) {
+                    cmd.payload.spi_transfer.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                } else if (data_arr[i].is<double>()) {
+                    cmd.payload.spi_transfer.data[i] = (uint8_t)data_arr[i].get<double>();
+                }
+            }
+            cmd.payload.spi_transfer.data_len = len;
+
+            queue_command(&cmd);
+        } else {
+            send_error("Missing bus or data parameter");
+        }
+    }
+    // === SPI WRITE ===
+    else if (type == "spi_write") {
+        auto bus_it = payload.find("bus");
+        auto data_it = payload.find("data");
+
+        if (bus_it != payload.end() && bus_it->second.is<double>() &&
+            data_it != payload.end() && data_it->second.is<picojson::array>()) {
+
+            cmd.type = CMD_SPI_WRITE;
+            cmd.payload.spi_transfer.bus = (uint8_t)bus_it->second.get<double>();
+
+            const picojson::array& data_arr = data_it->second.get<picojson::array>();
+            size_t len = data_arr.size();
+            if (len > MAX_SPI_DATA_LEN) {
+                send_error("SPI data too large");
+                return;
+            }
+
+            for (size_t i = 0; i < len; i++) {
+                if (data_arr[i].is<std::string>()) {
+                    cmd.payload.spi_transfer.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                } else if (data_arr[i].is<double>()) {
+                    cmd.payload.spi_transfer.data[i] = (uint8_t)data_arr[i].get<double>();
+                }
+            }
+            cmd.payload.spi_transfer.data_len = len;
+
+            queue_command(&cmd);
+        } else {
+            send_error("Missing bus or data parameter");
+        }
+    }
+    // === SPI READ ===
+    else if (type == "spi_read") {
+        auto bus_it = payload.find("bus");
+        auto len_it = payload.find("length");
+
+        if (bus_it != payload.end() && bus_it->second.is<double>() &&
+            len_it != payload.end() && len_it->second.is<double>()) {
+
+            cmd.type = CMD_SPI_READ;
+            cmd.payload.spi_read.bus = (uint8_t)bus_it->second.get<double>();
+            cmd.payload.spi_read.length = (size_t)len_it->second.get<double>();
+
+            queue_command(&cmd);
+        } else {
+            send_error("Missing bus or length parameter");
+        }
+    }
+    // === UART CONFIGURE ===
+    else if (type == "uart_configure") {
+        auto port_it = payload.find("port");
+        auto tx_it = payload.find("tx_pin");
+        auto rx_it = payload.find("rx_pin");
+        auto baud_it = payload.find("baud_rate");
+        auto data_bits_it = payload.find("data_bits");
+        auto stop_bits_it = payload.find("stop_bits");
+        auto parity_it = payload.find("parity");
+
+        if (port_it != payload.end() && port_it->second.is<double>() &&
+            tx_it != payload.end() && tx_it->second.is<double>() &&
+            rx_it != payload.end() && rx_it->second.is<double>()) {
+
+            cmd.type = CMD_UART_CONFIGURE;
+            cmd.payload.uart_configure.port = (uint8_t)port_it->second.get<double>();
+            cmd.payload.uart_configure.tx_pin = (uint8_t)tx_it->second.get<double>();
+            cmd.payload.uart_configure.rx_pin = (uint8_t)rx_it->second.get<double>();
+            cmd.payload.uart_configure.baud_rate = baud_it != payload.end() && baud_it->second.is<double>()
+                ? (uint32_t)baud_it->second.get<double>()
+                : 115200;  // Default 115200
+            cmd.payload.uart_configure.data_bits = data_bits_it != payload.end() && data_bits_it->second.is<double>()
+                ? (uint8_t)data_bits_it->second.get<double>()
+                : 8;  // Default 8 data bits
+            cmd.payload.uart_configure.stop_bits = stop_bits_it != payload.end() && stop_bits_it->second.is<double>()
+                ? (uint8_t)stop_bits_it->second.get<double>()
+                : 1;  // Default 1 stop bit
+            cmd.payload.uart_configure.parity = parity_it != payload.end() && parity_it->second.is<double>()
+                ? (uint8_t)parity_it->second.get<double>()
+                : 0;  // Default no parity
+
+            queue_command(&cmd);
+        } else {
+            send_error("Missing port, tx_pin, or rx_pin parameter");
+        }
+    }
+    // === UART WRITE ===
+    else if (type == "uart_write") {
+        auto port_it = payload.find("port");
+        auto data_it = payload.find("data");
+
+        if (port_it != payload.end() && port_it->second.is<double>() &&
+            data_it != payload.end() && data_it->second.is<picojson::array>()) {
+
+            cmd.type = CMD_UART_WRITE;
+            cmd.payload.uart_write.port = (uint8_t)port_it->second.get<double>();
+
+            const picojson::array& data_arr = data_it->second.get<picojson::array>();
+            size_t len = data_arr.size();
+            if (len > MAX_UART_DATA_LEN) {
+                send_error("UART data too large");
+                return;
+            }
+
+            for (size_t i = 0; i < len; i++) {
+                if (data_arr[i].is<std::string>()) {
+                    cmd.payload.uart_write.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                } else if (data_arr[i].is<double>()) {
+                    cmd.payload.uart_write.data[i] = (uint8_t)data_arr[i].get<double>();
+                }
+            }
+            cmd.payload.uart_write.data_len = len;
+
+            queue_command(&cmd);
+        } else {
+            send_error("Missing port or data parameter");
+        }
+    }
+    // === UART READ ===
+    else if (type == "uart_read") {
+        auto port_it = payload.find("port");
+        auto len_it = payload.find("length");
+        auto timeout_it = payload.find("timeout_ms");
+
+        if (port_it != payload.end() && port_it->second.is<double>() &&
+            len_it != payload.end() && len_it->second.is<double>()) {
+
+            cmd.type = CMD_UART_READ;
+            cmd.payload.uart_read.port = (uint8_t)port_it->second.get<double>();
+            cmd.payload.uart_read.bytes_to_read = (size_t)len_it->second.get<double>();
+            cmd.payload.uart_read.timeout_ms = timeout_it != payload.end() && timeout_it->second.is<double>()
+                ? (uint32_t)timeout_it->second.get<double>()
+                : 1000;  // Default 1 second timeout
+
+            queue_command(&cmd);
+        } else {
+            send_error("Missing port or length parameter");
+        }
+    }
+    // === PIO WS2812 CONFIGURE ===
+    else if (type == "pio_ws2812_configure") {
+        auto pin_it = payload.find("pin");
+        auto num_leds_it = payload.find("num_leds");
+
+        if (pin_it != payload.end() && pin_it->second.is<double>() &&
+            num_leds_it != payload.end() && num_leds_it->second.is<double>()) {
+
+            cmd.type = CMD_PIO_WS2812_CONFIGURE;
+            cmd.payload.pio_ws2812_configure.pin = (uint8_t)pin_it->second.get<double>();
+            cmd.payload.pio_ws2812_configure.num_leds = (uint16_t)num_leds_it->second.get<double>();
+
+            queue_command(&cmd);
+        } else {
+            send_error("Missing pin or num_leds parameter");
+        }
+    }
+    // === PIO WS2812 UPDATE ===
+    else if (type == "pio_ws2812_update") {
+        auto pixels_it = payload.find("pixels");
+
+        if (pixels_it != payload.end() && pixels_it->second.is<picojson::array>()) {
+            const picojson::array& pixels = pixels_it->second.get<picojson::array>();
+
+            size_t num_pixels = pixels.size();
+            if (num_pixels > MAX_WS2812_LEDS) {
+                send_error("Too many pixels");
+                return;
+            }
+
+            uint8_t pixel_data[MAX_WS2812_BUFFER_SIZE];
+            size_t pixel_len = 0;
+
+            for (size_t i = 0; i < num_pixels; i++) {
+                if (!pixels[i].is<picojson::array>()) continue;
+                const picojson::array& rgb = pixels[i].get<picojson::array>();
+                if (rgb.size() < 3) continue;
+
+                pixel_data[pixel_len++] = rgb[0].is<double>() ? (uint8_t)rgb[0].get<double>() : 0;
+                pixel_data[pixel_len++] = rgb[1].is<double>() ? (uint8_t)rgb[1].get<double>() : 0;
+                pixel_data[pixel_len++] = rgb[2].is<double>() ? (uint8_t)rgb[2].get<double>() : 0;
+            }
+
+            // Write pixel data to shared buffer
+            if (!shared_ws2812_buffer_write(pixel_data, pixel_len)) {
+                send_error("Failed to write WS2812 pixel buffer");
+                return;
+            }
+
+            cmd.type = CMD_PIO_WS2812_UPDATE;
+            queue_command(&cmd);
+        } else {
+            send_error("Missing pixels parameter");
+        }
+    }
     // === DISPLAY UPDATE ===
     else if (type == "display_update") {
         auto bus_it = payload.find("bus");

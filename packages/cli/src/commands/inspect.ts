@@ -164,6 +164,171 @@ export function parseCommand(input: string): ParseResult | ParseError {
 		return { command: { type: "reboot", payload: {} } };
 	}
 
+	// temperature (or temp)
+	if (cmd === "temperature" || cmd === "temp") {
+		return { command: { type: "get_temperature", payload: {} } };
+	}
+
+	// watchdog configure <timeout_ms> [disable]
+	if (cmd === "watchdog" && parts[1] === "configure") {
+		const timeout_ms = parseInt(parts[2], 10);
+		if (Number.isNaN(timeout_ms))
+			return { error: `Invalid timeout: ${parts[2]}` };
+		const enable = parts[3] !== "disable";
+		return {
+			command: {
+				type: "watchdog_configure",
+				payload: { timeout_ms, enable },
+			},
+		};
+	}
+
+	// watchdog feed
+	if (cmd === "watchdog" && parts[1] === "feed") {
+		return { command: { type: "watchdog_feed", payload: {} } };
+	}
+
+	// spi configure <bus> <clk> <mosi> <miso> <cs> <freq> [mode]
+	if (cmd === "spi" && parts[1] === "configure") {
+		const bus = parseInt(parts[2], 10);
+		const clk_pin = parseInt(parts[3], 10);
+		const mosi_pin = parseInt(parts[4], 10);
+		const miso_pin = parseInt(parts[5], 10);
+		const cs_pin = parseInt(parts[6], 10);
+		const frequency = parseInt(parts[7], 10);
+		if (Number.isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
+		if (Number.isNaN(clk_pin)) return { error: `Invalid CLK pin: ${parts[3]}` };
+		if (Number.isNaN(mosi_pin))
+			return { error: `Invalid MOSI pin: ${parts[4]}` };
+		if (Number.isNaN(miso_pin))
+			return { error: `Invalid MISO pin: ${parts[5]}` };
+		if (Number.isNaN(cs_pin)) return { error: `Invalid CS pin: ${parts[6]}` };
+		if (Number.isNaN(frequency))
+			return { error: `Invalid frequency: ${parts[7]}` };
+		const mode = parts[8] !== undefined ? parseInt(parts[8], 10) : 0;
+		return {
+			command: {
+				type: "spi_configure",
+				payload: { bus, clk_pin, mosi_pin, miso_pin, cs_pin, frequency, mode },
+			},
+		};
+	}
+
+	// spi transfer <bus> <hex_bytes...>
+	if (cmd === "spi" && parts[1] === "transfer") {
+		const bus = parseInt(parts[2], 10);
+		if (Number.isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
+		const data = parts.slice(3);
+		if (data.length === 0) return { error: "Missing data bytes" };
+		return {
+			command: { type: "spi_transfer", payload: { bus, data } },
+		};
+	}
+
+	// spi write <bus> <hex_bytes...>
+	if (cmd === "spi" && parts[1] === "write") {
+		const bus = parseInt(parts[2], 10);
+		if (Number.isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
+		const data = parts.slice(3);
+		if (data.length === 0) return { error: "Missing data bytes" };
+		return {
+			command: { type: "spi_write", payload: { bus, data } },
+		};
+	}
+
+	// spi read <bus> <bytes>
+	if (cmd === "spi" && parts[1] === "read") {
+		const bus = parseInt(parts[2], 10);
+		const bytes_to_read = parseInt(parts[3], 10);
+		if (Number.isNaN(bus)) return { error: `Invalid bus number: ${parts[2]}` };
+		if (Number.isNaN(bytes_to_read))
+			return { error: `Invalid byte count: ${parts[3]}` };
+		return {
+			command: { type: "spi_read", payload: { bus, bytes_to_read } },
+		};
+	}
+
+	// uart configure <port> <tx> <rx> <baud> [data_bits] [stop_bits] [parity]
+	if (cmd === "uart" && parts[1] === "configure") {
+		const port = parseInt(parts[2], 10);
+		const tx_pin = parseInt(parts[3], 10);
+		const rx_pin = parseInt(parts[4], 10);
+		const baud_rate = parseInt(parts[5], 10);
+		if (Number.isNaN(port)) return { error: `Invalid port: ${parts[2]}` };
+		if (Number.isNaN(tx_pin)) return { error: `Invalid TX pin: ${parts[3]}` };
+		if (Number.isNaN(rx_pin)) return { error: `Invalid RX pin: ${parts[4]}` };
+		if (Number.isNaN(baud_rate))
+			return { error: `Invalid baud rate: ${parts[5]}` };
+		const payload: Record<string, unknown> = {
+			port,
+			tx_pin,
+			rx_pin,
+			baud_rate,
+		};
+		if (parts[6] !== undefined) payload.data_bits = parseInt(parts[6], 10);
+		if (parts[7] !== undefined) payload.stop_bits = parseInt(parts[7], 10);
+		if (parts[8] !== undefined) payload.parity = parts[8];
+		return { command: { type: "uart_configure", payload } };
+	}
+
+	// uart write <port> <hex_bytes...>
+	if (cmd === "uart" && parts[1] === "write") {
+		const port = parseInt(parts[2], 10);
+		if (Number.isNaN(port)) return { error: `Invalid port: ${parts[2]}` };
+		const data = parts.slice(3);
+		if (data.length === 0) return { error: "Missing data bytes" };
+		return {
+			command: { type: "uart_write", payload: { port, data } },
+		};
+	}
+
+	// uart read <port> <bytes> [timeout_ms]
+	if (cmd === "uart" && parts[1] === "read") {
+		const port = parseInt(parts[2], 10);
+		const bytes_to_read = parseInt(parts[3], 10);
+		if (Number.isNaN(port)) return { error: `Invalid port: ${parts[2]}` };
+		if (Number.isNaN(bytes_to_read))
+			return { error: `Invalid byte count: ${parts[3]}` };
+		const payload: Record<string, unknown> = { port, bytes_to_read };
+		if (parts[4] !== undefined) {
+			const timeout_ms = parseInt(parts[4], 10);
+			if (Number.isNaN(timeout_ms))
+				return { error: `Invalid timeout: ${parts[4]}` };
+			payload.timeout_ms = timeout_ms;
+		}
+		return { command: { type: "uart_read", payload } };
+	}
+
+	// ws2812 configure <pin> <num_leds>
+	if (cmd === "ws2812" && parts[1] === "configure") {
+		const pin = parseInt(parts[2], 10);
+		const num_leds = parseInt(parts[3], 10);
+		if (Number.isNaN(pin)) return { error: `Invalid pin: ${parts[2]}` };
+		if (Number.isNaN(num_leds))
+			return { error: `Invalid LED count: ${parts[3]}` };
+		return {
+			command: { type: "pio_ws2812_configure", payload: { pin, num_leds } },
+		};
+	}
+
+	// ws2812 fill <r> <g> <b> <num_leds>
+	if (cmd === "ws2812" && parts[1] === "fill") {
+		const r = parseInt(parts[2], 10);
+		const g = parseInt(parts[3], 10);
+		const b = parseInt(parts[4], 10);
+		const num = parseInt(parts[5], 10);
+		if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b))
+			return { error: "Invalid RGB values" };
+		if (Number.isNaN(num)) return { error: `Invalid LED count: ${parts[5]}` };
+		const pixels: [number, number, number][] = Array.from(
+			{ length: num },
+			() => [r, g, b],
+		);
+		return {
+			command: { type: "pio_ws2812_update", payload: { pixels } },
+		};
+	}
+
 	return {
 		error: `Unknown command: "${cmd}". Type "help" to see available commands.`,
 	};
@@ -196,6 +361,26 @@ export function formatResponse(response: DeviceCommandResponse): string {
 		return `Read from ${p.address}: [${p.data.join(", ")}]`;
 	}
 
+	if (type === "temperature_result") {
+		const p = payload as { celsius: number };
+		return `Temperature: ${p.celsius.toFixed(1)}°C`;
+	}
+
+	if (type === "spi_transfer_result") {
+		const p = payload as { bus: number; data: string[] };
+		return `SPI transfer on bus ${p.bus}: [${p.data.join(", ")}]`;
+	}
+
+	if (type === "spi_read_result") {
+		const p = payload as { bus: number; data: string[] };
+		return `SPI read from bus ${p.bus}: [${p.data.join(", ")}]`;
+	}
+
+	if (type === "uart_read_result") {
+		const p = payload as { port: number; data: string[]; bytes_read: number };
+		return `UART port ${p.port} read ${p.bytes_read} bytes: [${p.data.join(", ")}]`;
+	}
+
 	if (type === "command_ack") {
 		return "OK";
 	}
@@ -221,6 +406,20 @@ Available commands:
   i2c read <bus> <addr> <bytes> [reg]     Read bytes from I2C device
   i2c write <bus> <addr> <data...>        Write bytes to I2C device
   monitor <pin> [up|down|none]            Enable GPIO input monitoring
+  temperature (or temp)                   Read on-die temperature sensor
+  watchdog configure <ms> [disable]       Set watchdog timeout (ms)
+  watchdog feed                           Feed the watchdog timer
+  spi configure <bus> <clk> <mosi> <miso> <cs> <freq> [mode]
+                                          Configure SPI bus
+  spi transfer <bus> <hex_bytes...>       Full-duplex SPI transfer
+  spi write <bus> <hex_bytes...>          SPI write
+  spi read <bus> <bytes>                  SPI read
+  uart configure <port> <tx> <rx> <baud> [data_bits] [stop_bits] [parity]
+                                          Configure UART port
+  uart write <port> <hex_bytes...>        Write to UART
+  uart read <port> <bytes> [timeout_ms]   Read from UART
+  ws2812 configure <pin> <num_leds>       Configure WS2812 LED strip (Pico)
+  ws2812 fill <r> <g> <b> <num_leds>     Fill all LEDs with color
   reboot                                  Reboot the device
   help                                    Show this help
   exit / Ctrl-C                           Exit inspect mode

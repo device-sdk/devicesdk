@@ -235,6 +235,257 @@ bool handle_websocket_message(const char *message) {
         cmd.payload.i2c_read.reg = cJSON_IsNumber(reg_obj) ? (int)reg_obj->valuedouble : -1;
         queue_command(&cmd);
     }
+    // === GET TEMPERATURE ===
+    else if (strcmp(type, "get_temperature") == 0) {
+        cmd.type = CMD_GET_TEMPERATURE;
+        queue_command(&cmd);
+    }
+    // === I2C BATCH WRITE (inline — variable-length writes can't fit in fixed command) ===
+    else if (strcmp(type, "i2c_batch_write") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        cJSON *addr_obj = cJSON_GetObjectItem(payload, "address");
+        cJSON *writes_obj = cJSON_GetObjectItem(payload, "writes");
+
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsArray(writes_obj)) goto done;
+
+        uint8_t bus = (uint8_t)bus_obj->valuedouble;
+        uint8_t address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
+        int writes_count = cJSON_GetArraySize(writes_obj);
+
+        if (bus > 1) {
+            LOG_E(TAG, "i2c_batch_write: invalid bus %d", bus);
+            goto done;
+        }
+        if (writes_count == 0) {
+            LOG_E(TAG, "i2c_batch_write: empty writes array");
+            goto done;
+        }
+
+        // Execute each write operation
+        for (int i = 0; i < writes_count; i++) {
+            cJSON *write_op = cJSON_GetArrayItem(writes_obj, i);
+            if (!cJSON_IsArray(write_op)) {
+                // Send error response
+                cJSON *err_resp = cJSON_CreateObject();
+                cJSON *err_payload = cJSON_CreateObject();
+                cJSON_AddStringToObject(err_resp, "type", "command_error");
+                char err_msg[64];
+                snprintf(err_msg, sizeof(err_msg), "Write %d is not an array", i);
+                cJSON_AddStringToObject(err_payload, "error", err_msg);
+                cJSON_AddItemToObject(err_resp, "payload", err_payload);
+                if (msg_id[0] != '\0') {
+                    cJSON_AddStringToObject(err_resp, "id", msg_id);
+                }
+                // Store JSON for sending after cleanup
+                char *err_str = cJSON_PrintUnformatted(err_resp);
+                cJSON_Delete(err_resp);
+                if (err_str) {
+#ifndef UNIT_TEST
+                    // Send via websocket — we need access to ws_send, but websocket_handler
+                    // doesn't have direct access. Use the response queue mechanism instead.
+                    // For inline commands, we log the error. The caller can check logs.
+                    LOG_E(TAG, "i2c_batch_write error: %s", err_str);
+#endif
+                    free(err_str);
+                }
+                goto done;
+            }
+
+            int data_count = cJSON_GetArraySize(write_op);
+            uint8_t data[128];
+            size_t data_len = 0;
+
+            for (int j = 0; j < data_count && data_len < sizeof(data); j++) {
+                cJSON *byte_obj = cJSON_GetArrayItem(write_op, j);
+                if (cJSON_IsString(byte_obj)) {
+                    data[data_len++] = (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+                }
+            }
+
+            if (data_len == 0) {
+                LOG_E(TAG, "i2c_batch_write: write %d has no data", i);
+                goto done;
+            }
+
+            // Use the command queue for each individual write
+            worker_command_t write_cmd;
+            memset(&write_cmd, 0, sizeof(write_cmd));
+            strncpy(write_cmd.message_id, msg_id, MAX_MESSAGE_ID_LEN - 1);
+            write_cmd.message_id[MAX_MESSAGE_ID_LEN - 1] = '\0';
+            write_cmd.type = CMD_I2C_WRITE;
+            write_cmd.payload.i2c_write.bus = bus;
+            write_cmd.payload.i2c_write.address = address;
+            memcpy(write_cmd.payload.i2c_write.data, data, data_len);
+            write_cmd.payload.i2c_write.data_len = data_len;
+
+            if (!queue_command(&write_cmd)) {
+                LOG_E(TAG, "i2c_batch_write: failed to queue write %d", i);
+                goto done;
+            }
+        }
+    }
+    // === WATCHDOG CONFIGURE ===
+    else if (strcmp(type, "watchdog_configure") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *timeout_obj = cJSON_GetObjectItem(payload, "timeout_ms");
+        cJSON *enable_obj = cJSON_GetObjectItem(payload, "enable");
+
+        if (!cJSON_IsNumber(timeout_obj) || !cJSON_IsBool(enable_obj)) goto done;
+
+        cmd.type = CMD_WATCHDOG_CONFIGURE;
+        cmd.payload.watchdog_configure.timeout_ms = (uint32_t)timeout_obj->valuedouble;
+        cmd.payload.watchdog_configure.enable = cJSON_IsTrue(enable_obj);
+        queue_command(&cmd);
+    }
+    // === WATCHDOG FEED ===
+    else if (strcmp(type, "watchdog_feed") == 0) {
+        cmd.type = CMD_WATCHDOG_FEED;
+        queue_command(&cmd);
+    }
+    // === SPI CONFIGURE ===
+    else if (strcmp(type, "spi_configure") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        cJSON *clk_obj = cJSON_GetObjectItem(payload, "clk_pin");
+        cJSON *mosi_obj = cJSON_GetObjectItem(payload, "mosi_pin");
+        cJSON *miso_obj = cJSON_GetObjectItem(payload, "miso_pin");
+        cJSON *cs_obj = cJSON_GetObjectItem(payload, "cs_pin");
+        cJSON *freq_obj = cJSON_GetObjectItem(payload, "frequency");
+        cJSON *mode_obj = cJSON_GetObjectItem(payload, "mode");
+
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(clk_obj) ||
+            !cJSON_IsNumber(mosi_obj) || !cJSON_IsNumber(miso_obj) ||
+            !cJSON_IsNumber(cs_obj)) goto done;
+
+        cmd.type = CMD_SPI_CONFIGURE;
+        cmd.payload.spi_configure.bus = (uint8_t)bus_obj->valuedouble;
+        cmd.payload.spi_configure.clk_pin = (uint8_t)clk_obj->valuedouble;
+        cmd.payload.spi_configure.mosi_pin = (uint8_t)mosi_obj->valuedouble;
+        cmd.payload.spi_configure.miso_pin = (uint8_t)miso_obj->valuedouble;
+        cmd.payload.spi_configure.cs_pin = (uint8_t)cs_obj->valuedouble;
+        cmd.payload.spi_configure.frequency = cJSON_IsNumber(freq_obj) ? (uint32_t)freq_obj->valuedouble : 1000000;
+        cmd.payload.spi_configure.mode = cJSON_IsNumber(mode_obj) ? (uint8_t)mode_obj->valuedouble : 0;
+        queue_command(&cmd);
+    }
+    // === SPI TRANSFER ===
+    else if (strcmp(type, "spi_transfer") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        cJSON *data_obj = cJSON_GetObjectItem(payload, "data");
+
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsArray(data_obj)) goto done;
+
+        cmd.type = CMD_SPI_TRANSFER;
+        cmd.payload.spi_data.bus = (uint8_t)bus_obj->valuedouble;
+
+        int data_count = cJSON_GetArraySize(data_obj);
+        size_t data_len = 0;
+        for (int i = 0; i < data_count && data_len < MAX_SPI_DATA_LEN; i++) {
+            cJSON *byte_obj = cJSON_GetArrayItem(data_obj, i);
+            if (cJSON_IsString(byte_obj)) {
+                cmd.payload.spi_data.data[data_len++] = (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+            }
+        }
+        cmd.payload.spi_data.data_len = data_len;
+        queue_command(&cmd);
+    }
+    // === SPI WRITE ===
+    else if (strcmp(type, "spi_write") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        cJSON *data_obj = cJSON_GetObjectItem(payload, "data");
+
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsArray(data_obj)) goto done;
+
+        cmd.type = CMD_SPI_WRITE;
+        cmd.payload.spi_data.bus = (uint8_t)bus_obj->valuedouble;
+
+        int data_count = cJSON_GetArraySize(data_obj);
+        size_t data_len = 0;
+        for (int i = 0; i < data_count && data_len < MAX_SPI_DATA_LEN; i++) {
+            cJSON *byte_obj = cJSON_GetArrayItem(data_obj, i);
+            if (cJSON_IsString(byte_obj)) {
+                cmd.payload.spi_data.data[data_len++] = (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+            }
+        }
+        cmd.payload.spi_data.data_len = data_len;
+        queue_command(&cmd);
+    }
+    // === SPI READ ===
+    else if (strcmp(type, "spi_read") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
+        cJSON *len_obj = cJSON_GetObjectItem(payload, "length");
+
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(len_obj)) goto done;
+
+        cmd.type = CMD_SPI_READ;
+        cmd.payload.spi_read.bus = (uint8_t)bus_obj->valuedouble;
+        cmd.payload.spi_read.length = (size_t)len_obj->valuedouble;
+        queue_command(&cmd);
+    }
+    // === UART CONFIGURE ===
+    else if (strcmp(type, "uart_configure") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *port_obj = cJSON_GetObjectItem(payload, "port");
+        cJSON *tx_obj = cJSON_GetObjectItem(payload, "tx_pin");
+        cJSON *rx_obj = cJSON_GetObjectItem(payload, "rx_pin");
+        cJSON *baud_obj = cJSON_GetObjectItem(payload, "baud_rate");
+        cJSON *data_bits_obj = cJSON_GetObjectItem(payload, "data_bits");
+        cJSON *stop_bits_obj = cJSON_GetObjectItem(payload, "stop_bits");
+        cJSON *parity_obj = cJSON_GetObjectItem(payload, "parity");
+
+        if (!cJSON_IsNumber(port_obj) || !cJSON_IsNumber(tx_obj) ||
+            !cJSON_IsNumber(rx_obj) || !cJSON_IsNumber(baud_obj)) goto done;
+
+        cmd.type = CMD_UART_CONFIGURE;
+        cmd.payload.uart_configure.port = (uint8_t)port_obj->valuedouble;
+        cmd.payload.uart_configure.tx_pin = (uint8_t)tx_obj->valuedouble;
+        cmd.payload.uart_configure.rx_pin = (uint8_t)rx_obj->valuedouble;
+        cmd.payload.uart_configure.baud_rate = (uint32_t)baud_obj->valuedouble;
+        cmd.payload.uart_configure.data_bits = cJSON_IsNumber(data_bits_obj) ? (uint8_t)data_bits_obj->valuedouble : 8;
+        cmd.payload.uart_configure.stop_bits = cJSON_IsNumber(stop_bits_obj) ? (uint8_t)stop_bits_obj->valuedouble : 1;
+        cmd.payload.uart_configure.parity = cJSON_IsNumber(parity_obj) ? (uint8_t)parity_obj->valuedouble : 0;
+        queue_command(&cmd);
+    }
+    // === UART WRITE ===
+    else if (strcmp(type, "uart_write") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *port_obj = cJSON_GetObjectItem(payload, "port");
+        cJSON *data_obj = cJSON_GetObjectItem(payload, "data");
+
+        if (!cJSON_IsNumber(port_obj) || !cJSON_IsArray(data_obj)) goto done;
+
+        cmd.type = CMD_UART_WRITE;
+        cmd.payload.uart_write.port = (uint8_t)port_obj->valuedouble;
+
+        int data_count = cJSON_GetArraySize(data_obj);
+        size_t data_len = 0;
+        for (int i = 0; i < data_count && data_len < MAX_UART_DATA_LEN; i++) {
+            cJSON *byte_obj = cJSON_GetArrayItem(data_obj, i);
+            if (cJSON_IsString(byte_obj)) {
+                cmd.payload.uart_write.data[data_len++] = (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+            }
+        }
+        cmd.payload.uart_write.data_len = data_len;
+        queue_command(&cmd);
+    }
+    // === UART READ ===
+    else if (strcmp(type, "uart_read") == 0) {
+        if (!cJSON_IsObject(payload)) goto done;
+        cJSON *port_obj = cJSON_GetObjectItem(payload, "port");
+        cJSON *len_obj = cJSON_GetObjectItem(payload, "length");
+        cJSON *timeout_obj = cJSON_GetObjectItem(payload, "timeout_ms");
+
+        if (!cJSON_IsNumber(port_obj) || !cJSON_IsNumber(len_obj)) goto done;
+
+        cmd.type = CMD_UART_READ;
+        cmd.payload.uart_read.port = (uint8_t)port_obj->valuedouble;
+        cmd.payload.uart_read.bytes_to_read = (size_t)len_obj->valuedouble;
+        cmd.payload.uart_read.timeout_ms = cJSON_IsNumber(timeout_obj) ? (uint32_t)timeout_obj->valuedouble : 1000;
+        queue_command(&cmd);
+    }
     // === DISPLAY UPDATE ===
     else if (strcmp(type, "display_update") == 0) {
         if (!cJSON_IsObject(payload)) goto done;

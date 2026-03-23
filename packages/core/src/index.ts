@@ -123,6 +123,105 @@ export type ConfigureGpioInputMonitoringCommand = Command<
 	}
 >;
 
+// --- Temperature Sensor Commands ---
+export type GetTemperatureCommand = Command<"get_temperature", {}>;
+
+// --- Watchdog Commands ---
+export type WatchdogConfigureCommand = Command<
+	"watchdog_configure",
+	{
+		timeout_ms: number;
+		enable: boolean;
+	}
+>;
+
+export type WatchdogFeedCommand = Command<"watchdog_feed", {}>;
+
+// --- SPI Commands ---
+export type SpiConfigureCommand = Command<
+	"spi_configure",
+	{
+		bus: number;
+		clk_pin: number;
+		mosi_pin: number;
+		miso_pin: number;
+		cs_pin: number;
+		frequency: number;
+		mode: 0 | 1 | 2 | 3;
+	}
+>;
+
+export type SpiTransferCommand = Command<
+	"spi_transfer",
+	{
+		bus: number;
+		data: string[];
+	}
+>;
+
+export type SpiWriteCommand = Command<
+	"spi_write",
+	{
+		bus: number;
+		data: string[];
+	}
+>;
+
+export type SpiReadCommand = Command<
+	"spi_read",
+	{
+		bus: number;
+		bytes_to_read: number;
+	}
+>;
+
+// --- UART Commands ---
+export type UartConfigureCommand = Command<
+	"uart_configure",
+	{
+		port: number;
+		tx_pin: number;
+		rx_pin: number;
+		baud_rate: number;
+		data_bits?: 5 | 6 | 7 | 8;
+		stop_bits?: 1 | 2;
+		parity?: "none" | "even" | "odd";
+	}
+>;
+
+export type UartWriteCommand = Command<
+	"uart_write",
+	{
+		port: number;
+		data: string[];
+	}
+>;
+
+export type UartReadCommand = Command<
+	"uart_read",
+	{
+		port: number;
+		bytes_to_read: number;
+		timeout_ms?: number;
+	}
+>;
+
+// --- PIO Commands (Pico only) ---
+export type PioWs2812ConfigureCommand = Command<
+	"pio_ws2812_configure",
+	{
+		pin: number;
+		num_leds: number;
+	}
+>;
+
+export type PioWs2812UpdateCommand = Command<
+	"pio_ws2812_update",
+	{
+		pixels: [number, number, number][];
+	}
+>;
+
 // --- Device Commands ---
 export type RebootCommand = Command<"reboot", {}>;
 
@@ -139,7 +238,19 @@ export type DeviceCommand =
 	| I2cBatchWriteCommand
 	| DisplayUpdateCommand
 	| RebootCommand
-	| ConfigureGpioInputMonitoringCommand;
+	| ConfigureGpioInputMonitoringCommand
+	| GetTemperatureCommand
+	| WatchdogConfigureCommand
+	| WatchdogFeedCommand
+	| SpiConfigureCommand
+	| SpiTransferCommand
+	| SpiWriteCommand
+	| SpiReadCommand
+	| UartConfigureCommand
+	| UartWriteCommand
+	| UartReadCommand
+	| PioWs2812ConfigureCommand
+	| PioWs2812UpdateCommand;
 
 // --- Device Responses ---
 interface BaseResponse {
@@ -199,6 +310,38 @@ export interface GpioStateChanged extends BaseResponse {
 	};
 }
 
+export interface TemperatureResult extends BaseResponse {
+	type: "temperature_result";
+	payload: {
+		celsius: number;
+	};
+}
+
+export interface SpiTransferResult extends BaseResponse {
+	type: "spi_transfer_result";
+	payload: {
+		bus: number;
+		data: string[];
+	};
+}
+
+export interface SpiReadResult extends BaseResponse {
+	type: "spi_read_result";
+	payload: {
+		bus: number;
+		data: string[];
+	};
+}
+
+export interface UartReadResult extends BaseResponse {
+	type: "uart_read_result";
+	payload: {
+		port: number;
+		data: string[];
+		bytes_read: number;
+	};
+}
+
 export type DeviceResponse =
 	| DeviceConnected
 	| PinStateUpdate
@@ -206,7 +349,11 @@ export type DeviceResponse =
 	| I2cReadResult
 	| CommandAck
 	| CommandError
-	| GpioStateChanged;
+	| GpioStateChanged
+	| TemperatureResult
+	| SpiTransferResult
+	| SpiReadResult
+	| UartReadResult;
 
 // --- Command to Response Mapping ---
 export type CommandResponseTypeMap = {
@@ -222,6 +369,18 @@ export type CommandResponseTypeMap = {
 	i2c_batch_write: CommandAck;
 	display_update: CommandAck;
 	configure_gpio_input_monitoring: CommandAck;
+	get_temperature: TemperatureResult;
+	watchdog_configure: CommandAck;
+	watchdog_feed: CommandAck;
+	spi_configure: CommandAck;
+	spi_transfer: SpiTransferResult;
+	spi_write: CommandAck;
+	spi_read: SpiReadResult;
+	uart_configure: CommandAck;
+	uart_write: CommandAck;
+	uart_read: UartReadResult;
+	pio_ws2812_configure: CommandAck;
+	pio_ws2812_update: CommandAck;
 };
 
 // Env var key validation: uppercase letters, digits, underscores, max 64 chars, must start with a letter
@@ -279,6 +438,48 @@ export interface DeviceSenderInterface {
 		enable: boolean,
 		pull?: "up" | "down" | "none",
 	): Promise<void>;
+
+	// Temperature sensor
+	getTemperature(): Promise<DeviceResponse>;
+
+	// Watchdog timer
+	watchdogConfigure(timeoutMs: number, enable: boolean): Promise<void>;
+	watchdogFeed(): Promise<void>;
+
+	// SPI
+	spiConfigure(
+		bus: number,
+		clkPin: number,
+		mosiPin: number,
+		misoPin: number,
+		csPin: number,
+		frequency: number,
+		mode: 0 | 1 | 2 | 3,
+	): Promise<void>;
+	spiTransfer(bus: number, data: string[]): Promise<DeviceResponse>;
+	spiWrite(bus: number, data: string[]): Promise<void>;
+	spiRead(bus: number, bytesToRead: number): Promise<DeviceResponse>;
+
+	// UART
+	uartConfigure(
+		port: number,
+		txPin: number,
+		rxPin: number,
+		baudRate: number,
+		dataBits?: 5 | 6 | 7 | 8,
+		stopBits?: 1 | 2,
+		parity?: "none" | "even" | "odd",
+	): Promise<void>;
+	uartWrite(port: number, data: string[]): Promise<void>;
+	uartRead(
+		port: number,
+		bytesToRead: number,
+		timeoutMs?: number,
+	): Promise<DeviceResponse>;
+
+	// PIO (Pico only)
+	pioWs2812Configure(pin: number, numLeds: number): Promise<void>;
+	pioWs2812Update(pixels: [number, number, number][]): Promise<void>;
 
 	// KV storage for persistent state
 	kv: KVInterface;

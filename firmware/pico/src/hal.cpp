@@ -5,6 +5,11 @@
 #include "hardware/adc.h"
 #include "hardware/i2c.h"
 #include "hardware/watchdog.h"
+#include "hardware/spi.h"
+#include "hardware/uart.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "ws2812.pio.h"
 #include <stdio.h>
 
 // Valid I2C pin combinations from RP2040 datasheet
@@ -264,4 +269,291 @@ void hal_blink_led(uint32_t duration_ms) {
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
     sleep_ms(duration_ms);
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+}
+
+// === Temperature sensor ===
+
+float hal_get_temperature(void) {
+    if (!adc_initialized) {
+        adc_init();
+        adc_initialized = true;
+    }
+    adc_set_temp_sensor_enabled(true);
+    adc_select_input(4);
+    uint16_t raw = adc_read();
+    float voltage = raw * 3.3f / 4096.0f;
+    float temp = 27.0f - (voltage - 0.706f) / 0.001721f;
+    return temp;
+}
+
+// === Watchdog timer ===
+
+static bool wdt_enabled = false;
+
+bool hal_watchdog_configure(uint32_t timeout_ms, bool enable) {
+    if (enable) {
+        watchdog_enable(timeout_ms, true);  // true = pause on debug
+        wdt_enabled = true;
+        printf("Watchdog enabled with timeout %lu ms\n", timeout_ms);
+        return true;
+    } else {
+        // On Pico, once enabled, watchdog cannot be disabled
+        if (wdt_enabled) {
+            printf("Watchdog cannot be disabled once enabled on Pico\n");
+            return false;
+        }
+        return true;
+    }
+}
+
+void hal_watchdog_feed(void) {
+    if (wdt_enabled) {
+        watchdog_update();
+    }
+}
+
+// === SPI ===
+
+typedef struct {
+    uint8_t clk_pin;
+    uint8_t mosi_pin;
+    uint8_t miso_pin;
+    uint8_t cs_pin;
+    uint32_t frequency;
+    uint8_t mode;
+    bool configured;
+} spi_config_t;
+
+static spi_config_t spi_configs[2] = {
+    { .clk_pin = 0, .mosi_pin = 0, .miso_pin = 0, .cs_pin = 0, .frequency = 0, .mode = 0, .configured = false },
+    { .clk_pin = 0, .mosi_pin = 0, .miso_pin = 0, .cs_pin = 0, .frequency = 0, .mode = 0, .configured = false }
+};
+
+static spi_inst_t* get_spi_inst(uint8_t bus) {
+    if (bus == 0) return spi0;
+    if (bus == 1) return spi1;
+    return nullptr;
+}
+
+bool hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) {
+    if (bus > 1) return false;
+
+    spi_inst_t* spi = get_spi_inst(bus);
+    if (!spi) return false;
+
+    // Deinitialize if already configured
+    if (spi_configs[bus].configured) {
+        spi_deinit(spi);
+    }
+
+    spi_init(spi, frequency);
+
+    // Set SPI format based on mode (CPOL/CPHA)
+    spi_cpol_t cpol = (mode & 0x02) ? SPI_CPOL_1 : SPI_CPOL_0;
+    spi_cpha_t cpha = (mode & 0x01) ? SPI_CPHA_1 : SPI_CPHA_0;
+    spi_set_format(spi, 8, cpol, cpha, SPI_MSB_FIRST);
+
+    // Configure pins
+    gpio_set_function(clk_pin, GPIO_FUNC_SPI);
+    gpio_set_function(mosi_pin, GPIO_FUNC_SPI);
+    gpio_set_function(miso_pin, GPIO_FUNC_SPI);
+
+    // CS pin managed manually via GPIO
+    gpio_init(cs_pin);
+    gpio_set_dir(cs_pin, GPIO_OUT);
+    gpio_put(cs_pin, 1);  // CS high (deselected)
+
+    spi_configs[bus].clk_pin = clk_pin;
+    spi_configs[bus].mosi_pin = mosi_pin;
+    spi_configs[bus].miso_pin = miso_pin;
+    spi_configs[bus].cs_pin = cs_pin;
+    spi_configs[bus].frequency = frequency;
+    spi_configs[bus].mode = mode;
+    spi_configs[bus].configured = true;
+
+    printf("SPI%d configured: CLK=%d MOSI=%d MISO=%d CS=%d freq=%lu mode=%d\n",
+           bus, clk_pin, mosi_pin, miso_pin, cs_pin, frequency, mode);
+    return true;
+}
+
+spi_transfer_result_t hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) {
+    spi_transfer_result_t result = { .data = {0}, .len = 0 };
+
+    if (bus > 1 || !spi_configs[bus].configured) return result;
+    if (len > sizeof(result.data)) len = sizeof(result.data);
+
+    spi_inst_t* spi = get_spi_inst(bus);
+    uint8_t cs_pin = spi_configs[bus].cs_pin;
+
+    gpio_put(cs_pin, 0);  // CS low
+    spi_write_read_blocking(spi, data, result.data, len);
+    gpio_put(cs_pin, 1);  // CS high
+
+    result.len = len;
+    return result;
+}
+
+bool hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) {
+    if (bus > 1 || !spi_configs[bus].configured) return false;
+
+    spi_inst_t* spi = get_spi_inst(bus);
+    uint8_t cs_pin = spi_configs[bus].cs_pin;
+
+    gpio_put(cs_pin, 0);  // CS low
+    spi_write_blocking(spi, data, len);
+    gpio_put(cs_pin, 1);  // CS high
+
+    return true;
+}
+
+spi_transfer_result_t hal_spi_read(uint8_t bus, size_t len) {
+    spi_transfer_result_t result = { .data = {0}, .len = 0 };
+
+    if (bus > 1 || !spi_configs[bus].configured) return result;
+    if (len > sizeof(result.data)) len = sizeof(result.data);
+
+    spi_inst_t* spi = get_spi_inst(bus);
+    uint8_t cs_pin = spi_configs[bus].cs_pin;
+
+    gpio_put(cs_pin, 0);  // CS low
+    spi_read_blocking(spi, 0x00, result.data, len);
+    gpio_put(cs_pin, 1);  // CS high
+
+    result.len = len;
+    return result;
+}
+
+// === UART ===
+
+typedef struct {
+    uint8_t tx_pin;
+    uint8_t rx_pin;
+    uint32_t baud_rate;
+    bool configured;
+} uart_config_t;
+
+static uart_config_t uart_configs[2] = {
+    { .tx_pin = 0, .rx_pin = 0, .baud_rate = 0, .configured = false },
+    { .tx_pin = 0, .rx_pin = 0, .baud_rate = 0, .configured = false }
+};
+
+static uart_inst_t* get_uart_inst(uint8_t port) {
+    if (port == 0) return uart0;
+    if (port == 1) return uart1;
+    return nullptr;
+}
+
+bool hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) {
+    if (port > 1) return false;
+
+    uart_inst_t* uart = get_uart_inst(port);
+    if (!uart) return false;
+
+    // Deinitialize if already configured
+    if (uart_configs[port].configured) {
+        uart_deinit(uart);
+    }
+
+    uart_init(uart, baud_rate);
+    gpio_set_function(tx_pin, GPIO_FUNC_UART);
+    gpio_set_function(rx_pin, GPIO_FUNC_UART);
+
+    // Map parity: 0=none, 1=even, 2=odd
+    uart_parity_t p;
+    switch (parity) {
+        case 1: p = UART_PARITY_EVEN; break;
+        case 2: p = UART_PARITY_ODD; break;
+        default: p = UART_PARITY_NONE; break;
+    }
+
+    uart_set_format(uart, data_bits, stop_bits, p);
+
+    uart_configs[port].tx_pin = tx_pin;
+    uart_configs[port].rx_pin = rx_pin;
+    uart_configs[port].baud_rate = baud_rate;
+    uart_configs[port].configured = true;
+
+    printf("UART%d configured: TX=%d RX=%d baud=%lu data=%d stop=%d parity=%d\n",
+           port, tx_pin, rx_pin, baud_rate, data_bits, stop_bits, parity);
+    return true;
+}
+
+bool hal_uart_write(uint8_t port, const uint8_t *data, size_t len) {
+    if (port > 1 || !uart_configs[port].configured) return false;
+
+    uart_inst_t* uart = get_uart_inst(port);
+    uart_write_blocking(uart, data, len);
+    return true;
+}
+
+uart_read_result_t hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) {
+    uart_read_result_t result = { .data = {0}, .len = 0 };
+
+    if (port > 1 || !uart_configs[port].configured) return result;
+    if (bytes_to_read > sizeof(result.data)) bytes_to_read = sizeof(result.data);
+
+    uart_inst_t* uart = get_uart_inst(port);
+    uint32_t start = to_ms_since_boot(get_absolute_time());
+
+    while (result.len < bytes_to_read) {
+        uint32_t elapsed = to_ms_since_boot(get_absolute_time()) - start;
+        if (elapsed >= timeout_ms) break;
+
+        uint32_t remaining_ms = timeout_ms - elapsed;
+        // Convert remaining ms to us for the readable check
+        uint32_t remaining_us = remaining_ms * 1000;
+        if (remaining_us > 1000000) remaining_us = 1000000;  // Cap at 1 second per check
+
+        if (uart_is_readable_within_us(uart, remaining_us)) {
+            result.data[result.len++] = uart_getc(uart);
+        } else {
+            // Timeout on this byte, stop reading
+            break;
+        }
+    }
+
+    return result;
+}
+
+// === PIO / WS2812 ===
+
+static PIO ws2812_pio = pio0;
+static uint ws2812_sm = 0;
+static bool ws2812_configured = false;
+static uint16_t ws2812_num_leds = 0;
+
+bool hal_pio_ws2812_configure(uint8_t pin, uint16_t num_leds) {
+    if (ws2812_configured) {
+        // Disable and remove existing program
+        pio_sm_set_enabled(ws2812_pio, ws2812_sm, false);
+        pio_remove_program(ws2812_pio, &ws2812_program, 0);
+        ws2812_configured = false;
+    }
+
+    uint offset = pio_add_program(ws2812_pio, &ws2812_program);
+    ws2812_program_init(ws2812_pio, ws2812_sm, offset, pin, 800000.0f, false);
+
+    ws2812_num_leds = num_leds;
+    ws2812_configured = true;
+
+    printf("WS2812 configured: pin=%d num_leds=%d\n", pin, num_leds);
+    return true;
+}
+
+bool hal_pio_ws2812_update(const uint8_t *pixel_data, size_t len) {
+    if (!ws2812_configured) return false;
+
+    size_t num_pixels = len / 3;
+    if (num_pixels > ws2812_num_leds) num_pixels = ws2812_num_leds;
+
+    for (size_t i = 0; i < num_pixels; i++) {
+        // Input is RGB, WS2812 expects GRB
+        uint8_t r = pixel_data[i * 3 + 0];
+        uint8_t g = pixel_data[i * 3 + 1];
+        uint8_t b = pixel_data[i * 3 + 2];
+        uint32_t grb = ((uint32_t)g << 16) | ((uint32_t)r << 8) | (uint32_t)b;
+        pio_sm_put_blocking(ws2812_pio, ws2812_sm, grb << 8u);
+    }
+
+    return true;
 }

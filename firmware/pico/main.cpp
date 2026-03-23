@@ -125,6 +125,95 @@ static void process_worker_responses() {
                     payload["length"] = picojson::value((double)resp.data.i2c_read.data_len);
                     break;
                 }
+                case CMD_GET_TEMPERATURE: {
+                    response["type"] = picojson::value("temperature_result");
+                    payload["celsius"] = picojson::value((double)resp.data.temperature.celsius);
+                    break;
+                }
+                case CMD_WATCHDOG_CONFIGURE: {
+                    response["type"] = picojson::value("command_ack");
+                    payload["command"] = picojson::value("watchdog_configure");
+                    payload["status"] = picojson::value("success");
+                    break;
+                }
+                case CMD_WATCHDOG_FEED: {
+                    response["type"] = picojson::value("command_ack");
+                    payload["command"] = picojson::value("watchdog_feed");
+                    payload["status"] = picojson::value("success");
+                    break;
+                }
+                case CMD_SPI_CONFIGURE: {
+                    response["type"] = picojson::value("command_ack");
+                    payload["command"] = picojson::value("spi_configure");
+                    payload["status"] = picojson::value("success");
+                    break;
+                }
+                case CMD_SPI_TRANSFER: {
+                    response["type"] = picojson::value("spi_transfer_result");
+                    picojson::array data_arr;
+                    for (size_t i = 0; i < resp.data.spi.data_len; i++) {
+                        char hex[8];
+                        snprintf(hex, sizeof(hex), "0x%02X", resp.data.spi.data[i]);
+                        data_arr.push_back(picojson::value(hex));
+                    }
+                    payload["data"] = picojson::value(data_arr);
+                    payload["length"] = picojson::value((double)resp.data.spi.data_len);
+                    break;
+                }
+                case CMD_SPI_WRITE: {
+                    response["type"] = picojson::value("command_ack");
+                    payload["command"] = picojson::value("spi_write");
+                    payload["status"] = picojson::value("success");
+                    break;
+                }
+                case CMD_SPI_READ: {
+                    response["type"] = picojson::value("spi_read_result");
+                    picojson::array data_arr;
+                    for (size_t i = 0; i < resp.data.spi.data_len; i++) {
+                        char hex[8];
+                        snprintf(hex, sizeof(hex), "0x%02X", resp.data.spi.data[i]);
+                        data_arr.push_back(picojson::value(hex));
+                    }
+                    payload["data"] = picojson::value(data_arr);
+                    payload["length"] = picojson::value((double)resp.data.spi.data_len);
+                    break;
+                }
+                case CMD_UART_CONFIGURE: {
+                    response["type"] = picojson::value("command_ack");
+                    payload["command"] = picojson::value("uart_configure");
+                    payload["status"] = picojson::value("success");
+                    break;
+                }
+                case CMD_UART_WRITE: {
+                    response["type"] = picojson::value("command_ack");
+                    payload["command"] = picojson::value("uart_write");
+                    payload["status"] = picojson::value("success");
+                    break;
+                }
+                case CMD_UART_READ: {
+                    response["type"] = picojson::value("uart_read_result");
+                    picojson::array data_arr;
+                    for (size_t i = 0; i < resp.data.uart_read.data_len; i++) {
+                        char hex[8];
+                        snprintf(hex, sizeof(hex), "0x%02X", resp.data.uart_read.data[i]);
+                        data_arr.push_back(picojson::value(hex));
+                    }
+                    payload["data"] = picojson::value(data_arr);
+                    payload["bytes_read"] = picojson::value((double)resp.data.uart_read.data_len);
+                    break;
+                }
+                case CMD_PIO_WS2812_CONFIGURE: {
+                    response["type"] = picojson::value("command_ack");
+                    payload["command"] = picojson::value("pio_ws2812_configure");
+                    payload["status"] = picojson::value("success");
+                    break;
+                }
+                case CMD_PIO_WS2812_UPDATE: {
+                    response["type"] = picojson::value("command_ack");
+                    payload["command"] = picojson::value("pio_ws2812_update");
+                    payload["status"] = picojson::value("success");
+                    break;
+                }
                 case CMD_DISPLAY_UPDATE: {
                     response["type"] = picojson::value("command_ack");
                     payload["command"] = picojson::value("display_update");

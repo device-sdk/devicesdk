@@ -2,6 +2,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ .Site.Params.description }}{{ end }}">
 <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} | DeviceSDK{{ end }}</title>
+<link rel="canonical" href="{{ .Permalink }}">
 
 {{/* Open Graph / Twitter cards: only set image if social_image is defined */}}
 {{- $base := (strings.TrimRight "/" .Site.BaseURL) -}}
@@ -264,6 +265,20 @@
   },
   "url": "https://devicesdk.com",
   "sameAs": "https://discord.gg/WuNhbXGsBy"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "DeviceSDK",
+  "url": "https://devicesdk.com",
+  "logo": "https://devicesdk.com/logo.svg",
+  "sameAs": [
+    "{{ .Site.Params.githubUrl }}",
+    "{{ .Site.Params.discordUrl }}",
+    "{{ .Site.Params.twitterUrl }}"
+  ]
 }
 </script>
 {{ end }}

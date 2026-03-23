@@ -1,4 +1,69 @@
 {{ define "main" }}
+{{/* BreadcrumbList schema for all docs pages */}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://devicesdk.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://devicesdk.com/docs/"},
+    {"@type": "ListItem", "position": 3, "name": {{ .Title | jsonify }}, "item": {{ .Permalink | jsonify }}}
+  ]
+}
+</script>
+
+{{/* FAQPage schema — only on the FAQ page */}}
+{{ if eq .RelPermalink "/docs/resources/faq/" }}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is DeviceSDK?",
+      "acceptedAnswer": {"@type": "Answer", "text": "DeviceSDK is a platform for building IoT applications with TypeScript. Your scripts run in the cloud and communicate with your device over a persistent WebSocket — no embedded C or C++ required."}
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to know C or C++ to use DeviceSDK?",
+      "acceptedAnswer": {"@type": "Answer", "text": "No. DeviceSDK ships pre-built firmware for ESP32 and Raspberry Pi Pico — you never touch C or C++. All your logic is written in TypeScript and runs in the cloud."}
+    },
+    {
+      "@type": "Question",
+      "name": "How is DeviceSDK different from Arduino?",
+      "acceptedAnswer": {"@type": "Answer", "text": "Arduino requires you to write C/C++ and flash new code to the device every time you make a change. With DeviceSDK, your TypeScript script runs in the cloud and sends commands to your device over a persistent WebSocket. You can update and redeploy your logic in seconds without touching the device."}
+    },
+    {
+      "@type": "Question",
+      "name": "How is DeviceSDK different from ESPHome?",
+      "acceptedAnswer": {"@type": "Answer", "text": "ESPHome uses YAML to configure smart home automations that run on-device. DeviceSDK is a general-purpose IoT platform for writing arbitrary TypeScript logic — HTTP calls, data processing, multi-device orchestration — that runs in the cloud and controls hardware in real time."}
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need physical hardware to get started?",
+      "acceptedAnswer": {"@type": "Answer", "text": "No. The built-in simulator lets you test your device scripts without any hardware using: devicesdk dev"}
+    },
+    {
+      "@type": "Question",
+      "name": "What devices are supported?",
+      "acceptedAnswer": {"@type": "Answer", "text": "Currently supported: Raspberry Pi Pico W, Raspberry Pi Pico 2 W, and ESP32-C61."}
+    },
+    {
+      "@type": "Question",
+      "name": "How much does it cost?",
+      "acceptedAnswer": {"@type": "Answer", "text": "Free tier: 500 messages/day free. Paid tier: starting at $5/month, includes 5 million messages/month. Additional messages at $3 per million."}
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use DeviceSDK for production or commercial projects?",
+      "acceptedAnswer": {"@type": "Answer", "text": "Yes. DeviceSDK is designed for production use. It supports multiple devices per project, API tokens for CI/CD, cron-based scheduling, fleet management via the dashboard, and persistent KV storage."}
+    }
+  ]
+}
+</script>
+{{ end }}
+
 <!-- Mobile Navigation Buttons -->
 <div class="lg:hidden flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-200 bg-white fixed top-14 left-0 right-0 z-40">
     <button id="mobile-sidebar-toggle" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Toggle navigation">
@@ -60,6 +125,8 @@
                 <div>
                     <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Guides</h3>
                     <ul class="space-y-2">
+                        <li><a href="/docs/guides/esp32-getting-started/" class="docs-nav-link">ESP32 Getting Started</a></li>
+                        <li><a href="/docs/guides/control-from-browser/" class="docs-nav-link">Control from Browser</a></li>
                         <li><a href="/docs/guides/inter-device-communication/" class="docs-nav-link">Inter-Device Communication</a></li>
                         <li><a href="/docs/guides/using-spi/" class="docs-nav-link">Using SPI</a></li>
                         <li><a href="/docs/guides/using-uart/" class="docs-nav-link">Using UART</a></li>
@@ -72,6 +139,7 @@
                     <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Resources</h3>
                     <ul class="space-y-2">
                         <li><a href="/docs/resources/hardware/" class="docs-nav-link">Hardware Compatibility</a></li>
+                        <li><a href="/docs/resources/devicesdk-vs-devicescript/" class="docs-nav-link">DeviceSDK vs DeviceScript</a></li>
                         <li><a href="/docs/resources/troubleshooting/" class="docs-nav-link">Troubleshooting</a></li>
                         <li><a href="/docs/resources/faq/" class="docs-nav-link">FAQ</a></li>
                         <li><a href="/docs/resources/glossary/" class="docs-nav-link">Glossary</a></li>

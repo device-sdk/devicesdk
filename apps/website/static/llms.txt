@@ -1,0 +1,32 @@
+# DeviceSDK
+
+> DeviceSDK is an IoT platform for writing TypeScript scripts that run in the cloud and control ESP32 and Raspberry Pi Pico devices in real time — no embedded C or C++ required.
+
+Your TypeScript device scripts run in a globally distributed serverless runtime. Each device runs pre-built firmware and maintains a persistent WebSocket connection to the cloud. When your script executes, it sends commands over that WebSocket and receives hardware responses.
+
+## Key pages
+
+- [Quickstart](https://devicesdk.com/docs/quickstart/): Get a project running in 15 minutes
+- [Platform Architecture](https://devicesdk.com/docs/concepts/architecture/): How cloud-side control works
+- [Device Entrypoints](https://devicesdk.com/docs/concepts/entrypoints/): Writing device scripts with TypeScript
+- [Hardware Compatibility](https://devicesdk.com/docs/resources/hardware/): Supported hardware (ESP32, Raspberry Pi Pico W / 2W) and full feature matrix
+- [ESP32 Getting Started](https://devicesdk.com/docs/guides/esp32-getting-started/): Flash and connect an ESP32
+- [Control from Browser](https://devicesdk.com/docs/guides/control-from-browser/): Use the REST API to control hardware from a web page
+- [Addressable LEDs](https://devicesdk.com/docs/guides/addressable-leds/): WS2812 / NeoPixel LED strips via PIO
+- [Using SPI](https://devicesdk.com/docs/guides/using-spi/): SPI peripherals (displays, sensors, SD cards)
+- [Using UART](https://devicesdk.com/docs/guides/using-uart/): Serial communication
+- [Inter-Device Communication](https://devicesdk.com/docs/guides/inter-device-communication/): Coordinate multiple devices from one script
+- [Environment Variables](https://devicesdk.com/docs/concepts/env-vars/): Store secrets outside your code
+- [Cron Scheduling](https://devicesdk.com/docs/concepts/cron-scheduling/): Run device scripts on a schedule
+- [Script Versioning](https://devicesdk.com/docs/concepts/versioning/): Version history and rollback
+- [CLI Reference](https://devicesdk.com/docs/cli/): All CLI commands (init, deploy, flash, logs, inspect)
+- [FAQ](https://devicesdk.com/docs/resources/faq/): Common questions including comparisons with Arduino, MicroPython, and ESPHome
+- [DeviceSDK vs Microsoft DeviceScript](https://devicesdk.com/docs/resources/devicesdk-vs-devicescript/): Execution model comparison
+- [Pricing](https://devicesdk.com/pricing/): Free tier and paid plans
+
+## Optional
+
+- [Changelog](https://devicesdk.com/docs/resources/changelog/)
+- [Glossary](https://devicesdk.com/docs/resources/glossary/)
+- [Troubleshooting](https://devicesdk.com/docs/resources/troubleshooting/)
+- [Roadmap](https://devicesdk.com/docs/roadmap/)

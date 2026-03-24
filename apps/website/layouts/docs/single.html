@@ -199,17 +199,19 @@
         grid-template-columns: 260px 1fr 200px;
         max-width: 1440px;
         margin: 0 auto;
-        min-height: calc(100vh - 64px);
+        min-height: calc(100vh - 3.5rem);
     }
-    
+
     .docs-sidebar {
         position: sticky;
-        top: 64px;
-        max-height: calc(100vh - 64px);
+        top: 3.5rem;
+        max-height: calc(100vh - 3.5rem);
         overflow-y: auto;
+        scrollbar-width: none;
         border-right: 1px solid #e5e7eb;
         padding: 2rem 1.5rem;
     }
+    .docs-sidebar::-webkit-scrollbar { display: none; }
 
     .docs-main {
         padding: 3rem 4rem;
@@ -218,13 +220,15 @@
 
     .docs-toc {
         position: sticky;
-        top: 64px;
-        max-height: calc(100vh - 64px);
+        top: 3.5rem;
+        max-height: calc(100vh - 3.5rem);
         overflow-y: auto;
+        scrollbar-width: none;
         padding: 2rem 1.5rem;
         border-left: 1px solid #e5e7eb;
     }
-    
+    .docs-toc::-webkit-scrollbar { display: none; }
+
     /* Mobile/tablet styles */
     @media (max-width: 1024px) {
         .docs-container {

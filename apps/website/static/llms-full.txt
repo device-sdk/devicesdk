@@ -1,0 +1,4700 @@
+# DeviceSDK — Full Documentation
+
+> DeviceSDK is an IoT platform for writing TypeScript scripts that run in the cloud and control ESP32 and Raspberry Pi Pico devices in real time — no embedded C or C++ required.
+
+## ROADMAP
+
+# Hardware Roadmap
+
+## Current Hardware Support
+
+| Feature | ESP32 Firmware | Pico Firmware | Core Types | User Script API | Simulator |
+|---------|---------------|---------------|------------|-----------------|-----------|
+| GPIO digital I/O | Yes | Yes | Yes | Yes | Yes |
+| GPIO input monitoring (pull up/down/none) | Yes | Yes | Yes | Yes | Yes |
+| PWM output | Yes (LEDC, 13-bit) | Yes (hardware PWM, 16-bit) | Yes | Yes | Yes |
+| ADC analog read | Yes (ADC1 only, 12-bit) | Yes (GP26-29, 12-bit) | Yes | Yes | Yes (pins 26-28) |
+| I2C master (configure/scan/read/write) | Yes (2 buses) | Yes (2 buses, pin validation) | Yes | Yes | Yes |
+| I2C batch write | Yes | Yes | Yes | Yes | No |
+| OLED display (SSD1306/SH1106) | Yes | Yes | Yes (full drawing API) | Yes | Yes |
+| SPI master | Yes (SPI3) | Yes (SPI0/SPI1) | Yes | Yes | Simulated |
+| UART serial | Yes (3 ports, UART0 reserved) | Yes (2 ports) | Yes | Yes | Simulated |
+| On-die temperature sensor | Yes | Yes (ADC ch4) | Yes | Yes | Simulated |
+| Watchdog timer | Yes | Yes (non-disablable) | Yes | Yes | Simulated |
+| Addressable LEDs (WS2812) | No | Yes (PIO) | Yes | Yes | Simulated |
+| Device reboot | Yes | Yes (via watchdog) | Yes | Yes | No |
+| Onboard LED | Yes (WS2812 RGB on GPIO 8) | Yes (CYW43 on/off only) | No | No | No |
+
+### Platform-Specific Notes
+
+**ESP32-C61:**
+- ADC2 is unavailable when WiFi is active (all 10 ADC2 channels blocked)
+- PWM uses shared LEDC timer (LEDC_TIMER_0) across all channels
+- Addressable LED (WS2812) driven via SPI2 backend (no RMT peripheral on C61)
+- I2C supports up to 16 cached device handles per bus
+
+**Pico W / Pico 2 W:**
+- I2C has compile-time pin pair validation (6 valid pairs per bus)
+- GPIO input monitoring runs on dedicated Core 1
+- Onboard LED controlled via CYW43 WiFi coprocessor (virtual pin 99)
+- ADC has 4 external channels (GP26-29) plus internal temperature sensor on channel 4
+
+---
+
+## Recently Implemented
+
+The following features were implemented across the full stack (firmware, core types, device sender, API, CLI inspect, simulator):
+
+- **SPI master** (both platforms) — ESP32: SPI3_HOST; Pico: SPI0/SPI1. Configure, transfer, read, write.
+- **UART serial** (both platforms) — ESP32: 3 ports (UART0 reserved for debug); Pico: 2 ports. Configure, write, buffered read with timeout.
+- **On-die temperature sensor** (both platforms) — ESP32: built-in sensor via `temperature_sensor_get_celsius()`; Pico: ADC channel 4.
+- **Watchdog timer** (both platforms) — Configurable timeout, feed command. Pico limitation: cannot disable once enabled.
+- **I2C batch write for ESP32** — Parity with existing Pico implementation. Handled inline in websocket handler.
+- **PIO / WS2812 addressable LEDs** (Pico only) — PIO state machine driver for WS2812/NeoPixel LED strips.
+
+See [Using SPI](/docs/guides/using-spi/), [Using UART](/docs/guides/using-uart/), and [Addressable LEDs](/docs/guides/addressable-leds/) guides for usage details.
+
+---
+
+## Future Considerations
+
+Features identified as hardware-capable but not yet planned for implementation.
+
+### Both Platforms
+
+#### Timers / Hardware Interrupts
+- **Hardware**: ESP32 has 4 GP timers + system timer; Pico has 4 x 32-bit + 1 x 64-bit alarms
+- **Firmware status**: Not implemented (GPIO monitoring is poll-based)
+- **Use cases**: Precise timing, pulse counting, frequency measurement, debouncing, servo control
+- **Effort**: Medium — interrupt-driven events need a new event delivery mechanism to the cloud
+
+#### On-Device Flash Storage
+- **Hardware**: ESP32 has NVS partitions; Pico has 2-4 MB flash
+- **Firmware status**: Not exposed (no device-side persistent storage for user scripts)
+- **Use cases**: Calibration data, WiFi fallback configs, offline data buffering
+- **Effort**: Medium
+- **Notes**: Different from cloud KV (Durable Objects); this would persist without network connectivity
+
+#### RTC (Real-Time Clock)
+- **Hardware**: ESP32 has RTC with battery backup option; Pico has basic RTC
+- **Firmware status**: Not exposed
+- **Use cases**: Accurate timekeeping without network, timestamp logging, sleep/wake scheduling
+- **Effort**: Low-Medium
+- **Notes**: Cloud scripts already have `Date.now()`; on-device RTC is mainly useful for sleep/wake
+
+### ESP32 Only
+
+#### Deep Sleep + Wake Sources
+- **Hardware**: Deep sleep with multiple wakeup sources (timer, GPIO, touch, ULP)
+- **Firmware status**: Not implemented
+- **Use cases**: Battery-powered sensors, solar-powered deployments, periodic reporting
+- **Effort**: High — fundamentally changes the connection model; device disconnects during sleep
+
+#### Bluetooth / BLE
+- **Hardware**: BLE 5.0 on some ESP32 variants
+- **Firmware status**: Not implemented; WiFi and BLE share the radio
+- **Use cases**: BLE beacons, BLE peripherals, BLE mesh, phone connectivity
+- **Effort**: Very High — entirely new communication stack alongside WiFi
+
+#### I2S (Audio)
+- **Hardware**: 2 I2S instances
+- **Firmware status**: Not implemented
+- **Use cases**: Digital microphones (INMP441), audio output (MAX98357), sound processing
+- **Effort**: High — streaming audio over WebSocket is bandwidth-intensive
+
+#### Touch Sensing
+- **Hardware**: 14 touch-capable pins on some ESP32 variants
+- **Firmware status**: Not implemented
+- **Use cases**: Capacitive touch buttons/sliders without external components
+- **Effort**: Medium — polling-based reads similar to ADC
+- **Notes**: Not available on all ESP32 variants; C61 support needs verification
+
+#### TWAI/CAN Bus
+- **Hardware**: CAN 2.0B controller
+- **Firmware status**: Not implemented
+- **Use cases**: Automotive, industrial automation, robotics
+- **Effort**: Medium-High — needs transceiver hardware
+
+### Pico Only
+
+#### DMA (Direct Memory Access)
+- **Hardware**: 12 DMA channels with configurable transfers
+- **Firmware status**: Not implemented
+- **Use cases**: High-speed data transfers (SPI displays, audio streaming, bulk sensor reads)
+- **Effort**: High — typically used transparently behind SPI/I2C drivers
+- **Notes**: More of an internal optimization than a user-facing feature
+
+#### USB Host Mode
+- **Hardware**: USB 2.0 host + device on RP2040/RP2350
+- **Firmware status**: USB used for stdio only
+- **Use cases**: USB HID devices, USB storage, USB MIDI
+- **Effort**: Very High — complex USB stack; security implications
+
+---
+
+## devicesdk deploy
+
+
+## Usage
+
+```bash
+devicesdk deploy [flags]
+```
+
+## Flags
+
+- `--device <name>` - Deploy specific device only
+- `--message <text>` - Deployment message for version history
+- `--dry-run` - Preview deployment without actually deploying
+
+## Description
+
+The deploy command:
+1. Builds your device scripts
+2. Uploads to DeviceSDK
+3. Creates a new version
+4. Makes it available to devices
+
+Your code is deployed globally to 300+ edge locations for low-latency device communication.
+
+## Deployment Process
+
+When you deploy:
+
+1. **Build** - Code is compiled and optimized
+2. **Upload** - Scripts are sent to the edge
+3. **Activate** - New version becomes active
+4. **Notify** - Connected devices receive update
+
+## Examples
+
+Deploy all devices:
+```bash
+devicesdk deploy
+```
+
+Deploy specific device:
+```bash
+devicesdk deploy --device temperature-sensor
+```
+
+Deploy with message:
+```bash
+devicesdk deploy --message "Fix temperature reading bug"
+```
+
+Dry run (preview without deploying):
+```bash
+devicesdk deploy --dry-run
+```
+
+## Version History
+
+Each deployment creates a new immutable version. View version history in the [dashboard](https://dash.devicesdk.com).
+
+### Deployment Messages
+
+Add messages to track changes:
+```bash
+devicesdk deploy --message "Add humidity sensor support"
+```
+
+These appear in your version history and help track what changed.
+
+## Deployment Strategies
+
+### All-at-Once (Default)
+All devices get the new version immediately:
+```bash
+devicesdk deploy
+```
+
+### Per-Device
+Deploy devices independently:
+```bash
+devicesdk deploy --device sensor-1
+devicesdk deploy --device sensor-2
+```
+
+### Staged Rollout
+Deploy to subset of devices first, then expand (via dashboard).
+
+## Rollback
+
+Need to revert? Rollback in the dashboard:
+1. View version history
+2. Select previous version
+3. Click "Rollback"
+
+Devices reconnect to the previous version.
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+      
+      - name: Deploy
+        env:
+          DEVICESDK_TOKEN: ${{ secrets.DEVICESDK_TOKEN }}
+        run: npx @devicesdk/cli deploy --message "Deploy from CI"
+```
+
+### GitLab CI
+
+```yaml
+deploy:
+  script:
+    - npx @devicesdk/cli deploy --message "Deploy from CI"
+  only:
+    - main
+```
+
+## Environment Variables
+
+Set `DEVICESDK_TOKEN` for CI/CD:
+
+```bash
+export DEVICESDK_TOKEN="your-token-here"
+devicesdk deploy
+```
+
+Get your token from the [dashboard](https://dash.devicesdk.com).
+
+## Deployment Limits
+
+- Maximum script size: 1MB
+- Build timeout: 5 minutes
+- Concurrent deployments: 1 per project
+
+## Troubleshooting
+
+**Authentication failed?**
+
+**Build fails?**
+
+Fix TypeScript errors before deploying:
+```bash
+npm run build
+```
+
+**Deployment stuck?**
+
+Check dashboard for deployment status and error details.
+
+**Need to rollback?**
+
+Use the dashboard to revert to a previous version immediately.
+
+## Best Practices
+
+1. **Test locally first** - Validate your project before deploying
+2. **Add deployment messages** - Track what changed
+3. **Deploy incrementally** - Start with one device, expand gradually
+4. **Monitor after deploy** - Watch logs in dashboard
+5. **Have a rollback plan** - Know how to revert if needed
+
+---
+
+## devicesdk flash
+
+
+> **Note:** Flashing is typically **one-time per device**. After initial flashing, updates are delivered **over-the-air (OTA)**. Only major firmware upgrades may need a repeat flash, and even those are optional unless you want the new firmware capabilities.
+
+## Usage
+
+```bash
+devicesdk flash <device-id> [flags]
+```
+
+## Flags
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-c, --config <path>` | Path to `devicesdk.ts` config file | Auto-detected |
+| `-t, --timeout <ms>` | Time to wait for device (milliseconds) | 30000 (Pico), 60000 (ESP32) |
+| `-p, --port <port>` | Serial port for ESP32 (e.g. `/dev/ttyUSB0`) | Auto-detected |
+| `-b, --baud <rate>` | Baud rate for ESP32 flashing | 460800 |
+| `--before <method>` | Reset method before flashing (`default_reset` or `no_reset`) | `default_reset` |
+| `--host <url>` | Download firmware from a custom host | Production API |
+
+## Description
+
+Flashes the DeviceSDK firmware to your microcontroller, including:
+- WebSocket client
+- Device credentials
+- Hardware abstraction layer
+- Automatic reconnection logic
+
+The CLI automatically detects the device type from your `devicesdk.ts` config and uses the appropriate flashing method.
+
+## Supported Hardware
+
+- **Raspberry Pi Pico W**
+- **Raspberry Pi Pico 2W**
+- **ESP32** (Xtensa)
+- **ESP32-C61** (RISC-V)
+
+## Pico Flashing Process
+
+1. Put the Pico in BOOTSEL mode (see below)
+2. Run `devicesdk flash <device-id>`
+3. CLI detects the USB drive and begins flashing
+4. Wait for completion (30-60 seconds)
+5. Device reboots and connects
+
+### BOOTSEL Mode
+
+To enter BOOTSEL mode:
+
+1. **Disconnect** the Pico from USB
+2. **Hold** the BOOTSEL button
+3. **Connect** USB while holding button
+4. **Release** button
+
+The Pico appears as a USB drive named `RPI-RP2` (Pico W) or `RP2350` (Pico 2W).
+
+## ESP32 Flashing Process
+
+### Prerequisites
+
+Install esptool (the ESP32 flash tool):
+
+```bash
+pip install esptool
+```
+
+Verify it's installed:
+
+```bash
+esptool.py version
+```
+
+On Linux, your user must be in the `dialout` group to access serial ports:
+
+```bash
+sudo usermod -a -G dialout $USER
+# Log out and back in for the change to take effect
+```
+
+### How It Works
+
+1. Connect the ESP32 board via USB
+2. Run `devicesdk flash <device-id>`
+3. CLI auto-detects the serial port (`/dev/ttyUSB0`, `/dev/ttyACM0`, or `/dev/cu.usb*`)
+4. esptool writes the firmware over serial
+5. Device resets and connects
+
+### Serial Port Detection
+
+The CLI automatically scans for serial ports:
+- **Linux**: `/dev/ttyUSB*` and `/dev/ttyACM*`
+- **macOS**: `/dev/cu.usb*`, `/dev/cu.SLAB_USBtoUART*`, `/dev/cu.wchusbserial*`
+
+If auto-detection doesn't work, specify the port manually with `--port`.
+
+### Boot Mode (Manual Reset)
+
+Most ESP32 boards auto-reset into download mode when flashing. If your board doesn't support auto-reset (you'll see "No serial data received"), enter boot mode manually:
+
+1. Hold the **BOOT** button
+2. While holding BOOT, press and release the **RESET** button
+3. Release the BOOT button
+4. Flash with `--before no_reset`:
+
+```bash
+devicesdk flash my-device --before no_reset
+```
+
+Some boards have a jumper (e.g. J5) that forces boot mode when shorted.
+
+## Examples
+
+Flash a Pico W:
+```bash
+devicesdk flash my-sensor-001
+```
+
+Flash an ESP32:
+```bash
+devicesdk flash my-esp32-device
+```
+
+Flash ESP32 on a specific serial port:
+```bash
+devicesdk flash my-device --port /dev/ttyUSB0
+```
+
+Flash ESP32 with manual boot mode (no auto-reset):
+```bash
+devicesdk flash my-device --before no_reset
+```
+
+Flash ESP32 with lower baud rate (for unreliable USB bridges):
+```bash
+devicesdk flash my-device --baud 115200
+```
+
+Flash using a local API server:
+```bash
+devicesdk flash my-device --host http://192.168.1.238:8787
+```
+
+Custom timeout:
+```bash
+devicesdk flash my-device --timeout 120000
+```
+
+## Device Credentials
+
+The firmware is flashed with embedded credentials that:
+- Authenticate with DeviceSDK
+- Associate with your project
+- Enable secure communication
+
+Credentials are unique per device and stored securely in flash memory.
+
+## After Flashing
+
+Once flashed:
+1. Device reboots automatically
+2. Connects to DeviceSDK
+3. Runs your deployed code
+4. Appears in dashboard as online
+
+## WiFi Configuration
+
+For Pico W, configure WiFi after flashing:
+
+1. Device creates a WiFi access point
+2. Connect to `DeviceSDK-XXXX`
+3. Open browser to configure
+4. Enter your WiFi credentials
+5. Device reconnects with your network
+
+For ESP32, WiFi credentials are embedded in the firmware at flash time.
+
+## Firmware Updates
+
+To update firmware on an already-flashed device:
+1. Enter BOOTSEL mode (Pico) or connect via USB (ESP32)
+2. Run `devicesdk flash <device-id>`
+3. New firmware is written
+
+## Troubleshooting
+
+### Pico
+
+**Device not detected?**
+- Ensure BOOTSEL mode is active — the Pico should appear as a USB drive (`RPI-RP2` or `RP2350`)
+- Check USB cable supports data (not power-only)
+- Try a different USB port
+
+**Timeout waiting for device?**
+
+```bash
+devicesdk flash my-device --timeout 120000
+```
+
+### ESP32
+
+**"esptool.py is not installed"?**
+- Install with `pip install esptool`
+- Ensure `esptool.py` is in your PATH
+
+**"Serial port not accessible (permission denied)"?**
+- Linux: `sudo usermod -a -G dialout $USER`, then log out and back in
+- Verify with `groups` that `dialout` appears
+
+**"No serial data received"?**
+- Your board likely doesn't support auto-reset
+- Enter boot mode manually (hold BOOT, press RESET, release BOOT)
+- Flash with `--before no_reset`
+- If your board has two USB-C ports, try the USB-JTAG port (shows as `/dev/ttyACM0`) instead of the UART port (`/dev/ttyUSB0`)
+
+**Flash hangs or fails mid-transfer?**
+- Lower the baud rate: `--baud 115200`
+- Try a different USB cable or port
+- Some USB hubs cause issues — connect directly to the computer
+
+### General
+
+**Device won't connect after flashing?**
+- Check WiFi configuration
+- Verify device appears in dashboard
+- Check device logs for errors
+
+## Multiple Devices
+
+Flash multiple devices by running the command for each device:
+
+```bash
+devicesdk flash sensor-1
+# Wait for completion, switch device
+devicesdk flash sensor-2
+# Repeat...
+```
+
+## CI/CD
+
+Flashing requires physical hardware connection and cannot be automated in CI/CD. Flash devices manually during provisioning.
+
+## Related Commands
+
+- [devicesdk deploy](/docs/cli/deploy/) - Deploy code to flashed devices
+
+## Hardware Guide
+
+Need help with hardware setup? See:
+- [Hardware Compatibility](/docs/resources/hardware/)
+- [Your First Device](/docs/first-device/)
+
+---
+
+## devicesdk init
+
+
+## Usage
+
+```bash
+devicesdk init [project-name] [flags]
+```
+
+## Arguments
+
+- `project-name` - Name of the project directory to create
+
+## Flags
+
+- `--yes, -y` - Skip interactive prompts and use defaults
+- `--template <name>` - Use a specific template (basic, multi-device, empty)
+- `--name <name>` - Project name (if directory name differs)
+
+## Description
+
+Creates a new project directory with:
+- `devicesdk.ts` - Project configuration
+- `src/devices/` - Device entrypoint directory
+- Example device code
+- TypeScript configuration
+- `.gitignore` file
+
+## Interactive Mode
+
+By default, `init` runs interactively:
+
+```bash
+devicesdk init my-project
+```
+
+You'll be prompted for:
+- Project name
+- Template selection
+- Initial device name
+
+## Templates
+
+### Basic (Default)
+Single device with LED blink example:
+```bash
+devicesdk init my-project --template basic
+```
+
+### Multi-Device
+Multiple device entrypoints:
+```bash
+devicesdk init my-project --template multi-device
+```
+
+### Empty
+Minimal setup with no example code:
+```bash
+devicesdk init my-project --template empty
+```
+
+## Examples
+
+Create with defaults:
+```bash
+devicesdk init my-iot-app --yes
+```
+
+Create with specific template:
+```bash
+devicesdk init sensor-network --template multi-device
+```
+
+Create in current directory:
+```bash
+mkdir my-project && cd my-project
+devicesdk init . --yes
+```
+
+## Project Structure
+
+After running `init`, your project will look like:
+
+```
+my-project/
+├── devicesdk.ts          # Configuration
+├── src/
+│   └── devices/
+│       └── my-device.ts  # Device entrypoint
+├── .devicesdk/           # Build output (generated)
+├── tsconfig.json         # TypeScript config
+├── package.json          # Dependencies
+└── .gitignore
+```
+
+## Next Steps
+
+After creating a project:
+
+1. Navigate into the directory:
+   ```bash
+   cd my-project
+   ```
+
+2. Make changes and deploy:
+   ```bash
+   devicesdk deploy
+   ```
+
+## Related Commands
+
+- [devicesdk deploy](/docs/cli/deploy/) - Deploy your project
+
+---
+
+## devicesdk inspect
+
+
+## Usage
+
+```bash
+devicesdk inspect <device> [flags]
+```
+
+## Arguments
+
+- `<device>` - Device slug to connect to (required)
+
+## Flags
+
+- `--project <id>` - Project ID (overrides config file)
+- `--config <path>` - Path to config file (default: `devicesdk.ts`)
+
+## Description
+
+The `inspect` command opens an interactive REPL (Read-Eval-Print Loop) that lets you send hardware commands directly to a connected device and see the results in real time. This is useful for debugging hardware, testing pin states, and exploring I2C peripherals without writing code.
+
+The device must be online (connected to the DeviceSDK platform) for commands to work.
+
+Commands are sent sequentially — if you send input via a pipe, each command waits for a response before the next is processed.
+
+## Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `gpio read <pin>` | Read digital pin state (HIGH or LOW) |
+| `gpio write <pin> high\|low` | Set a GPIO output pin |
+| `adc read <pin>` | Read analog pin value |
+| `pwm <pin> <frequency> <duty_cycle>` | Set PWM output |
+| `i2c scan [bus]` | Scan for I2C devices on a bus (default: bus 0) |
+| `i2c configure <bus> <sda> <scl> [freq]` | Configure I2C bus pins and frequency |
+| `i2c read <bus> <addr> <bytes> [register]` | Read bytes from an I2C device |
+| `i2c write <bus> <addr> <data...>` | Write bytes to an I2C device |
+| `monitor <pin> [up\|down\|none]` | Enable GPIO input change monitoring |
+| `reboot` | Reboot the device (prompts for confirmation) |
+| `help` | Show available commands |
+| `exit` / `quit` / Ctrl-C | Exit inspect mode |
+
+## Examples
+
+Open inspect session for a device:
+```bash
+devicesdk inspect temperature-sensor
+```
+
+Specify project explicitly:
+```bash
+devicesdk inspect temperature-sensor --project my-project-id
+```
+
+Pipe commands for automation:
+```bash
+echo "gpio read 5" | devicesdk inspect temperature-sensor
+```
+
+## Interactive Session Example
+
+```
+Connecting to device "temperature-sensor" in project "my-project"...
+Type "help" for available commands, "exit" to quit.
+
+devicesdk:temperature-sensor> gpio read 5
+Pin 5: HIGH
+devicesdk:temperature-sensor> i2c scan
+Found 1 device(s) on bus 0: 0x48
+devicesdk:temperature-sensor> i2c read 0 0x48 2
+Read from 0x48: [0x1A, 0xC0]
+devicesdk:temperature-sensor> exit
+Goodbye.
+```
+
+## Exit Codes
+
+- `0` — clean exit (user typed `exit` or closed the REPL)
+- `1` — authentication error or unhandled API error
+
+---
+
+## devicesdk logs
+
+
+# devicesdk logs
+
+View logs from a deployed device, or continuously stream new entries as they arrive.
+
+## Usage
+
+```bash
+devicesdk logs <project-id> <device-id> [options]
+```
+
+## Arguments
+
+| Argument | Description |
+|---|---|
+| `project-id` | Your project ID |
+| `device-id` | The device ID to fetch logs for |
+
+## Options
+
+| Option | Description |
+|---|---|
+| `-f, --tail` | Continuously stream new log entries (Ctrl-C to stop) |
+| `-n, --lines <n>` | Number of lines to show initially (default: `50`) |
+| `--level <level>` | Filter by severity: `log`, `info`, `warn`, `error`, `debug` |
+
+## Examples
+
+**View the last 50 log lines:**
+```bash
+devicesdk logs my-project my-device
+```
+
+**Stream logs in real time:**
+```bash
+devicesdk logs my-project my-device --tail
+```
+
+**Show only errors:**
+```bash
+devicesdk logs my-project my-device --level error
+```
+
+**Tail with a larger initial batch:**
+```bash
+devicesdk logs my-project my-device --tail --lines 100
+```
+
+## Output Format
+
+Each log line is printed as:
+
+```
+HH:MM:SS.mmm  [LEVEL]  message
+```
+
+Log levels are color-coded when output is a terminal:
+
+| Level | Color |
+|---|---|
+| `log` / `info` | Cyan |
+| `warn` | Yellow |
+| `error` | Red |
+| `debug` | Gray |
+
+## Tail Mode
+
+With `--tail` / `-f`, the command polls for new log entries every 2 seconds using cursor-based pagination. This is equivalent to `heroku logs --tail` — it anchors at the current position in the log stream and prints new lines as they arrive.
+
+Press **Ctrl-C** to stop tailing.
+
+## Notes
+
+- Color output is suppressed automatically when stdout is not a TTY (e.g. when piped to a file).
+- In tail mode, if a network error occurs the command prints a warning and retries on the next poll cycle rather than exiting.
+
+---
+
+## devicesdk status
+
+
+## Usage
+
+```bash
+devicesdk status [flags]
+```
+
+## Flags
+
+- `--device <name>` - Show status for a specific device only
+- `--project <id>` - Project ID (overrides config file)
+- `--config <path>` - Path to config file (default: `devicesdk.ts`)
+
+## Description
+
+The `status` command shows the live connection status of all devices in your project. For each device it displays:
+
+- **DEVICE** — the device slug
+- **STATUS** — `● online`, `○ offline`, or `⚠ error` (status fetch failed)
+- **VERSION** — the first 8 characters of the deployed script version ID
+- **LAST SEEN** — how long ago the device last connected (or "never" if it has never connected)
+
+Device status is read in real time from the edge — there is no caching.
+
+## Examples
+
+Show status of all devices in the current project:
+```bash
+devicesdk status
+```
+
+Show status for a specific device:
+```bash
+devicesdk status --device temperature-sensor
+```
+
+Show status for a project not in your config file:
+```bash
+devicesdk status --project my-project-id
+```
+
+## Example Output
+
+```
+Project: my-project
+
+  DEVICE               STATUS     VERSION   LAST SEEN
+  ─────────────────────────────────────────────────────
+  temperature-sensor   ● online   a1b2c3d4  connected 2m ago
+  humidity-sensor      ○ offline  a1b2c3d4  5h ago
+  door-sensor          ○ offline  —         never
+```
+
+## Exit Codes
+
+- `0` — success (even if all devices are offline)
+- `1` — project not found, device not found, or authentication error
+
+---
+
+## Platform Architecture
+
+
+## Overview
+
+DeviceSDK runs on a globally distributed runtime to provide low latency and scale for IoT applications.
+
+```
+┌──────────┐         ┌──────────────┐         ┌─────────────────┐
+│  Device  │ ◄─────► │  WebSocket   │ ◄─────► │ Device Script   │
+│ (Pico W) │  HTTPS  │  Connection  │         │ (Runtime)       │
+└──────────┘         └──────────────┘         └─────────────────┘
+                            │
+                            ▼
+                     ┌──────────────┐
+                     │  Dashboard   │
+                     │   & Logs     │
+                     └──────────────┘
+```
+
+## Component Overview
+
+### Device Firmware
+
+The firmware runs on your microcontroller (e.g., Raspberry Pi Pico W) and handles:
+- WebSocket connection to edge
+- Hardware abstraction (GPIO, ADC, I2C, etc.)
+- Message serialization
+- Automatic reconnection
+- Credential management
+
+### WebSocket Gateway
+
+A persistent connection between device and runtime:
+- TLS encrypted
+- Binary message protocol
+- Low latency (~50-200ms)
+- Automatic keepalive
+- Connection pooling
+
+### Device Entrypoint
+
+Your TypeScript code running on a serverless runtime:
+- Handles device messages
+- Sends commands to devices
+- Connects to your chosen external services
+- Fast cold starts and globally distributed
+
+## Data Flow
+
+### Device → Cloud
+
+1. Device sends message over WebSocket
+2. Gateway routes to your script
+3. `onMessage()` is called
+4. Your code processes message
+5. Can trigger external APIs, store data, etc.
+
+### Cloud → Device
+
+1. Your code calls `env.DEVICE.send()`
+2. Message queued for delivery
+3. Sent over WebSocket to device
+4. Device processes command
+5. May respond with result
+
+## Message Protocol
+
+Messages are JSON-based:
+
+```json
+{
+  "type": "gpio_write",
+  "pin": 25,
+  "value": 1
+}
+```
+
+Standard message types are defined, but you can create custom types for your application.
+
+## Script Execution Model
+
+Your device entrypoints run as:
+- **Stateless functions** - No long-running processes
+- **Event-driven** - Triggered by device events
+- **Isolated** - Each request in separate context
+- **Fast** - Typical execution < 10ms
+
+## Persistent Storage
+
+For state management:
+- **KV Storage** - Per-device key-value storage
+- **Logs** - Structured logging
+- **Webhooks / APIs** - Call your own services for external persistence
+
+## Device-to-Device Communication
+
+Devices within the same project can call methods on each other via the serverless runtime:
+
+```
+┌──────────────┐         ┌────────────────────┐         ┌──────────────┐
+│  Device A    │         │  Serverless Runtime │         │  Device B    │
+│  (Sensor)    │ ──WS──► │                    │ ──WS──► │  (Light)     │
+│              │         │  Sensor script:     │         │              │
+│              │         │  this.env.DEVICES   │         │              │
+│              │         │  ["light"].turnOn() │         │              │
+│              │         │       │             │         │              │
+│              │         │       ▼             │         │              │
+│              │         │  Light script:      │         │              │
+│              │         │  turnOn() executes  │         │              │
+│              │         │  result flows back  │         │              │
+└──────────────┘         └────────────────────┘         └──────────────┘
+```
+
+Key properties:
+- **Runtime-mediated** — RPC routes through the serverless runtime, never directly between devices
+- **Same project only** — devices can only call other devices in the same project
+- **Type-safe** — the CLI generates TypeScript types for autocomplete and compile-time checking
+- **Request-response** — callers await the return value; errors propagate back
+
+## Security Model
+
+- **Device credentials** - Unique per device, embedded in firmware
+- **TLS encryption** - All communication encrypted
+- **Token authentication** - API access controlled by tokens
+- **Isolation** - Scripts run in isolated contexts
+
+## Deployment Model
+
+When you deploy:
+1. Code compiled to JavaScript
+2. Uploaded to DeviceSDK
+3. New version created (immutable)
+4. Globally distributed in seconds
+5. Devices reconnect to new version
+
+## Scaling
+
+DeviceSDK scales automatically:
+- **Devices** - Millions supported
+- **Messages** - No practical limit
+- **Geography** - Global by default
+- **Load** - Automatic distribution
+
+No infrastructure management required.
+
+## Next Steps
+
+- [Device Entrypoints](/docs/concepts/entrypoints/) - Lifecycle and methods
+- [Script Versioning](/docs/concepts/versioning/) - Deployment model
+
+---
+
+## Cron Scheduling
+
+
+Device scripts can define named cron schedules to run recurring tasks — polling a sensor, sending a heartbeat, or clearing a buffer — without any external scheduler.
+
+## How It Works
+
+Cron schedules are initialized when a device connects. The platform evaluates each expression and schedules the next fire time. When a cron fires, `onCron` is called with the schedule's name. After each firing, the next occurrence is computed and scheduled automatically.
+
+Crons are scoped to the device connection: they start when the device connects and stop when it disconnects.
+
+## Defining Schedules
+
+Add a `crons` property to your device class. Keys are arbitrary schedule names; values are standard 5-field cron expressions in UTC.
+
+```typescript
+import { DeviceEntrypoint } from "@devicesdk/core";
+
+export default class TemperatureSensor extends DeviceEntrypoint {
+  crons = {
+    heartbeat: "*/5 * * * *",   // every 5 minutes
+    dailyReport: "0 8 * * *",   // daily at 08:00 UTC
+  };
+
+  async onCron(name: string) {
+    if (name === "heartbeat") {
+      // read sensor, post to webhook, etc.
+    }
+    if (name === "dailyReport") {
+      // send daily summary
+    }
+  }
+}
+```
+
+## Cron Expression Format
+
+Expressions use the standard 5-field format (all times in UTC):
+
+```
+minute  hour  day-of-month  month  day-of-week
+0-59    0-23  1-31          1-12   0-6 (0=Sunday)
+```
+
+### Field Syntax
+
+| Syntax | Example | Meaning |
+|--------|---------|---------|
+| `*` | `*` | Any value |
+| `N` | `5` | Specific value |
+| `*/N` | `*/15` | Every N units |
+| `N-M` | `1-5` | Range (inclusive) |
+| `N,M` | `0,30` | List of values |
+| `N-M/S` | `0-30/10` | Range with step |
+
+### Common Examples
+
+| Expression | Schedule |
+|------------|----------|
+| `* * * * *` | Every minute |
+| `*/5 * * * *` | Every 5 minutes |
+| `0 * * * *` | Every hour (on the hour) |
+| `0 8 * * *` | Daily at 08:00 UTC |
+| `0 8 * * 1-5` | Weekdays at 08:00 UTC |
+| `0 0 1 * *` | First day of every month |
+
+## When Are Schedules Updated?
+
+Cron definitions are read from your script once, when the device connects. If you change the `crons` property and redeploy, the new schedule takes effect on the **next device connection** (i.e., after the device reboots or reconnects). Running `devicesdk deploy` sends a reboot command to connected devices, so new crons take effect automatically after a deploy.
+
+## Cron Expressions and Day-of-Week / Day-of-Month
+
+When both `day-of-month` and `day-of-week` are restricted (not `*`), the cron fires on days that match **either** condition (OR semantics). For example, `0 8 1 * 1` fires at 08:00 UTC on the 1st of the month **and** every Monday.
+
+## Limitations
+
+- All cron times are in **UTC** — there is no timezone support in cron expressions.
+- The minimum granularity is **1 minute** — sub-minute intervals are not supported.
+- Crons only fire while the device is **connected**. If the device is offline when a cron was due, the missed fire is skipped; it does not catch up.
+
+---
+
+## Device Entrypoints
+
+
+## What is an Entrypoint?
+
+An entrypoint is the main handler for device connections. It:
+- Receives messages from devices
+- Sends commands to devices
+- Manages device lifecycle
+- Processes events in real-time
+
+## Class Structure
+
+Every entrypoint extends `DeviceEntrypoint`:
+
+```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
+export default class MyDevice extends DeviceEntrypoint {
+  // Lifecycle methods
+  async onDeviceConnect() { }
+  async onMessage(message: DeviceResponse) { }
+  async onDeviceDisconnect() { }
+}
+```
+
+## Lifecycle Methods
+
+### onDeviceConnect
+
+Called when a device establishes a WebSocket connection.
+
+```typescript
+async onDeviceConnect() {
+  // Initialize device
+  console.info(`Device connected`);
+}
+```
+
+**Use cases:**
+- Initialize device state
+- Setup monitoring
+- Log connection event
+
+### onMessage
+
+Called when a device sends a message.
+
+```typescript
+async onMessage(message: DeviceResponse) {
+  // Handle different message types
+  switch (message.type) {
+    case 'sensor_data':
+      await this.handleSensorData(message);
+      break;
+    case 'alert':
+      await this.handleAlert(message);
+      break;
+  }
+}
+```
+
+**Use cases:**
+- Process sensor readings
+- Handle device events
+- Store data
+- Trigger actions
+
+### onDeviceDisconnect
+
+Called when a device disconnects.
+
+```typescript
+async onDeviceDisconnect() {
+  // Cleanup
+  console.info(`Device disconnected`);
+  
+  // Update status
+  await this.env.DEVICE.kv.put(`status`, 'offline');
+}
+```
+
+**Use cases:**
+- Update connection status
+- Cleanup resources
+- Log disconnect event
+- Trigger alerts
+
+## Environment Bindings
+
+Your entrypoint has access to these bindings:
+
+### this.env.DEVICE
+
+Send commands and manage devices:
+
+```typescript
+// Send commands to the device
+await this.env.DEVICE.setGpioState(25, "high");
+await this.env.DEVICE.reboot();
+
+// Access KV storage
+await this.env.DEVICE.kv.put('key', 'value');
+const value = await this.env.DEVICE.kv.get('key');
+```
+
+### Logging
+
+Use standard `console` methods — all output is automatically captured and viewable in the dashboard:
+
+```typescript
+console.info('Device connected');
+console.error('Sensor reading failed', error);
+console.warn('Temperature threshold exceeded', { temp: 85 });
+```
+
+## Message Handling Patterns
+
+### Event Broadcasting
+
+Device sends event, script processes asynchronously:
+
+```typescript
+async onMessage(message: DeviceResponse) {
+  if (message.type === 'alert') {
+    // Don't wait for external calls
+    this.sendEmailAlert(message).catch(err =>
+      console.error('Email failed', err)
+    );
+  }
+}
+```
+
+### State Management
+
+Maintain device state in KV:
+
+```typescript
+async onMessage(message: DeviceResponse) {
+  // Load current state
+  const state = await this.env.DEVICE.kv.get(`state`);
+  
+  // Update state
+  const newState = { ...JSON.parse(state), ...message.data };
+  
+  // Save state
+  await this.env.DEVICE.kv.put(`state`, JSON.stringify(newState));
+}
+```
+
+## Multiple Device Support
+
+Handle multiple device types in one project:
+
+```typescript
+// devicesdk.ts
+export default {
+  devices: {
+    'temperature-sensor': './src/devices/temp-sensor.ts',
+    'motion-detector': './src/devices/motion.ts',
+    'led-controller': './src/devices/led.ts'
+  }
+}
+```
+
+Each device type has its own entrypoint class.
+
+## Inter-Device Communication
+
+Devices within the same project can call methods on each other using `this.env.DEVICES`. Public methods on any device class are automatically available to other devices as type-safe remote calls.
+
+### Setup
+
+Run `devicesdk build` to generate `devicesdk-env.d.ts`, then pass the `Env` type to your entrypoint:
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+import type { Env } from '../../devicesdk-env';
+
+export class Sensor extends DeviceEntrypoint<Env> {
+  async onMessage(message: DeviceResponse) {
+    if (message.type === 'gpio_state_changed' && message.payload.pin === 20) {
+      // Type-safe call to another device's public method
+      const result = await this.env.DEVICES['led-controller'].turnOn();
+      console.info('Light turned on:', result);
+    }
+  }
+}
+```
+
+### What's Callable
+
+- **Public methods** you define on device classes are callable remotely
+- **Private/protected methods** are hidden from remote callers (TypeScript enforces this)
+- **Lifecycle methods** (`onDeviceConnect`, `onMessage`, etc.) and internal properties (`env`, `ctx`) are blocked
+
+### Offline Behavior
+
+Your device script always runs in the serverless runtime, even when hardware is offline:
+- **KV operations** (`this.env.DEVICE.kv.put(...)`) always succeed — use this for deferred state
+- **Hardware commands** (`this.env.DEVICE.setGpioState(...)`) throw if the device is not connected
+
+### Call Depth Limit
+
+To prevent infinite cycles (device A calls B, which calls A), the maximum call depth is 3.
+
+For a full walkthrough, see the [Inter-Device Communication Guide](/docs/guides/inter-device-communication/).
+
+## Error Handling
+
+Handle errors gracefully:
+
+```typescript
+async onMessage(message: DeviceResponse) {
+  try {
+    await this.processMessage(message);
+  } catch (error) {
+    console.error('Message processing failed', {
+      error: error.message
+    });
+  }
+}
+```
+
+## Performance Considerations
+
+### Keep Methods Fast
+
+Entrypoint methods should complete quickly:
+- Typical execution: < 10ms
+- Maximum: 50ms recommended
+- CPU time limited
+
+### Minimize State
+
+- Store only necessary data in KV
+- Clean up old data
+
+## Best Practices
+
+1. **Validate messages** - Check message structure before processing
+2. **Log important events** - Use structured logging
+3. **Handle errors** - Don't let exceptions crash the script
+4. **Keep state minimal** - Only store what's needed
+5. **Be idempotent** - Handle duplicate messages gracefully
+
+## Cron Scheduling
+
+Device scripts can define named cron schedules using the `crons` property, and handle them via the `onCron` lifecycle method. This lets you run periodic tasks (e.g., sending heartbeats, polling sensors) without a persistent connection.
+
+See [Cron Scheduling](/docs/concepts/cron-scheduling/) for a full reference.
+
+## Next Steps
+
+- [Your First Device](/docs/first-device/) - Build a complete example
+- [Platform Architecture](/docs/concepts/architecture/) - System overview
+- [Cron Scheduling](/docs/concepts/cron-scheduling/) - Run periodic tasks on a schedule
+
+---
+
+## Environment Variables
+
+
+Environment variables let you store secrets — API keys, webhook URLs, credentials — at the project level and access them from device scripts at runtime. Variables are never stored in your source code or script bundles.
+
+## Why use environment variables?
+
+Without environment variables, secrets end up hardcoded in your source:
+
+```typescript
+// ❌ Secret in source code — visible in version history
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL";
+```
+
+With environment variables:
+
+```typescript
+// ✅ Secret stored securely, not in source
+const webhookUrl = await this.env.VARS.get("DISCORD_WEBHOOK_URL");
+```
+
+Benefits:
+- Rotate credentials without redeploying your script
+- Share a secret across multiple devices in the same project
+- Keep secrets out of version control and script storage
+
+## Managing variables with the CLI
+
+### Set variables
+
+```bash
+# Set a single variable
+devicesdk env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# Set multiple variables at once
+devicesdk env set API_KEY=abc123 REGION=us-east-1
+
+# Target a specific project
+devicesdk env set API_KEY=abc123 --project my-project
+```
+
+**Key naming rules:**
+- Uppercase letters, digits, and underscores only
+- Must start with a letter
+- Maximum 64 characters
+- Examples: `API_KEY`, `WEBHOOK_URL`, `DB_PASSWORD_2`
+
+**Value limits:**
+- Maximum 4096 bytes per value (UTF-8 encoded)
+- Maximum 50 variables per project
+
+### List variables
+
+```bash
+devicesdk env list
+
+# Output:
+# KEY                   UPDATED AT
+# ─────────────────────────────────────────────────
+# DISCORD_WEBHOOK_URL   2024-01-15 10:23:00
+# API_KEY               2024-01-10 09:00:00
+```
+
+Values are never shown in list output. Access them only from within device scripts.
+
+### Remove a variable
+
+```bash
+devicesdk env unset DISCORD_WEBHOOK_URL
+```
+
+## Accessing variables in device scripts
+
+Variables are available via `this.env.VARS` inside any device class:
+
+```typescript
+export class MySensor extends DeviceSender {
+  async onDeviceConnect() {
+    // Get a single variable
+    const apiKey = await this.env.VARS.get("API_KEY");
+
+    // Get all variables as a key-value object
+    const allVars = await this.env.VARS.getAll();
+  }
+}
+```
+
+`get(key)` returns `string | undefined` — always check for `undefined` before using the value.
+
+## When do changes take effect?
+
+Environment variables are injected once when the device worker is created. Changes take effect on the **next device reconnect or reboot**.
+
+Running `devicesdk deploy` triggers a reboot, so a deploy automatically picks up any new or updated variables.
+
+To update variables without redeploying your script, update them with the CLI and then power-cycle your device or use `devicesdk deploy` to trigger a reboot.
+
+## Security notes
+
+- Variable **values are never returned** by the list API — they are only accessible inside the device runtime.
+- Variables are stored at the project level; all devices in a project share the same set of variables.
+- Device-level overrides (different values per device) are not supported in the current version.
+
+---
+
+## Script Versioning
+
+
+## Version Model
+
+Every deployment creates a new immutable version:
+
+```
+Version 1 → Version 2 → Version 3
+  (v1.0)     (v1.1)      (v2.0)
+```
+
+Each version is:
+- **Immutable** - Cannot be changed after creation
+- **Timestamped** - Creation time recorded
+- **Attributed** - Creator tracked
+- **Described** - Optional deployment message
+
+## Creating Versions
+
+### Via CLI
+
+```bash
+devicesdk deploy --message "Add temperature sensor support"
+```
+
+This creates a new version with your message.
+
+### Automatic Versioning
+
+DeviceSDK automatically assigns version identifiers:
+- Incrementing version numbers
+- SHA-256 content hash
+- Timestamp
+
+## Deployment Process
+
+When you deploy:
+
+1. **Build** - Code compiled and bundled
+2. **Upload** - Sent to DeviceSDK
+3. **Validate** - Checked for errors
+4. **Activate** - Made available globally
+5. **Notify** - Devices informed of new version
+
+Deployment typically completes in 10-30 seconds.
+
+## Version Activation
+
+### All Devices (Default)
+
+All devices get new version immediately:
+```bash
+devicesdk deploy
+```
+
+## Rollback
+
+Need to revert to a previous version?
+
+### Via Dashboard
+
+1. Navigate to version history
+2. Select previous version
+3. Click "Rollback"
+4. Confirm rollback
+
+Devices reconnect and receive the previous version.
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+- name: Deploy
+  env:
+    DEVICESDK_TOKEN: ${{ secrets.DEVICESDK_TOKEN }}
+  run: |
+    VERSION=$(git describe --tags)
+    npx @devicesdk/cli deploy --message "Release $VERSION"
+```
+
+## Version Limits
+
+- **Maximum versions**: Last 10 versions per device
+- **Retention**: Forever (unless deleted or expired after 10 new versions)
+- **Script size**: 1 MB per version
+
+## Next Steps
+
+- [Platform Architecture](/docs/concepts/architecture/) - System overview
+- [CLI Deploy Command](/docs/cli/deploy/) - Deployment options
+- [Your First Device](/docs/first-device/) - Build and deploy
+
+---
+
+## Your First Device
+
+
+## What is a Device Entrypoint?
+
+A device entrypoint is a TypeScript class that handles communication between your devices and your cloud code.
+
+## Basic Structure
+
+Every device entrypoint extends the `DeviceEntrypoint` class:
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+
+export default class MyDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    // Called when a device connects
+    console.log(`Device connected`);
+  }
+
+  async onMessage(message: DeviceResponse) {
+    // Called when a device sends a message
+    console.log(`Received from`, message);
+  }
+
+  async onDeviceDisconnect() {
+    // Called when a device disconnects
+    console.log(`Device disconnected`);
+  }
+}
+```
+
+## Handling Device Connections
+
+The `onDeviceConnect` method is called whenever a device establishes a WebSocket connection:
+
+```typescript
+async onDeviceConnect() {
+  // Initialize device state
+  await this.env.DEVICE.kv.put('status', 'online');
+}
+```
+
+## Receiving Messages from Devices
+
+Handle incoming messages in the `onMessage` method:
+
+```typescript
+async onMessage(message: DeviceResponse) {
+  switch (message.type) {
+    case 'pin_state_update':
+      // Store sensor data
+      console.info(`Pin ${message.payload.pin}: ${message.payload.value}`);
+      break;
+
+    case 'gpio_state_changed':
+      // Respond to button press
+      await this.env.DEVICE.setGpioState(99, "high");
+      break;
+  }
+}
+```
+
+## Sending Commands to Devices
+
+Send commands to your devices using the typed methods:
+
+```typescript
+// Turn on an LED
+await this.env.DEVICE.setGpioState(25, "high");
+
+// Read a pin state
+const reading = await this.env.DEVICE.getPinState(26, "analog");
+```
+
+## Complete Example: LED Controller
+
+Here's a complete example that controls an LED based on button presses:
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+
+export default class LEDController extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    // Configure button input on GPIO 20
+    await this.env.DEVICE.configureGpioInputMonitoring(20, true, "up");
+
+    console.info(`Device initialized`);
+  }
+
+  async onMessage(message: DeviceResponse) {
+    if (message.type === 'gpio_state_changed' && message.payload.pin === 20) {
+      // Button pressed (pulled low)
+      if (message.payload.state === 'low') {
+        // Toggle LED
+        await this.env.DEVICE.setGpioState(25, "high");
+        console.info('LED ON');
+      } else {
+        await this.env.DEVICE.setGpioState(25, "low");
+        console.info('LED OFF');
+      }
+    }
+  }
+
+  async onDeviceDisconnect() {
+    console.info(`Device disconnected`);
+  }
+}
+```
+
+## Testing in the Simulator
+
+Use the local simulator to test your device code:
+
+```bash
+npx @devicesdk/cli dev
+```
+
+The simulator provides:
+- Virtual GPIO pins you can toggle
+- Simulated button presses
+- Mock sensor readings
+- Real-time message visualization
+
+## Deploying to Real Hardware
+
+Once tested, deploy your code:
+
+```bash
+npx @devicesdk/cli deploy
+```
+
+Then flash the firmware to your device:
+
+```bash
+npx @devicesdk/cli flash
+```
+
+## Environment Bindings
+
+Your device entrypoint has access to several environment bindings:
+
+- `console.log` / `console.info` / etc. - Logging (automatically captured and persisted)
+- `this.env.DEVICE` - Send messages to device
+- `this.env.DEVICE.kv` - Key-value storage for device state
+
+## Next Steps
+
+- [**CLI Reference**](/docs/cli/) - Learn all CLI commands
+- [**Platform Architecture**](/docs/concepts/architecture/) - See how it all works
+- [**Inter-Device Communication**](/docs/guides/inter-device-communication/) - Call methods between devices
+
+## Need Help?
+
+- [Join our Discord](https://discord.gg/WuNhbXGsBy) for community support
+- [View examples](/examples/) for more code samples
+- [Troubleshooting guide](/docs/resources/troubleshooting/) for common issues
+
+---
+
+## Addressable LEDs
+
+
+## What Are Addressable LEDs?
+
+Addressable LEDs (WS2812, NeoPixel, SK6812) are RGB LEDs that can be individually controlled over a single data wire. Each LED contains a tiny controller chip that receives color data and passes the remaining data downstream. This lets you control hundreds of LEDs with just one GPIO pin.
+
+Unlike regular LEDs that are either on or off, each addressable LED accepts a full RGB color value (0-255 per channel), giving you 16 million possible colors per pixel.
+
+## Platform Support
+
+| Platform | Support | Implementation |
+|----------|---------|---------------|
+| Pico W / Pico 2W | Yes | PIO (Programmable I/O) state machine |
+| ESP32 | No | Not currently supported |
+| Simulator | Simulated | Returns mock acknowledgments |
+
+Addressable LEDs require precise timing (800 kHz signal with specific pulse widths). The Pico's PIO hardware handles this natively without CPU involvement, making it the ideal platform for LED strip control. ESP32 support is not currently available.
+
+## Wiring
+
+WS2812 LED strips have three connections:
+
+| Wire | Connect To | Notes |
+|------|-----------|-------|
+| **VCC / 5V** (red) | 5V power supply | Do not power more than ~8 LEDs from the Pico's VBUS pin |
+| **GND** (white/black) | Pico GND | Shared ground between Pico and power supply |
+| **DIN / Data** (green) | Any Pico GPIO | e.g., GP2 |
+
+### Power Considerations
+
+Each WS2812 LED draws up to 60mA at full white brightness. For strips with many LEDs:
+
+- **1-8 LEDs**: Can be powered from the Pico's VBUS (USB 5V) pin
+- **9+ LEDs**: Use an external 5V power supply. Connect the power supply GND to the Pico GND
+- **Large strips**: Add a 300-500 ohm resistor on the data line and a 1000uF capacitor across VCC/GND near the strip
+
+### Wiring Diagram
+
+```
+Pico GP2 ──[330R]──> DIN (LED strip)
+
+5V Power ──────────> VCC (LED strip)
+                 |
+              [1000uF]
+                 |
+GND ────────────┴──> GND (LED strip)
+       |
+   Pico GND
+```
+
+## TypeScript API
+
+### Configure the LED Strip
+
+Tell the firmware which pin and how many LEDs to use:
+
+```typescript
+// Configure 16 WS2812 LEDs on pin GP2
+await this.env.DEVICE.pioWs2812Configure(2, 16);
+```
+
+This initializes the PIO state machine for WS2812 protocol timing on the specified pin. Call this once during `onDeviceConnect()`.
+
+### Update LED Colors
+
+Set the color of every LED by passing an array of `[red, green, blue]` tuples. Each value is 0-255:
+
+```typescript
+// Set all 16 LEDs to red
+const red: [number, number, number][] = Array.from({ length: 16 }, () => [255, 0, 0]);
+await this.env.DEVICE.pioWs2812Update(red);
+
+// Set individual LED colors
+const pixels: [number, number, number][] = [
+  [255, 0, 0],     // LED 0: red
+  [0, 255, 0],     // LED 1: green
+  [0, 0, 255],     // LED 2: blue
+  [255, 255, 0],   // LED 3: yellow
+  [0, 0, 0],       // LED 4: off
+  [255, 255, 255], // LED 5: white
+  // ... remaining LEDs
+];
+await this.env.DEVICE.pioWs2812Update(pixels);
+```
+
+The array length must match the `numLeds` value from `pioWs2812Configure()`.
+
+## Example: Rainbow Animation
+
+This example creates a smooth rainbow cycle across a strip of LEDs:
+
+```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
+const LED_PIN = 2;
+const NUM_LEDS = 16;
+
+export default class RainbowDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    await this.env.DEVICE.pioWs2812Configure(LED_PIN, NUM_LEDS);
+
+    // Run 100 frames of rainbow animation
+    for (let frame = 0; frame < 100; frame++) {
+      const pixels: [number, number, number][] = [];
+
+      for (let i = 0; i < NUM_LEDS; i++) {
+        // Each LED is offset in hue, and the whole pattern shifts each frame
+        const hue = ((i * 360) / NUM_LEDS + frame * 5) % 360;
+        pixels.push(hsvToRgb(hue, 1.0, 0.3)); // 30% brightness to save power
+      }
+
+      await this.env.DEVICE.pioWs2812Update(pixels);
+      await new Promise(r => setTimeout(r, 50));
+    }
+
+    // Turn off all LEDs when done
+    const off: [number, number, number][] = Array.from({ length: NUM_LEDS }, () => [0, 0, 0]);
+    await this.env.DEVICE.pioWs2812Update(off);
+  }
+}
+
+/** Convert HSV (hue 0-360, saturation 0-1, value 0-1) to RGB [0-255, 0-255, 0-255]. */
+function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+  let r = 0, g = 0, b = 0;
+
+  if (h < 60)       { r = c; g = x; }
+  else if (h < 120) { r = x; g = c; }
+  else if (h < 180) { g = c; b = x; }
+  else if (h < 240) { g = x; b = c; }
+  else if (h < 300) { r = x; b = c; }
+  else              { r = c; b = x; }
+
+  return [
+    Math.round((r + m) * 255),
+    Math.round((g + m) * 255),
+    Math.round((b + m) * 255),
+  ];
+}
+```
+
+## Example: Status Indicator
+
+Use a small LED strip as a status indicator that changes color based on sensor readings:
+
+```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
+const LED_PIN = 2;
+const NUM_LEDS = 8;
+const TEMP_SENSOR_PIN = 26; // ADC pin for temperature sensor
+
+export default class StatusLedDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    await this.env.DEVICE.pioWs2812Configure(LED_PIN, NUM_LEDS);
+
+    // Read temperature and update LED color every 2 seconds
+    for (let i = 0; i < 30; i++) {
+      const result = await this.env.DEVICE.getTemperature();
+      if (result.type === 'temperature_result') {
+        const temp = result.payload.celsius;
+        const color = temperatureToColor(temp);
+        const pixels: [number, number, number][] = Array.from(
+          { length: NUM_LEDS },
+          () => color
+        );
+        await this.env.DEVICE.pioWs2812Update(pixels);
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+}
+
+/** Map temperature to a color: blue (cold) -> green (normal) -> red (hot). */
+function temperatureToColor(celsius: number): [number, number, number] {
+  if (celsius < 20) return [0, 0, 255];      // blue: cold
+  if (celsius < 25) return [0, 255, 0];       // green: comfortable
+  if (celsius < 30) return [255, 255, 0];     // yellow: warm
+  if (celsius < 35) return [255, 128, 0];     // orange: hot
+  return [255, 0, 0];                          // red: very hot
+}
+```
+
+## CLI Inspect Commands
+
+Use `devicesdk inspect <device-id>` to test WS2812 LEDs interactively:
+
+```
+ws2812 configure <pin> <num_leds>
+ws2812 fill <r> <g> <b> <num_leds>
+```
+
+Examples:
+
+```
+> ws2812 configure 2 16
+OK
+> ws2812 fill 255 0 0 16
+OK
+> ws2812 fill 0 0 0 16
+OK
+```
+
+The `ws2812 fill` command sets all LEDs to the same color. The `num_leds` argument must match the configured count.
+
+## Tips
+
+- Call `pioWs2812Configure()` once on connect, then call `pioWs2812Update()` as often as needed.
+- Keep brightness low (30-50%) for battery-powered projects. Full white at 255,255,255 draws significant current.
+- The pixel array must have exactly as many entries as the `numLeds` value in the configure call.
+- Color order is RGB: `[red, green, blue]` with each component from 0 to 255.
+- Add a short delay (20-50ms) between rapid updates to allow the data to propagate through the strip.
+- For long LED strips (50+ LEDs), ensure adequate power supply capacity (3A or more at 5V).
+
+## Next Steps
+
+- [Hardware Compatibility](/docs/resources/hardware/) -- full feature availability table
+- [Using SPI](/docs/guides/using-spi/) -- communicate with SPI displays and sensors
+- [Using UART](/docs/guides/using-uart/) -- serial communication with GPS and Bluetooth modules
+
+---
+
+## Control from Browser
+
+
+One of DeviceSDK's key advantages is that your device logic runs in the cloud — which means you can trigger it from anywhere that can make an HTTP request, including a plain browser page.
+
+This guide shows how to build a minimal web UI that toggles a GPIO pin on your device using the DeviceSDK REST API.
+
+## How It Works
+
+DeviceSDK exposes a REST API for interacting with deployed projects and devices. You can use this from:
+- A browser (plain HTML + JavaScript)
+- A mobile app
+- Another server
+- Any HTTP client
+
+The device script receives a custom message from your browser and responds by controlling hardware.
+
+```
+Browser (fetch) → DeviceSDK REST API → Cloud script → WebSocket → Device (GPIO)
+```
+
+## Prerequisites
+
+- A deployed DeviceSDK project with a connected device ([Quickstart](/docs/quickstart/))
+- An API token from your [dashboard](https://dash.devicesdk.com) (Settings → API Tokens)
+- Your `project-id` and `device-id` (visible in the dashboard)
+
+## Step 1: Add a Message Handler to Your Script
+
+Update your device script to handle a custom `toggle_led` message:
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+
+const LED_PIN = 25; // Pico W — use 2 for ESP32
+
+export default class BrowserControlDevice extends DeviceEntrypoint {
+  private ledState = false;
+
+  async onDeviceConnect() {
+    console.log('Device ready for browser control');
+    await this.env.DEVICE.setGpioState(LED_PIN, 'low');
+  }
+
+  async onMessage(message: DeviceResponse) {
+    if (message.type === 'custom' && message.payload.action === 'toggle_led') {
+      this.ledState = !this.ledState;
+      await this.env.DEVICE.setGpioState(LED_PIN, this.ledState ? 'high' : 'low');
+      console.log(`LED is now ${this.ledState ? 'ON' : 'OFF'}`);
+    }
+  }
+}
+```
+
+Deploy the updated script:
+
+```bash
+npx @devicesdk/cli deploy
+```
+
+## Step 2: Call the API from the Browser
+
+The DeviceSDK REST API lets you send a message to a specific device. Here's the simplest possible browser page:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Control</title>
+  <style>
+    body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
+    button { padding: 1rem 2rem; font-size: 1.25rem; cursor: pointer; margin-top: 1rem; }
+    #status { margin-top: 1rem; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Hardware Control</h1>
+  <button id="toggleBtn">Toggle LED</button>
+  <p id="status">Ready</p>
+
+  <script>
+    const API_BASE = 'https://api.devicesdk.com';
+    const API_TOKEN = 'dsdk_YOUR_TOKEN_HERE';   // Replace with your API token
+    const PROJECT_ID = 'your-project-id';        // Replace with your project ID
+    const DEVICE_ID  = 'your-device-id';         // Replace with your device ID
+
+    document.getElementById('toggleBtn').addEventListener('click', async () => {
+      const status = document.getElementById('status');
+      status.textContent = 'Sending...';
+
+      try {
+        const response = await fetch(
+          `${API_BASE}/v1/projects/${PROJECT_ID}/devices/${DEVICE_ID}/message`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${API_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              type: 'custom',
+              payload: { action: 'toggle_led' }
+            })
+          }
+        );
+
+        if (response.ok) {
+          status.textContent = 'Done! ✓';
+        } else {
+          const err = await response.json();
+          status.textContent = `Error: ${err.error}`;
+        }
+      } catch (e) {
+        status.textContent = `Network error: ${e.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
+```
+
+Open this HTML file directly in your browser (no web server needed for local testing). Click **Toggle LED** and your hardware responds.
+
+## Sending Data with Messages
+
+You can include arbitrary data in the `payload`. For example, to set a specific brightness:
+
+```javascript
+// Browser
+body: JSON.stringify({
+  type: 'custom',
+  payload: { action: 'set_brightness', value: 0.75 }
+})
+```
+
+```typescript
+// Device script
+async onMessage(message: DeviceResponse) {
+  if (message.type === 'custom' && message.payload.action === 'set_brightness') {
+    const duty = message.payload.value as number;
+    await this.env.DEVICE.setPwmState(LED_PIN, 1000, duty);
+  }
+}
+```
+
+## Reading Sensor Data
+
+To read a sensor value from the browser, you can store the latest reading in the device script and expose it via the KV store, or use a periodic logging pattern. The simplest approach is to log readings and fetch recent logs via the API.
+
+Alternatively, write the reading to a KV variable and poll it from the browser:
+
+```typescript
+// Device script — store latest temperature reading
+async onDeviceConnect() {
+  setInterval(async () => {
+    const result = await this.env.DEVICE.getTemperature();
+    if (result.type === 'temperature_result') {
+      await this.env.VARS.put('last_temp', String(result.payload.celsius));
+    }
+  }, 5000);
+}
+```
+
+```javascript
+// Browser — poll the value
+const resp = await fetch(`${API_BASE}/v1/projects/${PROJECT_ID}/vars/last_temp`, {
+  headers: { 'Authorization': `Bearer ${API_TOKEN}` }
+});
+const data = await resp.json();
+console.log(`Temperature: ${data.result.value}°C`);
+```
+
+## Security Considerations
+
+**Never embed API tokens in public web pages.** The example above is for local development or private networks only.
+
+For a publicly accessible web UI:
+
+1. **Build a backend** — keep your API token server-side and proxy requests through your own server
+2. **Use short-lived tokens** — generate per-session tokens with limited permissions
+3. **Restrict by origin** — configure CORS on your own proxy to limit which domains can call it
+
+The DeviceSDK API token has full access to your project — treat it like a password.
+
+## CORS
+
+The DeviceSDK API supports CORS for browser requests. You can call `api.devicesdk.com` directly from the browser without a proxy. The `Authorization` header is allowed by the CORS policy.
+
+## Complete Example: Dashboard with Multiple Controls
+
+A more complete browser control panel:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Device Dashboard</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    .controls { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+    button { padding: 0.75rem 1.5rem; border-radius: 0.5rem; border: none; cursor: pointer; font-size: 1rem; }
+    .btn-red { background: #ef4444; color: white; }
+    .btn-green { background: #22c55e; color: white; }
+    .btn-blue { background: #3b82f6; color: white; }
+    .btn-off { background: #6b7280; color: white; }
+    #log { margin-top: 1rem; font-size: 0.875rem; color: #6b7280; height: 6rem; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <h1>Device Control</h1>
+  <div class="controls">
+    <button class="btn-red"   onclick="sendColor(255,0,0)">Red</button>
+    <button class="btn-green" onclick="sendColor(0,255,0)">Green</button>
+    <button class="btn-blue"  onclick="sendColor(0,0,255)">Blue</button>
+    <button class="btn-off"   onclick="sendColor(0,0,0)">Off</button>
+  </div>
+  <div id="log"></div>
+
+  <script>
+    const API_BASE   = 'https://api.devicesdk.com';
+    const API_TOKEN  = 'dsdk_YOUR_TOKEN_HERE';
+    const PROJECT_ID = 'your-project-id';
+    const DEVICE_ID  = 'your-device-id';
+
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent = `${new Date().toLocaleTimeString()} ${msg}\n` + el.textContent;
+    }
+
+    async function sendColor(r, g, b) {
+      log(`Sending color (${r},${g},${b})...`);
+      const resp = await fetch(
+        `${API_BASE}/v1/projects/${PROJECT_ID}/devices/${DEVICE_ID}/message`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${API_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'custom', payload: { action: 'set_color', r, g, b } })
+        }
+      );
+      log(resp.ok ? 'OK ✓' : `Error ${resp.status}`);
+    }
+  </script>
+</body>
+</html>
+```
+
+Corresponding device script for an ESP32-C61 or Pico with a WS2812 LED:
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+
+export default class ColorControl extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    await this.env.DEVICE.pioWs2812Configure(8, 1); // GPIO 8, 1 LED
+  }
+
+  async onMessage(message: DeviceResponse) {
+    if (message.type === 'custom' && message.payload.action === 'set_color') {
+      const { r, g, b } = message.payload as { r: number; g: number; b: number };
+      await this.env.DEVICE.pioWs2812Update([[r, g, b]]);
+    }
+  }
+}
+```
+
+## Next Steps
+
+- [Platform Architecture](/docs/concepts/architecture/) — understand the full cloud ↔ device flow
+- [Device Entrypoints](/docs/concepts/entrypoints/) — `onDeviceConnect` and `onMessage` in depth
+- [Environment Variables](/docs/concepts/env-vars/) — store API tokens and secrets securely
+- [Hardware Compatibility](/docs/resources/hardware/) — full feature matrix for ESP32 and Pico
+
+---
+
+## ESP32 Getting Started
+
+
+This guide walks you through getting your ESP32 connected to DeviceSDK and running your first TypeScript device script. No C or C++ required.
+
+## Supported ESP32 Boards
+
+| Board | Status | Notes |
+|-------|--------|-------|
+| ESP32 (classic, dual Xtensa LX6) | ✅ Full support | Onboard LED on GPIO 2 |
+| ESP32-C61 (RISC-V, WiFi 6) | ✅ Full support | Onboard LED is WS2812 on GPIO 8 |
+| ESP32-C3, ESP32-S3 | Planned | Not yet supported |
+
+## Prerequisites
+
+- **ESP32 or ESP32-C61 development board**
+- **USB-C data cable** (not power-only)
+- **Python 3** with esptool: `pip install esptool`
+- **Node.js 22+** — [Download Node.js](https://nodejs.org/)
+- **DeviceSDK account** — [Sign up free](https://dash.devicesdk.com)
+
+## Step 1: Create a Project
+
+```bash
+npx @devicesdk/cli init my-esp32-project
+cd my-esp32-project
+```
+
+This creates:
+- `devicesdk.ts` — project configuration
+- `src/devices/` — your device entrypoints
+
+## Step 2: Flash the Firmware
+
+Flash the DeviceSDK firmware to your ESP32. The CLI handles downloading and flashing:
+
+```bash
+npx @devicesdk/cli flash device
+```
+
+The CLI will:
+1. Ask you to select your serial port (e.g., `/dev/ttyUSB0` on Linux, `COM3` on Windows)
+2. Download the correct firmware for your board
+3. Write credentials (WiFi SSID, password, device token) into the firmware
+4. Flash to the device
+
+### Linux: Serial Port Permissions
+
+If you see a permission error on Linux, add yourself to the `dialout` group:
+
+```bash
+sudo usermod -a -G dialout $USER
+# Log out and back in for the change to take effect
+```
+
+### ESP32-C61: Port Selection
+
+The ESP32-C61-DevKitC-1 has two USB ports. Use the **USB-UART** port (usually `/dev/ttyUSB0`, Silicon Labs CP210x) for flashing. If auto-reset doesn't work, try the USB-JTAG port (`/dev/ttyACM0`).
+
+### Manual Boot Mode
+
+If flashing fails with "No serial data received", your board may not support auto-reset. Hold the **BOOT** button, press **EN/RST**, then release BOOT. Re-run the flash command.
+
+## Step 3: Write Your First Script
+
+Open `src/devices/main.ts`. Replace the contents with a blink script for your board:
+
+### ESP32 (classic) — GPIO 2
+
+```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
+export default class BlinkDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    console.log('ESP32 connected!');
+    const LED_PIN = 2; // Onboard LED on most ESP32 dev boards
+
+    for (let i = 0; i < 10; i++) {
+      await this.env.DEVICE.setGpioState(LED_PIN, 'high');
+      await new Promise(r => setTimeout(r, 500));
+      await this.env.DEVICE.setGpioState(LED_PIN, 'low');
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    console.log('Done blinking!');
+  }
+}
+```
+
+### ESP32-C61 — Addressable LED on GPIO 8
+
+The ESP32-C61-DevKitC-1 has a WS2812 RGB LED on GPIO 8, not a plain GPIO LED. Use the addressable LED API:
+
+```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
+export default class BlinkDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    console.log('ESP32-C61 connected!');
+
+    // Configure 1 WS2812 LED on GPIO 8
+    await this.env.DEVICE.pioWs2812Configure(8, 1);
+
+    // Blink red 5 times
+    for (let i = 0; i < 5; i++) {
+      await this.env.DEVICE.pioWs2812Update([[255, 0, 0]]); // Red
+      await new Promise(r => setTimeout(r, 500));
+      await this.env.DEVICE.pioWs2812Update([[0, 0, 0]]);   // Off
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    console.log('Done!');
+  }
+}
+```
+
+## Step 4: Deploy and Test
+
+Deploy your script to the cloud:
+
+```bash
+npx @devicesdk/cli deploy
+```
+
+Stream live logs while your device runs:
+
+```bash
+npx @devicesdk/cli logs <project-id> <device-id> --tail
+```
+
+You should see your `console.log` messages appear as the device executes the script.
+
+## Pin Reference
+
+### ESP32 (Classic)
+
+| Pin | Function | Notes |
+|-----|----------|-------|
+| GPIO 0 | Boot mode | Pull low to enter download mode |
+| GPIO 2 | Onboard LED | Active high on most boards |
+| GPIO 1, 3 | UART0 TX/RX | Reserved for debug serial |
+| GPIO 6–11 | SPI flash | Reserved — do not use |
+| GPIO 34–39 | Input only | No internal pull-up/down |
+
+ADC1 channels (GPIO 32–39) work normally. ADC2 channels (GPIO 0, 2, 4, 12–15, 25–27) are blocked by the WiFi radio while connected.
+
+### ESP32-C61
+
+| Pin | Function |
+|-----|----------|
+| GPIO 8 | Onboard WS2812 RGB LED |
+| GPIO 5 | Onboard plain LED (some boards) |
+| GPIO 12–13 | UART0 (debug) |
+
+## Using Other Peripherals
+
+Once your device is connected, the full hardware API is available:
+
+### Read a Sensor (ADC)
+
+```typescript
+const result = await this.env.DEVICE.getPinState(34, 'analog');
+if (result.type === 'pin_state_update') {
+  const voltage = (result.payload.value / 4095) * 3.3;
+  console.log(`Sensor voltage: ${voltage.toFixed(2)}V`);
+}
+```
+
+### PWM (Servo, LED brightness)
+
+```typescript
+// 50Hz PWM at 7.5% duty — typical servo center position
+await this.env.DEVICE.setPwmState(18, 50, 0.075);
+```
+
+### I2C
+
+```typescript
+// Configure I2C on GPIO 21 (SDA) and GPIO 22 (SCL)
+await this.env.DEVICE.sendCommand({
+  type: 'i2c_configure',
+  payload: { bus: 0, sda_pin: 21, scl_pin: 22, frequency: 400000 }
+});
+
+// Scan for devices
+const scan = await this.env.DEVICE.i2cScan(0);
+console.log('Found:', scan.payload.addresses_found);
+```
+
+### Monitor a Button
+
+```typescript
+async onDeviceConnect() {
+  // GPIO 4, pull-up, trigger on state change
+  await this.env.DEVICE.configureGpioInputMonitoring(4, true, 'up');
+}
+
+onMessage(message) {
+  if (message.type === 'gpio_state_changed') {
+    console.log(`GPIO ${message.payload.pin}: ${message.payload.state}`);
+  }
+}
+```
+
+## Troubleshooting
+
+### "No serial data received"
+
+- Try manual boot mode: hold BOOT, press EN, release BOOT, then flash
+- Try a lower baud rate by re-running `devicesdk flash` and selecting the slower option
+- Try the other USB port on the board (USB-JTAG vs USB-UART)
+
+### Device connects but script doesn't run
+
+- Check that you've run `devicesdk deploy` after making changes
+- Verify the device token matches between firmware and dashboard
+- Check logs: `devicesdk logs <project-id> <device-id> --tail`
+
+### ADC reads always return 0 or noise
+
+- On ESP32, use ADC1 pins (GPIO 32–39). ADC2 is blocked by WiFi.
+- Ensure the pin is not in input-only mode (GPIO 34–39 are input-only — OK for ADC)
+
+## Next Steps
+
+- [Hardware Compatibility](/docs/resources/hardware/) — full pin reference and feature matrix
+- [Using SPI](/docs/guides/using-spi/) — connect SPI peripherals
+- [Using UART](/docs/guides/using-uart/) — serial communication
+- [Addressable LEDs](/docs/guides/addressable-leds/) — WS2812 LED strips
+- [Control from Browser](/docs/guides/control-from-browser/) — trigger GPIO from a web page
+
+---
+
+## Inter-Device Communication
+
+
+## Overview
+
+Devices in the same project can call public methods on each other using `this.env.DEVICES`. The call routes through the serverless runtime, so both devices don't need to be online simultaneously — methods that only use KV storage work even when hardware is disconnected.
+
+## Walkthrough: Sensor + Light Controller
+
+### Step 1: Define Your Devices
+
+Create two device entrypoints with public methods:
+
+```typescript
+// src/devices/light.ts
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+import type { Env } from '../../devicesdk-env';
+
+export class LightController extends DeviceEntrypoint<Env> {
+  async turnOn() {
+    await this.env.DEVICE.setGpioState(5, 'high');
+    return { status: 'on' as const };
+  }
+
+  async turnOff() {
+    await this.env.DEVICE.setGpioState(5, 'low');
+    return { status: 'off' as const };
+  }
+
+  async updateDesiredState(state: { brightness: number }) {
+    // KV writes always work, even when hardware is offline
+    await this.env.DEVICE.kv.put('desired', state);
+  }
+
+  async onDeviceConnect() {
+    // Apply saved state when hardware reconnects
+    const desired = await this.env.DEVICE.kv.get<{ brightness: number }>('desired');
+    if (desired) {
+      console.info('Applying saved brightness:', desired.brightness);
+    }
+  }
+
+  async onMessage(message: DeviceResponse) {
+    // Handle hardware messages
+  }
+}
+```
+
+```typescript
+// src/devices/sensor.ts
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+import type { Env } from '../../devicesdk-env';
+
+export class Sensor extends DeviceEntrypoint<Env> {
+  async onMessage(message: DeviceResponse) {
+    if (message.type === 'gpio_state_changed' && message.payload.pin === 20) {
+      // Type-safe! Autocomplete shows: turnOn, turnOff, updateDesiredState
+      // Does NOT show: onDeviceConnect, onMessage, env, ctx
+      const result = await this.env.DEVICES['light-controller'].turnOn();
+      console.info('Light turned:', result.status);
+    }
+  }
+
+  async onDeviceConnect() {
+    await this.env.DEVICE.configureGpioInputMonitoring(20, true, 'up');
+    console.info('Sensor ready, monitoring GPIO 20');
+  }
+
+  async onDeviceDisconnect() {
+    console.info('Sensor disconnected');
+  }
+}
+```
+
+### Step 2: Configure Your Project
+
+```typescript
+// devicesdk.ts
+import { defineConfig } from '@devicesdk/cli';
+
+export default defineConfig({
+  projectId: 'smart-home',
+  devices: {
+    'light-controller': {
+      main: './src/devices/light.ts',
+      entrypoint: 'LightController',
+      deviceType: 'pico-w',
+      wifi: { ssid: '...', password: '...' },
+    },
+    'sensor': {
+      main: './src/devices/sensor.ts',
+      entrypoint: 'Sensor',
+      deviceType: 'pico-w',
+      wifi: { ssid: '...', password: '...' },
+    },
+  },
+});
+```
+
+### Step 3: Generate Types
+
+Run `devicesdk build` to generate `devicesdk-env.d.ts`:
+
+```bash
+devicesdk build
+# Output:
+# ✓ Generated devicesdk-env.d.ts
+# ✓ Built light-controller.js (2.1 KB)
+# ✓ Built sensor.js (1.8 KB)
+```
+
+The generated file looks like:
+
+```typescript
+// devicesdk-env.d.ts — auto-generated, committed to repo
+import type { LightController } from './src/devices/light';
+import type { Sensor } from './src/devices/sensor';
+import type { GetEnv } from '@devicesdk/core';
+
+export type ProjectDevices = {
+  'light-controller': LightController;
+  'sensor': Sensor;
+};
+
+export type Env = GetEnv<ProjectDevices>;
+```
+
+### Step 4: Deploy and Test
+
+```bash
+devicesdk deploy
+```
+
+When the sensor detects a button press on GPIO 20, it calls `turnOn()` on the light controller and receives the typed response `{ status: 'on' }`.
+
+## Error Handling
+
+Wrap remote calls in try/catch for production code:
+
+```typescript
+async onMessage(message: DeviceResponse) {
+  if (message.type === 'gpio_state_changed') {
+    try {
+      await this.env.DEVICES['light-controller'].turnOn();
+    } catch (error) {
+      console.error('Failed to call light controller:', error);
+    }
+  }
+}
+```
+
+Common errors:
+- **Device not found** — the target device slug doesn't exist in your project
+- **No deployed script** — the target device has no script deployed yet
+- **Method not found** — the method doesn't exist on the target device class
+- **Call depth exceeded** — too many chained calls (max depth: 3)
+
+## Patterns
+
+### Deferred State
+
+Write state via KV when hardware is offline, apply when it reconnects:
+
+```typescript
+// From any device — works even when light hardware is disconnected
+await this.env.DEVICES['light-controller'].updateDesiredState({ brightness: 80 });
+
+// In LightController.onDeviceConnect() — applied when hardware comes back
+const desired = await this.env.DEVICE.kv.get('desired');
+if (desired) { /* apply to hardware */ }
+```
+
+### Chained Calls (A → B → C)
+
+Devices can chain calls up to a depth of 3:
+
+```typescript
+// Device A calls B
+await this.env.DEVICES['device-b'].doSomething();
+
+// Device B's doSomething() calls C
+async doSomething() {
+  await this.env.DEVICES['device-c'].finalize();
+  return { done: true };
+}
+```
+
+## Limitations
+
+- **Same project only** — devices can only call other devices in the same project
+- **Max call depth: 3** — prevents infinite cycles between devices
+- **Serializable arguments** — RPC arguments and return values must be JSON-compatible (no functions, symbols, or class instances)
+- **No pub/sub yet** — RPC is point-to-point; project-wide event broadcasting is on the roadmap
+
+## Next Steps
+
+- [Device Entrypoints](/docs/concepts/entrypoints/) — Lifecycle methods and environment bindings
+- [Platform Architecture](/docs/concepts/architecture/) — How the runtime works
+
+---
+
+## Using SPI
+
+
+## What Is SPI?
+
+SPI (Serial Peripheral Interface) is a synchronous, full-duplex communication bus commonly used to connect microcontrollers to peripherals like displays, SD cards, flash memory, and high-speed sensors. It uses four signals:
+
+- **CLK** (Clock) -- the master drives the clock signal
+- **MOSI** (Master Out, Slave In) -- data from the microcontroller to the peripheral
+- **MISO** (Master In, Slave Out) -- data from the peripheral to the microcontroller
+- **CS** (Chip Select) -- selects which peripheral to communicate with (active low)
+
+### SPI vs I2C
+
+| | SPI | I2C |
+|---|-----|-----|
+| Speed | Faster (up to tens of MHz) | Slower (100-400 kHz typical) |
+| Wires | 4 + 1 CS per device | 2 (shared bus) |
+| Devices | One CS pin per device | Up to 127 on one bus |
+| Duplex | Full duplex | Half duplex |
+| Use when | Speed matters (displays, SD cards) | Many slow sensors on one bus |
+
+## Platform Support
+
+| Platform | SPI Bus | Default Pins | Notes |
+|----------|---------|-------------|-------|
+| ESP32 | SPI3 (bus 0) | Configurable | SPI0/SPI1 reserved for flash |
+| ESP32-C61 | SPI2 (bus 0) | Configurable | SPI0 reserved for flash |
+| Pico W / Pico 2W | SPI0 (bus 0), SPI1 (bus 1) | Configurable | Any GPIO with SPI function |
+| Simulator | bus 0 | Any | Returns mock responses |
+
+## Pin Configuration
+
+### Pico W / Pico 2W
+
+SPI0 and SPI1 can be mapped to several GPIO pins. Common choices:
+
+| Signal | SPI0 Pins | SPI1 Pins |
+|--------|----------|----------|
+| CLK | GP2, GP6, GP18 | GP10, GP14 |
+| MOSI (TX) | GP3, GP7, GP19 | GP11, GP15 |
+| MISO (RX) | GP0, GP4, GP16 | GP8, GP12 |
+| CS | GP1, GP5, GP17 | GP9, GP13 |
+
+### ESP32
+
+SPI3 (VSPI) is the recommended bus for user peripherals. SPI0 and SPI1 are reserved for the internal flash chip.
+
+| Signal | Typical Pins |
+|--------|-------------|
+| CLK | GPIO 18 |
+| MOSI | GPIO 23 |
+| MISO | GPIO 19 |
+| CS | GPIO 5 |
+
+Any available GPIO can be used -- these are just common defaults.
+
+## SPI Modes
+
+SPI has four operating modes based on clock polarity (CPOL) and clock phase (CPHA):
+
+| Mode | CPOL | CPHA | Description |
+|------|------|------|-------------|
+| 0 | 0 | 0 | Clock idle low, data sampled on rising edge |
+| 1 | 0 | 1 | Clock idle low, data sampled on falling edge |
+| 2 | 1 | 0 | Clock idle high, data sampled on falling edge |
+| 3 | 1 | 1 | Clock idle high, data sampled on rising edge |
+
+Most peripherals use Mode 0. Check your peripheral's datasheet for the correct mode.
+
+## TypeScript API
+
+### Configure the SPI Bus
+
+Before any communication, configure the bus with pin assignments, clock frequency, and mode:
+
+```typescript
+await this.env.DEVICE.spiConfigure(
+  0,         // bus number
+  18,        // CLK pin
+  19,        // MOSI pin
+  16,        // MISO pin
+  17,        // CS pin
+  1000000,   // frequency in Hz (1 MHz)
+  0          // SPI mode (0-3)
+);
+```
+
+### Full-Duplex Transfer
+
+SPI is inherently full-duplex -- every byte sent simultaneously receives a byte back. Use `spiTransfer()` when you need to read the response:
+
+```typescript
+// Send 3 bytes and receive 3 bytes back simultaneously
+const result = await this.env.DEVICE.spiTransfer(0, ['0x9F', '0x00', '0x00']);
+if (result.type === 'spi_transfer_result') {
+  console.log('Received:', result.payload.data);
+}
+```
+
+### Write Only
+
+When you do not need the response data, use `spiWrite()`:
+
+```typescript
+// Send a command to a display controller
+await this.env.DEVICE.spiWrite(0, ['0x36', '0x00']);
+```
+
+### Read Only
+
+Read a fixed number of bytes from the peripheral. The device sends clock pulses (with MOSI idle) to shift data in:
+
+```typescript
+const result = await this.env.DEVICE.spiRead(0, 4);
+if (result.type === 'spi_read_result') {
+  console.log('Read bytes:', result.payload.data);
+}
+```
+
+## Example: Reading a Sensor Over SPI
+
+This example reads the WHO_AM_I register from an accelerometer (common pattern for SPI sensors). Many SPI sensors use bit 7 of the first byte as a read/write flag -- setting bit 7 high means "read".
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+
+const CLK_PIN = 18;
+const MOSI_PIN = 19;
+const MISO_PIN = 16;
+const CS_PIN = 17;
+const SPI_BUS = 0;
+
+export default class SpiSensorDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    // Configure SPI at 1 MHz, Mode 0
+    await this.env.DEVICE.spiConfigure(
+      SPI_BUS, CLK_PIN, MOSI_PIN, MISO_PIN, CS_PIN, 1000000, 0
+    );
+
+    // Read WHO_AM_I register (0x0F with bit 7 set = 0x8F for read)
+    const whoAmI = await this.env.DEVICE.spiTransfer(SPI_BUS, ['0x8F', '0x00']);
+    if (whoAmI.type === 'spi_transfer_result') {
+      // First byte is dummy (received while sending address), second byte is the value
+      console.log('WHO_AM_I:', whoAmI.payload.data[1]);
+    }
+
+    // Read 6 bytes of acceleration data starting from register 0x28
+    const accelData = await this.env.DEVICE.spiTransfer(
+      SPI_BUS,
+      ['0xE8', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00']
+      // 0xE8 = 0x28 | 0x80 (read) | 0x40 (auto-increment)
+    );
+    if (accelData.type === 'spi_transfer_result') {
+      const bytes = accelData.payload.data;
+      console.log('Accel raw bytes:', bytes.slice(1)); // skip dummy first byte
+    }
+  }
+}
+```
+
+## CLI Inspect Commands
+
+Use `devicesdk inspect <device-id>` to test SPI interactively:
+
+```
+spi configure <bus> <clk> <mosi> <miso> <cs> <freq> [mode]
+spi transfer <bus> <hex_bytes...>
+spi write <bus> <hex_bytes...>
+spi read <bus> <bytes>
+```
+
+Examples:
+
+```
+> spi configure 0 18 19 16 17 1000000 0
+OK
+> spi transfer 0 0x8F 0x00
+SPI transfer on bus 0: [0x00, 0x33]
+> spi write 0 0x20 0x47
+OK
+> spi read 0 4
+SPI read from bus 0: [0x12, 0x34, 0x56, 0x78]
+```
+
+## Tips
+
+- Always configure the bus before any read/write operations.
+- SPI has no built-in device addressing -- use separate CS pins for multiple peripherals on the same bus.
+- Check your peripheral's maximum clock speed. Starting at 1 MHz is a safe default.
+- Data bytes are hex strings prefixed with `0x` (e.g., `'0xFF'`).
+- The first byte received in a `spiTransfer()` is usually a dummy byte (received while the address byte was being sent).
+
+## Next Steps
+
+- [Hardware Compatibility](/docs/resources/hardware/) -- full feature availability table
+- [Using UART](/docs/guides/using-uart/) -- serial communication with GPS, Bluetooth, and other modules
+- [Using I2C](/docs/resources/hardware/#i2c) -- slower bus for sensors with simpler wiring
+
+---
+
+## Using UART
+
+
+## What Is UART?
+
+UART (Universal Asynchronous Receiver/Transmitter) is a serial communication protocol used to exchange data between a microcontroller and external modules like GPS receivers, Bluetooth adapters, RS-485 transceivers, and other serial devices. Unlike SPI and I2C, UART is asynchronous -- there is no shared clock signal. Both sides must agree on the same baud rate (speed) ahead of time.
+
+UART uses two data lines:
+
+- **TX** (Transmit) -- data output from the microcontroller
+- **RX** (Receive) -- data input to the microcontroller
+
+The TX of one device connects to the RX of the other, and vice versa (crossed connection).
+
+## Platform Support
+
+| Platform | Ports | Restrictions |
+|----------|-------|-------------|
+| ESP32 | UART0, UART1, UART2 | UART0 reserved for debug console |
+| ESP32-C61 | UART0, UART1 | UART0 reserved for debug console |
+| Pico W / Pico 2W | UART0 (port 0), UART1 (port 1) | Both available |
+| Simulator | port 0 | Returns mock responses |
+
+On ESP32 boards, UART0 is connected to the USB-to-serial converter used for flashing and debug output. Use UART1 or UART2 for external peripherals.
+
+## Pin Configuration
+
+### Pico W / Pico 2W
+
+| Signal | UART0 Pins | UART1 Pins |
+|--------|-----------|-----------|
+| TX | GP0, GP12, GP16 | GP4, GP8 |
+| RX | GP1, GP13, GP17 | GP5, GP9 |
+
+### ESP32
+
+Any available GPIO can be assigned to UART1 and UART2. Common defaults:
+
+| Signal | UART1 | UART2 |
+|--------|-------|-------|
+| TX | GPIO 10 | GPIO 17 |
+| RX | GPIO 9 | GPIO 16 |
+
+### ESP32-C61
+
+| Signal | UART1 |
+|--------|-------|
+| TX | Any available GPIO |
+| RX | Any available GPIO |
+
+## Communication Parameters
+
+UART communication is defined by several parameters. Both sides must match:
+
+- **Baud rate** -- bits per second. Common values: 9600, 19200, 38400, 57600, 115200
+- **Data bits** -- bits per character (5, 6, 7, or 8). Default: 8
+- **Stop bits** -- 1 or 2. Default: 1
+- **Parity** -- error checking bit: `"none"`, `"even"`, or `"odd"`. Default: `"none"`
+
+The most common configuration is **9600 8N1** (9600 baud, 8 data bits, no parity, 1 stop bit) or **115200 8N1** for faster peripherals.
+
+## TypeScript API
+
+### Configure a UART Port
+
+Set pin assignments, baud rate, and optional framing parameters:
+
+```typescript
+// Basic configuration: 9600 baud on port 1
+await this.env.DEVICE.uartConfigure(1, 4, 5, 9600);
+
+// Full configuration with all parameters
+await this.env.DEVICE.uartConfigure(
+  1,        // port number
+  4,        // TX pin
+  5,        // RX pin
+  115200,   // baud rate
+  8,        // data bits (5, 6, 7, or 8)
+  1,        // stop bits (1 or 2)
+  'none'    // parity ('none', 'even', or 'odd')
+);
+```
+
+### Write Data
+
+Send bytes to the UART peripheral. Data values are hex strings:
+
+```typescript
+// Send the ASCII string "AT\r\n" to an AT-command device
+await this.env.DEVICE.uartWrite(1, ['0x41', '0x54', '0x0D', '0x0A']);
+
+// Send raw bytes
+await this.env.DEVICE.uartWrite(1, ['0xFF', '0x01', '0x86']);
+```
+
+### Read Data
+
+Read bytes from the UART receive buffer. Specify the maximum number of bytes to read and an optional timeout in milliseconds:
+
+```typescript
+// Read up to 64 bytes, wait up to 2 seconds for data
+const result = await this.env.DEVICE.uartRead(1, 64, 2000);
+if (result.type === 'uart_read_result') {
+  console.log(`Read ${result.payload.bytes_read} bytes:`, result.payload.data);
+}
+```
+
+If `timeoutMs` is omitted, the read returns immediately with whatever data is available in the buffer.
+
+## Example: Reading GPS Data Over UART
+
+GPS modules (like the NEO-6M) output NMEA sentences over UART at 9600 baud. This example reads GPS data and extracts the position.
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+
+const GPS_TX_PIN = 4;  // Microcontroller TX -> GPS RX (if needed)
+const GPS_RX_PIN = 5;  // GPS TX -> Microcontroller RX
+const GPS_PORT = 1;
+
+export default class GpsDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    // GPS modules typically communicate at 9600 baud
+    await this.env.DEVICE.uartConfigure(GPS_PORT, GPS_TX_PIN, GPS_RX_PIN, 9600);
+
+    // Read GPS data in a loop
+    for (let i = 0; i < 60; i++) {
+      const result = await this.env.DEVICE.uartRead(GPS_PORT, 256, 1000);
+      if (result.type === 'uart_read_result' && result.payload.bytes_read > 0) {
+        const text = hexToAscii(result.payload.data);
+        const lines = text.split('\r\n');
+
+        for (const line of lines) {
+          // $GPGGA contains position fix data
+          if (line.startsWith('$GPGGA')) {
+            console.log('GPS fix:', line);
+            await this.env.DEVICE.persistLog('info', `GPS: ${line}`);
+          }
+        }
+      }
+
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+}
+
+function hexToAscii(hexBytes: string[]): string {
+  return hexBytes
+    .map(h => String.fromCharCode(parseInt(h, 16)))
+    .join('');
+}
+```
+
+## Example: Sending AT Commands
+
+Many peripherals (Bluetooth modules, WiFi modules, cellular modems) use AT commands over UART:
+
+```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
+export default class AtCommandDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    // Configure UART at 115200 baud for a Bluetooth module
+    await this.env.DEVICE.uartConfigure(1, 4, 5, 115200);
+
+    // Send AT command to check module is responsive
+    const response = await this.sendAt('AT');
+    console.log('Module response:', response);
+
+    // Query module firmware version
+    const version = await this.sendAt('AT+VERSION');
+    console.log('Firmware:', version);
+  }
+
+  async sendAt(command: string): Promise<string> {
+    // Convert command + CRLF to hex bytes
+    const bytes = `${command}\r\n`.split('').map(
+      c => '0x' + c.charCodeAt(0).toString(16).padStart(2, '0')
+    );
+    await this.env.DEVICE.uartWrite(1, bytes);
+
+    // Wait for response
+    const result = await this.env.DEVICE.uartRead(1, 128, 2000);
+    if (result.type === 'uart_read_result') {
+      return result.payload.data
+        .map(h => String.fromCharCode(parseInt(h, 16)))
+        .join('');
+    }
+    return '';
+  }
+}
+```
+
+## CLI Inspect Commands
+
+Use `devicesdk inspect <device-id>` to test UART interactively:
+
+```
+uart configure <port> <tx> <rx> <baud> [data_bits] [stop_bits] [parity]
+uart write <port> <hex_bytes...>
+uart read <port> <bytes> [timeout_ms]
+```
+
+Examples:
+
+```
+> uart configure 1 4 5 9600
+OK
+> uart write 1 0x41 0x54 0x0D 0x0A
+OK
+> uart read 1 64 2000
+UART port 1 read 4 bytes: [0x4F, 0x4B, 0x0D, 0x0A]
+```
+
+## Tips
+
+- Always configure the port before reading or writing.
+- Cross the TX/RX connections: your TX pin connects to the peripheral's RX, and vice versa.
+- Match baud rates exactly. A mismatch produces garbled data.
+- GPS modules may take 30-60 seconds to acquire a satellite fix after power-on. The module will still output NMEA sentences during this time, but position fields will be empty.
+- On ESP32, avoid using UART0 (port 0) for peripherals -- it is wired to the USB debug console.
+- Data bytes are hex strings prefixed with `0x` (e.g., `'0x41'` for ASCII 'A').
+- When reading, the `bytes_read` field in the response indicates how many bytes were actually received (may be less than `bytesToRead`).
+
+## Next Steps
+
+- [Hardware Compatibility](/docs/resources/hardware/) -- full feature availability table
+- [Using SPI](/docs/guides/using-spi/) -- faster bus for displays and SD cards
+- [Addressable LEDs](/docs/guides/addressable-leds/) -- drive WS2812/NeoPixel LED strips
+
+---
+
+## Quickstart
+
+
+## Prerequisites
+
+- **Node.js 22 or newer** - [Download Node.js](https://nodejs.org/)
+- A DeviceSDK account - [Sign up free](https://dash.devicesdk.com)
+
+## Step 1: Create Your First Project
+
+Initialize a new project:
+
+```bash
+npx @devicesdk/cli init hello-world
+```
+
+This creates a new directory with:
+- `devicesdk.ts` - Project configuration
+- `src/devices/` - Your device entrypoints
+- Example device code to get started
+
+Navigate into your project:
+
+```bash
+cd hello-world
+```
+
+## Step 2: Deploy
+
+Deploy your code to the edge:
+
+```bash
+npx @devicesdk/cli deploy
+```
+
+Your code is now running on DeviceSDK network, ready to handle real device connections.
+
+## Step 3: Stream Logs
+
+Tail device output directly from the terminal — the recommended debugging workflow after deploying:
+
+```bash
+npx @devicesdk/cli logs <project-id> <device-id> --tail
+```
+
+New log entries stream in as they arrive. Press **Ctrl-C** to stop. See [`devicesdk logs`](/docs/cli/logs/) for filtering by level and other options.
+
+## Step 4: View in Dashboard
+
+Visit your [dashboard](https://dash.devicesdk.com) to:
+- See your deployed projects
+- Monitor device connections
+- View message logs
+- Manage device credentials
+- Track version history
+
+## Step 4: Store Secrets with Environment Variables
+
+Keep API keys and credentials out of your source code using project-scoped environment variables:
+
+```bash
+npx @devicesdk/cli env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+Access them in your device script:
+
+```typescript
+const webhookUrl = await this.env.VARS.get("DISCORD_WEBHOOK_URL");
+```
+
+See [**Environment Variables**](/docs/concepts/env-vars/) for the full reference.
+
+## Next Steps
+
+Now that you have a working project:
+
+- [**Your First Device**](/docs/first-device/) - Learn how to build device entrypoints
+- [**CLI Reference**](/docs/cli/) - Explore all available commands
+- [**Environment Variables**](/docs/concepts/env-vars/) - Store secrets outside your code
+- [**Platform Architecture**](/docs/concepts/architecture/) - Understand how DeviceSDK works
+
+## Need Help?
+
+- [Join our Discord](https://discord.gg/WuNhbXGsBy) for community support
+- [Check the FAQ](/docs/resources/faq/) for common questions
+- [View troubleshooting guide](/docs/resources/troubleshooting/) if you encounter issues
+
+---
+
+## Changelog
+
+
+## December 27, 2025
+
+- Private Beta milestone: expanded access and onboarding for early teams
+- Pico W and Pico 2W are the officially supported hardware targets
+- ESP32 support tracked as next hardware platform
+
+---
+
+## DeviceSDK vs Microsoft DeviceScript
+
+
+Microsoft DeviceScript and DeviceSDK both let you write TypeScript for microcontrollers — but they work in fundamentally different ways. Understanding the distinction helps you pick the right tool.
+
+## The Core Difference
+
+| | DeviceSDK | Microsoft DeviceScript |
+|---|---|---|
+| **Where your code runs** | Cloud (serverless runtime) | On the device (compiled bytecode) |
+| **Firmware** | Pre-built — you never touch C | Custom build per project |
+| **Language runtime** | Full Node.js-compatible JS engine | Restricted TypeScript bytecode VM |
+| **Iteration speed** | `devicesdk deploy` — seconds, no device touch | Recompile + reflash on every change |
+| **npm ecosystem** | Full access (`fetch`, `axios`, external APIs) | Restricted subset of the standard library |
+| **Device stays online?** | Yes — device connects once and listens | Yes — runs standalone on device |
+| **Internet access** | In the cloud script (no device code needed) | Requires separate HTTP component |
+| **Multi-device logic** | Native (scripts can address any device) | One script per device |
+| **Supported hardware** | ESP32, Raspberry Pi Pico W / 2W | Wide range (Seeed, ST, Nordic, etc.) |
+
+## Execution Model
+
+### DeviceSDK
+
+Your TypeScript runs **in a globally distributed serverless runtime** — not on the microcontroller. The device runs pre-built firmware and maintains a persistent WebSocket connection to the cloud. When your script runs, it sends commands over that WebSocket and receives responses.
+
+```
+Cloud (your TypeScript) ←→ WebSocket ←→ Microcontroller (pre-built firmware)
+```
+
+This means:
+- Full Node.js-compatible JavaScript — `fetch`, promises, async/await, all npm packages
+- HTTP calls, database access, Discord webhooks, multi-device orchestration — all in the same script
+- Update your logic in seconds with `devicesdk deploy` — the device never reboots
+
+### Microsoft DeviceScript
+
+DeviceScript compiles your TypeScript to a custom bytecode that runs **on the device itself**. The runtime is a small VM that executes on the microcontroller.
+
+```
+TypeScript → DeviceScript bytecode → compiled into device firmware → flashed to device
+```
+
+This means:
+- A restricted TypeScript subset — not all npm packages are supported
+- Code changes require recompile + reflash
+- Internet access requires explicit HTTP/WiFi components
+- Logic runs offline (no cloud dependency)
+
+## When to Choose DeviceSDK
+
+DeviceSDK is the better fit when you:
+
+- Want to write standard TypeScript without learning a custom runtime
+- Need to call external APIs (webhooks, databases, REST services) from your device logic
+- Are iterating rapidly — deploy code changes in seconds without touching hardware
+- Need multiple devices to coordinate or share state
+- Want pre-built firmware — no toolchain setup, no C/C++
+- Are building production systems that benefit from cloud-side logging, versioning, and fleet management
+
+## When to Choose DeviceScript
+
+DeviceScript may be a better fit when you:
+
+- Need offline operation (device must work without internet)
+- Target hardware not supported by DeviceSDK (Nordic, Seeed XIAO, etc.)
+- Want code to run purely on-device with no cloud dependency
+- Are already in the Jacdac / Microsoft MakeCode ecosystem
+
+## Iteration Speed Comparison
+
+One of the sharpest practical differences is iteration speed.
+
+**DeviceSDK:**
+```bash
+# Edit your TypeScript script, then:
+npx @devicesdk/cli deploy
+# Done — new code is live in seconds. Device doesn't reboot.
+```
+
+**DeviceScript:**
+```bash
+# Edit your TypeScript, then:
+# 1. Recompile DeviceScript
+# 2. Rebuild firmware with the new bytecode
+# 3. Flash to device (requires USB or OTA)
+# Device restarts
+```
+
+For rapid prototyping or production deployments, DeviceSDK's redeploy-without-reflash model is significantly faster.
+
+## npm Ecosystem Access
+
+**DeviceSDK** scripts run in a full JavaScript runtime. Any npm package that works in a Node.js-compatible environment is available:
+
+```typescript
+import axios from 'axios';
+import { format } from 'date-fns';
+// All standard Node.js APIs, fetch, crypto, etc.
+```
+
+**DeviceScript** supports a restricted subset of the standard library. Many npm packages that depend on Node.js APIs (`fs`, `net`, `child_process`) are not available.
+
+## Example: Sending a Webhook on Button Press
+
+Both platforms can react to a GPIO button press, but the implementation differs:
+
+### DeviceSDK
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+
+export default class ButtonWebhook extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    await this.env.DEVICE.configureGpioInputMonitoring(15, true, 'up');
+  }
+
+  async onMessage(message: DeviceResponse) {
+    if (message.type === 'gpio_state_changed' && message.payload.state === 'low') {
+      // Full fetch API — runs in the cloud, no device-side HTTP needed
+      await fetch('https://hooks.slack.com/...', {
+        method: 'POST',
+        body: JSON.stringify({ text: 'Button pressed!' })
+      });
+    }
+  }
+}
+```
+
+### DeviceScript
+
+Requires a separate HTTP client service and explicit WiFi management. The webhook call happens on the device itself, consuming device RAM and flash.
+
+## Summary
+
+DeviceSDK and DeviceScript solve different problems:
+
+- **DeviceSDK** is for developers who want TypeScript as a first-class language with full npm access, fast iteration, and cloud-side control logic. The device is a hardware endpoint — your TypeScript orchestrates it from the cloud.
+
+- **DeviceScript** is for developers who want to run TypeScript bytecode directly on-device, potentially offline, across a wide range of hardware.
+
+If you've found DeviceScript through a "TypeScript IoT" search and want to control ESP32 or Raspberry Pi Pico hardware with standard TypeScript — calling APIs, deploying in seconds, no firmware builds — DeviceSDK is what you're looking for.
+
+## Next Steps
+
+- [Quickstart](/docs/quickstart/) — get DeviceSDK running in 15 minutes
+- [Platform Architecture](/docs/concepts/architecture/) — understand how cloud-side control works
+- [Hardware Compatibility](/docs/resources/hardware/) — supported devices
+
+---
+
+## Frequently Asked Questions
+
+
+## General
+
+### What is DeviceSDK?
+
+DeviceSDK is a platform for building IoT applications with TypeScript. It runs your code on a globally distributed runtime, providing low-latency communication with devices worldwide.
+
+### How is this different from other IoT platforms?
+
+- **TypeScript-first** - Full TypeScript support, not just configuration
+- **Cloud-side logic** - Your script runs in the cloud and talks to your device over WebSocket — no reflashing to update behavior
+- **Distributed execution** - Code runs globally, near your devices
+- **Developer-friendly** - Built-in simulator, modern tooling
+- **Pay per message** - No uptime charges
+- **Simple integration** - Use your preferred APIs and services
+
+### Do I need to know C or C++ to use DeviceSDK?
+
+No. DeviceSDK ships pre-built firmware for ESP32 and Raspberry Pi Pico — you never touch C or C++. All your logic is written in TypeScript and runs in the cloud. The firmware is open source, but you don't need to modify it.
+
+### How is DeviceSDK different from Arduino?
+
+Arduino requires you to write C/C++ and flash new code to the device every time you make a change. With DeviceSDK, your TypeScript script runs in the cloud and sends commands to your device over a persistent WebSocket connection. You can update and redeploy your logic in seconds without touching the device.
+
+### How is DeviceSDK different from ESPHome?
+
+ESPHome uses YAML to configure smart home automations that run on-device. DeviceSDK is a general-purpose IoT platform for writing arbitrary TypeScript logic — HTTP calls, data processing, multi-device orchestration, conditional workflows — that runs in the cloud and controls hardware in real time. It's not limited to home automation use cases.
+
+### Does it work with MicroPython?
+
+No. DeviceSDK uses its own pre-built firmware (written in C/C++) that handles the WebSocket connection to the cloud. Your application code is TypeScript running server-side — not Python on the device. This approach gives you faster iteration (no reflash cycle) and access to the full npm ecosystem.
+
+### Can I use DeviceSDK for production or commercial projects?
+
+Yes. DeviceSDK is designed for production use. It supports multiple devices per project, API tokens for CI/CD, cron-based scheduling, fleet management via the dashboard, and persistent KV storage. The paid tier is $5/month for up to 5 million messages.
+
+### Do I need to know any specific cloud platform?
+
+No. DeviceSDK provides a simple API and does not require provider-specific knowledge.
+
+## Pricing
+
+### How much does it cost?
+
+- **Free tier**: 500 messages/day free
+- **Paid tier**: Starting at $5/month, includes 5 million messages/month. Additional messages at $3 per million.
+
+See [pricing page](/pricing/) for details.
+
+### What counts as a message?
+
+Any communication between your code and device:
+- Commands sent to device (1 message)
+- Data received from device (1 message)
+
+### Do I pay for offline devices?
+
+No. You only pay for messages sent and received. Offline devices cost nothing.
+
+### Can I set spending limits?
+
+Yes. Configure daily and monthly limits in the dashboard to avoid surprises.
+
+## Supported Hardware
+
+### What devices are supported?
+
+Currently supported:
+- Raspberry Pi Pico W
+- Raspberry Pi Pico 2 W
+- ESP32-C61 (ESP32 series)
+
+### Can I use Raspberry Pi (full computer)?
+
+Not yet. DeviceSDK targets microcontrollers, not Linux computers.
+
+### Can I request hardware support?
+
+Yes! Join our [Discord](https://discord.gg/WuNhbXGsBy) and let us know what you need.
+
+## Development
+
+### Do I need physical hardware to get started?
+
+No. The built-in simulator lets you test without hardware:
+```bash
+devicesdk dev
+```
+
+### Can I use JavaScript instead of TypeScript?
+
+Yes, but TypeScript is recommended for better type safety and developer experience.
+
+### What libraries can I use?
+
+Most npm packages work. Runtime restrictions:
+- No Node.js-specific APIs (fs, child_process, etc.)
+- No native bindings
+- No heavy computation (execution limits apply)
+
+### Can I use external APIs?
+
+Yes! Call any HTTP API from your device scripts:
+```typescript
+await fetch('https://api.example.com/data');
+```
+
+## Deployment
+
+### How long does deployment take?
+
+Typically 10-30 seconds to deploy globally.
+
+### Can I rollback a deployment?
+
+Yes. Rollback to any previous version instantly via the dashboard.
+
+### How many devices can I have?
+
+No limit on device count in any tier.
+
+### Can I deploy from CI/CD?
+
+Yes. Use the CLI with a token:
+```bash
+DEVICESDK_TOKEN=xxx devicesdk deploy
+```
+
+## Security
+
+### How is data encrypted?
+
+- All WebSocket connections use TLS 1.3
+- Device credentials are unique per device
+- API access requires authentication tokens
+
+### Where is my data stored?
+
+- Code runs on a globally distributed runtime
+- Logs stored per your retention settings
+- Device state in KV storage
+
+### Can I use custom domains?
+
+Not yet for device connections, but you can build web UIs on custom domains.
+
+### Is my code isolated from other users?
+
+Yes. Each project runs in isolated execution contexts.
+
+## Connectivity
+
+### Does my network need special configuration?
+
+Most networks work out-of-box. Requirements:
+- Allow outbound WebSocket (port 443)
+- No captive portal blocking connections
+
+### What's the expected latency?
+
+Typically 50-200ms round-trip, depending on:
+- Geographic distance
+- Network quality
+- Edge routing
+
+### What if my device loses connection?
+
+Devices automatically reconnect with exponential backoff. Your `onDeviceConnect` is called again after reconnection.
+
+### Can devices communicate with each other?
+
+Yes! Devices in the same project can call methods on each other with full type safety:
+
+```typescript
+import type { Env } from '../../devicesdk-env';
+
+export class Sensor extends DeviceEntrypoint<Env> {
+  async onMessage(message: DeviceResponse) {
+    // Call a method on another device — fully typed with autocomplete
+    const result = await this.env.DEVICES['light-controller'].turnOn();
+    console.info('Light status:', result.status);
+  }
+}
+```
+
+The CLI generates `devicesdk-env.d.ts` with types for all devices in your project. Methods that only use KV storage work even when the target device's hardware is offline. See the [Inter-Device Communication Guide](/docs/guides/inter-device-communication/) for a full walkthrough.
+
+## Features
+
+### Can I send notifications?
+
+Yes. Use any notification service:
+- Email (Resend, SendGrid, etc.)
+- SMS (Twilio)
+- Push notifications
+- Discord/Slack webhooks
+
+### Can I build a dashboard?
+
+Yes. Build web UIs with any frontend framework and host where you prefer.
+
+### Is there a mobile app?
+
+Not yet. The web dashboard is mobile-friendly.
+
+## Limitations
+
+### What are the execution limits?
+
+- Script execution: 50ms CPU time recommended
+- Message size: 64 KB max
+- WebSocket connection: Persistent
+
+### Can I run long computations?
+
+For heavy computation:
+- Offload to separate services/queues
+- Keep device scripts lightweight
+
+### Maximum message rate?
+
+No hard limit, but billing increases with messages. Optimize for efficiency.
+
+## Support
+
+### How do I get help?
+
+1. Check this FAQ and [documentation](/docs/)
+2. Join [Discord community](https://discord.gg/WuNhbXGsBy)
+3. Email support@devicesdk.com
+
+### Is there paid support?
+
+Enterprise plans include priority support. Contact sales for details.
+
+### Where do I report bugs?
+
+- GitHub issues for open source components
+- Discord for community help
+- Email for account/billing issues
+
+## Roadmap
+
+### What's coming next?
+
+- ESP32 support
+- More hardware platforms
+- Enhanced simulator
+- Mobile device apps
+- Advanced analytics
+
+### Can I influence the roadmap?
+
+Yes! Share feedback in Discord or via email. We prioritize user-requested features.
+
+### Is DeviceSDK open source?
+
+Some components are open source. Check our [GitHub](https://github.com/device-sdk).
+
+## Migration
+
+### Can I migrate from another platform?
+
+Yes. We have migration guides for:
+- AWS IoT Core
+- Google Cloud IoT
+- Azure IoT Hub
+
+### Will you support MQTT?
+
+We use WebSockets for performance on the distributed runtime. MQTT compatibility is being evaluated.
+
+### Can I export my data?
+
+Yes. All data can be exported via API or dashboard.
+
+## Still Have Questions?
+
+- [Join Discord](https://discord.gg/WuNhbXGsBy) for community help
+- [Email support](mailto:support@devicesdk.com) for specific issues
+- Check our [troubleshooting guide](/docs/resources/troubleshooting/)
+
+---
+
+## Glossary
+
+
+## A
+
+### ADC (Analog-to-Digital Converter)
+Hardware that converts analog voltage signals (0-3.3V) to digital values. Used for reading sensors like temperature, light, and pressure.
+
+### API Token
+Authentication credential for accessing the DeviceSDK API programmatically. Generated in the dashboard for CI/CD and automation.
+
+## B
+
+### BOOTSEL Mode
+Special mode on Raspberry Pi Pico that allows firmware flashing. Entered by holding the BOOTSEL button while connecting USB.
+
+## C
+
+### CLI (Command-Line Interface)
+The `@devicesdk/cli` tool for developing, building, and deploying device applications from the terminal.
+
+### Serverless Runtime
+The globally distributed platform that runs DeviceSDK device scripts.
+
+## D
+
+### Dashboard
+Web interface at dash.devicesdk.com for managing projects, devices, deployments, and viewing logs.
+
+### Device
+A physical microcontroller (like Raspberry Pi Pico W) running DeviceSDK firmware and connected to your project.
+
+### Device Credentials
+Unique authentication tokens embedded in device firmware during flashing. Used to securely connect devices to your project.
+
+### Device Entrypoint
+A TypeScript class that handles device communication. Contains lifecycle methods like `onDeviceConnect`, `onMessage`, and `onDeviceDisconnect`.
+
+### Device ID
+Unique identifier for each device in your project. Set during firmware flashing.
+
+### Deployment
+The process of uploading and activating device scripts to the edge network. Creates a new immutable version.
+
+## E
+
+### Distributed Network
+A global network of locations where device scripts execute close to users and devices.
+
+### Runtime
+The serverless JavaScript runtime environment where device scripts execute.
+
+### Environment Bindings
+Objects accessible in device entrypoints like `this.env.DEVICE`, providing access to platform features. Standard `console` methods are also available for logging.
+
+## F
+
+### Firmware
+The software running on the microcontroller that handles hardware communication and maintains the WebSocket connection to DeviceSDK.
+
+### Flashing
+The process of installing firmware onto a microcontroller's flash memory.
+
+## G
+
+### GPIO (General Purpose Input/Output)
+Programmable digital pins on microcontrollers for reading buttons, controlling LEDs, etc.
+
+## H
+
+### Hot Reload
+Development feature that automatically rebuilds and applies code changes without restarting the dev server.
+
+## I
+
+### I2C (Inter-Integrated Circuit)
+Serial communication protocol for connecting sensors and peripherals. Commonly used for temperature sensors, displays, etc.
+
+### Immutable Version
+A deployed script version that cannot be modified. Ensures consistency and enables safe rollbacks.
+
+## K
+
+### KV Storage
+Key-value storage for storing device state and configuration.
+
+## L
+
+### Lifecycle Methods
+Functions in device entrypoints called at specific points: `onDeviceConnect`, `onMessage`, `onDeviceDisconnect`.
+
+## M
+
+### Message
+A unit of communication between device and cloud, sent via WebSocket. Billing is based on message count.
+
+### Microcontroller
+A small computer on a single chip, like Raspberry Pi Pico, that runs embedded firmware.
+
+## O
+
+### onDeviceConnect
+Lifecycle method called when a device establishes a WebSocket connection.
+
+### onDeviceDisconnect
+Lifecycle method called when a device's WebSocket connection closes.
+
+### onMessage
+Lifecycle method called when a device sends a message to the cloud.
+
+## P
+
+### Pin
+Physical connection point on a microcontroller for GPIO, ADC, I2C, etc.
+
+### Project
+A collection of device entrypoints, configuration, and deployments. Corresponds to one DeviceSDK application.
+
+### PWM (Pulse Width Modulation)
+Technique for controlling power to devices by rapidly switching on/off. Used for LED dimming, motor speed control, etc.
+
+## R
+
+### Rollback
+Reverting to a previous version of deployed code. Available instantly via the dashboard.
+
+### RP2040
+The microcontroller chip used in Raspberry Pi Pico, featuring dual ARM Cortex-M0+ cores.
+
+## S
+
+### Script
+Compiled JavaScript code running on the runtime that handles device communication. Built from TypeScript entrypoints.
+
+### Simulator
+Local development environment (`devicesdk dev`) that emulates device connections without physical hardware.
+
+### SPI (Serial Peripheral Interface)
+High-speed serial communication protocol for peripherals like SD cards and displays.
+
+### Staging
+Environment for testing deployments before production. Implemented using separate projects.
+
+## T
+
+### TLS (Transport Layer Security)
+Encryption protocol securing WebSocket connections between devices and runtime.
+
+### TypeScript
+Primary programming language for DeviceSDK device entrypoints, providing type safety and modern features.
+
+## V
+
+### Version
+An immutable snapshot of deployed code. Each deployment creates a new version with unique identifier.
+
+### Version History
+Record of all deployments in a project, including timestamps, authors, and deployment messages.
+
+## W
+
+### WebSocket
+Persistent, bidirectional communication protocol connecting devices to the runtime.
+
+### WiFi
+Wireless networking technology used by devices to connect to the internet. Currently supports 2.4GHz 802.11n.
+
+## Common Acronyms
+
+- **API** - Application Programming Interface
+- **CI/CD** - Continuous Integration/Continuous Deployment
+- **GPIO** - General Purpose Input/Output
+- **HTTP** - Hypertext Transfer Protocol
+- **IoT** - Internet of Things
+- **JSON** - JavaScript Object Notation
+- **LED** - Light Emitting Diode
+- **RAM** - Random Access Memory
+- **REST** - Representational State Transfer
+- **SDK** - Software Development Kit
+- **TLS** - Transport Layer Security
+- **UART** - Universal Asynchronous Receiver-Transmitter
+- **USB** - Universal Serial Bus
+- **UUID** - Universally Unique Identifier
+
+## Related Resources
+
+- [Platform Architecture](/docs/concepts/architecture/) - How components fit together
+- [Your First Device](/docs/first-device/) - Hands-on tutorial
+- [FAQ](/docs/resources/faq/) - Common questions
+
+---
+
+## Hardware Compatibility
+
+
+## Officially Supported
+
+### Raspberry Pi Pico W
+
+✅ **Full support**
+
+- **Chip**: RP2040 (Dual ARM Cortex-M0+ @ 133MHz)
+- **RAM**: 264KB SRAM
+- **Flash**: 2MB
+- **WiFi**: 2.4GHz 802.11n (CYW43439)
+- **GPIO**: 26 pins
+- **ADC**: 3 channels, 12-bit
+- **PWM**: 16 channels
+- **I2C**: 2 controllers
+- **SPI**: 2 controllers
+- **UART**: 2 controllers
+
+### Raspberry Pi Pico 2W
+
+✅ **Full support**
+
+- **Chip**: RP2350 (Dual Cortex-M33 @ 150MHz)
+- **RAM**: 520KB SRAM
+- **Flash**: 8MB
+- **WiFi**: 2.4GHz
+- **GPIO/ADC/PWM/I2C/SPI/UART**: Compatible footprint and pinout with Pico W
+
+### ESP32
+
+✅ **Full support**
+
+- **Chip**: ESP32 (Dual Xtensa LX6 @ 240MHz)
+- **RAM**: 520KB SRAM
+- **Flash**: 4MB (typical)
+- **WiFi**: 2.4GHz 802.11 b/g/n
+- **GPIO**: 34 pins
+- **ADC**: 18 channels, 12-bit
+- **PWM**: 16 channels (LEDC)
+- **I2C**: 2 controllers
+- **SPI**: 3 controllers
+- **UART**: 3 controllers
+
+### ESP32-C61
+
+✅ **Full support**
+
+- **Chip**: ESP32-C61 (Single RISC-V @ 160MHz)
+- **RAM**: 256KB SRAM
+- **Flash**: 4MB (typical)
+- **WiFi**: 2.4GHz 802.11 b/g/n/ax (WiFi 6)
+- **GPIO**: 22 pins
+- **ADC**: 7 channels, 12-bit
+- **I2C**: 1 controller
+- **SPI**: 2 controllers
+- **UART**: 2 controllers
+
+## Hardware Requirements
+
+### Minimum Requirements
+
+For DeviceSDK device support:
+- Raspberry Pi Pico W / Pico 2W, or an ESP32 / ESP32-C61 board
+- Stable WiFi connectivity
+
+### Recommended
+
+- 256KB+ RAM for complex applications
+- 2MB+ Flash for future updates
+- 2.4GHz WiFi
+- Hardware floating point
+
+## Pin Mapping
+
+### Raspberry Pi Pico W
+
+Standard GPIO pin numbers (GP0-GP28) are used directly:
+
+```typescript
+// GPIO 25 (onboard LED)
+await this.env.DEVICE.setGpioState(25, 'high');
+```
+
+### Pico W ADC Pins
+
+ADC-capable pins on Pico W:
+- **GP26** - ADC0
+- **GP27** - ADC1
+- **GP28** - ADC2
+
+### Pico W Special Pins
+
+- **GP25** - Onboard LED (Pico W uses different pin for LED)
+- **GP23-GP24** - WiFi module (reserved)
+
+### ESP32
+
+Standard GPIO pin numbers are used directly. The onboard LED pin varies by board:
+
+| Board | Onboard LED Pin |
+|-------|----------------|
+| ESP32 (classic) | GPIO 2 |
+| ESP32-C61 | GPIO 5 |
+
+```typescript
+// ESP32 onboard LED (GPIO 2)
+await this.env.DEVICE.setGpioState(2, 'high');
+
+// ESP32-C61 onboard LED (GPIO 5)
+await this.env.DEVICE.setGpioState(5, 'high');
+```
+
+## Platform Feature Availability
+
+| Feature | ESP32 | Pico | Simulator | Notes |
+|---------|:-----:|:----:|:---------:|-------|
+| GPIO digital I/O | Yes | Yes | Yes | |
+| GPIO input monitoring | Yes | Yes | Yes | Pull up/down/none |
+| PWM output | Yes | Yes | Yes | |
+| ADC analog read | Yes | Yes | Yes | ESP32: ADC1 only (ADC2 blocked by WiFi) |
+| I2C master | Yes | Yes | Yes | 2 buses, configure/scan/read/write |
+| I2C batch write | Yes | Yes | Yes | Reduces round-trips for multi-register writes |
+| OLED display (SSD1306/SH1106) | Yes | Yes | Yes | Full drawing API in @devicesdk/core |
+| SPI master | Yes | Yes | Simulated | ESP32: SPI3; Pico: SPI0/SPI1 |
+| UART serial | Yes | Yes | Simulated | ESP32: UART0 reserved for debug |
+| On-die temperature sensor | Yes | Yes | Simulated | No external hardware needed |
+| Watchdog timer | Yes | Yes | Simulated | Pico: cannot disable once enabled |
+| Addressable LEDs (WS2812) | No | Yes | Simulated | Pico only via PIO |
+| Device reboot | Yes | Yes | No | |
+
+"Simulated" means the simulator returns mock responses without real hardware.
+
+### GPIO Digital I/O
+
+Set any GPIO pin high or low. Use `setGpioState()` for output and `getPinState()` for reading:
+
+```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
+export default class BlinkDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    const LED_PIN = 25; // Pico W — use 2 for ESP32
+
+    for (let i = 0; i < 5; i++) {
+      await this.env.DEVICE.setGpioState(LED_PIN, 'high');
+      await new Promise(r => setTimeout(r, 500));
+      await this.env.DEVICE.setGpioState(LED_PIN, 'low');
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+}
+```
+
+### GPIO Input Monitoring
+
+Monitor a pin for state changes. The device will push `gpio_state_changed` events to your `onMessage` handler:
+
+```typescript
+import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
+
+export default class ButtonDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    // Monitor pin 15 with internal pull-up resistor
+    await this.env.DEVICE.configureGpioInputMonitoring(15, true, 'up');
+  }
+
+  onMessage(message: DeviceResponse) {
+    if (message.type === 'gpio_state_changed') {
+      console.log(`Pin ${message.payload.pin} is now ${message.payload.state}`);
+    }
+  }
+}
+```
+
+### PWM Output
+
+Control LED brightness, servo motors, or buzzer tones with pulse-width modulation:
+
+```typescript
+// Set pin 16 to 1kHz at 50% duty cycle
+await this.env.DEVICE.setPwmState(16, 1000, 0.5);
+
+// Dim an LED to 25% brightness (low frequency for LEDs)
+await this.env.DEVICE.setPwmState(25, 1000, 0.25);
+
+// Stop PWM output (0% duty cycle)
+await this.env.DEVICE.setPwmState(16, 1000, 0);
+```
+
+### ADC Analog Read
+
+Read analog voltage (0-3.3V, 12-bit resolution) from ADC-capable pins:
+
+```typescript
+// Read analog value from pin 26 (Pico ADC0)
+const result = await this.env.DEVICE.getPinState(26, 'analog');
+if (result.type === 'pin_state_update') {
+  const voltage = (result.payload.value / 4095) * 3.3;
+  console.log(`Voltage: ${voltage.toFixed(2)}V`);
+}
+```
+
+On ESP32, only ADC1 pins are available for analog reads because ADC2 is used by WiFi.
+
+### I2C
+
+Configure I2C bus pins, scan for devices, and read/write registers. Data values are hex strings (e.g., `"0x3C"`):
+
+```typescript
+// Configure I2C bus 0 with SDA on pin 4, SCL on pin 5
+await this.env.DEVICE.sendCommand({
+  type: 'i2c_configure',
+  payload: { bus: 0, sda_pin: 4, scl_pin: 5, frequency: 400000 }
+});
+
+// Scan for connected devices
+const scanResult = await this.env.DEVICE.i2cScan(0);
+if (scanResult.type === 'i2c_scan_result') {
+  console.log('Found devices:', scanResult.payload.addresses_found);
+}
+
+// Write to a device register
+await this.env.DEVICE.i2cWrite(0, '0x3C', ['0x00', '0xAE']);
+
+// Read 2 bytes from register 0xD0
+const readResult = await this.env.DEVICE.i2cRead(0, '0x3C', 2, '0xD0');
+```
+
+Use batch writes to reduce round-trips when writing multiple registers:
+
+```typescript
+// Write multiple register sequences in one command
+await this.env.DEVICE.sendCommand({
+  type: 'i2c_batch_write',
+  payload: {
+    bus: 0,
+    address: '0x3C',
+    writes: [
+      ['0x00', '0xAE'],  // Display OFF
+      ['0x00', '0xD5'],  // Set display clock
+      ['0x00', '0x80'],  // Clock value
+    ]
+  }
+});
+```
+
+### SPI
+
+Full-duplex communication with SPI peripherals. See the [Using SPI](/docs/guides/using-spi/) guide for details.
+
+```typescript
+// Configure SPI bus
+await this.env.DEVICE.spiConfigure(0, 18, 19, 16, 17, 1000000, 0);
+
+// Full-duplex transfer (sends and receives simultaneously)
+const result = await this.env.DEVICE.spiTransfer(0, ['0x9F', '0x00', '0x00']);
+```
+
+### UART
+
+Serial communication with external modules. See the [Using UART](/docs/guides/using-uart/) guide for details.
+
+```typescript
+// Configure UART port 1 at 9600 baud
+await this.env.DEVICE.uartConfigure(1, 4, 5, 9600);
+
+// Write data
+await this.env.DEVICE.uartWrite(1, ['0x48', '0x65', '0x6C', '0x6C', '0x6F']);
+
+// Read up to 32 bytes with a 1-second timeout
+const result = await this.env.DEVICE.uartRead(1, 32, 1000);
+```
+
+### On-Die Temperature Sensor
+
+Read the microcontroller's built-in temperature sensor (no external hardware required):
+
+```typescript
+const result = await this.env.DEVICE.getTemperature();
+if (result.type === 'temperature_result') {
+  console.log(`CPU temp: ${result.payload.celsius.toFixed(1)}C`);
+}
+```
+
+### Watchdog Timer
+
+Reset the device automatically if your code stops responding. Feed the watchdog periodically to prevent resets:
+
+```typescript
+// Enable watchdog with 8-second timeout
+await this.env.DEVICE.watchdogConfigure(8000, true);
+
+// Feed the watchdog in your main loop
+await this.env.DEVICE.watchdogFeed();
+```
+
+On Pico, the watchdog cannot be disabled once enabled -- you must continue feeding it or the device will reboot.
+
+### Addressable LEDs (WS2812)
+
+Drive WS2812/NeoPixel LED strips from Pico devices using PIO. See the [Addressable LEDs](/docs/guides/addressable-leds/) guide for details.
+
+```typescript
+// Configure 8 LEDs on pin 2
+await this.env.DEVICE.pioWs2812Configure(2, 8);
+
+// Set all LEDs to green
+const green: [number, number, number][] = Array.from({ length: 8 }, () => [0, 255, 0]);
+await this.env.DEVICE.pioWs2812Update(green);
+```
+
+### Device Reboot
+
+Programmatically restart the device:
+
+```typescript
+await this.env.DEVICE.reboot();
+```
+
+The WebSocket connection will drop after reboot. The device will reconnect automatically and trigger `onDeviceConnect` again.
+
+## Power Specifications
+
+### Raspberry Pi Pico W
+
+- **Input voltage**: 5V via USB or 1.8-5.5V via VSYS
+- **Operating voltage**: 3.3V logic
+- **Current draw**: 
+  - Idle: ~25mA
+  - WiFi active: ~120mA
+  - Peak: ~150mA
+
+### Raspberry Pi Pico 2W
+
+- **Input voltage**: 5V via USB or 1.8-5.5V via VSYS
+- **Operating voltage**: 3.3V logic
+- **Current draw**: similar to Pico W under WiFi load
+
+### Power Considerations
+
+For battery operation:
+- Use sleep modes to conserve power
+- Disable WiFi when not needed
+- Efficient code reduces power usage
+
+## Flashing Frequency
+
+Flashing is typically **one-time per device**. After the first flash, updates are delivered **over-the-air (OTA)**. Only major firmware upgrades might need a repeat flash, and those are optional unless you specifically want the new firmware capabilities.
+
+## Development Setup
+
+### Required Hardware
+
+**For Pico W / Pico 2W:**
+1. **Raspberry Pi Pico W or Pico 2W**
+2. **USB Cable** — Micro-USB data cable (not power-only)
+
+**For ESP32 / ESP32-C61:**
+1. **ESP32 or ESP32-C61 development board**
+2. **USB-C cable** — Data-capable USB-C cable
+3. **Python 3** — Required for esptool (`pip install esptool`)
+
+**Optional:**
+- **Breadboard** — For prototyping
+- **Jumper wires** — For connections
+
+### Recommended Accessories
+
+- **Sensors** - Temperature, humidity, motion, etc.
+- **LEDs** - For visual feedback
+- **Buttons** - For user input
+- **Resistors** - For LED current limiting, pull-ups, etc.
+
+## Testing Your Hardware
+
+### Onboard LED Test
+
+Flash this code to verify hardware. Use the correct LED pin for your board:
+- **Pico W / Pico 2W**: pin `25`
+- **ESP32**: pin `2`
+- **ESP32-C61**: pin `5`
+
+```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
+
+const LED_PIN = 25; // Pico W — use 2 for ESP32, 5 for ESP32-C61
+
+export default class TestDevice extends DeviceEntrypoint {
+  async onDeviceConnect() {
+    // Blink LED 5 times
+    for (let i = 0; i < 5; i++) {
+      await this.env.DEVICE.setGpioState(LED_PIN, 'high');
+      await new Promise(r => setTimeout(r, 500));
+      await this.env.DEVICE.setGpioState(LED_PIN, 'low');
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+}
+```
+
+If LED blinks, your hardware is working!
+
+## Where to Buy
+
+### Official Distributors
+
+- [Raspberry Pi](https://www.raspberrypi.com/products/) — Pico W, Pico 2W
+- [Espressif](https://www.espressif.com/en/products/devkits) — ESP32, ESP32-C61 dev boards
+- [Adafruit](https://www.adafruit.com/)
+- [SparkFun](https://www.sparkfun.com/)
+- [Pimoroni](https://shop.pimoroni.com/)
+
+### Price Range
+
+- Raspberry Pi Pico W: $6-10 USD
+- ESP32 dev boards: $5-15 USD
+- Starter kits with accessories: $20-40 USD
+
+## Community-Tested Hardware
+
+Users have reported success with:
+- Custom RP2040 boards
+- Pico-compatible clones
+- Development boards with RP2040
+
+Note: These are not officially supported but may work.
+
+## Troubleshooting
+
+### Pico Won't Flash
+
+- Check USB cable supports data (not power-only)
+- Ensure BOOTSEL mode is active (hold BOOTSEL while plugging in USB)
+- Try a different USB port
+
+### ESP32 Won't Flash
+
+- Install esptool: `pip install esptool`
+- Check serial port permissions on Linux: `sudo usermod -a -G dialout $USER` (then log out/in)
+- If you see "No serial data received", your board may not support auto-reset — use manual boot mode and `--before no_reset` (see [flash docs](/docs/cli/flash/))
+- Try the USB-JTAG port (`/dev/ttyACM0`) instead of the UART port (`/dev/ttyUSB0`)
+- Lower the baud rate: `--baud 115200`
+
+### Device Won't Connect
+
+- Verify WiFi credentials
+- Check network allows WebSocket connections
+- Ensure firmware is properly flashed
+
+### GPIO Not Working
+
+- Check pin number is correct for your board (LED pins differ between boards)
+- Verify pin isn't reserved (e.g., WiFi pins on Pico W)
+- Check for hardware shorts
+
+## Future Platform Support
+
+- ESP32-C3, ESP32-S3 (planned)
+
+## Next Steps
+
+- [Your First Device](/docs/first-device/) - Get started building
+- [Quickstart](/docs/quickstart/) - Flash your first device
+- [CLI Flash Command](/docs/cli/flash/) - Flashing details
+
+---
+
+## Troubleshooting
+
+
+## CLI Issues
+
+### Authentication Failed
+
+**Symptom**: `devicesdk login` fails or shows "Unauthorized"
+
+**Solutions**:
+1. Clear existing credentials:
+   ```bash
+   devicesdk logout
+   devicesdk login
+   ```
+
+2. Check your internet connection
+
+3. Verify you're using the latest CLI:
+   ```bash
+   npx @devicesdk/cli@latest --version
+   ```
+
+### Command Not Found
+
+**Symptom**: `devicesdk: command not found`
+
+**Solutions**:
+1. Use npx directly:
+   ```bash
+   npx @devicesdk/cli [command]
+   ```
+
+2. Install globally:
+   ```bash
+   npm install -g @devicesdk/cli
+   ```
+
+3. Check Node.js version (requires 22+):
+   ```bash
+   node --version
+   ```
+
+### Build Failures
+
+**Symptom**: `devicesdk build` fails with TypeScript errors
+
+**Solutions**:
+1. Check TypeScript errors:
+   ```bash
+   npx tsc --noEmit
+   ```
+
+2. Verify all imports are correct
+
+3. Ensure `devicesdk.ts` config is valid
+
+4. Clear build cache:
+   ```bash
+   rm -rf .devicesdk/
+   devicesdk build
+   ```
+
+### Deploy Failures
+
+**Symptom**: Deploy command fails or times out
+
+**Solutions**:
+1. Ensure you're authenticated:
+   ```bash
+   devicesdk whoami
+   ```
+
+2. Check build completes successfully:
+   ```bash
+   devicesdk build
+   ```
+
+3. Verify network connectivity
+
+4. Check dashboard for deployment status
+
+## Device Connection Issues
+
+### Device Won't Connect
+
+**Symptom**: Device offline in dashboard
+
+**Solutions**:
+1. **Check WiFi credentials**
+   - Verify SSID and password
+   - Ensure 2.4GHz network (5GHz not supported)
+
+2. **Verify firmware**
+   - Re-flash device: `devicesdk flash`
+   - Check LED indicators
+
+3. **Network requirements**
+   - WebSocket (port 443) must be allowed
+   - No captive portal on WiFi
+   - Check firewall rules
+
+4. **Check device logs**
+   - View in dashboard
+   - Look for connection errors
+
+### Frequent Disconnections
+
+**Symptom**: Device connects then disconnects repeatedly
+
+**Solutions**:
+1. **Check WiFi signal strength**
+   - Move device closer to router
+   - Reduce interference
+
+2. **Power supply**
+   - Ensure stable power source
+   - USB power must provide adequate current
+
+3. **Code issues**
+   - Check for crashes in device logs
+   - Look for exceptions in `onDeviceConnect`
+
+### Device Connects but Doesn't Respond
+
+**Symptom**: Device shows online but doesn't handle messages
+
+**Solutions**:
+1. Check `onMessage` handler is implemented
+
+2. Verify message types match:
+   ```typescript
+   // Edge script sends this type
+   { type: 'gpio_write', ... }
+   
+   // Device must handle this type
+   ```
+
+3. Look for errors in device logs
+
+4. Test with simulator first
+
+## Hardware Issues
+
+### GPIO Not Working
+
+**Symptom**: Pin doesn't respond to commands
+
+**Solutions**:
+1. **Check pin number**
+   - Verify correct GPIO number (not physical pin)
+   - Example: GPIO 25, not Pin 25
+
+2. **Pin configuration**
+   - Ensure pin is configured as output/input
+   - Check for conflicting configuration
+
+3. **Hardware check**
+   - Test with multimeter
+   - Check for shorts
+   - Verify connections
+
+### ADC Readings Incorrect
+
+**Symptom**: Analog readings are wrong or unstable
+
+**Solutions**:
+1. **Pin verification**
+   - Use ADC-capable pins only (GP26, GP27, GP28)
+   
+2. **Voltage range**
+   - Input must be 0-3.3V
+   - Use voltage divider for higher voltages
+
+3. **Grounding**
+   - Ensure common ground
+   - Check for ground loops
+
+4. **Calibration**
+   - Take multiple readings and average
+   - Account for voltage reference variations
+
+### I2C Not Working
+
+**Symptom**: I2C sensor not responding
+
+**Solutions**:
+1. **Wiring check**
+   - SDA and SCL connected correctly
+   - Pull-up resistors present (4.7kΩ typical)
+   - Common ground
+
+2. **Address verification**
+   - Use I2C scanner to find device address
+   - Check sensor datasheet
+
+3. **Power**
+   - Sensor has adequate power
+   - Correct voltage level (3.3V vs 5V)
+
+## Flashing Issues
+
+### Device Not Detected in BOOTSEL Mode
+
+**Symptom**: `devicesdk flash` can't find device
+
+**Solutions**:
+1. **Enter BOOTSEL mode correctly**:
+   - Disconnect USB
+   - Hold BOOTSEL button
+   - Connect USB while holding
+   - Release button
+   - Device appears as "RPI-RP2" drive
+
+2. **USB cable**
+   - Must support data (not power-only)
+   - Try different cable
+
+3. **USB port**
+   - Try different USB port
+   - Some hubs don't work well
+
+### Flash Fails Partway Through
+
+**Symptom**: Flashing starts but fails to complete
+
+**Solutions**:
+1. **Don't disconnect** during flash
+
+2. **Clean flash**:
+   - Download flash_nuke.uf2 from Raspberry Pi
+   - Copy to BOOTSEL drive to erase completely
+   - Re-flash DeviceSDK firmware
+
+3. **Check disk space** on host computer
+
+## Performance Issues
+
+### High Latency
+
+**Symptom**: Messages take long time to arrive
+
+**Solutions**:
+1. Check network latency (ping test)
+
+2. Verify edge location is close to device
+
+3. Reduce message size
+
+4. Check for network congestion
+
+### Message Loss
+
+**Symptom**: Messages not received reliably
+
+**Solutions**:
+1. Implement acknowledgments for critical messages
+
+2. Check message size (must be < 64KB)
+
+3. Verify stable connection
+
+4. Look for errors in logs
+
+## Development Issues
+
+### Simulator Not Starting
+
+**Symptom**: `devicesdk dev` fails to start
+
+**Solutions**:
+1. **Port in use**:
+   ```bash
+   devicesdk dev --port 3001
+   ```
+
+2. **Check for errors** in terminal output
+
+3. **Clear cache**:
+   ```bash
+   rm -rf .devicesdk/
+   ```
+
+### Hot Reload Not Working
+
+**Symptom**: Changes don't apply automatically
+
+**Solutions**:
+1. Check for TypeScript errors in terminal
+
+2. Restart dev server
+
+3. Hard refresh browser (Cmd+Shift+R / Ctrl+Shift+R)
+
+## Error Messages
+
+### "Rate limit exceeded"
+
+**Cause**: Too many requests too quickly
+
+**Solution**: Wait a moment and retry. For production, implement backoff.
+
+### "Script execution timeout"
+
+**Cause**: Code takes too long to execute
+
+**Solutions**:
+- Optimize code performance
+- Offload heavy work to queues
+- Reduce message processing time
+
+### "Invalid device credentials"
+
+**Cause**: Device authentication failed
+
+**Solution**: Re-flash device with `devicesdk flash`
+
+## Getting Help
+
+If you're still stuck:
+
+1. **Check logs**
+   - Device logs in dashboard
+   - Script logs in dashboard
+   - CLI output
+
+2. **Join Discord**
+   - [DeviceSDK Community](https://discord.gg/WuNhbXGsBy)
+   - Share error messages and logs
+
+3. **GitHub Issues**
+   - Search existing issues
+   - Create new issue with details
+
+4. **Documentation**
+   - [FAQ](/docs/resources/faq/)
+   - [CLI Reference](/docs/cli/)
+   - [Concepts](/docs/concepts/architecture/)
+
+## Debugging Tips
+
+### Enable Verbose Logging
+
+```bash
+devicesdk deploy --verbose
+```
+
+### Check System Status
+
+Verify DeviceSDK services are operational:
+- [Status page](https://status.devicesdk.com)
+
+### Isolate the Problem
+
+1. Test with simulator first
+2. Try minimal code example
+3. Test individual components
+4. Check one thing at a time
+
+### Collect Information
+
+When reporting issues, include:
+- CLI version
+- Error messages
+- Code snippet
+- Device logs
+- Steps to reproduce
+
+---
+

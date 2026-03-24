@@ -12,7 +12,8 @@
 
 <meta property="og:title" content="{{ .Title }}">
 {{ with .Params.description }}<meta property="og:description" content="{{ . }}">{{ end }}
-<meta property="og:type" content="article">
+<meta property="og:type" content="{{ cond .IsHome "website" "article" }}">
+<meta property="og:site_name" content="DeviceSDK">
 <meta property="og:url" content="{{ .Permalink }}">
 {{ if $og }}<meta property="og:image" content="{{ $absOG }}">{{ end }}
 

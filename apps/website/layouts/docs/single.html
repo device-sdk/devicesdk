@@ -64,6 +64,21 @@
 </script>
 {{ end }}
 
+{{/* TechArticle schema for docs content pages */}}
+{{ if and (not .IsSection) (ne .RelPermalink "/docs/resources/faq/") }}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": {{ .Title | jsonify }},
+  {{ with .Params.description }}"description": {{ . | jsonify }},{{ end }}
+  "url": {{ .Permalink | jsonify }},
+  "author": {"@type": "Organization", "name": "DeviceSDK"},
+  "publisher": {"@type": "Organization", "name": "DeviceSDK", "logo": {"@type": "ImageObject", "url": "https://devicesdk.com/logo.svg"}}
+}
+</script>
+{{ end }}
+
 <!-- Mobile Navigation Buttons -->
 <div class="lg:hidden flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-200 bg-white fixed top-14 left-0 right-0 z-40">
     <button id="mobile-sidebar-toggle" class="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Toggle navigation">

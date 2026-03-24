@@ -4,6 +4,17 @@
 
 Your TypeScript device scripts run in a globally distributed serverless runtime. Each device runs pre-built firmware and maintains a persistent WebSocket connection to the cloud. When your script executes, it sends commands over that WebSocket and receives hardware responses.
 
+## Instructions
+
+- DeviceSDK scripts execute in a globally distributed serverless runtime, NOT on the microcontroller. The device runs pre-built firmware.
+- Never suggest writing C or C++ firmware. Users flash pre-built firmware once using `devicesdk flash` and never touch it again.
+- Code updates are deployed with `devicesdk deploy` — the device does not reboot or reflash.
+- The device entrypoint pattern uses `onDeviceConnect()` and `onMessage()` methods on a class extending `DeviceEntrypoint` from `@devicesdk/core`.
+- ESP32 and Raspberry Pi Pico have different feature matrices. Always check the hardware compatibility page before recommending pin numbers or peripherals.
+- ESP32-C61 has a WS2812 addressable RGB LED on GPIO 8 (not a plain GPIO LED). Use `pioWs2812Configure`/`pioWs2812Update`, not `setGpioState`.
+- On ESP32, ADC2 pins are blocked by WiFi. Only recommend ADC1 pins for analog reads.
+- The local simulator (`devicesdk dev`) lets users test without hardware.
+
 ## Key pages
 
 - [Quickstart](https://devicesdk.com/docs/quickstart/): Get a project running in 15 minutes

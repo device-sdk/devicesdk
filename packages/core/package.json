@@ -3,7 +3,10 @@
 	"version": "1.0.0",
 	"description": "Shared TypeScript types and device abstractions for the DeviceSDK IoT platform.",
 	"keywords": ["iot", "typescript", "esp32", "raspberry-pi-pico", "microcontroller", "firmware", "websocket", "edge", "hardware", "embedded", "gpio", "i2c", "spi", "uart"],
-	"author": "",
+	"author": "DeviceSDK <hello@devicesdk.com>",
+	"license": "ISC",
+	"homepage": "https://devicesdk.com/docs/",
+	"bugs": { "url": "https://github.com/device-sdk/devicesdk-monorepo/issues" },
 	"main": "dist/index.js",
 	"exports": {
 		".": {

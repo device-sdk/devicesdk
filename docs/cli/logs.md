@@ -1,6 +1,7 @@
 ---
 title: devicesdk logs
 description: View and stream log output from a deployed device
+social_image: /og-images/docs/cli/logs.png
 ---
 
 # devicesdk logs

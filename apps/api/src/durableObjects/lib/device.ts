@@ -4,6 +4,7 @@ import type {
 	DeviceCommand,
 	DeviceResponse,
 } from "@devicesdk/core";
+import { z } from "zod";
 import {
 	LOG_CLEANUP_INTERVAL,
 	LOG_MAX_STORED,
@@ -17,6 +18,12 @@ import { getProxyEntrypoint } from "./classProxy";
 import { type CronStorage, resolveDueCrons } from "./cronDispatch";
 import { nextCronTime } from "./cronParser";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
+
+const DeviceMessageSchema = z.object({
+	id: z.string().max(64).optional().default(""),
+	type: z.string().max(64),
+	payload: z.record(z.unknown()).optional().default({}),
+});
 
 // Storage key for persisted cron schedule state.
 // Uses the __internal: prefix which is blocked in kvPut/kvGet/kvDelete so user
@@ -385,8 +392,19 @@ export class BaseDevice extends DurableObject<Env> {
 		// This is needed because RPC calls from user workers may not have access to ctx.getWebSockets()
 		this._session = { websocket: _ws };
 
+		if (typeof data !== "string") {
+			console.error("Received non-string WebSocket data, ignoring");
+			return;
+		}
+
 		try {
-			const message = JSON.parse(data as string) as DeviceResponse;
+			const raw = JSON.parse(data);
+			const parsed = DeviceMessageSchema.safeParse(raw);
+			if (!parsed.success) {
+				console.error("Invalid device message:", parsed.error.message);
+				return;
+			}
+			const message = parsed.data as DeviceResponse;
 
 			// Handle device connect message
 			if (message.type === "device_connected") {

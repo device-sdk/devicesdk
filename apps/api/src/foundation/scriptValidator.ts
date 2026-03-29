@@ -20,6 +20,14 @@ export async function validateUserScript(
 	script: string,
 	entrypointName: string,
 ): Promise<ValidationResult> {
+	if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(entrypointName)) {
+		return {
+			valid: false,
+			errors: ["Entrypoint name is not a valid JavaScript identifier"],
+			warnings: [],
+		};
+	}
+
 	const errors: string[] = [];
 	const warnings: string[] = [];
 
@@ -79,7 +87,16 @@ export class Validator extends WorkerEntrypoint {
 			}>;
 		};
 
-		const result = await validator.validate();
+		const VALIDATION_TIMEOUT_MS = 5000;
+		const result = await Promise.race([
+			validator.validate(),
+			new Promise<never>((_, reject) =>
+				setTimeout(
+					() => reject(new Error("Script validation timed out")),
+					VALIDATION_TIMEOUT_MS,
+				),
+			),
+		]);
 
 		// Check for required methods on the appropriate export
 		if (!result.methods.includes("onMessage")) {

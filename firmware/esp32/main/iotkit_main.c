@@ -11,6 +11,7 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "esp_websocket_client.h"
+#include "esp_crt_bundle.h"
 #include "cJSON.h"
 
 #include "hal.h"
@@ -423,12 +424,14 @@ static void websocket_task(void *pvParameters) {
 
     char uri[512];
     char auth_header[256];
-    snprintf(uri, sizeof(uri), "ws://%s%s", api_host, ws_path);
+    snprintf(uri, sizeof(uri), "wss://%s%s", api_host, ws_path);
     snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s\r\n", api_token);
 
     esp_websocket_client_config_t websocket_cfg = {
         .uri = uri,
         .headers = auth_header,
+        .transport = WEBSOCKET_TRANSPORT_OVER_SSL,
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
 
     ws_client = esp_websocket_client_init(&websocket_cfg);

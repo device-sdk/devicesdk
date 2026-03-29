@@ -1,6 +1,8 @@
 import { ApiException, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import { recalculateEsp32Checksum } from "../../foundation/esp32ImageChecksum";
+import { validateUf2Structure } from "../../foundation/picoUf2Checksum";
+import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext, tableProjects } from "../../types";
 
 const OLD_TOKEN = "e343ecb8036442e093a47718463c1716";
@@ -99,42 +101,36 @@ export class DownloadFirmware extends OpenAPIRoute {
 			return c.json({ success: false, error: "Device not found" }, 404);
 		}
 
-		// Look for existing token with description "{device id} authentication token" and managed true
+		// Delete existing managed token for this device and create a fresh one
 		const tokenDescription = `${deviceId} authentication token`;
-		const existingToken = await qb
-			.fetchOne<{ token: string }>({
+		await qb
+			.delete({
 				tableName: "tokens",
 				where: {
 					conditions: ["user_id = ?1", "description = ?2", "managed = ?3"],
 					params: [user.id, tokenDescription, 1],
 				},
 			})
-			.execute()
-			.then((p) => p.results);
+			.execute();
 
-		let newKey: string;
-		if (existingToken) {
-			newKey = existingToken.token;
-		} else {
-			// Create a new token
-			const tokenId = crypto.randomUUID();
-			newKey = crypto.randomUUID().replace(/-/g, "");
-			const createdAt = Date.now();
-
-			await qb
-				.insert({
-					tableName: "tokens",
-					data: {
-						id: tokenId,
-						user_id: user.id,
-						token: newKey,
-						created_at: createdAt,
-						description: tokenDescription,
-						managed: 1,
-					},
-				})
-				.execute();
-		}
+		// Create fresh token — raw for firmware, hash for DB
+		const newKey = crypto.randomUUID().replace(/-/g, "");
+		const tokenHash = await hashToken(newKey);
+		await qb
+			.insert({
+				tableName: "tokens",
+				data: {
+					id: crypto.randomUUID(),
+					user_id: user.id,
+					token: "",
+					token_hash: tokenHash,
+					last_four: newKey.slice(-4),
+					created_at: Date.now(),
+					description: tokenDescription,
+					managed: 1,
+				},
+			})
+			.execute();
 
 		const deviceType = data.body.device_type;
 
@@ -176,6 +172,18 @@ export class DownloadFirmware extends OpenAPIRoute {
 			// Recalculate ESP-IDF image checksum after patching credentials
 			if (deviceType === "esp32" || deviceType === "esp32c61") {
 				await recalculateEsp32Checksum(bytes);
+			}
+
+			// Validate UF2 block structure after patching credentials
+			if (deviceType === "pico-w" || deviceType === "pico2-w") {
+				try {
+					validateUf2Structure(bytes);
+				} catch (uf2Err) {
+					console.error(
+						"UF2 structure validation failed after patching:",
+						uf2Err instanceof Error ? uf2Err.message : uf2Err,
+					);
+				}
 			}
 		} catch (err) {
 			const message =

@@ -108,6 +108,8 @@ export type tableTokens = {
 	created_at: number;
 	description?: string;
 	managed?: number;
+	token_hash?: string;
+	last_four?: string;
 };
 
 export type tableProjectEnvVars = {

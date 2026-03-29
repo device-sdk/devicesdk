@@ -108,6 +108,8 @@ target_link_libraries(devicesdk-client
         hardware_spi
         hardware_uart
         hardware_pio
+        pico_lwip_mbedtls
+        pico_mbedtls
 )
 
 # Set the Wi-Fi country code

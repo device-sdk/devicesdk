@@ -287,7 +287,7 @@ describe.sequential("Inter-device RPC", () => {
 			expect(code).toContain("__DEVICE_BRIDGE: bridge");
 			expect(code).toContain("publicEnv");
 			expect(code).toContain(
-				"Object.assign({}, publicEnv, { DEVICES: devicesProxy, VARS })",
+				"Object.assign({}, publicEnv, { DEVICE: safeDevice, DEVICES: devicesProxy, VARS })",
 			);
 		});
 
@@ -298,6 +298,52 @@ describe.sequential("Inter-device RPC", () => {
 			const code = getProxyEntrypoint("TestDevice");
 			expect(code).toContain("Object.getPrototypeOf(target)");
 			expect(code).toContain("hasOwnProperty");
+		});
+	});
+
+	describe("classProxy security", () => {
+		it("should reject invalid entrypoint names", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			expect(() => getProxyEntrypoint("x}; class x{")).toThrow(
+				"Invalid entrypoint name",
+			);
+			expect(() => getProxyEntrypoint("My Device")).toThrow(
+				"Invalid entrypoint name",
+			);
+			expect(() => getProxyEntrypoint("")).toThrow("Invalid entrypoint name");
+		});
+
+		it("should accept valid entrypoint names", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			expect(() => getProxyEntrypoint("Device")).not.toThrow();
+			expect(() => getProxyEntrypoint("MyDevice_v2")).not.toThrow();
+			expect(() => getProxyEntrypoint("$Device")).not.toThrow();
+			expect(() => getProxyEntrypoint("_Private")).not.toThrow();
+		});
+
+		it("should save and restore env in callMethod", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			expect(code).toContain("const originalEnv = target.env");
+			expect(code).toContain("finally { target.env = originalEnv; }");
+		});
+
+		it("should include DEVICE method allowlist", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			expect(code).toContain("ALLOWED_DEVICE_METHODS");
+			expect(code).toContain("safeDevice");
+			expect(code).toContain("'sendCommand'");
+			expect(code).toContain("'sendCommandAndWait'");
+			expect(code).toContain("'persistLog'");
 		});
 	});
 });

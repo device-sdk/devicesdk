@@ -36,6 +36,23 @@ describe.sequential("CLI Authentication", () => {
 			expect(body.result.interval).toBe(5);
 		});
 
+		test("should generate unique device codes across multiple auth starts", async () => {
+			const codes = new Set<string>();
+			for (let i = 0; i < 5; i++) {
+				const res = await SELF.fetch("http://localhost/v1/cli/auth/start", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ client_id: "devicesdk-cli" }),
+				});
+				expect(res.status).toBe(200);
+				const body = (await res.json()) as {
+					result: { device_code: string; user_code: string };
+				};
+				codes.add(body.result.device_code);
+			}
+			expect(codes.size).toBe(5); // All unique
+		});
+
 		test("should store auth code in database", async () => {
 			const res = await SELF.fetch("http://localhost/v1/cli/auth/start", {
 				method: "POST",

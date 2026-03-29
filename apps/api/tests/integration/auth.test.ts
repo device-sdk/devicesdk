@@ -2,10 +2,11 @@ import { env, SELF } from "cloudflare:test";
 import { ApiException } from "chanfana";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, it, test, vi } from "vitest";
 import { D1QB } from "workers-qb";
 import { handleGoogleCallback, hashPassword } from "../../src/foundation/auth";
 import type { AppContext, tableUser, tableUserSessions } from "../../src/types";
+import { TEST_USER_ID } from "../setup-test-data";
 
 describe.sequential("Authentication", () => {
 	let qb: D1QB;
@@ -315,6 +316,41 @@ describe.sequential("Authentication", () => {
 			expect(body.errors[0].message).toBe(
 				"Google account does not have an email",
 			);
+		});
+	});
+
+	describe("logout session invalidation", () => {
+		it("should delete session from database on logout", async () => {
+			const logoutTestToken = "logout-test-token-12345";
+
+			// Insert a test session
+			await env.DB.prepare(
+				"INSERT INTO user_sessions (user_id, token, created_at, expires_at) VALUES (?, ?, ?, ?)",
+			)
+				.bind(TEST_USER_ID, logoutTestToken, Date.now(), Date.now() + 100000)
+				.run();
+
+			// Logout with this token
+			const resp = await SELF.fetch("http://localhost/v1/auth/logout", {
+				method: "POST",
+				headers: { Cookie: `devicesdk-session=${logoutTestToken}` },
+			});
+			expect(resp.status).toBe(200);
+
+			// Verify session is deleted from DB
+			const session = await env.DB.prepare(
+				"SELECT * FROM user_sessions WHERE token = ?",
+			)
+				.bind(logoutTestToken)
+				.first();
+			expect(session).toBeNull();
+		});
+
+		it("should return 401 for logout without session cookie", async () => {
+			const resp = await SELF.fetch("http://localhost/v1/auth/logout", {
+				method: "POST",
+			});
+			expect(resp.status).toBe(401);
 		});
 	});
 });

@@ -1,5 +1,6 @@
 import { contentJson, OpenAPIRoute } from "chanfana";
 import { z } from "zod";
+import { JS_IDENTIFIER_REGEX } from "../../foundation/consts";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 import { validateUserScript } from "../../foundation/scriptValidator";
 import type {
@@ -26,7 +27,14 @@ export class BatchUploadScripts extends OpenAPIRoute {
 						z.string(),
 						z.object({
 							script: z.string().max(1024 * 1024),
-							entrypoint: z.string().min(1).max(255),
+							entrypoint: z
+								.string()
+								.min(1)
+								.max(255)
+								.regex(
+									JS_IDENTIFIER_REGEX,
+									"Entrypoint must be a valid JavaScript identifier",
+								),
 						}),
 					),
 					message: z.string().max(500).optional(),

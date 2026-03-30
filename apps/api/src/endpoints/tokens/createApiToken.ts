@@ -1,8 +1,10 @@
-import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
+import { ApiException, contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
+import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext, tableTokens } from "../../types";
 
-export class CreateApiToken extends OpenAPIRoute {
+export class CreateApiToken extends BaseRoute {
 	public schema = {
 		tags: ["Tokens"],
 		summary: "Create a new API token",
@@ -61,17 +63,23 @@ export class CreateApiToken extends OpenAPIRoute {
 			throw new ApiException("Maximum number of API tokens reached");
 		}
 
+		const rawToken = crypto.randomUUID().replaceAll("-", "");
+		const tokenHash = await hashToken(rawToken);
+		const lastFour = rawToken.slice(-4);
+
 		const newApiToken = await qb
 			.insert<tableTokens>({
 				tableName: "tokens",
 				data: {
 					id: crypto.randomUUID(),
 					user_id: user.id,
-					token: crypto.randomUUID().replaceAll("-", ""),
+					token: "",
+					token_hash: tokenHash,
+					last_four: lastFour,
 					created_at: Date.now(),
 					...(description ? { description } : {}),
 				},
-				returning: ["id", "token", "created_at", "description"],
+				returning: ["id", "created_at", "description"],
 			})
 			.execute()
 			.then((t) => t.results);
@@ -83,7 +91,10 @@ export class CreateApiToken extends OpenAPIRoute {
 		return c.json(
 			{
 				success: true,
-				result: newApiToken,
+				result: {
+					...newApiToken,
+					token: rawToken,
+				},
 			},
 			201,
 		);

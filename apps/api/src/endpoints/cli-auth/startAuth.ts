@@ -2,21 +2,22 @@ import type { AppContext } from "../../types";
 
 function generateUserCode(): string {
 	const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // No I, O to avoid confusion
-	const letterPart = Array(4)
-		.fill(0)
-		.map(() => letters[Math.floor(Math.random() * letters.length)])
+	const bytes = new Uint8Array(8);
+	crypto.getRandomValues(bytes);
+	const letterPart = Array.from(bytes.slice(0, 4))
+		.map((b) => letters[b % letters.length])
 		.join("");
-	const numberPart = Array(4)
-		.fill(0)
-		.map(() => Math.floor(Math.random() * 10))
+	const numberPart = Array.from(bytes.slice(4, 8))
+		.map((b) => b % 10)
 		.join("");
 	return `${letterPart}-${numberPart}`;
 }
 
 function generateDeviceCode(): string {
-	const hex = Array(32)
-		.fill(0)
-		.map(() => Math.floor(Math.random() * 16).toString(16))
+	const bytes = new Uint8Array(16);
+	crypto.getRandomValues(bytes);
+	const hex = Array.from(bytes)
+		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
 	return `DSDK_DEVICE_${hex}`;
 }

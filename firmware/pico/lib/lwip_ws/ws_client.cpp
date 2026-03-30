@@ -1,5 +1,6 @@
 #include "ws_client.h"
 #include "pico/cyw43_arch.h"
+#include "pico/rand.h"
 #include "lwip/dns.h"
 #include <cstring>
 #include <algorithm>
@@ -11,17 +12,21 @@
 #define MAX_RX_BUFFER_SIZE 16384
 #define MAX_TX_QUEUE_SIZE 10
 
-WebsocketClient::WebsocketClient() : tcp_pcb(nullptr), port(80), connected_state(0), http_response_complete(false), in_callback(false) {}
+WebsocketClient::WebsocketClient() : tls_pcb(nullptr), tls_config(nullptr), port(443), connected_state(0), http_response_complete(false), in_callback(false) {}
 
 WebsocketClient::~WebsocketClient() {
-    if (tcp_pcb) {
-        tcp_close(tcp_pcb);
+    if (tls_pcb) {
+        altcp_close(tls_pcb);
+    }
+    if (tls_config) {
+        altcp_tls_free_config(tls_config);
+        tls_config = nullptr;
     }
 }
 
 bool WebsocketClient::connect(const char* host, const char* path, const char* token) {
     // Clean up any existing connection first
-    if (tcp_pcb) {
+    if (tls_pcb) {
         close_connection();
     }
 
@@ -32,7 +37,7 @@ bool WebsocketClient::connect(const char* host, const char* path, const char* to
         this->port = std::stoi(host_str.substr(colon + 1));
         this->host = host_str.substr(0, colon);
     } else {
-        this->port = 80;
+        this->port = 443;
         this->host = host_str;
     }
 
@@ -53,28 +58,28 @@ bool WebsocketClient::connect(const char* host, const char* path, const char* to
 
 void WebsocketClient::poll() {
     // Process queued messages from the main loop
-    if (!tx_queue.empty() && is_connected() && tcp_pcb) {
+    if (!tx_queue.empty() && is_connected() && tls_pcb) {
         cyw43_arch_lwip_begin();
         while (!tx_queue.empty()) {
             std::string msg = tx_queue.front();
             tx_queue.pop();
-            
+
             char buffer[BUF_SIZE];
             size_t frame_len = build_frame(buffer, BUF_SIZE, msg.c_str(), msg.length());
             if (frame_len > 0) {
-                tcp_write(tcp_pcb, buffer, frame_len, TCP_WRITE_FLAG_COPY);
+                altcp_write(tls_pcb, buffer, frame_len, TCP_WRITE_FLAG_COPY);
             }
         }
-        tcp_output(tcp_pcb);
+        altcp_output(tls_pcb);
         cyw43_arch_lwip_end();
-        
+
         // Trigger another poll to actually transmit the data
         cyw43_arch_poll();
     }
 }
 
 bool WebsocketClient::send_text(const char* payload) {
-    if (!is_connected() || !tcp_pcb) {
+    if (!is_connected() || !tls_pcb) {
         return false;
     }
 
@@ -100,10 +105,10 @@ bool WebsocketClient::send_text_internal(const char* payload) {
     }
 
     cyw43_arch_lwip_begin();
-    err_t write_err = tcp_write(tcp_pcb, buffer, frame_len, TCP_WRITE_FLAG_COPY);
+    err_t write_err = altcp_write(tls_pcb, buffer, frame_len, TCP_WRITE_FLAG_COPY);
     err_t output_err = ERR_OK;
     if (write_err == ERR_OK) {
-        output_err = tcp_output(tcp_pcb);
+        output_err = altcp_output(tls_pcb);
     }
     cyw43_arch_lwip_end();
 
@@ -117,25 +122,34 @@ bool WebsocketClient::is_connected() const {
 void WebsocketClient::on_dns_found(const ip_addr_t *ipaddr) {
     if (ipaddr) {
         remote_addr = *ipaddr;
-        tcp_pcb = tcp_new_ip_type(IP_GET_TYPE(&remote_addr));
-        if (!tcp_pcb) {
+
+        // Create TLS config (NULL CA cert = no server certificate verification)
+        tls_config = altcp_tls_create_config_client(NULL, 0);
+        if (!tls_config) {
             return;
         }
 
-        tcp_arg(tcp_pcb, this);
-        tcp_poll(tcp_pcb, tcp_poll_callback, 1);
-        tcp_sent(tcp_pcb, tcp_sent_callback);
-        tcp_recv(tcp_pcb, tcp_recv_callback);
-        tcp_err(tcp_pcb, tcp_err_callback);
+        tls_pcb = altcp_tls_new(tls_config, IPADDR_TYPE_ANY);
+        if (!tls_pcb) {
+            altcp_tls_free_config(tls_config);
+            tls_config = nullptr;
+            return;
+        }
+
+        altcp_arg(tls_pcb, this);
+        altcp_poll(tls_pcb, tcp_poll_callback, 1);
+        altcp_sent(tls_pcb, tcp_sent_callback);
+        altcp_recv(tls_pcb, tcp_recv_callback);
+        altcp_err(tls_pcb, tcp_err_callback);
 
         cyw43_arch_lwip_begin();
         connected_state = 1;
-        tcp_connect(tcp_pcb, &remote_addr, this->port, tcp_connected_callback);
+        altcp_connect(tls_pcb, &remote_addr, this->port, tcp_connected_callback);
         cyw43_arch_lwip_end();
     }
 }
 
-void WebsocketClient::on_tcp_connected(struct tcp_pcb *tpcb, err_t err) {
+void WebsocketClient::on_tcp_connected(struct altcp_pcb *tpcb, err_t err) {
     if (err != ERR_OK) {
         close_connection();
         return;
@@ -153,12 +167,12 @@ void WebsocketClient::on_tcp_connected(struct tcp_pcb *tpcb, err_t err) {
                      path.c_str(), host.c_str(), token.c_str());
 
     cyw43_arch_lwip_begin();
-    tcp_write(tpcb, buffer, len, TCP_WRITE_FLAG_COPY);
-    tcp_output(tpcb);  // Flush the upgrade request immediately
+    altcp_write(tpcb, buffer, len, TCP_WRITE_FLAG_COPY);
+    altcp_output(tpcb);  // Flush the upgrade request immediately
     cyw43_arch_lwip_end();
 }
 
-void WebsocketClient::on_tcp_recv(struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
+void WebsocketClient::on_tcp_recv(struct altcp_pcb *tpcb, struct pbuf *p, err_t err) {
     if (!p) {
         close_connection();
         return;
@@ -166,7 +180,7 @@ void WebsocketClient::on_tcp_recv(struct tcp_pcb *tpcb, struct pbuf *p, err_t er
 
     cyw43_arch_lwip_check();
     in_callback = true;  // Mark that we're in callback context
-    
+
     if (p->tot_len > 0) {
         // Check for buffer overflow before copying
         if (rx_buffer.size() + p->tot_len > MAX_RX_BUFFER_SIZE) {
@@ -186,21 +200,25 @@ void WebsocketClient::on_tcp_recv(struct tcp_pcb *tpcb, struct pbuf *p, err_t er
             rx_buffer.insert(rx_buffer.end(), (char*)q->payload, (char*)q->payload + q->len);
             q = q->next;
         }
-        tcp_recved(tpcb, p->tot_len);
+        altcp_recved(tpcb, p->tot_len);
     }
     pbuf_free(p);
 
     // Process the received data
     process_rx_buffer();
-    
+
     in_callback = false;  // Clear callback context flag
 }
 
 void WebsocketClient::close_connection() {
-    if (tcp_pcb) {
-        tcp_arg(tcp_pcb, NULL);
-        tcp_close(tcp_pcb);
-        tcp_pcb = nullptr;
+    if (tls_pcb) {
+        altcp_arg(tls_pcb, NULL);
+        altcp_close(tls_pcb);
+        tls_pcb = nullptr;
+    }
+    if (tls_config) {
+        altcp_tls_free_config(tls_config);
+        tls_config = nullptr;
     }
     connected_state = 0;
     http_response_complete = false;
@@ -221,7 +239,7 @@ size_t WebsocketClient::build_frame(char* buffer, size_t buffer_len, const char*
 
     // Masking (client-to-server frames must be masked)
     buffer[1] |= 0x80; // Set MASK bit
-    uint32_t mask_key = rand();
+    uint32_t mask_key = get_rand_32();
     char* mask_bytes = (char*)&mask_key;
     buffer[header_len++] = mask_bytes[0];
     buffer[header_len++] = mask_bytes[1];
@@ -333,12 +351,12 @@ size_t WebsocketClient::parse_frame(const char* buffer, size_t len) {
 
 
 // Static callbacks
-err_t WebsocketClient::tcp_connected_callback(void *arg, struct tcp_pcb *tpcb, err_t err) {
+err_t WebsocketClient::tcp_connected_callback(void *arg, struct altcp_pcb *tpcb, err_t err) {
     ((WebsocketClient*)arg)->on_tcp_connected(tpcb, err);
     return ERR_OK;
 }
 
-err_t WebsocketClient::tcp_recv_callback(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
+err_t WebsocketClient::tcp_recv_callback(void *arg, struct altcp_pcb *tpcb, struct pbuf *p, err_t err) {
     ((WebsocketClient*)arg)->on_tcp_recv(tpcb, p, err);
     return ERR_OK;
 }
@@ -347,11 +365,11 @@ void WebsocketClient::tcp_err_callback(void *arg, err_t err) {
     ((WebsocketClient*)arg)->close_connection();
 }
 
-err_t WebsocketClient::tcp_poll_callback(void *arg, struct tcp_pcb *tpcb) {
+err_t WebsocketClient::tcp_poll_callback(void *arg, struct altcp_pcb *tpcb) {
     return ERR_OK;
 }
 
-err_t WebsocketClient::tcp_sent_callback(void *arg, struct tcp_pcb *tpcb, u16_t len) {
+err_t WebsocketClient::tcp_sent_callback(void *arg, struct altcp_pcb *tpcb, u16_t len) {
     // Not used in this simple implementation
     return ERR_OK;
 }

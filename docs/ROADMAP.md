@@ -1,3 +1,6 @@
+---
+social_image: /og-images/docs/ROADMAP.png
+---
 # Hardware Roadmap
 
 ## Current Hardware Support

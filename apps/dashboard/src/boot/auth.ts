@@ -9,7 +9,15 @@ export default async ({ app }: any) => {
     const redirectUri = sessionStorage.getItem('auth_redirect_uri');
     if (redirectUri) {
       sessionStorage.removeItem('auth_redirect_uri');
-      window.location.href = redirectUri;
+      try {
+        const url = new URL(redirectUri);
+        const h = url.hostname;
+        if (h === 'localhost' || h === 'devicesdk.com' || h.endsWith('.devicesdk.com')) {
+          window.location.href = redirectUri;
+        }
+      } catch {
+        // Invalid URL, ignore
+      }
     }
   }
 };

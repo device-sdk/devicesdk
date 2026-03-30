@@ -4,6 +4,7 @@ import type {
 	DeviceCommand,
 	DeviceResponse,
 } from "@devicesdk/core";
+import { z } from "zod";
 import {
 	LOG_CLEANUP_INTERVAL,
 	LOG_MAX_STORED,
@@ -17,6 +18,12 @@ import { getProxyEntrypoint } from "./classProxy";
 import { type CronStorage, resolveDueCrons } from "./cronDispatch";
 import { nextCronTime } from "./cronParser";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
+
+const DeviceMessageSchema = z.object({
+	id: z.string().max(64).optional().default(""),
+	type: z.string().max(64),
+	payload: z.record(z.string(), z.unknown()).optional().default({}),
+});
 
 // Storage key for persisted cron schedule state.
 // Uses the __internal: prefix which is blocked in kvPut/kvGet/kvDelete so user
@@ -54,6 +61,7 @@ interface PendingCommand {
 }
 
 export class BaseDevice extends DurableObject<Env> {
+	private static readonly MAX_PENDING_COMMANDS = 100;
 	private _session?: DeviceSession;
 	private pendingCommands: Map<string, PendingCommand> = new Map();
 	private logWriteCount = 0;
@@ -94,10 +102,8 @@ export class BaseDevice extends DurableObject<Env> {
 
 		if (url.pathname.endsWith("/websocket")) {
 			return this.handleWebSocketUpgrade(request);
-		} else if (request.method === "POST") {
-			return this.handleCommandRequest(request);
 		}
-
+		// POST handler removed — commands use WebSocket RPC only
 		return new Response("Not found", { status: 404 });
 	}
 
@@ -277,8 +283,9 @@ export class BaseDevice extends DurableObject<Env> {
 			if (stored) {
 				this.deviceMeta = stored;
 			} else {
-				this.deviceMeta = request.scriptMeta;
-				await this.ctx.storage.put("deviceMeta", this.deviceMeta);
+				throw new Error(
+					"Device has not connected yet — cannot handle remote call without device metadata",
+				);
 			}
 		}
 
@@ -291,41 +298,6 @@ export class BaseDevice extends DurableObject<Env> {
 			request.args,
 			request.callDepth,
 		);
-	}
-
-	/**
-	 * Handles an incoming command via HTTP POST, sends it to the device,
-	 * and waits for a response or timeout.
-	 */
-	async handleCommandRequest(request: Request) {
-		const session = this.getSession();
-		if (
-			!session ||
-			session.websocket.readyState !== WebSocket.READY_STATE_OPEN
-		) {
-			return new Response("Device not connected", { status: 503 });
-		}
-
-		try {
-			// We need to add an ID to the command before sending.
-			const partialCommand = await request.json<Omit<DeviceCommand, "id">>();
-			const command: DeviceCommand = {
-				...partialCommand,
-				id: crypto.randomUUID(),
-			} as DeviceCommand;
-
-			// Send the command and wait for the device's response.
-			const response = await this.sendCommandAndWaitForResponse(command);
-
-			return new Response(JSON.stringify(response), {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "An unknown error occurred";
-			return new Response(errorMessage, { status: 500 });
-		}
 	}
 
 	/**
@@ -359,6 +331,10 @@ export class BaseDevice extends DurableObject<Env> {
 				return reject(new Error("No active session"));
 			}
 
+			if (this.pendingCommands.size >= BaseDevice.MAX_PENDING_COMMANDS) {
+				return reject(new Error("Too many pending commands"));
+			}
+
 			const timeoutId = setTimeout(() => {
 				this.pendingCommands.delete(command.id);
 				reject(
@@ -385,8 +361,19 @@ export class BaseDevice extends DurableObject<Env> {
 		// This is needed because RPC calls from user workers may not have access to ctx.getWebSockets()
 		this._session = { websocket: _ws };
 
+		if (typeof data !== "string") {
+			console.error("Received non-string WebSocket data, ignoring");
+			return;
+		}
+
 		try {
-			const message = JSON.parse(data as string) as DeviceResponse;
+			const raw = JSON.parse(data);
+			const parsed = DeviceMessageSchema.safeParse(raw);
+			if (!parsed.success) {
+				console.error("Invalid device message:", parsed.error.message);
+				return;
+			}
+			const message = parsed.data as DeviceResponse;
 
 			// Handle device connect message
 			if (message.type === "device_connected") {
@@ -653,7 +640,10 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					await userWorker.onCron(name);
 				} catch (error) {
-					console.error(`Error in user worker onCron("${name}"):`, error);
+					console.error(
+						`Error in user worker onCron(${JSON.stringify(name.slice(0, 64))}):`,
+						error,
+					);
 				}
 			}
 		}

@@ -6,6 +6,9 @@ export abstract class ProxyEntrypoint extends WorkerEntrypoint {
 }
 
 export function getProxyEntrypoint(entrypointName: string): string {
+	if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(entrypointName)) {
+		throw new Error("Invalid entrypoint name");
+	}
 	const blockedMethodsLiteral = BLOCKED_METHODS.map((m) => `'${m}'`).join(", ");
 	return `import { WorkerEntrypoint } from "cloudflare:workers";
 import {${entrypointName}} from './device.js';
@@ -37,6 +40,23 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     // Strip internal bindings from user-facing env
     const { __DEVICE_BRIDGE: bridge, __DEVICE_ID: _did, __PROJECT_ID: _pid, __ENV_VARS: _envVarsJson, ...publicEnv } = this.env;
 
+    const ALLOWED_DEVICE_METHODS = new Set([
+        'sendCommand', 'sendCommandAndWait', 'reboot', 'setGpioState', 'setPwmState',
+        'getPinState', 'i2cScan', 'i2cWrite', 'i2cRead', 'configureGpioInputMonitoring',
+        'getTemperature', 'watchdogConfigure', 'watchdogFeed',
+        'spiConfigure', 'spiTransfer', 'spiWrite', 'spiRead',
+        'uartConfigure', 'uartWrite', 'uartRead',
+        'pioWs2812Configure', 'pioWs2812Update', 'persistLog',
+        'kvGet', 'kvPut', 'kvDelete', 'kvList'
+    ]);
+    const safeDevice = new Proxy(publicEnv.DEVICE, {
+        get(target, prop) {
+            if (typeof prop === 'string' && ALLOWED_DEVICE_METHODS.has(prop)) return target[prop].bind(target);
+            if (prop === 'kv') return target.kv;
+            return undefined;
+        }
+    });
+
     /** @type {Record<string, string>} */
     let _envVars = {};
     try { _envVars = _envVarsJson ? JSON.parse(_envVarsJson) : {}; } catch {}
@@ -60,7 +80,7 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
       }
     });
 
-    const env = Object.assign({}, publicEnv, { DEVICES: devicesProxy, VARS });
+    const env = Object.assign({}, publicEnv, { DEVICE: safeDevice, DEVICES: devicesProxy, VARS });
     const target = new ${entrypointName}(this.ctx, env);
 
     const BLOCKED_METHODS = new Set([${blockedMethodsLiteral}]);
@@ -92,8 +112,10 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     	      });
     	    }
     	  });
+    	  const originalEnv = target.env;
     	  target.env = Object.assign({}, target.env, { DEVICES: callScopedDevices });
-    	  return target[name](...args);
+    	  try { return await target[name](...args); }
+    	  finally { target.env = originalEnv; }
     	},
     }
   }

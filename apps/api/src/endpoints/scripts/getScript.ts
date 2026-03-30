@@ -1,8 +1,9 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
-export class GetScript extends OpenAPIRoute {
+export class GetScript extends BaseRoute {
 	public schema = {
 		tags: ["Scripts"],
 		summary: "Get the current deployed script for a device",

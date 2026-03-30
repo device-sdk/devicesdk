@@ -37,23 +37,20 @@ export async function refreshToken(c: AppContext) {
 	const refreshExpiresIn = 30 * 24 * 60 * 60; // 30 days
 	const currentMs = Date.now();
 
-	await c.env.DB.prepare("DELETE FROM cli_tokens WHERE id = ?")
-		.bind(cliToken.id)
-		.run();
-
-	await c.env.DB.prepare(
-		`INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-	)
-		.bind(
+	await c.env.DB.batch([
+		c.env.DB.prepare("DELETE FROM cli_tokens WHERE id = ?").bind(cliToken.id),
+		c.env.DB.prepare(
+			`INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+		).bind(
 			crypto.randomUUID(),
 			cliToken.user_id,
 			await hashToken(newAccessToken),
 			await hashToken(newRefreshToken),
 			currentMs,
 			currentMs + refreshExpiresIn * 1000,
-		)
-		.run();
+		),
+	]);
 
 	return c.json({
 		success: true,

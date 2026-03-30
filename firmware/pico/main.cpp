@@ -12,6 +12,14 @@
 #include "hardware/watchdog.h"
 #include <cstring>
 
+// mbedTLS platform time function (required by MBEDTLS_PLATFORM_MS_TIME_ALT)
+extern "C" {
+#include "mbedtls/platform_time.h"
+mbedtls_ms_time_t mbedtls_ms_time(void) {
+    return (mbedtls_ms_time_t)to_ms_since_boot(get_absolute_time());
+}
+}
+
 // Global queues for inter-core communication
 queue_t g_command_queue;
 queue_t g_response_queue;

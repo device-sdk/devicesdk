@@ -32,7 +32,10 @@ uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint
 #include "driver/ledc.h"
 #include "esp_adc/adc_oneshot.h"
 #include "driver/i2c_master.h"
+#include "soc/soc_caps.h"
+#if SOC_TEMP_SENSOR_SUPPORTED
 #include "driver/temperature_sensor.h"
+#endif
 #include "driver/spi_master.h"
 #include "driver/uart.h"
 #include "esp_task_wdt.h"
@@ -80,7 +83,9 @@ static i2c_device_cache_entry_t i2c_device_cache[2][MAX_I2C_DEVICES_PER_BUS];
 static int i2c_device_cache_count[2] = {0, 0};
 
 // Temperature sensor
+#if SOC_TEMP_SENSOR_SUPPORTED
 static temperature_sensor_handle_t temp_sensor_handle = NULL;
+#endif
 
 // Watchdog
 static bool wdt_subscribed = false;
@@ -409,6 +414,7 @@ int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t le
 // === Temperature Sensor ===
 
 float iotkit_hal_get_temperature(void) {
+#if SOC_TEMP_SENSOR_SUPPORTED
     if (!temp_sensor_handle) {
         temperature_sensor_config_t config = TEMPERATURE_SENSOR_CONFIG_DEFAULT(-10, 80);
         esp_err_t ret = temperature_sensor_install(&config, &temp_sensor_handle);
@@ -432,6 +438,9 @@ float iotkit_hal_get_temperature(void) {
         return -999.0f;
     }
     return celsius;
+#else
+    return -999.0f;
+#endif
 }
 
 // === Watchdog Timer ===

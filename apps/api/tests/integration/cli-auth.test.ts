@@ -12,6 +12,32 @@ describe.sequential("CLI Authentication", () => {
 		// Clean up test data
 		await env.DB.prepare("DELETE FROM cli_auth_codes").run();
 		await env.DB.prepare("DELETE FROM cli_tokens").run();
+		await env.DB.prepare("DELETE FROM rate_limits").run();
+	});
+
+	describe("Rate Limiting", () => {
+		test("should rate limit /v1/cli/auth/start after 10 requests", async () => {
+			// Send 10 requests (should all succeed)
+			for (let i = 0; i < 10; i++) {
+				const res = await SELF.fetch("http://localhost/v1/cli/auth/start", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ client_id: "devicesdk-cli" }),
+				});
+				expect(res.status).toBe(200);
+			}
+
+			// 11th request should be rate limited
+			const res = await SELF.fetch("http://localhost/v1/cli/auth/start", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ client_id: "devicesdk-cli" }),
+			});
+			expect(res.status).toBe(429);
+			const body = (await res.json()) as { success: boolean; error: string };
+			expect(body.success).toBe(false);
+			expect(body.error).toContain("Too many requests");
+		});
 	});
 
 	describe("POST /v1/cli/auth/start", () => {
@@ -34,6 +60,23 @@ describe.sequential("CLI Authentication", () => {
 			);
 			expect(body.result.expires_in).toBe(900);
 			expect(body.result.interval).toBe(5);
+		});
+
+		test("should generate unique device codes across multiple auth starts", async () => {
+			const codes = new Set<string>();
+			for (let i = 0; i < 5; i++) {
+				const res = await SELF.fetch("http://localhost/v1/cli/auth/start", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ client_id: "devicesdk-cli" }),
+				});
+				expect(res.status).toBe(200);
+				const body = (await res.json()) as {
+					result: { device_code: string; user_code: string };
+				};
+				codes.add(body.result.device_code);
+			}
+			expect(codes.size).toBe(5); // All unique
 		});
 
 		test("should store auth code in database", async () => {
@@ -675,6 +718,54 @@ describe.sequential("CLI Authentication", () => {
 			expect(res.status).toBe(200);
 			const html = await res.text();
 			expect(html).toContain("Invalid or expired code");
+		});
+
+		test("should escape HTML in approval page code display", async () => {
+			// The approval page renders the code from the query string
+			// Even though the DB lookup prevents XSS payloads from reaching renderApprovalPage,
+			// test that an XSS payload in the code param does NOT render unescaped HTML
+
+			// Create a test user and session for authentication
+			const userId = crypto.randomUUID();
+			const sessionToken = "xss-test-session";
+			await qb
+				.insert<tableUser>({
+					tableName: "user",
+					data: {
+						id: userId,
+						name: "XSS Test User",
+						email: "xss-test@devicesdk.com",
+						created_at: Date.now(),
+						verified_email: 1,
+						picture: "",
+					},
+				})
+				.execute();
+
+			await qb
+				.insert({
+					tableName: "user_sessions",
+					data: {
+						user_id: userId,
+						token: sessionToken,
+						created_at: Date.now(),
+						expires_at: Date.now() + 100000,
+					},
+				})
+				.execute();
+
+			const res = await SELF.fetch(
+				"http://localhost/cli/auth?code=<script>alert(1)</script>",
+				{
+					headers: {
+						Cookie: `devicesdk-session=${sessionToken}`,
+					},
+				},
+			);
+			expect(res.status).toBe(200); // Returns error page HTML (code not found in DB)
+			const html = await res.text();
+			// Should NOT contain unescaped script tag
+			expect(html).not.toContain("<script>alert(1)</script>");
 		});
 
 		test("should render approval page for valid code when authenticated", async () => {

@@ -15,3 +15,5 @@ export const LOG_MESSAGE_MAX_LENGTH = 10_000;
 export const LOG_RETENTION_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const LOG_MAX_STORED = 1_000;
 export const LOG_CLEANUP_INTERVAL = 10; // Clean up every N writes
+
+export const JS_IDENTIFIER_REGEX = /^[A-Za-z_$][A-Za-z0-9_$]*$/;

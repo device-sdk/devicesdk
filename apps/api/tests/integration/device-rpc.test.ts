@@ -250,6 +250,22 @@ describe.sequential("Inter-device RPC", () => {
 			expect(BLOCKED_METHODS).toContain("ctx");
 		});
 
+		it("should block getCrons and onCron from remote calls", async () => {
+			const { BLOCKED_METHODS } = await import(
+				"../../src/durableObjects/lib/rpcConstants"
+			);
+			expect(BLOCKED_METHODS).toContain("getCrons");
+			expect(BLOCKED_METHODS).toContain("onCron");
+		});
+
+		it("should have at least 9 blocked methods", async () => {
+			const { BLOCKED_METHODS } = await import(
+				"../../src/durableObjects/lib/rpcConstants"
+			);
+			// 7 original + getCrons + onCron = 9
+			expect(BLOCKED_METHODS.length).toBeGreaterThanOrEqual(9);
+		});
+
 		it("should not block user-defined method names", async () => {
 			const { BLOCKED_METHODS } = await import(
 				"../../src/durableObjects/lib/rpcConstants"
@@ -287,7 +303,7 @@ describe.sequential("Inter-device RPC", () => {
 			expect(code).toContain("__DEVICE_BRIDGE: bridge");
 			expect(code).toContain("publicEnv");
 			expect(code).toContain(
-				"Object.assign({}, publicEnv, { DEVICES: devicesProxy, VARS })",
+				"Object.assign({}, publicEnv, { DEVICE: safeDevice, DEVICES: devicesProxy, VARS })",
 			);
 		});
 
@@ -298,6 +314,93 @@ describe.sequential("Inter-device RPC", () => {
 			const code = getProxyEntrypoint("TestDevice");
 			expect(code).toContain("Object.getPrototypeOf(target)");
 			expect(code).toContain("hasOwnProperty");
+		});
+	});
+
+	describe("classProxy security", () => {
+		it("should reject invalid entrypoint names", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			expect(() => getProxyEntrypoint("x}; class x{")).toThrow(
+				"Invalid entrypoint name",
+			);
+			expect(() => getProxyEntrypoint("My Device")).toThrow(
+				"Invalid entrypoint name",
+			);
+			expect(() => getProxyEntrypoint("")).toThrow("Invalid entrypoint name");
+		});
+
+		it("should accept valid entrypoint names", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			expect(() => getProxyEntrypoint("Device")).not.toThrow();
+			expect(() => getProxyEntrypoint("MyDevice_v2")).not.toThrow();
+			expect(() => getProxyEntrypoint("$Device")).not.toThrow();
+			expect(() => getProxyEntrypoint("_Private")).not.toThrow();
+		});
+
+		it("should save and restore env in callMethod", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			expect(code).toContain("const originalEnv = target.env");
+			expect(code).toContain("finally { target.env = originalEnv; }");
+		});
+
+		it("should include DEVICE method allowlist", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			expect(code).toContain("ALLOWED_DEVICE_METHODS");
+			expect(code).toContain("safeDevice");
+			expect(code).toContain("'sendCommand'");
+			expect(code).toContain("'sendCommandAndWait'");
+			expect(code).toContain("'persistLog'");
+		});
+	});
+
+	describe("handleRemoteCall deviceMeta guard", () => {
+		it("should return a meaningful error when device has never connected", async () => {
+			// Use testHandleRemoteCall (returns error as value) so the DO does not throw
+			// at the workerd level — a workerd-level uncaught exception breaks the
+			// isolated storage cleanup in vitest-pool-workers (same pattern as testKvPut).
+			const id = env.TEST_DEVICE.idFromName(
+				"handleRemoteCall-guard:never-connected",
+			);
+			const stub = env.TEST_DEVICE.get(id) as unknown as {
+				testHandleRemoteCall(req: {
+					methodName: string;
+					args: unknown[];
+					callDepth: number;
+					scriptMeta: {
+						userId: string;
+						projectId: string;
+						deviceId: string;
+						versionId: string;
+						entrypointName: string;
+					};
+				}): Promise<string | null>;
+			};
+
+			const err = await stub.testHandleRemoteCall({
+				methodName: "turnOn",
+				args: [],
+				callDepth: 1,
+				scriptMeta: {
+					userId: "user-1",
+					projectId: "smart-home",
+					deviceId: "rpc-light",
+					versionId: "rpc-light-v1",
+					entrypointName: "LightController",
+				},
+			});
+
+			expect(err).not.toBeNull();
+			expect(err).toContain("Device has not connected yet");
 		});
 	});
 });

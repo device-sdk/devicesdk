@@ -1,10 +1,11 @@
-import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
+import { ApiException, contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 const deviceSlugRegex = /^[a-z][a-z0-9-]{0,35}$/;
 
-export class CreateDevice extends OpenAPIRoute {
+export class CreateDevice extends BaseRoute {
 	public schema = {
 		tags: ["Devices"],
 		summary: "Register a new device in a project",

@@ -26,6 +26,7 @@ import {
 	handleGoogleCallback,
 	handleLogout,
 } from "./foundation/auth";
+import { rateLimitMiddleware } from "./foundation/rateLimit";
 import type { Env, Variables } from "./types";
 
 const app = fromHono(new Hono<{ Bindings: Env; Variables: Variables }>(), {
@@ -71,15 +72,16 @@ app.onError((err, c) => {
 	}); // Log the error if it's not known
 
 	// For other errors, return a generic 500 response
+	const isDev = c.env.ENV === "local";
 	return c.json(
 		{
 			success: false,
-			// in prod, remove this
 			errors: [
 				{
 					code: 7000,
-					name: err.name,
-					message: err.message ?? "Internal Server Error",
+					...(isDev
+						? { name: err.name, message: err.message }
+						: { message: "Internal Server Error" }),
 				},
 			],
 		},
@@ -123,6 +125,10 @@ app.get(
 	},
 	handleGoogleCallback,
 );
+
+app.use("/v1/cli/auth/start", rateLimitMiddleware(10, 60_000)); // 10 req/min
+app.use("/v1/cli/auth/poll", rateLimitMiddleware(60, 60_000)); // 60 req/min
+app.use("/v1/cli/auth/refresh", rateLimitMiddleware(10, 60_000)); // 10 req/min
 
 app.route("/v1/cli/auth", cliAuthRouterPreAuth);
 

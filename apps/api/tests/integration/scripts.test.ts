@@ -148,6 +148,42 @@ describe.sequential("Scripts endpoint", () => {
 			expect(json.success).toBe(false);
 		});
 
+		it("should reject script upload with code injection in entrypoint", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						entrypoint: "x}; class x{",
+						script: "export class Device { async onMessage() {} }",
+					}),
+				},
+			);
+			expect(resp.status).toBe(400);
+		});
+
+		it("should reject script upload with spaces in entrypoint", async () => {
+			const resp = await SELF.fetch(
+				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({
+						entrypoint: "My Device",
+						script: "export class Device { async onMessage() {} }",
+					}),
+				},
+			);
+			expect(resp.status).toBe(400);
+		});
+
 		it("should return 401 without auth", async () => {
 			const resp = await SELF.fetch(
 				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,

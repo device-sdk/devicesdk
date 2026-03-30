@@ -233,4 +233,68 @@ describe.sequential("Tokens endpoint", () => {
 		expect(json.success).toBe(true);
 		expect(json.result.description == null).toBe(true);
 	});
+
+	it("should store token hash (not plaintext) in DB", async () => {
+		const resp = await SELF.fetch("http://localhost/v1/tokens", {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+			},
+		});
+		expect(resp.status).toBe(201);
+		const json = (await resp.json()) as {
+			result: { id: string; token: string };
+		};
+		const rawToken = json.result.token;
+		expect(rawToken).toBeDefined();
+		expect(rawToken.length).toBeGreaterThan(0);
+
+		// Verify DB stores hash, not plaintext
+		const dbToken = await env.DB.prepare(
+			"SELECT token, token_hash, last_four FROM tokens WHERE id = ?",
+		)
+			.bind(json.result.id)
+			.first<{ token: string; token_hash: string; last_four: string }>();
+
+		expect(dbToken).not.toBeNull();
+		expect(dbToken!.token).toBe(""); // plaintext should be empty
+		expect(dbToken!.token_hash).toBeDefined();
+		expect(dbToken!.token_hash).not.toBe(rawToken); // hash != raw
+		expect(dbToken!.last_four).toBe(rawToken.slice(-4));
+	});
+
+	it("should authenticate with raw API token after hashing", async () => {
+		const createResp = await SELF.fetch("http://localhost/v1/tokens", {
+			method: "POST",
+			headers: { Authorization: `Bearer ${TEST_SESSION_TOKEN}` },
+		});
+		const rawToken = (
+			(await createResp.json()) as { result: { token: string } }
+		).result.token;
+
+		const authResp = await SELF.fetch("http://localhost/v1/user/me", {
+			headers: { Authorization: `Bearer ${rawToken}` },
+		});
+		expect(authResp.status).toBe(200);
+	});
+
+	it("should reject authentication with token hash value", async () => {
+		const createResp = await SELF.fetch("http://localhost/v1/tokens", {
+			method: "POST",
+			headers: { Authorization: `Bearer ${TEST_SESSION_TOKEN}` },
+		});
+		const tokenId = ((await createResp.json()) as { result: { id: string } })
+			.result.id;
+
+		const dbToken = await env.DB.prepare(
+			"SELECT token_hash FROM tokens WHERE id = ?",
+		)
+			.bind(tokenId)
+			.first<{ token_hash: string }>();
+
+		const authResp = await SELF.fetch("http://localhost/v1/user/me", {
+			headers: { Authorization: `Bearer ${dbToken!.token_hash}` },
+		});
+		expect(authResp.status).toBe(401);
+	});
 });

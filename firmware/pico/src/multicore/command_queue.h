@@ -6,9 +6,9 @@
 
 // Maximum sizes for variable-length data in commands
 #define MAX_MESSAGE_ID_LEN 64
-#define MAX_I2C_DATA_LEN 256
-#define MAX_SPI_DATA_LEN 256
-#define MAX_UART_DATA_LEN 256
+#define MAX_I2C_DATA_LEN  256
+#define MAX_SPI_DATA_LEN  4096
+#define MAX_UART_DATA_LEN 4096
 
 // Command types for Core 1 worker
 typedef enum {

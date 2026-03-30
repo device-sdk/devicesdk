@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <climits>
 
 static send_response_fn g_send_response = nullptr;
 static std::string g_current_message_id;
@@ -110,8 +111,11 @@ void handle_websocket_message(const picojson::value& v) {
         if (pin_it != payload.end() && pin_it->second.is<double>() &&
             state_it != payload.end() && state_it->second.is<std::string>()) {
 
+            double pin_val = pin_it->second.get<double>();
+            if (pin_val < 0 || pin_val > 255) { send_error("Invalid pin number"); return; }
+
             cmd.type = CMD_GPIO_SET;
-            cmd.payload.gpio.pin = (uint8_t)pin_it->second.get<double>();
+            cmd.payload.gpio.pin = (uint8_t)pin_val;
 
             const std::string& state_str = state_it->second.get<std::string>();
             if (state_str == "high") {
@@ -138,9 +142,14 @@ void handle_websocket_message(const picojson::value& v) {
             freq_it != payload.end() && freq_it->second.is<double>() &&
             duty_it != payload.end() && duty_it->second.is<double>()) {
 
+            double pin_val = pin_it->second.get<double>();
+            if (pin_val < 0 || pin_val > 255) { send_error("Invalid pin number"); return; }
+            double freq_val = freq_it->second.get<double>();
+            if (freq_val < 0 || freq_val > UINT32_MAX) { send_error("Invalid frequency"); return; }
+
             cmd.type = CMD_PWM_SET;
-            cmd.payload.pwm.pin = (uint8_t)pin_it->second.get<double>();
-            cmd.payload.pwm.frequency = (uint32_t)freq_it->second.get<double>();
+            cmd.payload.pwm.pin = (uint8_t)pin_val;
+            cmd.payload.pwm.frequency = (uint32_t)freq_val;
             cmd.payload.pwm.duty_cycle = (float)duty_it->second.get<double>();
 
             queue_command(&cmd);
@@ -156,7 +165,9 @@ void handle_websocket_message(const picojson::value& v) {
         if (pin_it != payload.end() && pin_it->second.is<double>() &&
             mode_it != payload.end() && mode_it->second.is<std::string>()) {
 
-            uint8_t pin = (uint8_t)pin_it->second.get<double>();
+            double pin_val = pin_it->second.get<double>();
+            if (pin_val < 0 || pin_val > 255) { send_error("Invalid pin number"); return; }
+            uint8_t pin = (uint8_t)pin_val;
             const std::string& mode = mode_it->second.get<std::string>();
 
             if (mode == "digital") {
@@ -183,7 +194,9 @@ void handle_websocket_message(const picojson::value& v) {
         if (pin_it != payload.end() && pin_it->second.is<double>() &&
             enable_it != payload.end() && enable_it->second.is<bool>()) {
 
-            uint8_t pin = (uint8_t)pin_it->second.get<double>();
+            double pin_val = pin_it->second.get<double>();
+            if (pin_val < 0 || pin_val > 255) { send_error("Invalid pin number"); return; }
+            uint8_t pin = (uint8_t)pin_val;
             bool enable = enable_it->second.get<bool>();
 
             if (enable) {
@@ -228,13 +241,25 @@ void handle_websocket_message(const picojson::value& v) {
             sda_it != payload.end() && sda_it->second.is<double>() &&
             scl_it != payload.end() && scl_it->second.is<double>()) {
 
+            double bus_val = bus_it->second.get<double>();
+            if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
+            double sda_val = sda_it->second.get<double>();
+            if (sda_val < 0 || sda_val > 255) { send_error("Invalid sda_pin number"); return; }
+            double scl_val = scl_it->second.get<double>();
+            if (scl_val < 0 || scl_val > 255) { send_error("Invalid scl_pin number"); return; }
+
+            uint32_t frequency = 100000;  // Default 100kHz
+            if (freq_it != payload.end() && freq_it->second.is<double>()) {
+                double freq_val = freq_it->second.get<double>();
+                if (freq_val < 0 || freq_val > UINT32_MAX) { send_error("Invalid frequency"); return; }
+                frequency = (uint32_t)freq_val;
+            }
+
             cmd.type = CMD_I2C_CONFIGURE;
-            cmd.payload.i2c_configure.bus = (uint8_t)bus_it->second.get<double>();
-            cmd.payload.i2c_configure.sda_pin = (uint8_t)sda_it->second.get<double>();
-            cmd.payload.i2c_configure.scl_pin = (uint8_t)scl_it->second.get<double>();
-            cmd.payload.i2c_configure.frequency = freq_it != payload.end() && freq_it->second.is<double>()
-                ? (uint32_t)freq_it->second.get<double>()
-                : 100000;  // Default 100kHz
+            cmd.payload.i2c_configure.bus = (uint8_t)bus_val;
+            cmd.payload.i2c_configure.sda_pin = (uint8_t)sda_val;
+            cmd.payload.i2c_configure.scl_pin = (uint8_t)scl_val;
+            cmd.payload.i2c_configure.frequency = frequency;
 
             queue_command(&cmd);
         } else {
@@ -246,8 +271,11 @@ void handle_websocket_message(const picojson::value& v) {
         auto bus_it = payload.find("bus");
 
         if (bus_it != payload.end() && bus_it->second.is<double>()) {
+            double bus_val = bus_it->second.get<double>();
+            if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
+
             cmd.type = CMD_I2C_SCAN;
-            cmd.payload.i2c_scan.bus = (uint8_t)bus_it->second.get<double>();
+            cmd.payload.i2c_scan.bus = (uint8_t)bus_val;
             queue_command(&cmd);
         } else {
             send_error("Missing bus parameter");
@@ -263,8 +291,11 @@ void handle_websocket_message(const picojson::value& v) {
             addr_it != payload.end() && addr_it->second.is<std::string>() &&
             data_it != payload.end() && data_it->second.is<std::string>()) {
 
+            double bus_val = bus_it->second.get<double>();
+            if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
+
             cmd.type = CMD_I2C_WRITE;
-            cmd.payload.i2c_write.bus = (uint8_t)bus_it->second.get<double>();
+            cmd.payload.i2c_write.bus = (uint8_t)bus_val;
 
             std::string addr_str = addr_it->second.get<std::string>();
             cmd.payload.i2c_write.address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
@@ -297,13 +328,18 @@ void handle_websocket_message(const picojson::value& v) {
             addr_it != payload.end() && addr_it->second.is<std::string>() &&
             len_it != payload.end() && len_it->second.is<double>()) {
 
+            double bus_val = bus_it->second.get<double>();
+            if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
+            double len_val = len_it->second.get<double>();
+            if (len_val < 0 || len_val > MAX_I2C_DATA_LEN) { send_error("I2C read length too large"); return; }
+
             cmd.type = CMD_I2C_READ;
-            cmd.payload.i2c_read.bus = (uint8_t)bus_it->second.get<double>();
+            cmd.payload.i2c_read.bus = (uint8_t)bus_val;
 
             std::string addr_str = addr_it->second.get<std::string>();
             cmd.payload.i2c_read.address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
 
-            cmd.payload.i2c_read.length = (size_t)len_it->second.get<double>();
+            cmd.payload.i2c_read.length = (size_t)len_val;
             cmd.payload.i2c_read.reg = reg_it != payload.end() && reg_it->second.is<double>()
                 ? (int)reg_it->second.get<double>()
                 : -1;
@@ -326,8 +362,11 @@ void handle_websocket_message(const picojson::value& v) {
         if (timeout_it != payload.end() && timeout_it->second.is<double>() &&
             enable_it != payload.end() && enable_it->second.is<bool>()) {
 
+            double timeout_val = timeout_it->second.get<double>();
+            if (timeout_val < 0 || timeout_val > UINT32_MAX) { send_error("Invalid timeout_ms"); return; }
+
             cmd.type = CMD_WATCHDOG_CONFIGURE;
-            cmd.payload.watchdog_configure.timeout_ms = (uint32_t)timeout_it->second.get<double>();
+            cmd.payload.watchdog_configure.timeout_ms = (uint32_t)timeout_val;
             cmd.payload.watchdog_configure.enable = enable_it->second.get<bool>();
 
             queue_command(&cmd);
@@ -356,18 +395,39 @@ void handle_websocket_message(const picojson::value& v) {
             miso_it != payload.end() && miso_it->second.is<double>() &&
             cs_it != payload.end() && cs_it->second.is<double>()) {
 
+            double bus_val = bus_it->second.get<double>();
+            if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
+            double clk_val = clk_it->second.get<double>();
+            if (clk_val < 0 || clk_val > 255) { send_error("Invalid clk_pin number"); return; }
+            double mosi_val = mosi_it->second.get<double>();
+            if (mosi_val < 0 || mosi_val > 255) { send_error("Invalid mosi_pin number"); return; }
+            double miso_val = miso_it->second.get<double>();
+            if (miso_val < 0 || miso_val > 255) { send_error("Invalid miso_pin number"); return; }
+            double cs_val = cs_it->second.get<double>();
+            if (cs_val < 0 || cs_val > 255) { send_error("Invalid cs_pin number"); return; }
+
+            uint32_t frequency = 1000000;  // Default 1MHz
+            if (freq_it != payload.end() && freq_it->second.is<double>()) {
+                double freq_val = freq_it->second.get<double>();
+                if (freq_val < 0 || freq_val > UINT32_MAX) { send_error("Invalid frequency"); return; }
+                frequency = (uint32_t)freq_val;
+            }
+
+            uint8_t mode = 0;  // Default mode 0
+            if (mode_it != payload.end() && mode_it->second.is<double>()) {
+                double mode_val = mode_it->second.get<double>();
+                if (mode_val < 0 || mode_val > 255) { send_error("Invalid mode"); return; }
+                mode = (uint8_t)mode_val;
+            }
+
             cmd.type = CMD_SPI_CONFIGURE;
-            cmd.payload.spi_configure.bus = (uint8_t)bus_it->second.get<double>();
-            cmd.payload.spi_configure.clk_pin = (uint8_t)clk_it->second.get<double>();
-            cmd.payload.spi_configure.mosi_pin = (uint8_t)mosi_it->second.get<double>();
-            cmd.payload.spi_configure.miso_pin = (uint8_t)miso_it->second.get<double>();
-            cmd.payload.spi_configure.cs_pin = (uint8_t)cs_it->second.get<double>();
-            cmd.payload.spi_configure.frequency = freq_it != payload.end() && freq_it->second.is<double>()
-                ? (uint32_t)freq_it->second.get<double>()
-                : 1000000;  // Default 1MHz
-            cmd.payload.spi_configure.mode = mode_it != payload.end() && mode_it->second.is<double>()
-                ? (uint8_t)mode_it->second.get<double>()
-                : 0;  // Default mode 0
+            cmd.payload.spi_configure.bus = (uint8_t)bus_val;
+            cmd.payload.spi_configure.clk_pin = (uint8_t)clk_val;
+            cmd.payload.spi_configure.mosi_pin = (uint8_t)mosi_val;
+            cmd.payload.spi_configure.miso_pin = (uint8_t)miso_val;
+            cmd.payload.spi_configure.cs_pin = (uint8_t)cs_val;
+            cmd.payload.spi_configure.frequency = frequency;
+            cmd.payload.spi_configure.mode = mode;
 
             queue_command(&cmd);
         } else {
@@ -382,8 +442,11 @@ void handle_websocket_message(const picojson::value& v) {
         if (bus_it != payload.end() && bus_it->second.is<double>() &&
             data_it != payload.end() && data_it->second.is<picojson::array>()) {
 
+            double bus_val = bus_it->second.get<double>();
+            if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
+
             cmd.type = CMD_SPI_TRANSFER;
-            cmd.payload.spi_transfer.bus = (uint8_t)bus_it->second.get<double>();
+            cmd.payload.spi_transfer.bus = (uint8_t)bus_val;
 
             const picojson::array& data_arr = data_it->second.get<picojson::array>();
             size_t len = data_arr.size();
@@ -414,8 +477,11 @@ void handle_websocket_message(const picojson::value& v) {
         if (bus_it != payload.end() && bus_it->second.is<double>() &&
             data_it != payload.end() && data_it->second.is<picojson::array>()) {
 
+            double bus_val = bus_it->second.get<double>();
+            if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
+
             cmd.type = CMD_SPI_WRITE;
-            cmd.payload.spi_transfer.bus = (uint8_t)bus_it->second.get<double>();
+            cmd.payload.spi_transfer.bus = (uint8_t)bus_val;
 
             const picojson::array& data_arr = data_it->second.get<picojson::array>();
             size_t len = data_arr.size();
@@ -446,9 +512,14 @@ void handle_websocket_message(const picojson::value& v) {
         if (bus_it != payload.end() && bus_it->second.is<double>() &&
             len_it != payload.end() && len_it->second.is<double>()) {
 
+            double bus_val = bus_it->second.get<double>();
+            if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
+            double len_val = len_it->second.get<double>();
+            if (len_val < 0 || len_val > MAX_SPI_DATA_LEN) { send_error("SPI read length too large"); return; }
+
             cmd.type = CMD_SPI_READ;
-            cmd.payload.spi_read.bus = (uint8_t)bus_it->second.get<double>();
-            cmd.payload.spi_read.length = (size_t)len_it->second.get<double>();
+            cmd.payload.spi_read.bus = (uint8_t)bus_val;
+            cmd.payload.spi_read.length = (size_t)len_val;
 
             queue_command(&cmd);
         } else {
@@ -469,22 +540,49 @@ void handle_websocket_message(const picojson::value& v) {
             tx_it != payload.end() && tx_it->second.is<double>() &&
             rx_it != payload.end() && rx_it->second.is<double>()) {
 
+            double port_val = port_it->second.get<double>();
+            if (port_val < 0 || port_val > 255) { send_error("Invalid port number"); return; }
+            double tx_val = tx_it->second.get<double>();
+            if (tx_val < 0 || tx_val > 255) { send_error("Invalid tx_pin number"); return; }
+            double rx_val = rx_it->second.get<double>();
+            if (rx_val < 0 || rx_val > 255) { send_error("Invalid rx_pin number"); return; }
+
+            uint32_t baud_rate = 115200;  // Default 115200
+            if (baud_it != payload.end() && baud_it->second.is<double>()) {
+                double baud_val = baud_it->second.get<double>();
+                if (baud_val < 0 || baud_val > UINT32_MAX) { send_error("Invalid baud_rate"); return; }
+                baud_rate = (uint32_t)baud_val;
+            }
+
+            uint8_t data_bits = 8;  // Default 8 data bits
+            if (data_bits_it != payload.end() && data_bits_it->second.is<double>()) {
+                double db_val = data_bits_it->second.get<double>();
+                if (db_val < 0 || db_val > 255) { send_error("Invalid data_bits"); return; }
+                data_bits = (uint8_t)db_val;
+            }
+
+            uint8_t stop_bits = 1;  // Default 1 stop bit
+            if (stop_bits_it != payload.end() && stop_bits_it->second.is<double>()) {
+                double sb_val = stop_bits_it->second.get<double>();
+                if (sb_val < 0 || sb_val > 255) { send_error("Invalid stop_bits"); return; }
+                stop_bits = (uint8_t)sb_val;
+            }
+
+            uint8_t parity = 0;  // Default no parity
+            if (parity_it != payload.end() && parity_it->second.is<double>()) {
+                double par_val = parity_it->second.get<double>();
+                if (par_val < 0 || par_val > 255) { send_error("Invalid parity"); return; }
+                parity = (uint8_t)par_val;
+            }
+
             cmd.type = CMD_UART_CONFIGURE;
-            cmd.payload.uart_configure.port = (uint8_t)port_it->second.get<double>();
-            cmd.payload.uart_configure.tx_pin = (uint8_t)tx_it->second.get<double>();
-            cmd.payload.uart_configure.rx_pin = (uint8_t)rx_it->second.get<double>();
-            cmd.payload.uart_configure.baud_rate = baud_it != payload.end() && baud_it->second.is<double>()
-                ? (uint32_t)baud_it->second.get<double>()
-                : 115200;  // Default 115200
-            cmd.payload.uart_configure.data_bits = data_bits_it != payload.end() && data_bits_it->second.is<double>()
-                ? (uint8_t)data_bits_it->second.get<double>()
-                : 8;  // Default 8 data bits
-            cmd.payload.uart_configure.stop_bits = stop_bits_it != payload.end() && stop_bits_it->second.is<double>()
-                ? (uint8_t)stop_bits_it->second.get<double>()
-                : 1;  // Default 1 stop bit
-            cmd.payload.uart_configure.parity = parity_it != payload.end() && parity_it->second.is<double>()
-                ? (uint8_t)parity_it->second.get<double>()
-                : 0;  // Default no parity
+            cmd.payload.uart_configure.port = (uint8_t)port_val;
+            cmd.payload.uart_configure.tx_pin = (uint8_t)tx_val;
+            cmd.payload.uart_configure.rx_pin = (uint8_t)rx_val;
+            cmd.payload.uart_configure.baud_rate = baud_rate;
+            cmd.payload.uart_configure.data_bits = data_bits;
+            cmd.payload.uart_configure.stop_bits = stop_bits;
+            cmd.payload.uart_configure.parity = parity;
 
             queue_command(&cmd);
         } else {
@@ -499,8 +597,11 @@ void handle_websocket_message(const picojson::value& v) {
         if (port_it != payload.end() && port_it->second.is<double>() &&
             data_it != payload.end() && data_it->second.is<picojson::array>()) {
 
+            double port_val = port_it->second.get<double>();
+            if (port_val < 0 || port_val > 255) { send_error("Invalid port number"); return; }
+
             cmd.type = CMD_UART_WRITE;
-            cmd.payload.uart_write.port = (uint8_t)port_it->second.get<double>();
+            cmd.payload.uart_write.port = (uint8_t)port_val;
 
             const picojson::array& data_arr = data_it->second.get<picojson::array>();
             size_t len = data_arr.size();
@@ -532,12 +633,22 @@ void handle_websocket_message(const picojson::value& v) {
         if (port_it != payload.end() && port_it->second.is<double>() &&
             len_it != payload.end() && len_it->second.is<double>()) {
 
+            double port_val = port_it->second.get<double>();
+            if (port_val < 0 || port_val > 255) { send_error("Invalid port number"); return; }
+            double len_val = len_it->second.get<double>();
+            if (len_val < 0 || len_val > MAX_UART_DATA_LEN) { send_error("UART read length too large"); return; }
+
+            uint32_t timeout_ms = 1000;  // Default 1 second timeout
+            if (timeout_it != payload.end() && timeout_it->second.is<double>()) {
+                double timeout_val = timeout_it->second.get<double>();
+                if (timeout_val < 0 || timeout_val > UINT32_MAX) { send_error("Invalid timeout_ms"); return; }
+                timeout_ms = (uint32_t)timeout_val;
+            }
+
             cmd.type = CMD_UART_READ;
-            cmd.payload.uart_read.port = (uint8_t)port_it->second.get<double>();
-            cmd.payload.uart_read.bytes_to_read = (size_t)len_it->second.get<double>();
-            cmd.payload.uart_read.timeout_ms = timeout_it != payload.end() && timeout_it->second.is<double>()
-                ? (uint32_t)timeout_it->second.get<double>()
-                : 1000;  // Default 1 second timeout
+            cmd.payload.uart_read.port = (uint8_t)port_val;
+            cmd.payload.uart_read.bytes_to_read = (size_t)len_val;
+            cmd.payload.uart_read.timeout_ms = timeout_ms;
 
             queue_command(&cmd);
         } else {
@@ -552,9 +663,14 @@ void handle_websocket_message(const picojson::value& v) {
         if (pin_it != payload.end() && pin_it->second.is<double>() &&
             num_leds_it != payload.end() && num_leds_it->second.is<double>()) {
 
+            double pin_val = pin_it->second.get<double>();
+            if (pin_val < 0 || pin_val > 255) { send_error("Invalid pin number"); return; }
+            double num_val = num_leds_it->second.get<double>();
+            if (num_val < 0 || num_val > MAX_WS2812_LEDS) { send_error("Invalid num_leds"); return; }
+
             cmd.type = CMD_PIO_WS2812_CONFIGURE;
-            cmd.payload.pio_ws2812_configure.pin = (uint8_t)pin_it->second.get<double>();
-            cmd.payload.pio_ws2812_configure.num_leds = (uint16_t)num_leds_it->second.get<double>();
+            cmd.payload.pio_ws2812_configure.pin = (uint8_t)pin_val;
+            cmd.payload.pio_ws2812_configure.num_leds = (uint16_t)num_val;
 
             queue_command(&cmd);
         } else {
@@ -619,11 +735,17 @@ void handle_websocket_message(const picojson::value& v) {
             return;
         }
 
-        uint8_t bus = (uint8_t)bus_it->second.get<double>();
+        double bus_val = bus_it->second.get<double>();
+        if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
+        uint8_t bus = (uint8_t)bus_val;
         std::string addr_str = addr_it->second.get<std::string>();
         std::string controller = controller_it->second.get<std::string>();
-        uint8_t width = (uint8_t)width_it->second.get<double>();
-        uint8_t height = (uint8_t)height_it->second.get<double>();
+        double width_val = width_it->second.get<double>();
+        if (width_val < 0 || width_val > 255) { send_error("Invalid width"); return; }
+        uint8_t width = (uint8_t)width_val;
+        double height_val = height_it->second.get<double>();
+        if (height_val < 0 || height_val > 255) { send_error("Invalid height"); return; }
+        uint8_t height = (uint8_t)height_val;
         const picojson::array& segments = segments_it->second.get<picojson::array>();
 
         if (bus > 1) {

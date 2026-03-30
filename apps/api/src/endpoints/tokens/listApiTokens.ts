@@ -1,8 +1,9 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableTokens } from "../../types";
 
-export class ListApiTokens extends OpenAPIRoute {
+export class ListApiTokens extends BaseRoute {
 	public schema = {
 		tags: ["Tokens"],
 		summary: "List all API tokens",
@@ -36,7 +37,14 @@ export class ListApiTokens extends OpenAPIRoute {
 		const { results: tokens } = await qb
 			.fetchAll<tableTokens>({
 				tableName: "tokens",
-				fields: ["id", "created_at", "token", "description", "managed"],
+				fields: [
+					"id",
+					"created_at",
+					"token",
+					"last_four",
+					"description",
+					"managed",
+				],
 				where: {
 					conditions: ["user_id = ?1"],
 					params: [user.id],
@@ -56,7 +64,7 @@ export class ListApiTokens extends OpenAPIRoute {
 				result: tokens.map((t: tableTokens) => ({
 					id: t.id,
 					created_at: t.created_at,
-					last_four: t.token.slice(-4),
+					last_four: t.last_four ?? (t.token ? t.token.slice(-4) : "????"),
 					description: t.description ?? null,
 					managed: t.managed === 1,
 				})),

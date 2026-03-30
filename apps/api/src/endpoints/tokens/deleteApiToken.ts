@@ -1,8 +1,9 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableTokens } from "../../types";
 
-export class DeleteApiToken extends OpenAPIRoute {
+export class DeleteApiToken extends BaseRoute {
 	public schema = {
 		tags: ["Tokens"],
 		summary: "Delete an API token",

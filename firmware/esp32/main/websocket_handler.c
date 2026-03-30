@@ -5,6 +5,7 @@
 #include "cJSON.h"
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #ifndef UNIT_TEST
 #include "esp_log.h"
@@ -91,6 +92,10 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(state_obj)) goto done;
 
+        if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid pin number");
+            goto done;
+        }
         cmd.type = CMD_GPIO_SET;
         cmd.payload.gpio.pin = (uint8_t)pin_obj->valuedouble;
 
@@ -109,6 +114,10 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(mode_obj)) goto done;
 
+        if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid pin number");
+            goto done;
+        }
         cmd.payload.gpio.pin = (uint8_t)pin_obj->valuedouble;
 
         if (strcmp(mode_obj->valuestring, "digital") == 0) {
@@ -129,6 +138,14 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(pin_obj) || !cJSON_IsNumber(freq_obj) || !cJSON_IsNumber(duty_obj)) goto done;
 
+        if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid pin number");
+            goto done;
+        }
+        if (freq_obj->valuedouble < 0 || freq_obj->valuedouble > UINT32_MAX) {
+            LOG_E(TAG, "Invalid frequency");
+            goto done;
+        }
         cmd.type = CMD_PWM_SET;
         cmd.payload.pwm.pin = (uint8_t)pin_obj->valuedouble;
         cmd.payload.pwm.frequency = (uint32_t)freq_obj->valuedouble;
@@ -143,6 +160,10 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(pin_obj) || !cJSON_IsBool(enable_obj)) goto done;
 
+        if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid pin number");
+            goto done;
+        }
         uint8_t pin = (uint8_t)pin_obj->valuedouble;
         bool enable = cJSON_IsTrue(enable_obj);
 
@@ -174,6 +195,22 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(sda_obj) || !cJSON_IsNumber(scl_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
+        if (sda_obj->valuedouble < 0 || sda_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid sda_pin number");
+            goto done;
+        }
+        if (scl_obj->valuedouble < 0 || scl_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid scl_pin number");
+            goto done;
+        }
+        if (cJSON_IsNumber(freq_obj) && (freq_obj->valuedouble < 0 || freq_obj->valuedouble > UINT32_MAX)) {
+            LOG_E(TAG, "Invalid frequency");
+            goto done;
+        }
         cmd.type = CMD_I2C_CONFIGURE;
         cmd.payload.i2c_configure.bus = (uint8_t)bus_obj->valuedouble;
         cmd.payload.i2c_configure.sda_pin = (uint8_t)sda_obj->valuedouble;
@@ -189,6 +226,10 @@ bool handle_websocket_message(const char *message) {
         cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
         if (!cJSON_IsNumber(bus_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
         cmd.type = CMD_I2C_SCAN;
         cmd.payload.i2c_scan.bus = (uint8_t)bus_obj->valuedouble;
         queue_command(&cmd);
@@ -202,6 +243,10 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsString(data_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
         cmd.type = CMD_I2C_WRITE;
         cmd.payload.i2c_write.bus = (uint8_t)bus_obj->valuedouble;
         cmd.payload.i2c_write.address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
@@ -228,6 +273,14 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsNumber(len_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
+        if (len_obj->valuedouble < 0 || len_obj->valuedouble > MAX_I2C_DATA_LEN) {
+            LOG_E(TAG, "I2C read length too large");
+            goto done;
+        }
         cmd.type = CMD_I2C_READ;
         cmd.payload.i2c_read.bus = (uint8_t)bus_obj->valuedouble;
         cmd.payload.i2c_read.address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
@@ -249,6 +302,10 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsArray(writes_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
         uint8_t bus = (uint8_t)bus_obj->valuedouble;
         uint8_t address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
         int writes_count = cJSON_GetArraySize(writes_obj);
@@ -333,6 +390,10 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(timeout_obj) || !cJSON_IsBool(enable_obj)) goto done;
 
+        if (timeout_obj->valuedouble < 0 || timeout_obj->valuedouble > UINT32_MAX) {
+            LOG_E(TAG, "Invalid timeout_ms");
+            goto done;
+        }
         cmd.type = CMD_WATCHDOG_CONFIGURE;
         cmd.payload.watchdog_configure.timeout_ms = (uint32_t)timeout_obj->valuedouble;
         cmd.payload.watchdog_configure.enable = cJSON_IsTrue(enable_obj);
@@ -358,6 +419,34 @@ bool handle_websocket_message(const char *message) {
             !cJSON_IsNumber(mosi_obj) || !cJSON_IsNumber(miso_obj) ||
             !cJSON_IsNumber(cs_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
+        if (clk_obj->valuedouble < 0 || clk_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid clk_pin number");
+            goto done;
+        }
+        if (mosi_obj->valuedouble < 0 || mosi_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid mosi_pin number");
+            goto done;
+        }
+        if (miso_obj->valuedouble < 0 || miso_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid miso_pin number");
+            goto done;
+        }
+        if (cs_obj->valuedouble < 0 || cs_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid cs_pin number");
+            goto done;
+        }
+        if (cJSON_IsNumber(freq_obj) && (freq_obj->valuedouble < 0 || freq_obj->valuedouble > UINT32_MAX)) {
+            LOG_E(TAG, "Invalid frequency");
+            goto done;
+        }
+        if (cJSON_IsNumber(mode_obj) && (mode_obj->valuedouble < 0 || mode_obj->valuedouble > 255)) {
+            LOG_E(TAG, "Invalid mode");
+            goto done;
+        }
         cmd.type = CMD_SPI_CONFIGURE;
         cmd.payload.spi_configure.bus = (uint8_t)bus_obj->valuedouble;
         cmd.payload.spi_configure.clk_pin = (uint8_t)clk_obj->valuedouble;
@@ -376,6 +465,10 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsArray(data_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
         cmd.type = CMD_SPI_TRANSFER;
         cmd.payload.spi_data.bus = (uint8_t)bus_obj->valuedouble;
 
@@ -398,6 +491,10 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsArray(data_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
         cmd.type = CMD_SPI_WRITE;
         cmd.payload.spi_data.bus = (uint8_t)bus_obj->valuedouble;
 
@@ -420,6 +517,14 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(len_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
+        if (len_obj->valuedouble < 0 || len_obj->valuedouble > MAX_SPI_DATA_LEN) {
+            LOG_E(TAG, "SPI read length too large");
+            goto done;
+        }
         cmd.type = CMD_SPI_READ;
         cmd.payload.spi_read.bus = (uint8_t)bus_obj->valuedouble;
         cmd.payload.spi_read.length = (size_t)len_obj->valuedouble;
@@ -439,6 +544,34 @@ bool handle_websocket_message(const char *message) {
         if (!cJSON_IsNumber(port_obj) || !cJSON_IsNumber(tx_obj) ||
             !cJSON_IsNumber(rx_obj) || !cJSON_IsNumber(baud_obj)) goto done;
 
+        if (port_obj->valuedouble < 0 || port_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid port number");
+            goto done;
+        }
+        if (tx_obj->valuedouble < 0 || tx_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid tx_pin number");
+            goto done;
+        }
+        if (rx_obj->valuedouble < 0 || rx_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid rx_pin number");
+            goto done;
+        }
+        if (baud_obj->valuedouble < 0 || baud_obj->valuedouble > UINT32_MAX) {
+            LOG_E(TAG, "Invalid baud_rate");
+            goto done;
+        }
+        if (cJSON_IsNumber(data_bits_obj) && (data_bits_obj->valuedouble < 0 || data_bits_obj->valuedouble > 255)) {
+            LOG_E(TAG, "Invalid data_bits");
+            goto done;
+        }
+        if (cJSON_IsNumber(stop_bits_obj) && (stop_bits_obj->valuedouble < 0 || stop_bits_obj->valuedouble > 255)) {
+            LOG_E(TAG, "Invalid stop_bits");
+            goto done;
+        }
+        if (cJSON_IsNumber(parity_obj) && (parity_obj->valuedouble < 0 || parity_obj->valuedouble > 255)) {
+            LOG_E(TAG, "Invalid parity");
+            goto done;
+        }
         cmd.type = CMD_UART_CONFIGURE;
         cmd.payload.uart_configure.port = (uint8_t)port_obj->valuedouble;
         cmd.payload.uart_configure.tx_pin = (uint8_t)tx_obj->valuedouble;
@@ -457,6 +590,10 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(port_obj) || !cJSON_IsArray(data_obj)) goto done;
 
+        if (port_obj->valuedouble < 0 || port_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid port number");
+            goto done;
+        }
         cmd.type = CMD_UART_WRITE;
         cmd.payload.uart_write.port = (uint8_t)port_obj->valuedouble;
 
@@ -480,6 +617,18 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(port_obj) || !cJSON_IsNumber(len_obj)) goto done;
 
+        if (port_obj->valuedouble < 0 || port_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid port number");
+            goto done;
+        }
+        if (len_obj->valuedouble < 0 || len_obj->valuedouble > MAX_UART_DATA_LEN) {
+            LOG_E(TAG, "UART read length too large");
+            goto done;
+        }
+        if (cJSON_IsNumber(timeout_obj) && (timeout_obj->valuedouble < 0 || timeout_obj->valuedouble > UINT32_MAX)) {
+            LOG_E(TAG, "Invalid timeout_ms");
+            goto done;
+        }
         cmd.type = CMD_UART_READ;
         cmd.payload.uart_read.port = (uint8_t)port_obj->valuedouble;
         cmd.payload.uart_read.bytes_to_read = (size_t)len_obj->valuedouble;
@@ -501,6 +650,18 @@ bool handle_websocket_message(const char *message) {
             !cJSON_IsString(controller_obj) || !cJSON_IsNumber(width_obj) ||
             !cJSON_IsNumber(height_obj) || !cJSON_IsArray(segments_obj)) goto done;
 
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid bus number");
+            goto done;
+        }
+        if (width_obj->valuedouble < 0 || width_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid width");
+            goto done;
+        }
+        if (height_obj->valuedouble < 0 || height_obj->valuedouble > 255) {
+            LOG_E(TAG, "Invalid height");
+            goto done;
+        }
         uint8_t bus = (uint8_t)bus_obj->valuedouble;
         uint8_t address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
         const char *controller = controller_obj->valuestring;

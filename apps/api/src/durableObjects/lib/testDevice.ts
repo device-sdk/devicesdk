@@ -75,6 +75,21 @@ export class TestDevice extends BaseDevice {
 	}
 
 	/**
+	 * testHandleRemoteCall: wraps handleRemoteCall and returns the error message instead of throwing.
+	 * See testKvPut for the rationale — DO RPC throws break vitest-pool-workers isolated storage cleanup.
+	 */
+	async testHandleRemoteCall(
+		req: Parameters<BaseDevice["handleRemoteCall"]>[0],
+	): Promise<string | null> {
+		try {
+			await this.handleRemoteCall(req);
+			return null;
+		} catch (e) {
+			return (e as Error).message;
+		}
+	}
+
+	/**
 	 * Calls initializeCrons with a minimal mock worker that returns the given crons map.
 	 * Allows integration tests to exercise the initialize path without a real LOADER binding.
 	 */

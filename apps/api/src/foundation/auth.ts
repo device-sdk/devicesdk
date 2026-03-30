@@ -4,6 +4,7 @@ import type { Next } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import type { AppContext, tableUser, tableUserSessions } from "../types";
 import { SESSION_COOKIE_NAME, SESSION_DURATION_MS } from "./consts";
+import { hashToken } from "./tokenHash";
 
 function getToken(c: AppContext): null | string {
 	const authHeader = c.req.header("Authorization");
@@ -21,13 +22,6 @@ function getToken(c: AppContext): null | string {
 	}
 
 	return authCookie;
-}
-
-async function hashTokenSha256(token: string): Promise<string> {
-	const utf8 = new TextEncoder().encode(token);
-	const hashBuffer = await crypto.subtle.digest({ name: "SHA-256" }, utf8);
-	const hashArray = Array.from(new Uint8Array(hashBuffer));
-	return hashArray.map((bytes) => bytes.toString(16).padStart(2, "0")).join("");
 }
 
 function getLoginRedirectUrl(returnUrl: string, env: any): string {
@@ -68,7 +62,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 
 	// Check if it's a CLI token (dsdk_ prefix)
 	if (token.startsWith("dsdk_") && !token.startsWith("dsdk_refresh_")) {
-		const tokenHash = await hashTokenSha256(token);
+		const tokenHash = await hashToken(token);
 
 		const cliToken = await c.env.DB.prepare(
 			`SELECT ct.*, u.id as user_id, u.name, u.email, u.picture, u.verified_email, u.created_at as user_created_at
@@ -135,6 +129,10 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		.execute();
 
 	if (!session.results) {
+		// Hash the incoming token for comparison
+		const apiTokenHash = await hashToken(token);
+
+		// Look up by hash
 		const tokenUser = await c
 			.get("qb")
 			.fetchOne<tableUser>({
@@ -145,22 +143,52 @@ export async function authenticateUser(c: AppContext, next: Next) {
 					on: "t.user_id = u.id",
 				},
 				where: {
-					conditions: ["t.token = ?1"],
-					params: [token],
+					conditions: ["t.token_hash = ?1"],
+					params: [apiTokenHash],
 				},
 			})
 			.execute();
 
 		if (!tokenUser.results) {
-			return Response.json(
-				{
-					success: false,
-					errors: "Authentication error",
-				},
-				{
-					status: 401,
-				},
-			);
+			// Legacy fallback for un-migrated tokens
+			const legacyTokenUser = await c
+				.get("qb")
+				.fetchOne<tableUser>({
+					tableName: "tokens t",
+					fields: "u.*",
+					join: {
+						table: "user u",
+						on: "t.user_id = u.id",
+					},
+					where: {
+						conditions: ["t.token = ?1"],
+						params: [token],
+					},
+				})
+				.execute();
+
+			if (!legacyTokenUser.results) {
+				return Response.json(
+					{
+						success: false,
+						errors: "Authentication error",
+					},
+					{
+						status: 401,
+					},
+				);
+			}
+
+			// Migrate this token on-read
+			await c.env.DB.prepare(
+				"UPDATE tokens SET token_hash = ?, last_four = ?, token = '' WHERE token = ?",
+			)
+				.bind(apiTokenHash, token.slice(-4), token)
+				.run();
+
+			c.set("user", legacyTokenUser.results);
+			await next();
+			return;
 		}
 
 		c.set("user", tokenUser.results);
@@ -222,10 +250,7 @@ export async function handleGoogleCallback(c: AppContext) {
 			tableName: "user_sessions",
 			data: {
 				user_id: user.results.id,
-				token: await hashPassword(
-					(Math.random() + 1).toString(3),
-					c.env.SALT_TOKEN,
-				),
+				token: await hashPassword(crypto.randomUUID(), c.env.SALT_TOKEN),
 				expires_at: expiration,
 				created_at: currentMs,
 			},
@@ -256,7 +281,7 @@ export async function handleGoogleCallback(c: AppContext) {
 		httpOnly: true,
 		expires: expirationDate,
 		domain: ".devicesdk.com",
-		sameSite: "None",
+		sameSite: "Lax",
 		secure: true,
 		path: "/",
 	});
@@ -265,6 +290,21 @@ export async function handleGoogleCallback(c: AppContext) {
 }
 
 export async function handleLogout(c: AppContext) {
+	// Delete session from database
+	const token = getCookie(c, SESSION_COOKIE_NAME);
+	if (token) {
+		await c
+			.get("qb")
+			.delete({
+				tableName: "user_sessions",
+				where: {
+					conditions: ["token = ?1"],
+					params: [token],
+				},
+			})
+			.execute();
+	}
+
 	if (c.env.ENV === "local") {
 		setCookie(c, SESSION_COOKIE_NAME, "", {
 			httpOnly: true,
@@ -279,7 +319,7 @@ export async function handleLogout(c: AppContext) {
 			httpOnly: true,
 			expires: new Date(0),
 			domain: ".devicesdk.com",
-			sameSite: "None",
+			sameSite: "Lax",
 			secure: true,
 			path: "/",
 		});

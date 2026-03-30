@@ -1,8 +1,9 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
-export class ListDevices extends OpenAPIRoute {
+export class ListDevices extends BaseRoute {
 	public schema = {
 		tags: ["Devices"],
 		summary: "List all devices in a project",

@@ -1,12 +1,13 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type {
 	AppContext,
 	tableProjectEnvVars,
 	tableProjects,
 } from "../../types";
 
-export class ListEnvVars extends OpenAPIRoute {
+export class ListEnvVars extends BaseRoute {
 	public schema = {
 		tags: ["Env Vars"],
 		summary: "List environment variable keys for a project",

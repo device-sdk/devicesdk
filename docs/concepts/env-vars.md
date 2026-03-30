@@ -1,6 +1,7 @@
 ---
 title: Environment Variables
 description: Store secrets and configuration outside your device script source code
+social_image: /og-images/docs/concepts/env-vars.png
 ---
 
 Environment variables let you store secrets — API keys, webhook URLs, credentials — at the project level and access them from device scripts at runtime. Variables are never stored in your source code or script bundles.

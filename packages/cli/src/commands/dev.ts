@@ -29,6 +29,10 @@ interface DeviceWithClass extends DeviceConfig {
 	resolvedEntrypoint: string;
 }
 
+function sanitizeCapnpId(s: string): string {
+	return s.replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
 const generateCapnpConfig = (
 	devices: Record<string, DeviceWithClass>,
 	entrypointPath: string,
@@ -38,7 +42,7 @@ const generateCapnpConfig = (
 	const durableObjects = Object.keys(devices)
 		.map(
 			(key) => `
-      (className = "DeviceBridge_${key}", enableSql = true)
+      (className = "DeviceBridge_${sanitizeCapnpId(key)}", enableSql = true)
     `,
 		)
 		.join(",");
@@ -46,7 +50,7 @@ const generateCapnpConfig = (
 	const doBindings = Object.keys(devices)
 		.map(
 			(key) => `
-        (name = "${key}", durableObjectNamespace = (className = "DeviceBridge_${key}", serviceName = "main"))
+        (name = "${sanitizeCapnpId(key)}", durableObjectNamespace = (className = "DeviceBridge_${sanitizeCapnpId(key)}", serviceName = "main"))
       `,
 		)
 		.join(",");
@@ -117,7 +121,7 @@ const generateWorkerdEntrypoint = async (
 	const bridgeExports = Object.entries(devices)
 		.map(
 			([key, device]) =>
-				`export const DeviceBridge_${key} = createDeviceBridge(${device.className});`,
+				`export const DeviceBridge_${sanitizeCapnpId(key)} = createDeviceBridge(${device.className});`,
 		)
 		.join("\n");
 

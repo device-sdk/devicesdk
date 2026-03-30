@@ -1,9 +1,10 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { getDeviceConnectionStatus } from "../../foundation/deviceStatus";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
-export class GetDeviceStatus extends OpenAPIRoute {
+export class GetDeviceStatus extends BaseRoute {
 	public schema = {
 		tags: ["Devices"],
 		summary: "Get live connection status for a device",

@@ -1,8 +1,9 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableProjects } from "../../types";
 
-export class DeleteEnvVar extends OpenAPIRoute {
+export class DeleteEnvVar extends BaseRoute {
 	public schema = {
 		tags: ["Env Vars"],
 		summary: "Delete a single environment variable",

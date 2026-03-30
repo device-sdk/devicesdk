@@ -1,5 +1,6 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 const VALID_COMMAND_TYPES = [
@@ -30,11 +31,18 @@ const VALID_COMMAND_TYPES = [
 ] as const;
 
 const commandBodySchema = z.object({
-	type: z.string().min(1),
-	payload: z.object({}).passthrough().optional().default({}),
+	type: z.enum(VALID_COMMAND_TYPES),
+	payload: z
+		.object({})
+		.passthrough()
+		.optional()
+		.default({})
+		.refine((p) => JSON.stringify(p).length <= 4096, {
+			message: "Command payload too large (max 4KB)",
+		}),
 });
 
-export class SendDeviceCommand extends OpenAPIRoute {
+export class SendDeviceCommand extends BaseRoute {
 	public schema = {
 		tags: ["Devices"],
 		summary: "Send a hardware command to a connected device",
@@ -87,17 +95,6 @@ export class SendDeviceCommand extends OpenAPIRoute {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { projectId, deviceId } = data.params;
 		const { type, payload } = data.body;
-
-		// Validate command type against the whitelist
-		if (!(VALID_COMMAND_TYPES as readonly string[]).includes(type)) {
-			return c.json(
-				{
-					success: false,
-					error: `Invalid command type: "${type}". Must be one of: ${VALID_COMMAND_TYPES.join(", ")}`,
-				},
-				400,
-			);
-		}
 
 		// Find the project owned by this user
 		const project = await qb

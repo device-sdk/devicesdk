@@ -102,6 +102,13 @@ export class DownloadFirmware extends BaseRoute {
 			return c.json({ success: false, error: "Device not found" }, 404);
 		}
 
+		// Token rotation is always required on every firmware download.
+		// The raw token is never persisted after creation — only its SHA-256 hash is stored.
+		// Since the original raw value cannot be recovered from the hash, the token
+		// embedded in any previously-flashed firmware image cannot be reused. A fresh
+		// token is generated here so the new firmware image always has valid credentials.
+		// Side effect: if a device is currently connected using the old token, it will
+		// be rejected on reconnect until it is reflashed with the new firmware.
 		// Delete existing managed token for this device and create a fresh one
 		const tokenDescription = `${deviceId} authentication token`;
 		await qb

@@ -362,4 +362,45 @@ describe.sequential("Inter-device RPC", () => {
 			expect(code).toContain("'persistLog'");
 		});
 	});
+
+	describe("handleRemoteCall deviceMeta guard", () => {
+		it("should return a meaningful error when device has never connected", async () => {
+			// Use testHandleRemoteCall (returns error as value) so the DO does not throw
+			// at the workerd level — a workerd-level uncaught exception breaks the
+			// isolated storage cleanup in vitest-pool-workers (same pattern as testKvPut).
+			const id = env.TEST_DEVICE.idFromName(
+				"handleRemoteCall-guard:never-connected",
+			);
+			const stub = env.TEST_DEVICE.get(id) as unknown as {
+				testHandleRemoteCall(req: {
+					methodName: string;
+					args: unknown[];
+					callDepth: number;
+					scriptMeta: {
+						userId: string;
+						projectId: string;
+						deviceId: string;
+						versionId: string;
+						entrypointName: string;
+					};
+				}): Promise<string | null>;
+			};
+
+			const err = await stub.testHandleRemoteCall({
+				methodName: "turnOn",
+				args: [],
+				callDepth: 1,
+				scriptMeta: {
+					userId: "user-1",
+					projectId: "smart-home",
+					deviceId: "rpc-light",
+					versionId: "rpc-light-v1",
+					entrypointName: "LightController",
+				},
+			});
+
+			expect(err).not.toBeNull();
+			expect(err).toContain("Device has not connected yet");
+		});
+	});
 });

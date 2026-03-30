@@ -13,10 +13,12 @@ export function rateLimitMiddleware(maxRequests: number, windowMs: number) {
 		const now = Date.now();
 		const windowStart = now - windowMs;
 
-		// Clean expired entries
-		await c.env.DB.prepare("DELETE FROM rate_limits WHERE expires_at < ?")
-			.bind(now)
-			.run();
+		// Clean expired entries off the hot path — runs after the response is sent
+		c.executionCtx.waitUntil(
+			c.env.DB.prepare("DELETE FROM rate_limits WHERE expires_at < ?")
+				.bind(now)
+				.run(),
+		);
 
 		// Count recent requests
 		const count = await c.env.DB.prepare(

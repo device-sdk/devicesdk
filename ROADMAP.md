@@ -23,7 +23,7 @@ Last updated: 2026-02-07
 | 11 | [Unify Linting on Biome](#11-unify-linting-on-biome) | Migrate dashboard and simulation from ESLint to Biome for consistency | [ ]    |
 | 12 | [Add Continuous Deployment](#12-add-continuous-deployment) | Automated deploy-on-merge for the API, dashboard, and website | [ ]    |
 | 13 | [Add Dependency & Security Scanning](#13-add-dependency--security-scanning) | Dependabot/Renovate for dependency updates; SAST scanning in CI | [ ]    |
-| 14 | [Add API Rate Limiting](#14-add-api-rate-limiting) | Protect public endpoints from abuse | [ ]    |
+| 14 | [Add API Rate Limiting](#14-add-api-rate-limiting) | Protect public endpoints from abuse | [ x ]  |
 | 15 | [Add Account Deletion Endpoint](#15-add-account-deletion-endpoint) | GDPR-style `DELETE /v1/user/me` that cascades through projects, devices, scripts, sessions | [ ]    |
 | 16 | [Expand Public Documentation](#16-expand-public-documentation) | API reference, I2C guide, sensor cookbook, `dev` command docs, architecture overview | [ ]    |
 | 17 | [Add Monitoring & Error Tracking](#17-add-monitoring--error-tracking) | APM, structured logging, error tracking, and alerting for production | [ ]    |
@@ -31,6 +31,7 @@ Last updated: 2026-02-07
 | 19 | [Miscellaneous Cleanup](#19-miscellaneous-cleanup) | Small TODOs, type fixes, and dead code across the repo | [ ]    |
 | 20 | [Inter-Device Communication (RPC)](#20-inter-device-communication-rpc) | Type-safe method calls between devices in the same project | [ x ]  |
 | 21 | [Inter-Device Events / Pub-Sub](#21-inter-device-events--pub-sub) | Project-level event broadcasting between devices | [ ]    |
+| 22 | [Firmware TLS Certificate Verification (Pico)](#22-firmware-tls-certificate-verification-pico) | Embed CA cert or pin server public key so Pico TLS verifies the server identity | [ ]    |
 
 ---
 
@@ -451,3 +452,26 @@ Complements RPC (task #20) for one-to-many communication patterns.
 2. Add `onProjectEvent` to `DeviceEntrypoint` lifecycle methods
 3. Add event types to `@devicesdk/core`
 4. Add integration tests and documentation
+
+---
+
+### 22. Firmware TLS Certificate Verification (Pico)
+
+**Priority**: High (security — partial fix from PR #48, finding C2)
+**Packages affected**: `firmware/pico`
+
+**Current state**: The Pico firmware now connects over TLS (`wss://`) but calls
+`altcp_tls_create_config_client(NULL, 0)` — a NULL CA bundle means no server
+certificate is verified, so a machine-in-the-middle attack is still possible.
+The ESP32 firmware is not affected; it uses the Espressif CA bundle correctly.
+
+**Why deferred**: mbedTLS (used by the Pico W lwIP/altcp stack) requires the
+CA certificate to be compiled into the firmware image. The build does not yet
+embed any root CA.
+
+**Work required**:
+1. Obtain the root CA PEM for `api.devicesdk.com` (or its issuing CA).
+2. Convert PEM → DER byte array; add as `firmware/pico/src/ca_cert.h`.
+3. Pass the DER buffer and length to `altcp_tls_create_config_client()` instead of `NULL, 0`.
+4. Verify TLS handshake succeeds against the real server and fails against a self-signed cert (simulated MITM).
+5. Update the Pico firmware CI build to fail if the CA buffer is empty.

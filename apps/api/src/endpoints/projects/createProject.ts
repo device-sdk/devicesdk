@@ -1,10 +1,11 @@
-import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
+import { ApiException, contentJson } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import type { AppContext, tableProjects } from "../../types";
 
 const projectSlugRegex = /^[a-z][a-z0-9-]{0,35}$/;
 
-export class CreateProject extends OpenAPIRoute {
+export class CreateProject extends BaseRoute {
 	public schema = {
 		tags: ["Projects"],
 		summary: "Create a new project",

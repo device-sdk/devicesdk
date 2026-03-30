@@ -1,5 +1,32 @@
+diff --git a/dist/index.js b/dist/index.js
+index b66f092ad7aac17fb2e902194397db57687e52cc..f550e6249d9583ba5d8bcc01dc3d50a0aafc6204 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1215,16 +1215,13 @@ var OpenAPIRoute = class {
+     } else {
+       validationSchema = import_zod5.z.object(rawSchema);
+     }
+-    try {
+-      return await validationSchema.parseAsync(unvalidatedData);
+-    } catch (e) {
+-      if (e instanceof import_zod5.z.ZodError) {
+-        throw new MultiException(
+-          e.issues.map((issue) => new InputValidationException(issue.message, issue.path.map(String)))
+-        );
+-      }
+-      throw e;
++    const result = await validationSchema.safeParseAsync(unvalidatedData);
++    if (!result.success) {
++      throw new MultiException(
++        result.error.issues.map((issue) => new InputValidationException(issue.message, issue.path.map(String)))
++      );
+     }
++    return result.data;
+   }
+ };
+ 
 diff --git a/dist/index.mjs b/dist/index.mjs
-index 522227eb511890bbc667823629bfaf8fbe533777..ad0f23b18908d51fb28fd1cabc1f6ac13f287f98 100644
+index 522227eb511890bbc667823629bfaf8fbe533777..4c7933c5b92d4d8cdc81c7b995e94ffacbf1dd20 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
 @@ -89,7 +89,7 @@ function jsonResp(data, params) {
@@ -11,12 +38,26 @@ index 522227eb511890bbc667823629bfaf8fbe533777..ad0f23b18908d51fb28fd1cabc1f6ac1
      return jsonResp(
        {
          errors: e.issues.map((issue) => ({
-@@ -1132,7 +1132,7 @@ var OpenAPIRoute = class {
-     try {
-       return await validationSchema.parseAsync(unvalidatedData);
-     } catch (e) {
+@@ -1129,16 +1129,13 @@ var OpenAPIRoute = class {
+     } else {
+       validationSchema = z5.object(rawSchema);
+     }
+-    try {
+-      return await validationSchema.parseAsync(unvalidatedData);
+-    } catch (e) {
 -      if (e instanceof z5.ZodError) {
-+      if (e instanceof z5.ZodError || (e && typeof e === "object" && "issues" in e && Array.isArray(e.issues))) {
-         throw new MultiException(
-           e.issues.map((issue) => new InputValidationException(issue.message, issue.path.map(String)))
-         );
+-        throw new MultiException(
+-          e.issues.map((issue) => new InputValidationException(issue.message, issue.path.map(String)))
+-        );
+-      }
+-      throw e;
++    const result = await validationSchema.safeParseAsync(unvalidatedData);
++    if (!result.success) {
++      throw new MultiException(
++        result.error.issues.map((issue) => new InputValidationException(issue.message, issue.path.map(String)))
++      );
+     }
++    return result.data;
+   }
+ };
+ 

@@ -1,4 +1,5 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import type {
 	AppContext,
@@ -7,7 +8,7 @@ import type {
 	tableProjects,
 } from "../../types";
 
-export class ListVersions extends OpenAPIRoute {
+export class ListVersions extends BaseRoute {
 	public schema = {
 		tags: ["Scripts"],
 		summary: "List all script versions for a device",

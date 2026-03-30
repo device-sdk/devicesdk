@@ -67,26 +67,6 @@ app.onError((err, c) => {
 		return (err as HTTPException).getResponse();
 	}
 
-	// Catch ZodErrors that escape chanfana's validation handler
-	// (cross-realm instanceof can fail in Workers runtime)
-	if (
-		err &&
-		"issues" in err &&
-		Array.isArray((err as { issues: unknown }).issues)
-	) {
-		return c.json(
-			{
-				success: false,
-				errors: (err as { issues: Array<{ message: string; path: Array<string | number> }> }).issues.map((issue) => ({
-					code: 7001,
-					message: issue.message,
-					path: issue.path?.map(String),
-				})),
-			},
-			400,
-		);
-	}
-
 	console.error(`Global error handler caught ${err.name}:${err.message}`, {
 		err: JSON.stringify(err),
 	}); // Log the error if it's not known

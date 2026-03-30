@@ -1,4 +1,5 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import { JS_IDENTIFIER_REGEX } from "../../foundation/consts";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
@@ -10,7 +11,7 @@ import type {
 	tableProjects,
 } from "../../types";
 
-export class UploadScript extends OpenAPIRoute {
+export class UploadScript extends BaseRoute {
 	public schema = {
 		tags: ["Scripts"],
 		summary: "Upload a new script version for a device",
@@ -23,7 +24,14 @@ export class UploadScript extends OpenAPIRoute {
 			body: contentJson(
 				z.object({
 					script: z.string().max(1024 * 1024), // 1MB
-					entrypoint: z.string().min(1).max(255),
+					entrypoint: z
+						.string()
+						.min(1)
+						.max(255)
+						.regex(
+							JS_IDENTIFIER_REGEX,
+							"Entrypoint must be a valid JavaScript identifier",
+						),
 					message: z.string().max(500).optional(),
 				}),
 			),
@@ -64,15 +72,6 @@ export class UploadScript extends OpenAPIRoute {
 		const script = data.body.script;
 		const entrypoint = data.body.entrypoint;
 
-		if (!JS_IDENTIFIER_REGEX.test(entrypoint)) {
-			return c.json(
-				{
-					success: false,
-					errors: [{ message: "Entrypoint must be a valid JavaScript identifier" }],
-				},
-				400,
-			);
-		}
 		const message = data.body.message || null;
 
 		// Validate the user script before saving

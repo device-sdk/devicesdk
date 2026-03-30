@@ -1,8 +1,9 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
-export class DeleteDevice extends OpenAPIRoute {
+export class DeleteDevice extends BaseRoute {
 	public schema = {
 		tags: ["Devices"],
 		summary: "Delete a device",

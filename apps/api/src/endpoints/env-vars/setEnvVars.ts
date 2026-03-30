@@ -1,12 +1,13 @@
 import { ENV_VAR_KEY_REGEX } from "@devicesdk/core";
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import type { AppContext, tableProjects } from "../../types";
 
 const MAX_VARS_PER_PROJECT = 50;
 const MAX_VALUE_BYTES = 4096;
 
-export class SetEnvVars extends OpenAPIRoute {
+export class SetEnvVars extends BaseRoute {
 	public schema = {
 		tags: ["Env Vars"],
 		summary: "Set one or more environment variables for a project",

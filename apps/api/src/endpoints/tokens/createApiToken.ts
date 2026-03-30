@@ -1,9 +1,10 @@
-import { ApiException, contentJson, OpenAPIRoute } from "chanfana";
+import { ApiException, contentJson } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext, tableTokens } from "../../types";
 
-export class CreateApiToken extends OpenAPIRoute {
+export class CreateApiToken extends BaseRoute {
 	public schema = {
 		tags: ["Tokens"],
 		summary: "Create a new API token",

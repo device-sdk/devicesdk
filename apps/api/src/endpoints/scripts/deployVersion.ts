@@ -1,4 +1,5 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 import type {
@@ -8,7 +9,7 @@ import type {
 	tableProjects,
 } from "../../types";
 
-export class DeployVersion extends OpenAPIRoute {
+export class DeployVersion extends BaseRoute {
 	public schema = {
 		tags: ["Scripts"],
 		summary: "Deploy a specific script version (rollback)",

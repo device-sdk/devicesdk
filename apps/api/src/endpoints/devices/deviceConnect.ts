@@ -1,4 +1,4 @@
-import { OpenAPIRoute } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import type {
 	AppContext,
@@ -7,7 +7,7 @@ import type {
 	tableProjects,
 } from "../../types";
 
-export class DeviceConnect extends OpenAPIRoute {
+export class DeviceConnect extends BaseRoute {
 	public schema = {
 		tags: ["Devices"],
 		summary: "Connect to a given device via WebSocket",

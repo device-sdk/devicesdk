@@ -1,4 +1,5 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import { JS_IDENTIFIER_REGEX } from "../../foundation/consts";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
@@ -12,7 +13,7 @@ import type {
 
 const deviceSlugRegex = /^[a-z][a-z0-9-]{0,35}$/;
 
-export class BatchUploadScripts extends OpenAPIRoute {
+export class BatchUploadScripts extends BaseRoute {
 	public schema = {
 		tags: ["Scripts"],
 		summary: "Upload scripts for multiple devices at once",
@@ -27,7 +28,14 @@ export class BatchUploadScripts extends OpenAPIRoute {
 						z.string(),
 						z.object({
 							script: z.string().max(1024 * 1024),
-							entrypoint: z.string().min(1).max(255),
+							entrypoint: z
+								.string()
+								.min(1)
+								.max(255)
+								.regex(
+									JS_IDENTIFIER_REGEX,
+									"Entrypoint must be a valid JavaScript identifier",
+								),
 						}),
 					),
 					message: z.string().max(500).optional(),
@@ -69,19 +77,6 @@ export class BatchUploadScripts extends OpenAPIRoute {
 		const qb = c.get("qb");
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { projectId } = data.params;
-
-		// Validate entrypoint names are valid JS identifiers
-		for (const [slug, device] of Object.entries(data.body.devices)) {
-			if (!JS_IDENTIFIER_REGEX.test(device.entrypoint)) {
-				return c.json(
-					{
-						success: false,
-						errors: [{ message: `Entrypoint for device "${slug}" must be a valid JavaScript identifier` }],
-					},
-					400,
-				);
-			}
-		}
 
 		const devicesData = data.body.devices;
 		const message = data.body.message || null;

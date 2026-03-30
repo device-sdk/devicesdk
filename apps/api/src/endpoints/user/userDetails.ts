@@ -1,8 +1,9 @@
-import { contentJson, OpenAPIRoute } from "chanfana";
+import { contentJson } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import type { AppContext } from "../../types";
 
-export class UserDetails extends OpenAPIRoute {
+export class UserDetails extends BaseRoute {
 	public schema = {
 		tags: ["User"],
 		summary: "Get details on the user profile",

@@ -1,4 +1,5 @@
-import { ApiException, OpenAPIRoute } from "chanfana";
+import { ApiException } from "chanfana";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
 import { recalculateEsp32Checksum } from "../../foundation/esp32ImageChecksum";
 import { validateUf2Structure } from "../../foundation/picoUf2Checksum";
@@ -21,7 +22,7 @@ const PROJECT_LENGTH = OLD_PROJECT_ID.length; // 32 bytes
 const DEVICE_LENGTH = OLD_DEVICE_ID.length; // 32 bytes
 const encoder = new TextEncoder();
 
-export class DownloadFirmware extends OpenAPIRoute {
+export class DownloadFirmware extends BaseRoute {
 	public schema = {
 		tags: ["Devices"],
 		summary: "Download device firmware",

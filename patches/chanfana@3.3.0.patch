@@ -1,0 +1,22 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 522227eb511890bbc667823629bfaf8fbe533777..ad0f23b18908d51fb28fd1cabc1f6ac13f287f98 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -89,7 +89,7 @@ function jsonResp(data, params) {
+   });
+ }
+ function formatChanfanaError(e) {
+-  if (e instanceof z.ZodError) {
++  if (e instanceof z.ZodError || (e && typeof e === "object" && "issues" in e && Array.isArray(e.issues))) {
+     return jsonResp(
+       {
+         errors: e.issues.map((issue) => ({
+@@ -1132,7 +1132,7 @@ var OpenAPIRoute = class {
+     try {
+       return await validationSchema.parseAsync(unvalidatedData);
+     } catch (e) {
+-      if (e instanceof z5.ZodError) {
++      if (e instanceof z5.ZodError || (e && typeof e === "object" && "issues" in e && Array.isArray(e.issues))) {
+         throw new MultiException(
+           e.issues.map((issue) => new InputValidationException(issue.message, issue.path.map(String)))
+         );

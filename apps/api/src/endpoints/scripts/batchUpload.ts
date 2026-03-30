@@ -27,14 +27,7 @@ export class BatchUploadScripts extends OpenAPIRoute {
 						z.string(),
 						z.object({
 							script: z.string().max(1024 * 1024),
-							entrypoint: z
-								.string()
-								.min(1)
-								.max(255)
-								.regex(
-									JS_IDENTIFIER_REGEX,
-									"Entrypoint must be a valid JavaScript identifier",
-								),
+							entrypoint: z.string().min(1).max(255),
 						}),
 					),
 					message: z.string().max(500).optional(),
@@ -76,6 +69,19 @@ export class BatchUploadScripts extends OpenAPIRoute {
 		const qb = c.get("qb");
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { projectId } = data.params;
+
+		// Validate entrypoint names are valid JS identifiers
+		for (const [slug, device] of Object.entries(data.body.devices)) {
+			if (!JS_IDENTIFIER_REGEX.test(device.entrypoint)) {
+				return c.json(
+					{
+						success: false,
+						errors: [{ message: `Entrypoint for device "${slug}" must be a valid JavaScript identifier` }],
+					},
+					400,
+				);
+			}
+		}
 
 		const devicesData = data.body.devices;
 		const message = data.body.message || null;

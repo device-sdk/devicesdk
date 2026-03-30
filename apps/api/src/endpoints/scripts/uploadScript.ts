@@ -23,14 +23,7 @@ export class UploadScript extends OpenAPIRoute {
 			body: contentJson(
 				z.object({
 					script: z.string().max(1024 * 1024), // 1MB
-					entrypoint: z
-						.string()
-						.min(1)
-						.max(255)
-						.regex(
-							JS_IDENTIFIER_REGEX,
-							"Entrypoint must be a valid JavaScript identifier",
-						),
+					entrypoint: z.string().min(1).max(255),
 					message: z.string().max(500).optional(),
 				}),
 			),
@@ -70,6 +63,16 @@ export class UploadScript extends OpenAPIRoute {
 
 		const script = data.body.script;
 		const entrypoint = data.body.entrypoint;
+
+		if (!JS_IDENTIFIER_REGEX.test(entrypoint)) {
+			return c.json(
+				{
+					success: false,
+					errors: [{ message: "Entrypoint must be a valid JavaScript identifier" }],
+				},
+				400,
+			);
+		}
 		const message = data.body.message || null;
 
 		// Validate the user script before saving

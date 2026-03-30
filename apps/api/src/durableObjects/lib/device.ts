@@ -22,7 +22,7 @@ import type { IUserDeviceWorker } from "./userWorkerTypes";
 const DeviceMessageSchema = z.object({
 	id: z.string().max(64).optional().default(""),
 	type: z.string().max(64),
-	payload: z.record(z.unknown()).optional().default({}),
+	payload: z.record(z.string(), z.unknown()).optional().default({}),
 });
 
 // Storage key for persisted cron schedule state.

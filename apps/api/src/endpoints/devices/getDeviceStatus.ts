@@ -1,6 +1,6 @@
 import { contentJson } from "chanfana";
-import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { getDeviceConnectionStatus } from "../../foundation/deviceStatus";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 

@@ -1,6 +1,6 @@
 import { contentJson } from "chanfana";
-import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableProjects } from "../../types";
 
 export class UpdateProject extends BaseRoute {

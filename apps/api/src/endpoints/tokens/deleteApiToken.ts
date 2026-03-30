@@ -1,6 +1,6 @@
 import { contentJson } from "chanfana";
-import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableTokens } from "../../types";
 
 export class DeleteApiToken extends BaseRoute {

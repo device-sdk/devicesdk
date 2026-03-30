@@ -1,6 +1,6 @@
 import { contentJson } from "chanfana";
-import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 import type {
 	AppContext,

@@ -1,5 +1,5 @@
-import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type {
 	AppContext,
 	tableDeviceScripts,

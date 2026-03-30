@@ -1,6 +1,6 @@
 import { ApiException } from "chanfana";
-import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { recalculateEsp32Checksum } from "../../foundation/esp32ImageChecksum";
 import { validateUf2Structure } from "../../foundation/picoUf2Checksum";
 import { hashToken } from "../../foundation/tokenHash";

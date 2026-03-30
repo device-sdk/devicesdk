@@ -1,6 +1,6 @@
 import { contentJson } from "chanfana";
-import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import { JS_IDENTIFIER_REGEX } from "../../foundation/consts";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 import { validateUserScript } from "../../foundation/scriptValidator";

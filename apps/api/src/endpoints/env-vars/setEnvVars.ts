@@ -1,7 +1,7 @@
 import { ENV_VAR_KEY_REGEX } from "@devicesdk/core";
 import { contentJson } from "chanfana";
-import { BaseRoute } from "../../foundation/baseRoute";
 import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableProjects } from "../../types";
 
 const MAX_VARS_PER_PROJECT = 50;

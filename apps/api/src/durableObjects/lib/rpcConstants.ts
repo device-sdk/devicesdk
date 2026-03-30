@@ -8,6 +8,8 @@ export const BLOCKED_METHODS = [
 	"onDeviceConnect",
 	"onDeviceDisconnect",
 	"onAlarm",
+	"onCron",
+	"getCrons",
 	"constructor",
 	"env",
 	"ctx",

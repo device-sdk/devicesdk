@@ -61,6 +61,7 @@ interface PendingCommand {
 }
 
 export class BaseDevice extends DurableObject<Env> {
+	private static readonly MAX_PENDING_COMMANDS = 100;
 	private _session?: DeviceSession;
 	private pendingCommands: Map<string, PendingCommand> = new Map();
 	private logWriteCount = 0;
@@ -101,10 +102,8 @@ export class BaseDevice extends DurableObject<Env> {
 
 		if (url.pathname.endsWith("/websocket")) {
 			return this.handleWebSocketUpgrade(request);
-		} else if (request.method === "POST") {
-			return this.handleCommandRequest(request);
 		}
-
+		// POST handler removed — commands use WebSocket RPC only
 		return new Response("Not found", { status: 404 });
 	}
 
@@ -284,8 +283,9 @@ export class BaseDevice extends DurableObject<Env> {
 			if (stored) {
 				this.deviceMeta = stored;
 			} else {
-				this.deviceMeta = request.scriptMeta;
-				await this.ctx.storage.put("deviceMeta", this.deviceMeta);
+				throw new Error(
+					"Device has not connected yet — cannot handle remote call without device metadata",
+				);
 			}
 		}
 
@@ -298,41 +298,6 @@ export class BaseDevice extends DurableObject<Env> {
 			request.args,
 			request.callDepth,
 		);
-	}
-
-	/**
-	 * Handles an incoming command via HTTP POST, sends it to the device,
-	 * and waits for a response or timeout.
-	 */
-	async handleCommandRequest(request: Request) {
-		const session = this.getSession();
-		if (
-			!session ||
-			session.websocket.readyState !== WebSocket.READY_STATE_OPEN
-		) {
-			return new Response("Device not connected", { status: 503 });
-		}
-
-		try {
-			// We need to add an ID to the command before sending.
-			const partialCommand = await request.json<Omit<DeviceCommand, "id">>();
-			const command: DeviceCommand = {
-				...partialCommand,
-				id: crypto.randomUUID(),
-			} as DeviceCommand;
-
-			// Send the command and wait for the device's response.
-			const response = await this.sendCommandAndWaitForResponse(command);
-
-			return new Response(JSON.stringify(response), {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "An unknown error occurred";
-			return new Response(errorMessage, { status: 500 });
-		}
 	}
 
 	/**
@@ -364,6 +329,10 @@ export class BaseDevice extends DurableObject<Env> {
 			const session = this.getSession();
 			if (!session) {
 				return reject(new Error("No active session"));
+			}
+
+			if (this.pendingCommands.size >= BaseDevice.MAX_PENDING_COMMANDS) {
+				return reject(new Error("Too many pending commands"));
 			}
 
 			const timeoutId = setTimeout(() => {
@@ -671,7 +640,10 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					await userWorker.onCron(name);
 				} catch (error) {
-					console.error(`Error in user worker onCron("${name}"):`, error);
+					console.error(
+						`Error in user worker onCron(${JSON.stringify(name.slice(0, 64))}):`,
+						error,
+					);
 				}
 			}
 		}

@@ -1,6 +1,15 @@
 import { html, raw } from "hono/html";
 import type { AppContext } from "../../types";
 
+function escapeHtml(s: string): string {
+	return s
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
 type CliAuthCode = {
 	id: string;
 	device_code: string;
@@ -168,23 +177,24 @@ function renderCodeEntryPage() {
 }
 
 function renderApprovalPage(userCode: string) {
+	const safe = escapeHtml(userCode);
 	return renderPage(
 		"Approve CLI Login",
 		`
     <h1>DeviceSDK CLI Login</h1>
     <p class="subtitle">A CLI tool is requesting access to your account</p>
-    
+
     <div class="code-display">
       <div class="code-label">Verification Code</div>
-      <div class="code-value">${userCode}</div>
+      <div class="code-value">${safe}</div>
     </div>
-    
+
     <div class="warning">
       Make sure this matches the code shown in your terminal before approving.
     </div>
-    
+
     <form method="POST" action="/cli/auth">
-      <input type="hidden" name="code" value="${userCode}" />
+      <input type="hidden" name="code" value="${safe}" />
       <div class="actions">
         <button type="submit" name="action" value="deny" class="btn-deny">Deny</button>
         <button type="submit" name="action" value="approve" class="btn-approve">Approve</button>

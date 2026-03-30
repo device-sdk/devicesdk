@@ -1,5 +1,6 @@
 #include "ws_client.h"
 #include "pico/cyw43_arch.h"
+#include "pico/rand.h"
 #include "lwip/dns.h"
 #include <cstring>
 #include <algorithm>
@@ -238,7 +239,7 @@ size_t WebsocketClient::build_frame(char* buffer, size_t buffer_len, const char*
 
     // Masking (client-to-server frames must be masked)
     buffer[1] |= 0x80; // Set MASK bit
-    uint32_t mask_key = rand();
+    uint32_t mask_key = get_rand_32();
     char* mask_bytes = (char*)&mask_key;
     buffer[header_len++] = mask_bytes[0];
     buffer[header_len++] = mask_bytes[1];

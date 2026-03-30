@@ -250,6 +250,22 @@ describe.sequential("Inter-device RPC", () => {
 			expect(BLOCKED_METHODS).toContain("ctx");
 		});
 
+		it("should block getCrons and onCron from remote calls", async () => {
+			const { BLOCKED_METHODS } = await import(
+				"../../src/durableObjects/lib/rpcConstants"
+			);
+			expect(BLOCKED_METHODS).toContain("getCrons");
+			expect(BLOCKED_METHODS).toContain("onCron");
+		});
+
+		it("should have at least 9 blocked methods", async () => {
+			const { BLOCKED_METHODS } = await import(
+				"../../src/durableObjects/lib/rpcConstants"
+			);
+			// 7 original + getCrons + onCron = 9
+			expect(BLOCKED_METHODS.length).toBeGreaterThanOrEqual(9);
+		});
+
 		it("should not block user-defined method names", async () => {
 			const { BLOCKED_METHODS } = await import(
 				"../../src/durableObjects/lib/rpcConstants"

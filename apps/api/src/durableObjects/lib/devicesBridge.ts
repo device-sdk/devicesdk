@@ -20,6 +20,19 @@ export class DevicesBridge extends WorkerEntrypoint<
 	{ DB: D1Database; DEVICE: DurableObjectNamespace<BaseDevice> },
 	DevicesBridgeProps
 > {
+	/**
+	 * SECURITY NOTE: Inter-device RPC trust model
+	 *
+	 * All devices within the same project can call any non-blocked method on
+	 * any other device in the project. There is no per-device permission system.
+	 * This is by design — projects are single-tenant (owned by one user).
+	 *
+	 * If multi-tenant projects are ever introduced, a per-device method allowlist
+	 * or ACL system would be needed here.
+	 *
+	 * Blocked methods (lifecycle/internal) are enforced in classProxy.ts callMethod handler,
+	 * not here. See rpcConstants.ts for the list.
+	 */
 	async callRemoteMethod(
 		targetDeviceSlug: string,
 		methodName: string,

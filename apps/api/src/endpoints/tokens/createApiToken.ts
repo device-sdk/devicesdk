@@ -54,7 +54,7 @@ export class CreateApiToken extends BaseRoute {
 				tableName: "tokens",
 				fields: "COUNT(*) as count",
 				where: {
-					conditions: ["user_id = ?1"],
+					conditions: ["user_id = ?1", "(managed = 0 OR managed IS NULL)"],
 					params: [user.id],
 				},
 			})

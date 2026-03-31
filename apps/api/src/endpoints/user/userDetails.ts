@@ -53,7 +53,9 @@ export class UserDetails extends BaseRoute {
 			)
 				.bind(user.id)
 				.first<{ count: number }>(),
-			c.env.DB.prepare("SELECT COUNT(*) as count FROM tokens WHERE user_id = ?")
+			c.env.DB.prepare(
+				"SELECT COUNT(*) as count FROM tokens WHERE user_id = ? AND (managed = 0 OR managed IS NULL)",
+			)
 				.bind(user.id)
 				.first<{ count: number }>(),
 		]);

@@ -1,181 +1,189 @@
 <template>
   <q-page class="projects-page q-pa-lg">
-    <div class="page-header q-mb-md">
-      <div>
-        <h1 class="q-my-none page-title">Projects</h1>
-        <p class="page-subtitle q-mb-none">Manage and monitor your IoT projects</p>
-      </div>
-      <q-btn
-        unelevated
-        color="primary"
-        label="Create Project"
-        icon="add"
-        class="create-btn"
-        @click="showCreateDialog = true"
-      />
-    </div>
-
-    <q-card class="modern-card" flat bordered>
-      <q-card-section class="q-pb-none">
-        <div class="row items-center q-gutter-md">
-          <q-input
-            v-model="searchQuery"
-            outlined
-            dense
-            placeholder="Search projects..."
-            class="search-input"
-            clearable
-          >
-            <template #prepend>
-              <q-icon name="search" />
-            </template>
-          </q-input>
-        </div>
-      </q-card-section>
-
-      <q-card-section class="q-pa-none q-mt-md">
-        <q-table
-          :rows="filteredProjects"
-          :columns="columns"
-          row-key="id"
-          :loading="loading"
-          flat
-          :rows-per-page-options="[10, 25, 50]"
-          class="modern-table"
-        >
-          <template #header="props">
-            <q-tr :props="props" class="table-header">
-              <q-th
-                v-for="col in props.cols"
-                :key="col.name"
-                :props="props"
-                class="text-weight-bold"
-              >
-                {{ col.label }}
-              </q-th>
-            </q-tr>
-          </template>
-
-          <template #body="props">
-            <q-tr :props="props" class="table-row" @click="openProject(props.row.project_slug)" style="cursor: pointer">
-              <q-td key="project_slug" :props="props">
-                <div class="row items-center">
-                  <q-icon name="folder" color="primary" size="24px" class="q-mr-sm" />
-                  <div>
-                    <div class="text-weight-medium">{{ props.row.name || props.row.project_slug }}</div>
-                    <div class="text-caption text-grey-6 font-mono">{{ props.row.project_slug }}</div>
-                  </div>
-                </div>
-              </q-td>
-              <q-td key="description" :props="props">
-                <span class="text-grey-8">{{ props.row.description || '—' }}</span>
-              </q-td>
-              <q-td key="device_count" :props="props">
-                <q-chip
-                  :color="(props.row.device_count || 0) > 0 ? 'primary' : 'grey-4'"
-                  :text-color="(props.row.device_count || 0) > 0 ? 'white' : 'grey-7'"
-                  size="sm"
-                  icon="memory"
-                >
-                  {{ props.row.device_count || 0 }} devices
-                </q-chip>
-              </q-td>
-              <q-td key="created_at" :props="props">
-                <div class="text-grey-8">
-                  {{ formatDate(props.row.created_at) }}
-                </div>
-              </q-td>
-              <q-td key="actions" :props="props">
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="more_vert"
-                  @click.stop
-                >
-                  <q-menu>
-                    <q-list style="min-width: 150px">
-                      <q-item clickable v-close-popup @click="openProject(props.row.project_slug)">
-                        <q-item-section avatar>
-                          <q-icon name="open_in_new" />
-                        </q-item-section>
-                        <q-item-section>Open</q-item-section>
-                      </q-item>
-                      <q-item clickable v-close-popup @click="confirmDelete(props.row)">
-                        <q-item-section avatar>
-                          <q-icon name="delete" color="negative" />
-                        </q-item-section>
-                        <q-item-section class="text-negative">Delete</q-item-section>
-                      </q-item>
-                    </q-list>
-                  </q-menu>
-                </q-btn>
-              </q-td>
-            </q-tr>
-          </template>
-
-          <template #no-data>
-            <div class="full-width row flex-center q-pa-xl text-grey-7">
-              <div class="text-center empty-state">
-                <q-icon name="folder_open" size="80px" class="q-mb-md empty-icon" />
-                <div class="text-h6 text-weight-medium q-mb-sm">No projects yet</div>
-                <p class="text-body2 q-mb-lg">Create your first project to get started with DeviceSDK</p>
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Create Project"
-                  icon="add"
-                  class="create-btn"
-                  @click="showCreateDialog = true"
-                />
-              </div>
-            </div>
-          </template>
-
-          <template #loading>
-            <div class="q-pa-md">
-              <q-linear-progress indeterminate color="primary" class="loading-bar" />
-            </div>
-          </template>
-        </q-table>
-      </q-card-section>
-    </q-card>
-
-    <CreateProjectDialog
-      v-model="showCreateDialog"
-      @project-created="fetchProjects"
+    <OnboardingWizard
+      v-if="showOnboarding"
+      @skip="completeOnboarding"
+      @project-created="onOnboardingProjectCreated"
     />
 
-    <q-dialog v-model="showDeleteDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section class="row items-center">
-          <q-icon name="warning" color="negative" size="32px" class="q-mr-md" />
-          <span class="text-h6">Delete Project</span>
+    <template v-else>
+      <div class="page-header q-mb-md">
+        <div>
+          <h1 class="q-my-none page-title">Projects</h1>
+          <p class="page-subtitle q-mb-none">Manage and monitor your IoT projects</p>
+        </div>
+        <q-btn
+          unelevated
+          color="primary"
+          label="Create Project"
+          icon="add"
+          class="create-btn"
+          @click="showCreateDialog = true"
+        />
+      </div>
+
+      <q-card class="modern-card" flat bordered>
+        <q-card-section class="q-pb-none">
+          <div class="row items-center q-gutter-md">
+            <q-input
+              v-model="searchQuery"
+              outlined
+              dense
+              placeholder="Search projects..."
+              class="search-input"
+              clearable
+            >
+              <template #prepend>
+                <q-icon name="search" />
+              </template>
+            </q-input>
+          </div>
         </q-card-section>
-        <q-card-section>
-          <p>Are you sure you want to delete <strong>{{ projectToDelete?.project_slug }}</strong>?</p>
-          <p class="text-caption text-negative">This action cannot be undone. All devices and scripts will be permanently deleted.</p>
-          <q-input
-            v-model="deleteConfirmation"
-            outlined
-            dense
-            :placeholder="`Type '${projectToDelete?.project_slug}' to confirm`"
-            class="q-mt-md"
-          />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" v-close-popup />
-          <q-btn
+
+        <q-card-section class="q-pa-none q-mt-md">
+          <q-table
+            :rows="filteredProjects"
+            :columns="columns"
+            row-key="id"
+            :loading="loading"
             flat
-            label="Delete"
-            color="negative"
-            :disable="deleteConfirmation !== projectToDelete?.project_slug"
-            :loading="deleting"
-            @click="deleteProject"
-          />
-        </q-card-actions>
+            :rows-per-page-options="[10, 25, 50]"
+            class="modern-table"
+          >
+            <template #header="props">
+              <q-tr :props="props" class="table-header">
+                <q-th
+                  v-for="col in props.cols"
+                  :key="col.name"
+                  :props="props"
+                  class="text-weight-bold"
+                >
+                  {{ col.label }}
+                </q-th>
+              </q-tr>
+            </template>
+
+            <template #body="props">
+              <q-tr :props="props" class="table-row" @click="openProject(props.row.project_slug)" style="cursor: pointer">
+                <q-td key="project_slug" :props="props">
+                  <div class="row items-center">
+                    <q-icon name="folder" color="primary" size="24px" class="q-mr-sm" />
+                    <div>
+                      <div class="text-weight-medium">{{ props.row.name || props.row.project_slug }}</div>
+                      <div class="text-caption text-grey-6 font-mono">{{ props.row.project_slug }}</div>
+                    </div>
+                  </div>
+                </q-td>
+                <q-td key="description" :props="props">
+                  <span class="text-grey-8">{{ props.row.description || '—' }}</span>
+                </q-td>
+                <q-td key="device_count" :props="props">
+                  <q-chip
+                    :color="(props.row.device_count || 0) > 0 ? 'primary' : 'grey-4'"
+                    :text-color="(props.row.device_count || 0) > 0 ? 'white' : 'grey-7'"
+                    size="sm"
+                    icon="memory"
+                  >
+                    {{ props.row.device_count || 0 }} devices
+                  </q-chip>
+                </q-td>
+                <q-td key="created_at" :props="props">
+                  <div class="text-grey-8">
+                    {{ formatDate(props.row.created_at) }}
+                  </div>
+                </q-td>
+                <q-td key="actions" :props="props">
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    icon="more_vert"
+                    @click.stop
+                  >
+                    <q-menu>
+                      <q-list style="min-width: 150px">
+                        <q-item clickable v-close-popup @click="openProject(props.row.project_slug)">
+                          <q-item-section avatar>
+                            <q-icon name="open_in_new" />
+                          </q-item-section>
+                          <q-item-section>Open</q-item-section>
+                        </q-item>
+                        <q-item clickable v-close-popup @click="confirmDelete(props.row)">
+                          <q-item-section avatar>
+                            <q-icon name="delete" color="negative" />
+                          </q-item-section>
+                          <q-item-section class="text-negative">Delete</q-item-section>
+                        </q-item>
+                      </q-list>
+                    </q-menu>
+                  </q-btn>
+                </q-td>
+              </q-tr>
+            </template>
+
+            <template #no-data>
+              <div class="full-width row flex-center q-pa-xl text-grey-7">
+                <div class="text-center empty-state">
+                  <q-icon name="folder_open" size="80px" class="q-mb-md empty-icon" />
+                  <div class="text-h6 text-weight-medium q-mb-sm">No projects yet</div>
+                  <p class="text-body2 q-mb-lg">Create your first project to get started with DeviceSDK</p>
+                  <q-btn
+                    unelevated
+                    color="primary"
+                    label="Create Project"
+                    icon="add"
+                    class="create-btn"
+                    @click="showCreateDialog = true"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <template #loading>
+              <div class="q-pa-md">
+                <q-linear-progress indeterminate color="primary" class="loading-bar" />
+              </div>
+            </template>
+          </q-table>
+        </q-card-section>
       </q-card>
-    </q-dialog>
+
+      <CreateProjectDialog
+        v-model="showCreateDialog"
+        @project-created="fetchProjects"
+      />
+
+      <q-dialog v-model="showDeleteDialog">
+        <q-card style="min-width: 400px">
+          <q-card-section class="row items-center">
+            <q-icon name="warning" color="negative" size="32px" class="q-mr-md" />
+            <span class="text-h6">Delete Project</span>
+          </q-card-section>
+          <q-card-section>
+            <p>Are you sure you want to delete <strong>{{ projectToDelete?.project_slug }}</strong>?</p>
+            <p class="text-caption text-negative">This action cannot be undone. All devices and scripts will be permanently deleted.</p>
+            <q-input
+              v-model="deleteConfirmation"
+              outlined
+              dense
+              :placeholder="`Type '${projectToDelete?.project_slug}' to confirm`"
+              class="q-mt-md"
+            />
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Cancel" v-close-popup />
+            <q-btn
+              flat
+              label="Delete"
+              color="negative"
+              :disable="deleteConfirmation !== projectToDelete?.project_slug"
+              :loading="deleting"
+              @click="deleteProject"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+    </template>
   </q-page>
 </template>
 
@@ -185,6 +193,9 @@ import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { projectService, type Project } from '@/services/api.service';
 import CreateProjectDialog from '@/components/CreateProjectDialog.vue';
+import OnboardingWizard from '@/components/OnboardingWizard.vue';
+
+const ONBOARDING_STORAGE_KEY = 'devicesdk-onboarding-completed';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -192,6 +203,23 @@ const projects = ref<Project[]>([]);
 const loading = ref(false);
 const showCreateDialog = ref(false);
 const searchQuery = ref('');
+const onboardingCompleted = ref(localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true');
+
+const showOnboarding = computed(() => {
+  return !loading.value && projects.value.length === 0 && !onboardingCompleted.value;
+});
+
+const completeOnboarding = () => {
+  onboardingCompleted.value = true;
+  localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+  void fetchProjects();
+};
+
+const onOnboardingProjectCreated = () => {
+  onboardingCompleted.value = true;
+  localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+  void fetchProjects();
+};
 
 const showDeleteDialog = ref(false);
 const projectToDelete = ref<Project | null>(null);

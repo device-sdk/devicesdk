@@ -96,7 +96,10 @@
         <q-card-section>
           <p>Are you sure you want to delete your account?</p>
           <p class="text-caption text-negative q-mb-md">
-            This will permanently delete all your projects, devices, and data. This action cannot be undone.
+            Your account will be scheduled for deletion with a 7-day grace period.
+            During this time you will not be able to log in.
+            After 7 days, all your projects, devices, and data will be permanently deleted.
+            Contact support@devicesdk.com within the grace period to cancel.
           </p>
           <p>Type <strong>DELETE</strong> to confirm:</p>
           <q-input v-model="deleteConfirmation" outlined dense placeholder="DELETE" />
@@ -120,6 +123,7 @@
 import { ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { useAuth } from '@/composables/useAuth';
+import { userService } from '@/services/api.service';
 
 const $q = useQuasar();
 const auth = useAuth();
@@ -136,13 +140,30 @@ const formatDate = (timestamp: number) => {
   });
 };
 
-const deleteAccount = () => {
-  $q.notify({
-    type: 'info',
-    message: 'Account deletion is not yet implemented',
-    position: 'top',
-  });
-  showDeleteDialog.value = false;
+const deleteAccount = async () => {
+  try {
+    const result = await userService.deleteAccount();
+    const scheduledDate = new Date(result.deletion_scheduled_at).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    $q.notify({
+      type: 'warning',
+      message: `Account deletion scheduled for ${scheduledDate}. Contact support@devicesdk.com to cancel.`,
+      position: 'top',
+      timeout: 5000,
+    });
+    showDeleteDialog.value = false;
+    deleteConfirmation.value = '';
+    await auth.signOut();
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to delete account. Please try again.',
+      position: 'top',
+    });
+  }
 };
 </script>
 

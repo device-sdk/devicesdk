@@ -30,6 +30,7 @@ import {
 	rateLimitMiddleware,
 	userRateLimitMiddleware,
 } from "./foundation/rateLimit";
+import { handleScheduled } from "./scheduled";
 import type { Env, Variables } from "./types";
 
 const app = fromHono(new Hono<{ Bindings: Env; Variables: Variables }>(), {
@@ -154,7 +155,10 @@ app.route("/v1/projects/:projectId/devices/:deviceId/script", scriptsRouter);
 app.route("/v1/projects/:projectId/devices/:deviceId/logs", logsRouter);
 app.route("/v1/projects/:projectId/scripts", batchScriptsRouter);
 
-export default app;
+export default {
+	fetch: app.fetch,
+	scheduled: handleScheduled,
+};
 export { BaseDevice as Device } from "./durableObjects/lib/device";
 export { DeviceSender } from "./durableObjects/lib/deviceSender";
 export { DevicesBridge } from "./durableObjects/lib/devicesBridge";

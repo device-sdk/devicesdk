@@ -109,6 +109,16 @@ export const userService = {
       console.error('Error calling logout endpoint:', error);
     }
   },
+
+  async deleteAccount(): Promise<{ deletion_scheduled_at: number }> {
+    const data = await api.call<ApiResponse<{ deletion_scheduled_at: number }>>('/v1/user/me', {
+      method: 'DELETE',
+    });
+    if (!data || !data.success) {
+      throw new Error('Failed to delete account');
+    }
+    return data.result;
+  },
 };
 
 // ============================================================================

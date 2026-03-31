@@ -15,6 +15,10 @@ export const TEST_FREE_SESSION_TOKEN = "test-free-session-token";
 export const TEST_SUSPENDED_USER_ID = "user-suspended";
 export const TEST_SUSPENDED_SESSION_TOKEN = "test-suspended-session-token";
 
+// Deletion test user
+export const TEST_DELETION_USER_ID = "user-deletion";
+export const TEST_DELETION_SESSION_TOKEN = "test-deletion-session-token";
+
 beforeAll(async () => {
 	const qb = new D1QB(env.DB);
 
@@ -73,6 +77,15 @@ beforeAll(async () => {
 			picture: "https://example.com/suspended.jpg",
 			plan: "free",
 			suspended_at: Date.now(),
+			created_at: Date.now(),
+		},
+		{
+			id: TEST_DELETION_USER_ID,
+			name: "Deletion User",
+			email: "deletion@example.com",
+			verified_email: 1,
+			picture: "https://example.com/deletion.jpg",
+			plan: "free",
 			created_at: Date.now(),
 		},
 	];
@@ -166,6 +179,19 @@ beforeAll(async () => {
 			data: {
 				user_id: TEST_SUSPENDED_USER_ID,
 				token: TEST_SUSPENDED_SESSION_TOKEN,
+				created_at: now,
+				expires_at: now + 86400000,
+			},
+			onConflict: "IGNORE",
+		})
+		.execute();
+
+	await qb
+		.insert<tableUserSessions>({
+			tableName: "user_sessions",
+			data: {
+				user_id: TEST_DELETION_USER_ID,
+				token: TEST_DELETION_SESSION_TOKEN,
 				created_at: now,
 				expires_at: now + 86400000,
 			},

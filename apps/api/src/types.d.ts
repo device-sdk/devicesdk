@@ -55,6 +55,7 @@ export type tableUser = {
 	verified_email: number;
 	plan: "free" | "paid";
 	suspended_at?: number;
+	deletion_requested_at?: number;
 	created_at: number;
 };
 export type tableUserSessions = {

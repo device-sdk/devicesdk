@@ -118,6 +118,22 @@
     </q-drawer>
 
     <q-page-container>
+      <q-banner
+        v-if="showBetaBanner"
+        class="beta-banner bg-blue-1 text-blue-9"
+        dense
+      >
+        <template v-slot:avatar>
+          <q-icon name="info" color="blue-7" />
+        </template>
+        DeviceSDK is in open beta. Report issues via
+        <a href="mailto:support@devicesdk.com" class="text-blue-8 text-weight-medium">support@devicesdk.com</a>,
+        <a href="https://github.com/device-sdk" target="_blank" rel="noopener" class="text-blue-8 text-weight-medium">GitHub</a>, or
+        <a href="https://discord.gg/WuNhbXGsBy" target="_blank" rel="noopener" class="text-blue-8 text-weight-medium">Discord</a>.
+        <template v-slot:action>
+          <q-btn flat dense icon="close" color="blue-7" @click="dismissBetaBanner" />
+        </template>
+      </q-banner>
       <router-view />
     </q-page-container>
   </q-layout>
@@ -129,6 +145,12 @@ import { useAuth } from '@/composables/useAuth';
 
 const auth = useAuth();
 const leftDrawerOpen = ref(false);
+const showBetaBanner = ref(!localStorage.getItem('devicesdk-beta-banner-dismissed'));
+
+function dismissBetaBanner() {
+  showBetaBanner.value = false;
+  localStorage.setItem('devicesdk-beta-banner-dismissed', 'true');
+}
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
@@ -259,5 +281,10 @@ async function handleSignOut() {
     color: var(--foreground);
     font-weight: 600;
   }
+}
+
+.beta-banner {
+  font-size: 0.875rem;
+  border-bottom: 1px solid rgba(30, 100, 200, 0.15);
 }
 </style>

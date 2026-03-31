@@ -46,6 +46,72 @@
         </q-card>
       </div>
 
+      <div class="col-12" v-if="user">
+        <q-card class="modern-card" flat bordered>
+          <q-card-section>
+            <div class="row items-center q-mb-md">
+              <div class="text-subtitle1 text-weight-bold q-mr-md">Plan & Usage</div>
+              <q-chip
+                :color="user.plan === 'paid' ? 'primary' : 'positive'"
+                text-color="white"
+                size="sm"
+              >
+                {{ user.plan === 'paid' ? 'Paid' : 'Free' }}
+              </q-chip>
+            </div>
+
+            <div class="row q-col-gutter-lg">
+              <div class="col-12 col-md-6">
+                <div class="text-body2 text-weight-medium q-mb-xs">
+                  Projects
+                  <span class="text-grey-6 q-ml-xs">{{ user.usage.projects }} / {{ user.limits.max_projects }}</span>
+                </div>
+                <q-linear-progress
+                  :value="user.limits.max_projects > 0 ? user.usage.projects / user.limits.max_projects : 0"
+                  :color="usageColor(user.usage.projects, user.limits.max_projects)"
+                  track-color="grey-3"
+                  rounded
+                  size="8px"
+                  class="q-mb-md"
+                />
+
+                <div class="text-body2 text-weight-medium q-mb-xs">
+                  API Tokens
+                  <span class="text-grey-6 q-ml-xs">{{ user.usage.api_tokens }} / {{ user.limits.max_api_tokens }}</span>
+                </div>
+                <q-linear-progress
+                  :value="user.limits.max_api_tokens > 0 ? user.usage.api_tokens / user.limits.max_api_tokens : 0"
+                  :color="usageColor(user.usage.api_tokens, user.limits.max_api_tokens)"
+                  track-color="grey-3"
+                  rounded
+                  size="8px"
+                />
+              </div>
+
+              <div class="col-12 col-md-6">
+                <div class="text-body2 text-weight-medium q-mb-sm">Tier Limits</div>
+                <div
+                  v-for="item in tierLimits"
+                  :key="item.label"
+                  class="info-row"
+                >
+                  <span class="info-label">{{ item.label }}</span>
+                  <span class="info-value">{{ item.value }}</span>
+                </div>
+              </div>
+            </div>
+
+            <q-separator class="q-my-md" />
+
+            <div class="text-caption text-grey-6">
+              Need more? Contact
+              <a href="mailto:support@devicesdk.com" class="text-primary">support@devicesdk.com</a>
+              for plan upgrades.
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+
       <div class="col-12 col-md-6">
         <q-card class="modern-card" flat bordered>
           <q-card-section>
@@ -120,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import { useAuth } from '@/composables/useAuth';
 import { userService } from '@/services/api.service';
@@ -131,6 +197,24 @@ const user = auth.user;
 
 const showDeleteDialog = ref(false);
 const deleteConfirmation = ref('');
+
+function usageColor(used: number, max: number): string {
+  const ratio = max > 0 ? used / max : 0;
+  if (ratio >= 1) return 'negative';
+  if (ratio >= 0.8) return 'warning';
+  return 'positive';
+}
+
+const tierLimits = computed(() => {
+  const limits = user?.limits;
+  if (!limits) return [];
+  return [
+    { label: 'Max devices per project', value: limits.max_devices_per_project },
+    { label: 'Max script versions per device', value: limits.max_script_versions_per_device },
+    { label: 'Max messages per device per day', value: limits.max_messages_per_device_per_day.toLocaleString() },
+    { label: 'Max env vars per project', value: limits.max_env_vars_per_project },
+  ];
+});
 
 const formatDate = (timestamp: number) => {
   return new Date(timestamp).toLocaleDateString('en-US', {

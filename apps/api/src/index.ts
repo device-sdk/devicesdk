@@ -3,6 +3,7 @@ import { ApiException, fromHono } from "chanfana";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
+import { secureHeaders } from "hono/secure-headers";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { D1QB } from "workers-qb";
 import {
@@ -90,6 +91,15 @@ app.onError((err, c) => {
 	);
 });
 
+app.use(
+	"*",
+	secureHeaders({
+		contentSecurityPolicy: {
+			defaultSrc: ["'self'"],
+			styleSrc: ["'self'", "'unsafe-inline'"],
+		},
+	}),
+);
 app.use(
 	"*",
 	cors({

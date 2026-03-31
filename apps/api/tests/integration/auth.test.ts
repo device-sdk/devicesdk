@@ -391,6 +391,29 @@ describe.sequential("Authentication", () => {
 		});
 	});
 
+	describe("security headers", () => {
+		test("should include X-Content-Type-Options header", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: "Bearer invalid" },
+			});
+			expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+		});
+
+		test("should include X-Frame-Options header", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: "Bearer invalid" },
+			});
+			expect(res.headers.get("x-frame-options")).toBe("SAMEORIGIN");
+		});
+
+		test("should include Referrer-Policy header", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: "Bearer invalid" },
+			});
+			expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+		});
+	});
+
 	describe("logout session invalidation", () => {
 		it("should delete session from database on logout", async () => {
 			const logoutTestToken = "logout-test-token-12345";

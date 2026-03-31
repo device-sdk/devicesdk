@@ -1,6 +1,7 @@
 import { ApiException, contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
+import { TIER_LIMITS } from "../../foundation/consts";
 import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext, tableTokens } from "../../types";
 
@@ -59,8 +60,20 @@ export class CreateApiToken extends BaseRoute {
 			})
 			.execute();
 
-		if (countResult && countResult.count >= 50) {
-			throw new ApiException("Maximum number of API tokens reached");
+		const plan = user.plan ?? "free";
+		const maxTokens = TIER_LIMITS[plan].maxApiTokens;
+		if (countResult && countResult.count >= maxTokens) {
+			const upgradeHint =
+				plan === "free"
+					? " Upgrade to increase your limit or contact support@devicesdk.com."
+					: " Contact support@devicesdk.com to discuss higher limits.";
+			return c.json(
+				{
+					success: false,
+					error: `${plan === "free" ? "Free" : "Paid"} tier limit reached (${countResult.count}/${maxTokens} API tokens).${upgradeHint}`,
+				},
+				403,
+			);
 		}
 
 		const rawToken = crypto.randomUUID().replaceAll("-", "");

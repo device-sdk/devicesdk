@@ -126,6 +126,7 @@ export class DeviceConnect extends BaseRoute {
 		url.searchParams.set("deviceId", device.id);
 		url.searchParams.set("versionId", versionId);
 		url.searchParams.set("entrypointName", version.entrypoint);
+		url.searchParams.set("plan", user.plan ?? "free");
 
 		// Create a new request with the modified URL
 		const doRequest = new Request(url.toString(), {

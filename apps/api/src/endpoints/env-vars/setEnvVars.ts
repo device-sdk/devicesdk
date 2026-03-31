@@ -2,9 +2,9 @@ import { ENV_VAR_KEY_REGEX } from "@devicesdk/core";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
+import { TIER_LIMITS } from "../../foundation/consts";
 import type { AppContext, tableProjects } from "../../types";
 
-const MAX_VARS_PER_PROJECT = 50;
 const MAX_VALUE_BYTES = 4096;
 
 export class SetEnvVars extends BaseRoute {
@@ -124,11 +124,13 @@ export class SetEnvVars extends BaseRoute {
 			(k) => !existingKeySet.has(k),
 		).length;
 
-		if (currentCount + trulyNewCount > MAX_VARS_PER_PROJECT) {
+		const plan = user.plan ?? "free";
+		const maxVars = TIER_LIMITS[plan].maxEnvVarsPerProject;
+		if (currentCount + trulyNewCount > maxVars) {
 			return c.json(
 				{
 					success: false,
-					error: `Cannot exceed ${MAX_VARS_PER_PROJECT} env vars per project`,
+					error: `${plan === "free" ? "Free" : "Paid"} tier limit reached. Cannot exceed ${maxVars} env vars per project.${plan === "free" ? " Upgrade to increase your limit or contact support@devicesdk.com." : " Contact support@devicesdk.com to discuss higher limits."}`,
 				},
 				422,
 			);

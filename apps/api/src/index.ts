@@ -26,7 +26,10 @@ import {
 	handleGoogleCallback,
 	handleLogout,
 } from "./foundation/auth";
-import { rateLimitMiddleware } from "./foundation/rateLimit";
+import {
+	rateLimitMiddleware,
+	userRateLimitMiddleware,
+} from "./foundation/rateLimit";
 import type { Env, Variables } from "./types";
 
 const app = fromHono(new Hono<{ Bindings: Env; Variables: Variables }>(), {
@@ -139,7 +142,10 @@ app.post("/cli/auth", cliAuthUser, handleApproval);
 // 2. Authentication middleware
 app.use("*", authenticateUser);
 
-// 3. Endpoints that require Auth
+// 3. Per-user rate limiting (plan-aware)
+app.use("*", userRateLimitMiddleware());
+
+// 4. Endpoints that require Auth
 app.route("/v1/cli/auth", cliAuthRouterPostAuth);
 app.post("/v1/auth/logout", handleLogout);
 app.route("/v1/user", userRouter);

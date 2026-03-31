@@ -2,7 +2,11 @@ import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { D1QB } from "workers-qb";
 import type { tableProjectEnvVars, tableProjects } from "../../src/types";
-import { TEST_PROJECT_ID, TEST_SESSION_TOKEN } from "../setup-test-data";
+import {
+	TEST_FREE_SESSION_TOKEN,
+	TEST_PROJECT_ID,
+	TEST_SESSION_TOKEN,
+} from "../setup-test-data";
 
 describe.sequential("Env Vars endpoint", () => {
 	let qb: D1QB;
@@ -287,19 +291,31 @@ describe.sequential("Env Vars endpoint", () => {
 			expect(resp.status).toBe(400);
 		});
 
-		it("should reject when adding a new var would exceed the 50-var limit", async () => {
-			// Seed exactly 50 env vars
+		it("should reject when adding a new var would exceed the tier limit", async () => {
+			// Use the free user's project to test with the free tier limit (50 vars)
+			// First, create a project for the free user
+			const projResp = await SELF.fetch("http://localhost/v1/projects", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
+				},
+				body: JSON.stringify({ project_slug: "env-limit-test" }),
+			});
+			expect(projResp.status).toBe(201);
+
+			// Seed exactly 50 env vars (free tier limit)
 			const vars: Record<string, string> = {};
 			for (let i = 1; i <= 50; i++) {
 				vars[`VAR_${String(i).padStart(3, "0")}`] = `value${i}`;
 			}
 			const seedResp = await SELF.fetch(
-				`http://localhost/v1/projects/${TEST_PROJECT_ID}/env`,
+				"http://localhost/v1/projects/env-limit-test/env",
 				{
 					method: "PUT",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({ vars }),
 				},
@@ -308,12 +324,12 @@ describe.sequential("Env Vars endpoint", () => {
 
 			// Attempt to add a 51st new var — must be rejected
 			const overLimitResp = await SELF.fetch(
-				`http://localhost/v1/projects/${TEST_PROJECT_ID}/env`,
+				"http://localhost/v1/projects/env-limit-test/env",
 				{
 					method: "PUT",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({ vars: { NEW_KEY_51: "overflow" } }),
 				},
@@ -322,12 +338,12 @@ describe.sequential("Env Vars endpoint", () => {
 
 			// Updating an existing var at the 50-var boundary must still succeed
 			const updateResp = await SELF.fetch(
-				`http://localhost/v1/projects/${TEST_PROJECT_ID}/env`,
+				"http://localhost/v1/projects/env-limit-test/env",
 				{
 					method: "PUT",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
 					},
 					body: JSON.stringify({ vars: { VAR_001: "updated" } }),
 				},

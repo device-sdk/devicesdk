@@ -1,6 +1,8 @@
 import { ApiException, contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
+import { TIER_LIMITS } from "../../foundation/consts";
+import { enforceResourceLimit } from "../../foundation/limits";
 import type { AppContext, tableProjects } from "../../types";
 
 const projectSlugRegex = /^[a-z][a-z0-9-]{0,35}$/;
@@ -79,6 +81,22 @@ export class CreateProject extends BaseRoute {
 		if (existingProject) {
 			return c.json({ success: false, error: "Project already exists" }, 409);
 		}
+
+		// Enforce project count limit
+		const plan = user.plan ?? "free";
+		const projectCount = await c.env.DB.prepare(
+			"SELECT COUNT(*) as count FROM projects WHERE user_id = ?",
+		)
+			.bind(user.id)
+			.first<{ count: number }>();
+
+		const limitResponse = enforceResourceLimit(
+			c,
+			projectCount?.count ?? 0,
+			TIER_LIMITS[plan].maxProjects,
+			"projects",
+		);
+		if (limitResponse) return limitResponse;
 
 		const now = Date.now();
 		const newProject = await qb

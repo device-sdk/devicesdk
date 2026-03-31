@@ -18,6 +18,10 @@ public:
     bool is_connected() const;
     void close_connection();
 
+    // Rate limiting support
+    uint16_t last_close_code = 0;
+    uint32_t rate_limit_retry_after_ms = 0;
+
 private:
     struct altcp_pcb* tls_pcb;
     struct altcp_tls_config* tls_config;

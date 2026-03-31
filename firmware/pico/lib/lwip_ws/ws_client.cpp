@@ -335,10 +335,36 @@ size_t WebsocketClient::parse_frame(const char* buffer, size_t len) {
         picojson::value v;
         std::string err = picojson::parse(v, payload);
         if (err.empty()) {
-            handle_websocket_message(v);
+            // Check for rate_limit message before dispatching
+            if (v.is<picojson::object>()) {
+                const picojson::object& obj = v.get<picojson::object>();
+                auto type_it = obj.find("type");
+                if (type_it != obj.end() && type_it->second.is<std::string>() &&
+                    type_it->second.get<std::string>() == "rate_limit") {
+                    auto pl_it = obj.find("payload");
+                    if (pl_it != obj.end() && pl_it->second.is<picojson::object>()) {
+                        const picojson::object& pl = pl_it->second.get<picojson::object>();
+                        auto retry_it = pl.find("retry_after");
+                        if (retry_it != pl.end() && retry_it->second.is<double>()) {
+                            uint32_t retry_secs = (uint32_t)retry_it->second.get<double>();
+                            rate_limit_retry_after_ms = retry_secs * 1000;
+                            printf("[WS] Rate limited: retry after %u seconds\n", retry_secs);
+                        }
+                    }
+                    // Don't dispatch rate_limit to normal handler
+                } else {
+                    handle_websocket_message(v);
+                }
+            } else {
+                handle_websocket_message(v);
+            }
         }
     } else if (opcode == 0x8) {
-        // Close frame
+        // Close frame - parse close code from payload (first 2 bytes, big-endian)
+        if (payload_len >= 2) {
+            last_close_code = ((uint8_t)buffer[header_len] << 8) | (uint8_t)buffer[header_len + 1];
+            printf("[WS] Close frame received with code: %u\n", last_close_code);
+        }
         close_connection();
     } else if (opcode == 0x9) {
         // Ping frame

@@ -1,8 +1,9 @@
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
-import { JS_IDENTIFIER_REGEX } from "../../foundation/consts";
+import { JS_IDENTIFIER_REGEX, TIER_LIMITS } from "../../foundation/consts";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
+import { enforceResourceLimit } from "../../foundation/limits";
 import { validateUserScript } from "../../foundation/scriptValidator";
 import type {
 	AppContext,
@@ -161,6 +162,21 @@ export class BatchUploadScripts extends BaseRoute {
 			existingDevices.map((d) => [d.device_slug, d]),
 		);
 
+		// Enforce device count limit — check how many new devices would be created
+		const plan = user.plan ?? "free";
+		const newDeviceCount = deviceIds.filter(
+			(id) => !existingDeviceMap.has(id),
+		).length;
+		if (newDeviceCount > 0) {
+			const limitResponse = enforceResourceLimit(
+				c,
+				existingDevices.length + newDeviceCount,
+				TIER_LIMITS[plan].maxDevicesPerProject,
+				"devices",
+			);
+			if (limitResponse) return limitResponse;
+		}
+
 		const r2 = c.env.SCRIPTS;
 		const now = Date.now();
 		const results: {
@@ -197,6 +213,21 @@ export class BatchUploadScripts extends BaseRoute {
 				device = newDevice.results!;
 				status = "created";
 			}
+
+			// Enforce script version count limit per device
+			const versionCount = await c.env.DB.prepare(
+				"SELECT COUNT(*) as count FROM device_scripts WHERE device_id = ?",
+			)
+				.bind(device.id)
+				.first<{ count: number }>();
+
+			const versionLimitResponse = enforceResourceLimit(
+				c,
+				versionCount?.count ?? 0,
+				TIER_LIMITS[plan].maxScriptVersionsPerDevice,
+				"script versions",
+			);
+			if (versionLimitResponse) return versionLimitResponse;
 
 			const versionId = crypto.randomUUID();
 

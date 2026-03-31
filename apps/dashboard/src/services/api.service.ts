@@ -11,6 +11,19 @@ export interface User {
   picture?: string;
   verified_email: number;
   created_at: number;
+  plan: 'free' | 'paid';
+  limits: {
+    max_projects: number;
+    max_devices_per_project: number;
+    max_script_versions_per_device: number;
+    max_api_tokens: number;
+    max_messages_per_device_per_day: number;
+    max_env_vars_per_project: number;
+  };
+  usage: {
+    projects: number;
+    api_tokens: number;
+  };
 }
 
 export interface Project {

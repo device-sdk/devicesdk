@@ -59,6 +59,8 @@ static const int WIFI_FAIL_BIT = BIT1;
 static esp_websocket_client_handle_t ws_client = NULL;
 static uint32_t last_ping_time = 0;
 static bool ws_connected = false;
+static uint32_t rate_limit_retry_after_ms = 0;
+static uint32_t rate_limit_reconnect_at_ms = 0;
 
 // Global queues for inter-task communication
 QueueHandle_t cmd_queue;
@@ -397,6 +399,14 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
         case WEBSOCKET_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "WEBSOCKET_EVENT_DISCONNECTED");
             ws_connected = false;
+            if (rate_limit_retry_after_ms > 0) {
+                uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+                rate_limit_reconnect_at_ms = now_ms + rate_limit_retry_after_ms;
+                ESP_LOGW(TAG, "Rate limited: waiting %lu ms before reconnecting",
+                         (unsigned long)rate_limit_retry_after_ms);
+                rate_limit_retry_after_ms = 0;
+                esp_websocket_client_stop(ws_client);
+            }
             break;
         case WEBSOCKET_EVENT_DATA:
             if (data->data_len > 0) {
@@ -405,7 +415,30 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
                     memcpy(message, data->data_ptr, data->data_len);
                     message[data->data_len] = '\0';
                     ESP_LOGI(TAG, "Received: %s", message);
-                    handle_websocket_message(message);
+
+                    // Check for rate_limit message before normal handling
+                    cJSON *json = cJSON_Parse(message);
+                    if (json) {
+                        cJSON *type_field = cJSON_GetObjectItem(json, "type");
+                        if (type_field && cJSON_IsString(type_field) &&
+                            strcmp(type_field->valuestring, "rate_limit") == 0) {
+                            cJSON *payload_field = cJSON_GetObjectItem(json, "payload");
+                            if (payload_field) {
+                                cJSON *retry_after = cJSON_GetObjectItem(payload_field, "retry_after");
+                                if (retry_after && cJSON_IsNumber(retry_after)) {
+                                    rate_limit_retry_after_ms = (uint32_t)(retry_after->valuedouble * 1000);
+                                    ESP_LOGW(TAG, "Rate limited: retry after %u seconds",
+                                             (unsigned)(retry_after->valuedouble));
+                                }
+                            }
+                            cJSON_Delete(json);
+                        } else {
+                            cJSON_Delete(json);
+                            handle_websocket_message(message);
+                        }
+                    } else {
+                        handle_websocket_message(message);
+                    }
                     free(message);
                 }
             }
@@ -452,6 +485,16 @@ static void websocket_task(void *pvParameters) {
                 const char *ping_msg = "{\"type\":\"ping\"}";
                 esp_websocket_client_send_text(ws_client, ping_msg, strlen(ping_msg), portMAX_DELAY);
                 last_ping_time = now;
+            }
+        }
+
+        // Reconnect after rate limit delay (non-blocking)
+        if (!ws_connected && rate_limit_reconnect_at_ms > 0) {
+            uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+            if (now_ms >= rate_limit_reconnect_at_ms) {
+                rate_limit_reconnect_at_ms = 0;
+                ESP_LOGI(TAG, "Reconnecting after rate limit delay");
+                esp_websocket_client_start(ws_client);
             }
         }
 

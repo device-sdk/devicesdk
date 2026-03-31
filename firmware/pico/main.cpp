@@ -347,6 +347,7 @@ int main() {
 
     bool initial_message_sent = false;
     bool was_connected = false;
+    bool rate_limit_logged = false;
     uint32_t last_ping_time = 0;
     uint32_t last_reconnect_attempt = 0;
 
@@ -392,8 +393,23 @@ int main() {
 
             initial_message_sent = false;
 
-            // Try to reconnect every 5 seconds
-            if (now - last_reconnect_attempt >= 5000) {
+            // Determine reconnect delay: use rate limit retry_after if set, otherwise default 5s
+            uint32_t reconnect_delay_ms = 5000;
+            if (client.rate_limit_retry_after_ms > 0) {
+                reconnect_delay_ms = client.rate_limit_retry_after_ms;
+                if (!rate_limit_logged) {
+                    printf("[Main] Rate limited (close code %u): waiting %u ms before reconnect\n",
+                           client.last_close_code, reconnect_delay_ms);
+                    rate_limit_logged = true;
+                }
+            }
+
+            if (now - last_reconnect_attempt >= reconnect_delay_ms) {
+                // Reset rate limit state before reconnecting
+                client.rate_limit_retry_after_ms = 0;
+                client.last_close_code = 0;
+                rate_limit_logged = false;
+
                 client.close_connection();
                 client.connect(api_host, ws_path, WEBSOCKET_TOKEN);
                 last_reconnect_attempt = now;

@@ -63,8 +63,16 @@ export class CreateApiToken extends BaseRoute {
 		const plan = user.plan ?? "free";
 		const maxTokens = TIER_LIMITS[plan].maxApiTokens;
 		if (countResult && countResult.count >= maxTokens) {
-			throw new ApiException(
-				`${plan === "free" ? "Free" : "Paid"} tier limit reached (${countResult.count}/${maxTokens} API tokens). ${plan === "free" ? "Upgrade to increase your limit or contact support@devicesdk.com." : "Contact support@devicesdk.com to discuss higher limits."}`,
+			const upgradeHint =
+				plan === "free"
+					? " Upgrade to increase your limit or contact support@devicesdk.com."
+					: " Contact support@devicesdk.com to discuss higher limits.";
+			return c.json(
+				{
+					success: false,
+					error: `${plan === "free" ? "Free" : "Paid"} tier limit reached (${countResult.count}/${maxTokens} API tokens).${upgradeHint}`,
+				},
+				403,
 			);
 		}
 

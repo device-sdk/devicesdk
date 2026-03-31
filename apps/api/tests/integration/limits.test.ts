@@ -159,6 +159,7 @@ describe.sequential("Usage limits enforcement", () => {
 				}),
 			});
 
+			expect(resp.status).toBe(403);
 			const json = await resp.json();
 			expect(json.success).toBe(false);
 		});

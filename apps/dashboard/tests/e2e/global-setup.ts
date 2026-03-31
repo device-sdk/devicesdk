@@ -83,6 +83,7 @@ export default async function globalSetup() {
   const now = Date.now();
   const expires = now + 86400000;
   const seedSQL = [
+    "DELETE FROM rate_limits;",
     "DELETE FROM device_scripts;",
     "DELETE FROM devices;",
     "DELETE FROM tokens;",
@@ -90,7 +91,7 @@ export default async function globalSetup() {
     "DELETE FROM projects;",
     "DELETE FROM user;",
     "",
-    `INSERT INTO user (id, name, email, verified_email, picture, created_at) VALUES ('user-1', 'Alice Johnson', 'alice@example.com', 1, 'https://example.com/alice.jpg', ${now});`,
+    `INSERT INTO user (id, name, email, verified_email, picture, created_at, plan) VALUES ('user-1', 'Alice Johnson', 'alice@example.com', 1, 'https://example.com/alice.jpg', ${now}, 'paid');`,
     `INSERT INTO user_sessions (user_id, token, created_at, expires_at) VALUES ('user-1', 'test-session-token', ${now}, ${expires});`,
     `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-1', 'user-1', 'smart-home', 'Smart Home', 'IoT smart home automation project', ${now});`,
     `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-2', 'user-1', 'weather-station', 'Weather Station', 'IoT weather monitoring system', ${now});`,

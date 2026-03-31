@@ -51,6 +51,12 @@ export function rateLimitMiddleware(maxRequests: number, windowMs: number) {
  */
 export function userRateLimitMiddleware() {
 	return async (c: AppContext, next: Next) => {
+		// Skip rate limiting in local development — this middleware is for production abuse prevention only
+		if (c.env.ENV === "local") {
+			await next();
+			return;
+		}
+
 		const user = c.get("user");
 		if (!user) {
 			await next();

@@ -203,6 +203,7 @@ pnpm --filter @devicesdk/example-basic flash-local
 
 - **Never commit directly to `main`**. Always create a new branch for your changes.
 - **Before every commit**, run `pnpm lint` to fix lint issues. Do not commit if linting fails.
+- **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in existing changesets (see `.changeset/security-fixes.md` for an example). Use `patch` for bug fixes, `minor` for new features, `major` for breaking changes. Only include packages published to npm (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`). Apps (`apps/dashboard`, `apps/website`) and firmware are not versioned and do not need changeset entries.
 
 ## Coding Standards
 

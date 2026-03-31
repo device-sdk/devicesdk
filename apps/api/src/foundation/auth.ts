@@ -24,7 +24,20 @@ function getToken(c: AppContext): null | string {
 	return authCookie;
 }
 
-function getLoginRedirectUrl(returnUrl: string, env: any): string {
+function checkSuspension(user: { suspended_at?: number }): Response | null {
+	if (user.suspended_at) {
+		return Response.json(
+			{
+				success: false,
+				error: "Account suspended. Contact support@devicesdk.com",
+			},
+			{ status: 403 },
+		);
+	}
+	return null;
+}
+
+function getLoginRedirectUrl(returnUrl: string, env: unknown): string {
 	const dashboardUrl =
 		env.ENV === "local"
 			? "http://localhost:9000"
@@ -52,7 +65,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		return Response.json(
 			{
 				success: false,
-				errors: "Authentication error",
+				error: "Authentication error",
 			},
 			{
 				status: 401,
@@ -65,7 +78,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		const tokenHash = await hashToken(token);
 
 		const cliToken = await c.env.DB.prepare(
-			`SELECT ct.*, u.id as user_id, u.name, u.email, u.picture, u.verified_email, u.plan, u.created_at as user_created_at
+			`SELECT ct.*, u.id as user_id, u.name, u.email, u.picture, u.verified_email, u.plan, u.suspended_at, u.created_at as user_created_at
 			 FROM cli_tokens ct
 			 JOIN user u ON ct.user_id = u.id
 			 WHERE ct.access_token_hash = ? AND ct.expires_at > ?`,
@@ -79,6 +92,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 				picture: string;
 				verified_email: number;
 				plan: "free" | "paid";
+				suspended_at?: number;
 				user_created_at: number;
 			}>();
 
@@ -86,7 +100,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 			return Response.json(
 				{
 					success: false,
-					errors: "Authentication error",
+					error: "Authentication error",
 				},
 				{
 					status: 401,
@@ -100,6 +114,9 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		)
 			.bind(Date.now(), cliToken.id)
 			.run();
+
+		const suspendedResponse = checkSuspension(cliToken);
+		if (suspendedResponse) return suspendedResponse;
 
 		c.set("user", {
 			id: cliToken.user_id,
@@ -173,7 +190,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 				return Response.json(
 					{
 						success: false,
-						errors: "Authentication error",
+						error: "Authentication error",
 					},
 					{
 						status: 401,
@@ -188,15 +205,24 @@ export async function authenticateUser(c: AppContext, next: Next) {
 				.bind(apiTokenHash, token.slice(-4), token)
 				.run();
 
+			const legacySuspended = checkSuspension(legacyTokenUser.results);
+			if (legacySuspended) return legacySuspended;
+
 			c.set("user", legacyTokenUser.results);
 			await next();
 			return;
 		}
 
+		const tokenSuspended = checkSuspension(tokenUser.results);
+		if (tokenSuspended) return tokenSuspended;
+
 		c.set("user", tokenUser.results);
 		await next();
 		return;
 	}
+
+	const sessionSuspended = checkSuspension(session.results);
+	if (sessionSuspended) return sessionSuspended;
 
 	c.set("user", session.results);
 
@@ -243,6 +269,16 @@ export async function handleGoogleCallback(c: AppContext) {
 
 	if (!user.results) {
 		throw new ApiException("unable to get or create a user");
+	}
+
+	if (user.results.suspended_at) {
+		return c.json(
+			{
+				success: false,
+				error: "Account suspended. Contact support@devicesdk.com",
+			},
+			{ status: 403 },
+		);
 	}
 
 	const expiration = currentMs + SESSION_DURATION_MS;

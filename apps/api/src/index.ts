@@ -53,8 +53,12 @@ app.registry.registerComponent("securitySchemes", "bearerAuth", {
 app.onError((err, c) => {
 	if (err instanceof ApiException) {
 		// If it's a Chanfana ApiException, let Chanfana handle the response
+		const messages = err.buildResponse();
 		return c.json(
-			{ success: false, errors: err.buildResponse() },
+			{
+				success: false,
+				error: messages[0]?.message || "Unknown error",
+			},
 			err.status as ContentfulStatusCode,
 		);
 	}
@@ -79,14 +83,7 @@ app.onError((err, c) => {
 	return c.json(
 		{
 			success: false,
-			errors: [
-				{
-					code: 7000,
-					...(isDev
-						? { name: err.name, message: err.message }
-						: { message: "Internal Server Error" }),
-				},
-			],
+			error: isDev ? err.message : "Internal Server Error",
 		},
 		500,
 	);

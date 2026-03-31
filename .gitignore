@@ -19,6 +19,14 @@ build/
 apps/website/public/
 resources/_gen/
 
+# Generated website assets
+apps/website/static/og-images/
+apps/website/static/styles.css
+
+# Plans and specs (local drafts)
+docs/plans/
+docs/superpowers/specs/
+
 # Firmware builds
 firmware/esp32/build/
 firmware/pico/build/

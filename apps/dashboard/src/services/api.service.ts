@@ -398,6 +398,13 @@ export const logService = {
 // Token Endpoints
 // ============================================================================
 
+export interface CliToken {
+  id: string;
+  created_at: number;
+  expires_at: number;
+  last_used_at?: number | null;
+}
+
 export interface CreateTokenInput {
   description?: string;
   managed?: boolean;
@@ -438,6 +445,16 @@ export const tokenService = {
     await api.call(`/v1/tokens/${tokenId}`, {
       method: 'DELETE',
     });
+  },
+
+  async getCliTokens(): Promise<CliToken[]> {
+    const data = await api.call<ApiResponse<CliToken[]>>('/v1/tokens/cli');
+    if (!data || !data.success) throw new Error('Failed to fetch CLI tokens');
+    return data.result;
+  },
+
+  async deleteCliToken(tokenId: string): Promise<void> {
+    await api.call(`/v1/tokens/cli/${tokenId}`, { method: 'DELETE' });
   },
 };
 

@@ -132,6 +132,103 @@
       </q-card-section>
     </q-card>
 
+    <q-separator class="q-my-xl" />
+
+    <div class="page-header q-mb-md">
+      <div>
+        <h1 class="page-title">CLI Sessions</h1>
+        <p class="page-subtitle">Active CLI login sessions on your account</p>
+      </div>
+    </div>
+
+    <q-card class="modern-card" flat bordered>
+      <q-card-section class="q-pa-none">
+        <q-table
+          :rows="cliTokens"
+          :columns="cliColumns"
+          row-key="id"
+          :loading="cliLoading"
+          flat
+          :rows-per-page-options="[10, 25, 50]"
+          class="modern-table"
+        >
+          <template #header="props">
+            <q-tr :props="props" class="table-header">
+              <q-th
+                v-for="col in props.cols"
+                :key="col.name"
+                :props="props"
+                class="text-weight-bold"
+              >
+                {{ col.label }}
+              </q-th>
+            </q-tr>
+          </template>
+
+          <template #body="props">
+            <q-tr :props="props" class="table-row">
+              <q-td key="created_at" :props="props">
+                <div class="text-grey-8">
+                  {{ new Date(props.row.created_at).toLocaleDateString() }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ new Date(props.row.created_at).toLocaleTimeString() }}
+                </div>
+              </q-td>
+              <q-td key="last_used_at" :props="props">
+                <template v-if="props.row.last_used_at">
+                  <div class="text-grey-8">
+                    {{ new Date(props.row.last_used_at).toLocaleDateString() }}
+                  </div>
+                  <div class="text-caption text-grey-6">
+                    {{ new Date(props.row.last_used_at).toLocaleTimeString() }}
+                  </div>
+                </template>
+                <span v-else class="text-grey-6">Never</span>
+              </q-td>
+              <q-td key="expires_at" :props="props">
+                <div class="text-grey-8">
+                  {{ new Date(props.row.expires_at).toLocaleDateString() }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ new Date(props.row.expires_at).toLocaleTimeString() }}
+                </div>
+              </q-td>
+              <q-td key="actions" :props="props">
+                <q-btn
+                  outline
+                  color="negative"
+                  label="Revoke"
+                  size="sm"
+                  no-caps
+                  class="revoke-btn"
+                  @click="confirmDeleteCli(props.row.id)"
+                >
+                  <q-tooltip>Revoke this CLI session</q-tooltip>
+                </q-btn>
+              </q-td>
+            </q-tr>
+          </template>
+
+          <template #no-data>
+            <div class="full-width row flex-center q-pa-xl text-grey-7">
+              <div class="text-center empty-state">
+                <q-icon name="terminal" size="80px" class="q-mb-md empty-icon" />
+                <div class="text-h6 text-weight-medium q-mb-sm">No CLI sessions</div>
+                <p class="text-body2">Log in via the DeviceSDK CLI to create a session</p>
+              </div>
+            </div>
+          </template>
+
+          <template #loading>
+            <div class="q-pa-md">
+              <q-linear-progress indeterminate color="primary" class="loading-bar" />
+            </div>
+          </template>
+        </q-table>
+      </q-card-section>
+    </q-card>
+
     <CreateTokenDialog
       v-model="showCreateDialog"
       @token-created="fetchTokens"
@@ -141,8 +238,8 @@
       <q-card class="delete-dialog" style="min-width: 400px">
         <q-card-section class="text-center q-pt-lg">
           <q-icon name="warning" color="negative" size="60px" class="q-mb-md" />
-          <div class="text-h6 text-weight-bold q-mb-sm">Delete Token?</div>
-          <p class="text-body2 text-grey-7">Are you sure you want to delete this token? This action cannot be undone and will immediately revoke access.</p>
+          <div class="text-h6 text-weight-bold q-mb-sm">{{ deleteType === 'cli' ? 'Revoke CLI Session?' : 'Delete Token?' }}</div>
+          <p class="text-body2 text-grey-7">{{ deleteType === 'cli' ? 'Are you sure you want to revoke this CLI session? The CLI will need to log in again.' : 'Are you sure you want to delete this token? This action cannot be undone and will immediately revoke access.' }}</p>
         </q-card-section>
 
         <q-card-actions align="center" class="q-px-lg q-pb-lg q-gutter-sm">
@@ -155,7 +252,7 @@
           />
           <q-btn
             unelevated
-            label="Delete"
+            :label="deleteType === 'cli' ? 'Revoke' : 'Delete'"
             color="negative"
             style="min-width: 120px"
             @click="deleteToken"
@@ -170,16 +267,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
-import { tokenService, type Token } from '@/services/api.service';
+import { tokenService, type Token, type CliToken } from '@/services/api.service';
 import CreateTokenDialog from '@/components/CreateTokenDialog.vue';
 
 const $q = useQuasar();
 const tokens = ref<Token[]>([]);
+const cliTokens = ref<CliToken[]>([]);
 const loading = ref(false);
+const cliLoading = ref(false);
 const deleting = ref(false);
 const showCreateDialog = ref(false);
 const deleteDialog = ref(false);
 const tokenToDelete = ref<string | null>(null);
+const deleteType = ref<'api' | 'cli'>('api');
 
 const columns = [
   {
@@ -220,6 +320,33 @@ const columns = [
   },
 ];
 
+const cliColumns = [
+  {
+    name: 'created_at',
+    label: 'Created',
+    field: 'created_at',
+    align: 'left' as const,
+  },
+  {
+    name: 'last_used_at',
+    label: 'Last Used',
+    field: 'last_used_at',
+    align: 'left' as const,
+  },
+  {
+    name: 'expires_at',
+    label: 'Expires',
+    field: 'expires_at',
+    align: 'left' as const,
+  },
+  {
+    name: 'actions',
+    label: 'Actions',
+    field: 'actions',
+    align: 'center' as const,
+  },
+];
+
 const fetchTokens = async () => {
   try {
     loading.value = true;
@@ -231,8 +358,26 @@ const fetchTokens = async () => {
   }
 };
 
+const loadCliTokens = async () => {
+  try {
+    cliLoading.value = true;
+    cliTokens.value = await tokenService.getCliTokens();
+  } catch (error) {
+    console.error('Error fetching CLI tokens:', error);
+  } finally {
+    cliLoading.value = false;
+  }
+};
+
 const confirmDelete = (tokenId: string) => {
   tokenToDelete.value = tokenId;
+  deleteType.value = 'api';
+  deleteDialog.value = true;
+};
+
+const confirmDeleteCli = (tokenId: string) => {
+  tokenToDelete.value = tokenId;
+  deleteType.value = 'cli';
   deleteDialog.value = true;
 };
 
@@ -241,15 +386,27 @@ const deleteToken = async () => {
 
   try {
     deleting.value = true;
-    await tokenService.delete(tokenToDelete.value);
-    $q.notify({
-      type: 'positive',
-      message: 'Token deleted successfully',
-      position: 'top',
-    });
-    deleteDialog.value = false;
-    tokenToDelete.value = null;
-    await fetchTokens();
+    if (deleteType.value === 'cli') {
+      await tokenService.deleteCliToken(tokenToDelete.value);
+      $q.notify({
+        type: 'positive',
+        message: 'CLI session revoked successfully',
+        position: 'top',
+      });
+      deleteDialog.value = false;
+      tokenToDelete.value = null;
+      await loadCliTokens();
+    } else {
+      await tokenService.delete(tokenToDelete.value);
+      $q.notify({
+        type: 'positive',
+        message: 'Token deleted successfully',
+        position: 'top',
+      });
+      deleteDialog.value = false;
+      tokenToDelete.value = null;
+      await fetchTokens();
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete token';
     $q.notify({
@@ -264,6 +421,7 @@ const deleteToken = async () => {
 
 onMounted(() => {
   void fetchTokens();
+  void loadCliTokens();
 });
 </script>
 

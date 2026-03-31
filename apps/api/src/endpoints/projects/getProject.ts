@@ -1,6 +1,7 @@
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
+import { getDeviceConnectionStatus } from "../../foundation/deviceStatus";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 export class GetProject extends BaseRoute {
@@ -77,6 +78,17 @@ export class GetProject extends BaseRoute {
 			.execute();
 		const devices = devicesResult.results || [];
 
+		// Query live connection status from Durable Objects in parallel
+		const deviceStatuses = await Promise.all(
+			devices.map(async (d) => {
+				const status = await getDeviceConnectionStatus(c.env, project.id, d.id);
+				return { deviceId: d.id, connected: status.connected };
+			}),
+		);
+		const statusMap = new Map(
+			deviceStatuses.map((s) => [s.deviceId, s.connected]),
+		);
+
 		return c.json(
 			{
 				success: true,
@@ -90,7 +102,7 @@ export class GetProject extends BaseRoute {
 					devices: devices.map((d) => ({
 						device_id: d.device_slug,
 						name: d.name || null,
-						status: "online",
+						status: statusMap.get(d.id) ? "online" : "offline",
 						last_connected_at: d.last_connected_at || null,
 					})),
 				},

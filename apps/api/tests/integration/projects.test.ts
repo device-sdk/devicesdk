@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { D1QB } from "workers-qb";
-import type { tableProjects } from "../../src/types";
+import type { tableDevices, tableProjects } from "../../src/types";
 import { TEST_SESSION_TOKEN, TEST_USER_ID } from "../setup-test-data";
 
 describe.sequential("Projects endpoint", () => {
@@ -449,6 +449,101 @@ describe.sequential("Projects endpoint", () => {
 			expect(resp.status).toBeOneOf([403, 404]);
 			const json = await resp.json();
 			expect(json.success).toBe(false);
+		});
+	});
+
+	describe("GET /v1/projects/:projectId - device status", () => {
+		it("should return device status for project devices", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableProjects>({
+					tableName: "projects",
+					data: {
+						id: "proj-status-1",
+						user_id: TEST_USER_ID,
+						project_slug: "project-status-1",
+						created_at: now,
+					},
+				})
+				.execute();
+
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-status-1",
+						project_id: "proj-status-1",
+						device_slug: "status-sensor-1",
+						name: "Status Sensor 1",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/project-status-1",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.devices).toHaveLength(1);
+			expect(json.result.devices[0].status).toBeDefined();
+			// Status should come from the Durable Object, not be hardcoded
+			expect(["online", "offline"]).toContain(json.result.devices[0].status);
+		});
+
+		it("should default to offline for devices that never connected", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableProjects>({
+					tableName: "projects",
+					data: {
+						id: "proj-status-2",
+						user_id: TEST_USER_ID,
+						project_slug: "project-status-2",
+						created_at: now,
+					},
+				})
+				.execute();
+
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-status-2",
+						project_id: "proj-status-2",
+						device_slug: "status-sensor-2",
+						name: "Never Connected Sensor",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/project-status-2",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.devices).toHaveLength(1);
+			// Device has never connected, so status should be "offline"
+			expect(json.result.devices[0].status).toBe("offline");
 		});
 	});
 });

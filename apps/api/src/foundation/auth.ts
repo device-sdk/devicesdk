@@ -63,7 +63,7 @@ function checkDeletionPending(user: {
 	return null;
 }
 
-function getLoginRedirectUrl(returnUrl: string, env: unknown): string {
+function getLoginRedirectUrl(returnUrl: string, env: { ENV: string }): string {
 	const dashboardUrl =
 		env.ENV === "local"
 			? "http://localhost:9000"

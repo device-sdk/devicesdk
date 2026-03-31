@@ -43,6 +43,7 @@ declare namespace Cloudflare {
 		DEVICE: DurableObjectNamespace;
 		LOADER: WorkerLoader;
 		ENV: "local" | "production";
+		SENTRY_DSN: string;
 	}
 }
 export interface Env extends Cloudflare.Env {}

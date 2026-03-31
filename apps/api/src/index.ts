@@ -1,4 +1,5 @@
 import { googleAuth } from "@hono/oauth-providers/google";
+import * as Sentry from "@sentry/cloudflare";
 import { ApiException, fromHono } from "chanfana";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
@@ -165,10 +166,19 @@ app.route("/v1/projects/:projectId/devices/:deviceId/script", scriptsRouter);
 app.route("/v1/projects/:projectId/devices/:deviceId/logs", logsRouter);
 app.route("/v1/projects/:projectId/scripts", batchScriptsRouter);
 
-export default {
-	fetch: app.fetch,
-	scheduled: handleScheduled,
-};
+const sentryWrapped = Sentry.withSentry(
+	(env: Env) => ({
+		dsn: env.SENTRY_DSN,
+		sendDefaultPii: true,
+		environment: env.ENV,
+	}),
+	{
+		fetch: app.fetch,
+		scheduled: handleScheduled,
+	} as ExportedHandler<Env>,
+);
+
+export default sentryWrapped;
 export { BaseDevice as Device } from "./durableObjects/lib/device";
 export { DeviceSender } from "./durableObjects/lib/deviceSender";
 export { DevicesBridge } from "./durableObjects/lib/devicesBridge";
@@ -178,14 +188,3 @@ export { DevicesBridge } from "./durableObjects/lib/devicesBridge";
 // Exported here solely because miniflare requires DO classes to come from the main
 // worker script; auxiliary worker TypeScript resolution is not supported by miniflare.
 export { TestDevice } from "./durableObjects/lib/testDevice";
-
-// export default Sentry.withSentry(
-//   env => ({
-//     dsn: "https://5fbf4d8253dca6977a71ff13d52295b6@o247228.ingest.us.sentry.io/4509820143665152",
-//
-//     // Setting this option to true will send default PII data to Sentry.
-//     // For example, automatic IP address collection on events
-//     sendDefaultPii: true,
-//   }),
-//   app,
-// );

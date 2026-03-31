@@ -4,6 +4,7 @@ import { BaseRoute } from "../../foundation/baseRoute";
 import { JS_IDENTIFIER_REGEX, TIER_LIMITS } from "../../foundation/consts";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 import { enforceResourceLimit } from "../../foundation/limits";
+import { pruneOldVersions } from "../../foundation/scriptPruning";
 import { validateUserScript } from "../../foundation/scriptValidator";
 import type {
 	AppContext,
@@ -214,20 +215,16 @@ export class BatchUploadScripts extends BaseRoute {
 				status = "created";
 			}
 
-			// Enforce script version count limit per device
-			const versionCount = await c.env.DB.prepare(
-				"SELECT COUNT(*) as count FROM device_scripts WHERE device_id = ?",
-			)
-				.bind(device.id)
-				.first<{ count: number }>();
-
-			const versionLimitResponse = enforceResourceLimit(
-				c,
-				versionCount?.count ?? 0,
+			// Prune oldest non-current versions if at the limit (FIFO)
+			await pruneOldVersions(
+				c.env.DB,
+				c.env.SCRIPTS,
+				device,
+				user.id,
+				projectId,
+				deviceSlug,
 				TIER_LIMITS[plan].maxScriptVersionsPerDevice,
-				"script versions",
 			);
-			if (versionLimitResponse) return versionLimitResponse;
 
 			const versionId = crypto.randomUUID();
 

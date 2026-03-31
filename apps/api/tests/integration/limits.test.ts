@@ -1,7 +1,8 @@
-import { SELF } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import {
 	TEST_FREE_SESSION_TOKEN,
+	TEST_FREE_USER_ID,
 	TEST_SESSION_TOKEN,
 } from "../setup-test-data";
 
@@ -162,6 +163,160 @@ describe.sequential("Usage limits enforcement", () => {
 			expect(resp.status).toBe(403);
 			const json = await resp.json();
 			expect(json.success).toBe(false);
+		});
+	});
+
+	describe("Script version FIFO pruning", () => {
+		it("should auto-prune oldest non-current version when at limit", async () => {
+			// Create a project and device for the free user
+			const projResp = await SELF.fetch("http://localhost/v1/projects", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
+				},
+				body: JSON.stringify({ project_slug: "fifo-test" }),
+			});
+			if (projResp.status === 403) {
+				// Free user may have hit project limit — delete one
+				await SELF.fetch("http://localhost/v1/projects/free-proj-2", {
+					method: "DELETE",
+					headers: {
+						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
+					},
+				});
+				const retryResp = await SELF.fetch("http://localhost/v1/projects", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ project_slug: "fifo-test" }),
+				});
+				expect(retryResp.status).toBe(201);
+			}
+
+			const devResp = await SELF.fetch(
+				"http://localhost/v1/projects/fifo-test/devices",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ device_id: "fifo-device" }),
+				},
+			);
+			expect(devResp.status).toBe(201);
+
+			const scriptBody = (n: number) =>
+				JSON.stringify({
+					entrypoint: "Device",
+					script: `export class Device { async onMessage() { return ${n}; } async onDeviceConnect() {} }`,
+					message: `version ${n}`,
+				});
+
+			const versionIds: string[] = [];
+			// Upload 5 versions (free tier limit)
+			for (let i = 1; i <= 5; i++) {
+				const resp = await SELF.fetch(
+					"http://localhost/v1/projects/fifo-test/devices/fifo-device/script",
+					{
+						method: "PUT",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
+						},
+						body: scriptBody(i),
+					},
+				);
+				expect(resp.status).toBe(201);
+				const json = await resp.json();
+				versionIds.push(json.result.version_id);
+			}
+
+			// Upload a 6th version — should succeed via FIFO pruning, not 403
+			const resp6 = await SELF.fetch(
+				"http://localhost/v1/projects/fifo-test/devices/fifo-device/script",
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
+					},
+					body: scriptBody(6),
+				},
+			);
+			expect(resp6.status).toBe(201);
+
+			// List versions — should have exactly 5
+			const listResp = await SELF.fetch(
+				"http://localhost/v1/projects/fifo-test/devices/fifo-device/script/versions",
+				{
+					headers: {
+						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
+					},
+				},
+			);
+			expect(listResp.status).toBe(200);
+			const listJson = await listResp.json();
+			expect(listJson.result).toHaveLength(5);
+
+			// The oldest version (version 1) should have been pruned
+			const remainingIds = listJson.result.map(
+				(v: { version_id: string }) => v.version_id,
+			);
+			expect(remainingIds).not.toContain(versionIds[0]);
+
+			// The current version (version 5, which was current before upload 6) should still exist
+			// Actually version 6 is now current; version 5 was the previous current.
+			// But version 5 was current_version_id when we pruned, so it was protected.
+			// After upload 6, version 6 becomes current. Let's verify the current one exists.
+			const currentVersion = listJson.result.find(
+				(v: { is_current: boolean }) => v.is_current,
+			);
+			expect(currentVersion).toBeDefined();
+			expect(currentVersion.message).toBe("version 6");
+		});
+	});
+
+	describe("Managed tokens excluded from API token limit", () => {
+		it("should not count managed device tokens toward user token limit", async () => {
+			// Insert a managed token directly for the free user
+			await env.DB.prepare(
+				"INSERT INTO tokens (id, user_id, token, token_hash, last_four, managed, created_at) VALUES (?, ?, '', 'managed-hash-1', '0001', 1, ?)",
+			)
+				.bind("managed-token-1", TEST_FREE_USER_ID, Date.now())
+				.run();
+			await env.DB.prepare(
+				"INSERT INTO tokens (id, user_id, token, token_hash, last_four, managed, created_at) VALUES (?, ?, '', 'managed-hash-2', '0002', 1, ?)",
+			)
+				.bind("managed-token-2", TEST_FREE_USER_ID, Date.now())
+				.run();
+
+			// Free user should still be able to create 5 user API tokens
+			// (the existing test already created 5, so let's check user/me usage doesn't include managed)
+			const meResp = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: {
+					Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
+				},
+			});
+			expect(meResp.status).toBe(200);
+			const meJson = await meResp.json();
+
+			// The managed tokens should NOT be counted in usage
+			// Count only non-managed tokens in the DB to verify
+			const nonManagedCount = await env.DB.prepare(
+				"SELECT COUNT(*) as count FROM tokens WHERE user_id = ? AND (managed = 0 OR managed IS NULL)",
+			)
+				.bind(TEST_FREE_USER_ID)
+				.first<{ count: number }>();
+			expect(meJson.result.usage.api_tokens).toBe(nonManagedCount?.count ?? 0);
+
+			// Clean up managed tokens
+			await env.DB.prepare(
+				"DELETE FROM tokens WHERE id IN ('managed-token-1', 'managed-token-2')",
+			).run();
 		});
 	});
 

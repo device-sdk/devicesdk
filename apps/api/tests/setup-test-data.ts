@@ -7,10 +7,15 @@ export const TEST_SESSION_TOKEN = "test-session-token";
 export const TEST_USER_ID = "user-1";
 export const TEST_PROJECT_ID = "smart-home";
 
+// Free-tier test user for limit enforcement tests
+export const TEST_FREE_USER_ID = "user-free";
+export const TEST_FREE_SESSION_TOKEN = "test-free-session-token";
+
 beforeAll(async () => {
 	const qb = new D1QB(env.DB);
 
 	// Clean all tables
+	await env.DB.prepare("DELETE FROM rate_limits").run();
 	await env.DB.prepare("DELETE FROM device_scripts").run();
 	await env.DB.prepare("DELETE FROM devices").run();
 	await env.DB.prepare("DELETE FROM tokens").run();
@@ -26,6 +31,7 @@ beforeAll(async () => {
 			email: "alice@example.com",
 			verified_email: 1,
 			picture: "https://example.com/alice.jpg",
+			plan: "paid",
 			created_at: Date.now(),
 		},
 		{
@@ -34,6 +40,7 @@ beforeAll(async () => {
 			email: "bob@example.com",
 			verified_email: 1,
 			picture: "https://example.com/bob.jpg",
+			plan: "paid",
 			created_at: Date.now(),
 		},
 		{
@@ -42,6 +49,16 @@ beforeAll(async () => {
 			email: "charlie@example.com",
 			verified_email: 1,
 			picture: "https://example.com/charlie.jpg",
+			plan: "paid",
+			created_at: Date.now(),
+		},
+		{
+			id: TEST_FREE_USER_ID,
+			name: "Free User",
+			email: "free@example.com",
+			verified_email: 1,
+			picture: "https://example.com/free.jpg",
+			plan: "free",
 			created_at: Date.now(),
 		},
 	];
@@ -111,6 +128,19 @@ beforeAll(async () => {
 				token: TEST_SESSION_TOKEN,
 				created_at: now,
 				expires_at: now + 86400000, // 24 hours from now
+			},
+			onConflict: "IGNORE",
+		})
+		.execute();
+
+	await qb
+		.insert<tableUserSessions>({
+			tableName: "user_sessions",
+			data: {
+				user_id: TEST_FREE_USER_ID,
+				token: TEST_FREE_SESSION_TOKEN,
+				created_at: now,
+				expires_at: now + 86400000,
 			},
 			onConflict: "IGNORE",
 		})

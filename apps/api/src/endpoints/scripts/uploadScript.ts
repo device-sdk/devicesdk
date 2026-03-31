@@ -1,8 +1,9 @@
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
-import { JS_IDENTIFIER_REGEX } from "../../foundation/consts";
+import { JS_IDENTIFIER_REGEX, TIER_LIMITS } from "../../foundation/consts";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
+import { enforceResourceLimit } from "../../foundation/limits";
 import { validateUserScript } from "../../foundation/scriptValidator";
 import type {
 	AppContext,
@@ -118,6 +119,22 @@ export class UploadScript extends BaseRoute {
 		if (!device) {
 			return c.json({ success: false, error: "Device not found" }, 404);
 		}
+
+		// Enforce script version count limit per device
+		const plan = user.plan ?? "free";
+		const versionCount = await c.env.DB.prepare(
+			"SELECT COUNT(*) as count FROM device_scripts WHERE device_id = ?",
+		)
+			.bind(device.id)
+			.first<{ count: number }>();
+
+		const limitResponse = enforceResourceLimit(
+			c,
+			versionCount?.count ?? 0,
+			TIER_LIMITS[plan].maxScriptVersionsPerDevice,
+			"script versions",
+		);
+		if (limitResponse) return limitResponse;
 
 		const versionId = crypto.randomUUID();
 		const r2 = c.env.SCRIPTS;

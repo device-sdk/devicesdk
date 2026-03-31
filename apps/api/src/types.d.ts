@@ -53,6 +53,7 @@ export type tableUser = {
 	picture?: string;
 	email: string;
 	verified_email: number;
+	plan: "free" | "paid";
 	created_at: number;
 };
 export type tableUserSessions = {

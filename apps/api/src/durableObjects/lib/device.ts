@@ -11,7 +11,12 @@ import {
 	LOG_MESSAGE_MAX_LENGTH,
 	LOG_RETENTION_MS,
 	type LogLevel,
+	MESSAGE_COUNT_DATE_KEY,
+	MESSAGE_COUNT_KEY,
+	TIER_LIMITS,
+	type UserPlan,
 	VALID_LOG_LEVELS,
+	WS_CLOSE_RATE_LIMITED,
 } from "../../foundation/consts";
 import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
@@ -69,6 +74,11 @@ export class BaseDevice extends DurableObject<Env> {
 	// In-memory only — cosmetic field, not durable. Avoids a storage write on the hot path.
 	private _connectedSince?: number;
 
+	// Message counting for daily rate limits
+	private _messageCountToday = 0;
+	private _messageCountDate = ""; // "YYYY-MM-DD" UTC
+	private _messageLimitNotified = false; // Avoid sending duplicate rate_limit messages
+
 	// Device metadata from connection
 	private deviceMeta?: {
 		userId: string;
@@ -76,6 +86,7 @@ export class BaseDevice extends DurableObject<Env> {
 		versionId: string;
 		deviceId: string;
 		entrypointName: string;
+		plan: UserPlan;
 	};
 
 	/**
@@ -123,9 +134,45 @@ export class BaseDevice extends DurableObject<Env> {
 		const versionId = url.searchParams.get("versionId");
 		const deviceId = url.searchParams.get("deviceId");
 		const entrypointName = url.searchParams.get("entrypointName");
+		const plan = (url.searchParams.get("plan") ?? "free") as UserPlan;
 
 		if (!userId || !projectId || !deviceId || !versionId || !entrypointName) {
 			return new Response("Missing userId or projectId", { status: 400 });
+		}
+
+		// Check if this free-tier device has already exhausted its daily message limit
+		if (plan === "free") {
+			await this.restoreMessageCount();
+			const today = new Date().toISOString().slice(0, 10);
+			if (
+				this._messageCountDate === today &&
+				this._messageCountToday >= TIER_LIMITS.free.maxMessagesPerDevicePerDay
+			) {
+				const retryAfter = this.secondsUntilMidnightUtc();
+
+				// Accept WS briefly to send rate_limit message (firmware can't parse HTTP error bodies)
+				const [client, server] = Object.values(new WebSocketPair());
+				this.ctx.acceptWebSocket(server);
+
+				server.send(
+					JSON.stringify({
+						type: "rate_limit",
+						payload: {
+							error: "Daily message limit reached",
+							retry_after: retryAfter,
+						},
+					}),
+				);
+				server.close(WS_CLOSE_RATE_LIMITED, "Daily message limit reached");
+
+				// Log the refused connection
+				await this.persistLog(
+					"warn",
+					`Connection refused: daily message limit reached (${this._messageCountToday}/${TIER_LIMITS.free.maxMessagesPerDevicePerDay}). Retry after ${retryAfter}s.`,
+				);
+
+				return new Response(null, { status: 101, webSocket: client });
+			}
 		}
 
 		this.deviceMeta = {
@@ -134,6 +181,7 @@ export class BaseDevice extends DurableObject<Env> {
 			versionId,
 			deviceId,
 			entrypointName,
+			plan,
 		};
 
 		// Store deviceMeta in DO storage so it persists through hibernation
@@ -144,6 +192,7 @@ export class BaseDevice extends DurableObject<Env> {
 		this.ctx.acceptWebSocket(server);
 		this._session = { websocket: server };
 		this._connectedSince = Date.now();
+		this._messageLimitNotified = false;
 
 		await this.ctx.storage.put(CONNECTED_SINCE_KEY, Date.now());
 
@@ -366,6 +415,10 @@ export class BaseDevice extends DurableObject<Env> {
 			return;
 		}
 
+		// Check daily message limit
+		const limitExceeded = await this.checkMessageLimit(_ws);
+		if (limitExceeded) return;
+
 		try {
 			const raw = JSON.parse(data);
 			const parsed = DeviceMessageSchema.safeParse(raw);
@@ -450,6 +503,105 @@ export class BaseDevice extends DurableObject<Env> {
 		console.log(`webSocketError: ${error}`);
 		await this.handleConnectionLost(`WebSocket error: ${error}`);
 		ws.close(1011, "WebSocket error");
+	}
+
+	/**
+	 * Returns seconds until midnight UTC.
+	 */
+	private secondsUntilMidnightUtc(): number {
+		const now = new Date();
+		const midnight = new Date(now);
+		midnight.setUTCDate(midnight.getUTCDate() + 1);
+		midnight.setUTCHours(0, 0, 0, 0);
+		return Math.ceil((midnight.getTime() - now.getTime()) / 1000);
+	}
+
+	/**
+	 * Restores message count from DO storage (after hibernation or fresh start).
+	 */
+	private async restoreMessageCount(): Promise<void> {
+		if (this._messageCountDate) return; // Already loaded
+		const [count, date] = await Promise.all([
+			this.ctx.storage.get<number>(MESSAGE_COUNT_KEY),
+			this.ctx.storage.get<string>(MESSAGE_COUNT_DATE_KEY),
+		]);
+		this._messageCountToday = count ?? 0;
+		this._messageCountDate = date ?? "";
+	}
+
+	/**
+	 * Checks and enforces the daily message limit.
+	 * Returns true if the message should be dropped (limit exceeded).
+	 */
+	private async checkMessageLimit(ws: WebSocket): Promise<boolean> {
+		await this.restoreMessageCount();
+
+		const today = new Date().toISOString().slice(0, 10);
+
+		// Reset counter on new day
+		if (this._messageCountDate !== today) {
+			this._messageCountToday = 0;
+			this._messageCountDate = today;
+			this._messageLimitNotified = false;
+			await this.ctx.storage.put(MESSAGE_COUNT_KEY, 0);
+			await this.ctx.storage.put(MESSAGE_COUNT_DATE_KEY, today);
+		}
+
+		const meta = await this.getDeviceMeta();
+		const plan: UserPlan = meta?.plan ?? "free";
+		const limit = TIER_LIMITS[plan].maxMessagesPerDevicePerDay;
+
+		if (this._messageCountToday >= limit) {
+			if (!this._messageLimitNotified) {
+				this._messageLimitNotified = true;
+				const retryAfter = this.secondsUntilMidnightUtc();
+
+				if (plan === "free") {
+					// Free tier: send rate_limit, close connection, log
+					ws.send(
+						JSON.stringify({
+							type: "rate_limit",
+							payload: {
+								error: "Daily message limit reached",
+								retry_after: retryAfter,
+							},
+						}),
+					);
+					ws.close(WS_CLOSE_RATE_LIMITED, "Daily message limit reached");
+					await this.persistLog(
+						"warn",
+						`Connection closed: daily message limit reached (${this._messageCountToday}/${limit}). Retry after ${retryAfter}s.`,
+					);
+				} else {
+					// Paid tier: send notification but keep connection
+					ws.send(
+						JSON.stringify({
+							type: "rate_limit",
+							payload: {
+								error: "Daily message limit reached",
+							},
+						}),
+					);
+				}
+			}
+			return true; // Drop the message
+		}
+
+		this._messageCountToday++;
+
+		// Flush to storage periodically (every 50 messages) to survive hibernation
+		if (
+			this._messageCountToday % 50 === 0 ||
+			this._messageCountToday >= limit
+		) {
+			await this.ctx.storage.put(MESSAGE_COUNT_KEY, this._messageCountToday);
+			await this.ctx.storage.put(
+				MESSAGE_COUNT_DATE_KEY,
+				this._messageCountDate,
+			);
+		}
+
+		return false;
 	}
 
 	private async handleConnectionLost(reason: string) {

@@ -1,6 +1,8 @@
 import { ApiException, contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
+import { TIER_LIMITS } from "../../foundation/consts";
+import { enforceResourceLimit } from "../../foundation/limits";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 const deviceSlugRegex = /^[a-z][a-z0-9-]{0,35}$/;
@@ -100,6 +102,22 @@ export class CreateDevice extends BaseRoute {
 		if (existingDevice) {
 			return c.json({ success: false, error: "Device already exists" }, 409);
 		}
+
+		// Enforce device count limit per project
+		const plan = user.plan ?? "free";
+		const deviceCount = await c.env.DB.prepare(
+			"SELECT COUNT(*) as count FROM devices WHERE project_id = ?",
+		)
+			.bind(project.id)
+			.first<{ count: number }>();
+
+		const limitResponse = enforceResourceLimit(
+			c,
+			deviceCount?.count ?? 0,
+			TIER_LIMITS[plan].maxDevicesPerProject,
+			"devices",
+		);
+		if (limitResponse) return limitResponse;
 
 		const now = Date.now();
 		const newDevice = await qb

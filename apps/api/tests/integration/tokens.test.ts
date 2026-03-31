@@ -73,10 +73,11 @@ describe.sequential("Tokens endpoint", () => {
 		expect(resp.status).toBe(200);
 		const json = await resp.json();
 		expect(json.success).toBe(true);
-		expect(json.result.length).toBe(1);
-		expect(json.result[0].id).toBeDefined();
-		expect(json.result[0].token).toBeUndefined();
-		expect(json.result[0].last_four).toBe(token.slice(-4));
+		expect(json.result.items.length).toBe(1);
+		expect(json.result.next_cursor).toBeNull();
+		expect(json.result.items[0].id).toBeDefined();
+		expect(json.result.items[0].token).toBeUndefined();
+		expect(json.result.items[0].last_four).toBe(token.slice(-4));
 	});
 
 	it("should delete an API token", async () => {
@@ -111,7 +112,7 @@ describe.sequential("Tokens endpoint", () => {
 			},
 		});
 		const listJson = await listResp.json();
-		for (const t of listJson.result) {
+		for (const t of listJson.result.items) {
 			expect(t.id).not.eq(tokenId);
 		}
 	});
@@ -213,7 +214,7 @@ describe.sequential("Tokens endpoint", () => {
 			},
 		});
 		const listJson = await listResp.json();
-		const created = listJson.result.find(
+		const created = listJson.result.items.find(
 			(t: { id: string }) => t.id === tokenId,
 		);
 		expect(created).toBeDefined();
@@ -276,6 +277,87 @@ describe.sequential("Tokens endpoint", () => {
 			headers: { Authorization: `Bearer ${rawToken}` },
 		});
 		expect(authResp.status).toBe(200);
+	});
+
+	describe("GET /v1/tokens - pagination", () => {
+		it("should return paginated results with default limit", async () => {
+			const resp = await SELF.fetch("http://localhost/v1/tokens", {
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			});
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.items).toBeDefined();
+			expect(Array.isArray(json.result.items)).toBe(true);
+			expect(
+				json.result.next_cursor === null ||
+					typeof json.result.next_cursor === "string",
+			).toBe(true);
+		});
+
+		it("should paginate with cursor across multiple pages", async () => {
+			// Create 5 tokens
+			for (let i = 0; i < 5; i++) {
+				await SELF.fetch("http://localhost/v1/tokens", {
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				});
+			}
+
+			// First page with limit=2
+			const resp1 = await SELF.fetch("http://localhost/v1/tokens?limit=2", {
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			});
+
+			expect(resp1.status).toBe(200);
+			const json1 = await resp1.json();
+			expect(json1.success).toBe(true);
+			expect(json1.result.items.length).toBe(2);
+			expect(json1.result.next_cursor).not.toBeNull();
+
+			// Second page using cursor
+			const resp2 = await SELF.fetch(
+				`http://localhost/v1/tokens?limit=2&cursor=${json1.result.next_cursor}`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+			const json2 = await resp2.json();
+			expect(json2.success).toBe(true);
+			expect(json2.result.items.length).toBeGreaterThanOrEqual(1);
+
+			// Ensure no overlap between pages
+			const page1Ids = json1.result.items.map((t: { id: string }) => t.id);
+			const page2Ids = json2.result.items.map((t: { id: string }) => t.id);
+			for (const id of page2Ids) {
+				expect(page1Ids).not.toContain(id);
+			}
+		});
+
+		it("should return null next_cursor on last page", async () => {
+			const resp = await SELF.fetch("http://localhost/v1/tokens?limit=100", {
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			});
+
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.next_cursor).toBeNull();
+		});
 	});
 
 	it("should reject authentication with token hash value", async () => {

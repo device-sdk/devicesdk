@@ -148,8 +148,9 @@ describe.sequential("Projects endpoint", () => {
 		expect(resp.status).toBe(200);
 		const json = await resp.json();
 		expect(json.success).toBe(true);
-		expect(json.result.length).toBeGreaterThanOrEqual(2);
-		const projectSlugs = json.result.map((p: any) => p.project_slug);
+		expect(json.result.items.length).toBeGreaterThanOrEqual(2);
+		expect(json.result.next_cursor).toBeDefined();
+		const projectSlugs = json.result.items.map((p: any) => p.project_slug);
 		expect(projectSlugs).toContain("existing-project-200");
 		expect(projectSlugs).toContain("another-project-300");
 	});
@@ -544,6 +545,122 @@ describe.sequential("Projects endpoint", () => {
 			expect(json.result.devices).toHaveLength(1);
 			// Device has never connected, so status should be "offline"
 			expect(json.result.devices[0].status).toBe("offline");
+		});
+	});
+
+	describe("GET /v1/projects - pagination", () => {
+		it("should return paginated results with default limit", async () => {
+			const resp = await SELF.fetch("http://localhost/v1/projects", {
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			});
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.items).toBeDefined();
+			expect(Array.isArray(json.result.items)).toBe(true);
+			// next_cursor is null or a string
+			expect(
+				json.result.next_cursor === null ||
+					typeof json.result.next_cursor === "string",
+			).toBe(true);
+		});
+
+		it("should paginate with cursor across multiple pages", async () => {
+			// Create 5 projects with distinct created_at values
+			const baseTime = Date.now() + 100000;
+			for (let i = 0; i < 5; i++) {
+				await qb
+					.insert<tableProjects>({
+						tableName: "projects",
+						data: {
+							id: `proj-page-${i}`,
+							user_id: TEST_USER_ID,
+							project_slug: `page-project-${i}`,
+							created_at: baseTime + i * 1000,
+						},
+						onConflict: "IGNORE",
+					})
+					.execute();
+			}
+
+			// First page with limit=2
+			const resp1 = await SELF.fetch("http://localhost/v1/projects?limit=2", {
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			});
+
+			expect(resp1.status).toBe(200);
+			const json1 = await resp1.json();
+			expect(json1.success).toBe(true);
+			expect(json1.result.items.length).toBe(2);
+			expect(json1.result.next_cursor).not.toBeNull();
+			expect(typeof json1.result.next_cursor).toBe("string");
+
+			// Second page using cursor
+			const resp2 = await SELF.fetch(
+				`http://localhost/v1/projects?limit=2&cursor=${json1.result.next_cursor}`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+			const json2 = await resp2.json();
+			expect(json2.success).toBe(true);
+			expect(json2.result.items.length).toBe(2);
+
+			// Ensure no overlap between pages
+			const page1Ids = json1.result.items.map((p: { id: string }) => p.id);
+			const page2Ids = json2.result.items.map((p: { id: string }) => p.id);
+			for (const id of page2Ids) {
+				expect(page1Ids).not.toContain(id);
+			}
+
+			// Continue paginating until we reach the last page
+			let cursor = json2.result.next_cursor;
+			const allIds = [...page1Ids, ...page2Ids];
+			while (cursor) {
+				const resp = await SELF.fetch(
+					`http://localhost/v1/projects?limit=2&cursor=${cursor}`,
+					{
+						method: "GET",
+						headers: {
+							Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+						},
+					},
+				);
+				const json = await resp.json();
+				expect(json.success).toBe(true);
+				for (const item of json.result.items) {
+					expect(allIds).not.toContain(item.id);
+					allIds.push(item.id);
+				}
+				cursor = json.result.next_cursor;
+			}
+
+			// We should have collected all projects
+			expect(allIds.length).toBeGreaterThanOrEqual(5);
+		});
+
+		it("should return null next_cursor on last page", async () => {
+			// Fetch all items by using a large limit
+			const resp = await SELF.fetch("http://localhost/v1/projects?limit=100", {
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			});
+
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.next_cursor).toBeNull();
 		});
 	});
 });

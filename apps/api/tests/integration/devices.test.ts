@@ -278,7 +278,8 @@ describe.sequential("Devices endpoint", () => {
 			expect(resp.status).toBe(200);
 			const json = await resp.json();
 			expect(json.success).toBe(true);
-			expect(json.result.length).toBe(2);
+			expect(json.result.items.length).toBe(2);
+			expect(json.result.next_cursor).toBeNull();
 		});
 
 		it("should return empty array for project with no devices", async () => {
@@ -309,7 +310,8 @@ describe.sequential("Devices endpoint", () => {
 			expect(resp.status).toBe(200);
 			const json = await resp.json();
 			expect(json.success).toBe(true);
-			expect(json.result.length).toBe(0);
+			expect(json.result.items.length).toBe(0);
+			expect(json.result.next_cursor).toBeNull();
 		});
 	});
 
@@ -1310,6 +1312,117 @@ describe.sequential("Devices endpoint", () => {
 			const json = await resp.json();
 			expect(json.success).toBe(false);
 			expect(json.error).toContain("not connected");
+		});
+	});
+
+	describe("GET /v1/projects/:projectId/devices - pagination", () => {
+		it("should return paginated results with default limit", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.items).toBeDefined();
+			expect(Array.isArray(json.result.items)).toBe(true);
+			expect(
+				json.result.next_cursor === null ||
+					typeof json.result.next_cursor === "string",
+			).toBe(true);
+		});
+
+		it("should paginate with cursor across multiple pages", async () => {
+			// Create a dedicated project for pagination tests
+			await qb
+				.insert<tableProjects>({
+					tableName: "projects",
+					data: {
+						id: "proj-dev-page",
+						user_id: TEST_USER_ID,
+						project_slug: "dev-pagination",
+						created_at: Date.now(),
+					},
+					onConflict: "IGNORE",
+				})
+				.execute();
+
+			const baseTime = Date.now() + 100000;
+			for (let i = 0; i < 5; i++) {
+				await qb
+					.insert<tableDevices>({
+						tableName: "devices",
+						data: {
+							id: `dev-page-${i}`,
+							project_id: "proj-dev-page",
+							device_slug: `page-sensor-${i}`,
+							name: `Page Sensor ${i}`,
+							created_at: baseTime + i * 1000,
+							updated_at: baseTime + i * 1000,
+						},
+						onConflict: "IGNORE",
+					})
+					.execute();
+			}
+
+			// First page with limit=2
+			const resp1 = await SELF.fetch(
+				"http://localhost/v1/projects/dev-pagination/devices?limit=2",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp1.status).toBe(200);
+			const json1 = await resp1.json();
+			expect(json1.success).toBe(true);
+			expect(json1.result.items.length).toBe(2);
+			expect(json1.result.next_cursor).not.toBeNull();
+
+			// Second page using cursor
+			const resp2 = await SELF.fetch(
+				`http://localhost/v1/projects/dev-pagination/devices?limit=2&cursor=${json1.result.next_cursor}`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+			const json2 = await resp2.json();
+			expect(json2.success).toBe(true);
+			expect(json2.result.items.length).toBe(2);
+
+			// Ensure no overlap between pages
+			const page1Ids = json1.result.items.map((d: { id: string }) => d.id);
+			const page2Ids = json2.result.items.map((d: { id: string }) => d.id);
+			for (const id of page2Ids) {
+				expect(page1Ids).not.toContain(id);
+			}
+
+			// Last page should have 1 item and null cursor
+			const resp3 = await SELF.fetch(
+				`http://localhost/v1/projects/dev-pagination/devices?limit=2&cursor=${json2.result.next_cursor}`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+			const json3 = await resp3.json();
+			expect(json3.success).toBe(true);
+			expect(json3.result.items.length).toBe(1);
+			expect(json3.result.next_cursor).toBeNull();
 		});
 	});
 });

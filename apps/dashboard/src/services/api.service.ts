@@ -1,6 +1,33 @@
 import { api } from '@/lib/api';
 
 // ============================================================================
+// Pagination Helper
+// ============================================================================
+
+interface PaginatedResponse<T> {
+  items: T[];
+  next_cursor: string | null;
+}
+
+async function fetchAllPages<T>(url: string): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: string | undefined;
+  do {
+    const params = new URLSearchParams();
+    if (cursor) params.set('cursor', cursor);
+    params.set('limit', '100');
+    const qs = params.toString();
+    const data = await api.call<ApiResponse<PaginatedResponse<T>>>(
+      `${url}${qs ? `?${qs}` : ''}`,
+    );
+    if (!data?.success) throw new Error('Failed to fetch');
+    all.push(...data.result.items);
+    cursor = data.result.next_cursor ?? undefined;
+  } while (cursor);
+  return all;
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -138,11 +165,7 @@ export interface UpdateProjectInput {
 
 export const projectService = {
   async getAll(): Promise<Project[]> {
-    const data = await api.call<ApiResponse<Project[]>>('/v1/projects');
-    if (!data || !data.success) {
-      throw new Error('Failed to fetch projects');
-    }
-    return data.result;
+    return fetchAllPages<Project>('/v1/projects');
   },
 
   async getById(projectId: string): Promise<Project> {
@@ -207,13 +230,7 @@ export interface UpdateDeviceInput {
 
 export const deviceService = {
   async getAll(projectId: string): Promise<Device[]> {
-    const data = await api.call<ApiResponse<Device[]>>(
-      `/v1/projects/${projectId}/devices`
-    );
-    if (!data || !data.success) {
-      throw new Error('Failed to fetch devices');
-    }
-    return data.result;
+    return fetchAllPages<Device>(`/v1/projects/${projectId}/devices`);
   },
 
   async getById(projectId: string, deviceId: string): Promise<Device> {
@@ -420,11 +437,7 @@ export interface CreateTokenResponse {
 
 export const tokenService = {
   async getAll(): Promise<Token[]> {
-    const data = await api.call<ApiResponse<Token[]>>('/v1/tokens');
-    if (!data || !data.success) {
-      throw new Error('Failed to fetch tokens');
-    }
-    return data.result;
+    return fetchAllPages<Token>('/v1/tokens');
   },
 
   async create(input?: CreateTokenInput): Promise<CreateTokenResponse> {

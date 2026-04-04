@@ -91,7 +91,7 @@ async function purgeUserData(env: Env, userId: string): Promise<void> {
 			.run();
 	}
 
-	// Delete tokens, CLI tokens, sessions, rate limits
+	// Delete tokens, CLI tokens, sessions
 	await env.DB.prepare("DELETE FROM tokens WHERE user_id = ?")
 		.bind(userId)
 		.run();
@@ -101,6 +101,9 @@ async function purgeUserData(env: Env, userId: string): Promise<void> {
 	await env.DB.prepare("DELETE FROM user_sessions WHERE user_id = ?")
 		.bind(userId)
 		.run();
+	// Only user-scoped rate limits can be purged by user ID (keyed "user:<id>").
+	// IP-scoped limits ("ip:path") are not linked to a user and will expire naturally
+	// via cleanupExpiredRecords.
 	await env.DB.prepare("DELETE FROM rate_limits WHERE key = ?")
 		.bind(`user:${userId}`)
 		.run();

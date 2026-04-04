@@ -377,6 +377,34 @@ describe.sequential("Authentication", () => {
 			);
 		});
 
+		test("should return 403 for suspended user with CLI token", async () => {
+			const { hashToken } = await import("../../src/foundation/tokenHash");
+			const tokenValue = "dsdk_suspended-user-cli-token";
+			const tokenHash = await hashToken(tokenValue);
+			await env.DB.prepare(
+				"INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+			)
+				.bind(
+					"suspended-cli-id",
+					TEST_SUSPENDED_USER_ID,
+					tokenHash,
+					"suspended-refresh-hash",
+					Date.now(),
+					Date.now() + 86400000,
+				)
+				.run();
+
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: `Bearer ${tokenValue}` },
+			});
+			expect(res.status).toBe(403);
+			const body = (await res.json()) as { success: boolean; error: string };
+			expect(body.success).toBe(false);
+			expect(body.error).toBe(
+				"Account suspended. Contact support@devicesdk.com",
+			);
+		});
+
 		test("should include support email in suspension error response", async () => {
 			const res = await SELF.fetch("http://localhost/v1/user/me", {
 				headers: {

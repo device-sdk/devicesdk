@@ -310,34 +310,11 @@ export async function handleGoogleCallback(c: AppContext) {
 		throw new ApiException("unable to get or create a user");
 	}
 
-	if (user.results.suspended_at) {
-		return c.json(
-			{
-				success: false,
-				error: "Account suspended. Contact support@devicesdk.com",
-			},
-			{ status: 403 },
-		);
-	}
+	const oauthSuspendedRes = checkSuspension(user.results);
+	if (oauthSuspendedRes) return oauthSuspendedRes;
 
-	if (user.results.deletion_requested_at) {
-		const daysRemaining = Math.max(
-			0,
-			Math.ceil(
-				(user.results.deletion_requested_at +
-					DELETION_GRACE_PERIOD_MS -
-					Date.now()) /
-					(24 * 60 * 60 * 1000),
-			),
-		);
-		return c.json(
-			{
-				success: false,
-				error: `Account is scheduled for deletion in ${daysRemaining} days. Contact support@devicesdk.com to cancel.`,
-			},
-			{ status: 403 },
-		);
-	}
+	const oauthDeletionRes = checkDeletionPending(user.results);
+	if (oauthDeletionRes) return oauthDeletionRes;
 
 	const expiration = currentMs + SESSION_DURATION_MS;
 	const session = await c

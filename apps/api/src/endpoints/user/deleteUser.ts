@@ -26,6 +26,18 @@ export class DeleteUser extends BaseRoute {
 
 	public async handle(c: AppContext) {
 		const user = c.get("user");
+
+		// Idempotent: if already scheduled, return the existing deadline without resetting it
+		if (user.deletion_requested_at) {
+			return c.json({
+				success: true,
+				result: {
+					deletion_scheduled_at:
+						user.deletion_requested_at + DELETION_GRACE_PERIOD_MS,
+				},
+			});
+		}
+
 		const now = Date.now();
 
 		// Set deletion_requested_at on the user row

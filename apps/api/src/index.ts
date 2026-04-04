@@ -169,7 +169,7 @@ app.route("/v1/projects/:projectId/scripts", batchScriptsRouter);
 const sentryWrapped = Sentry.withSentry(
 	(env: Env) => ({
 		dsn: env.SENTRY_DSN,
-		sendDefaultPii: true,
+		sendDefaultPii: false,
 		environment: env.ENV,
 	}),
 	{

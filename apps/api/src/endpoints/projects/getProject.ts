@@ -1,7 +1,6 @@
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
-import { getDeviceConnectionStatus } from "../../foundation/deviceStatus";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 export class GetProject extends BaseRoute {
@@ -66,7 +65,8 @@ export class GetProject extends BaseRoute {
 			return c.json({ success: false, error: "Project not found" }, 404);
 		}
 
-		// Fetch devices for this project
+		// Fetch devices for this project — the `connected` column is kept up-to-date
+		// by the Durable Object on connect/disconnect, so no DO round-trips are needed.
 		const devicesResult = await qb
 			.fetchAll<tableDevices>({
 				tableName: "devices",
@@ -77,17 +77,6 @@ export class GetProject extends BaseRoute {
 			})
 			.execute();
 		const devices = devicesResult.results || [];
-
-		// Query live connection status from Durable Objects in parallel
-		const deviceStatuses = await Promise.all(
-			devices.map(async (d) => {
-				const status = await getDeviceConnectionStatus(c.env, project.id, d.id);
-				return { deviceId: d.id, connected: status.connected };
-			}),
-		);
-		const statusMap = new Map(
-			deviceStatuses.map((s) => [s.deviceId, s.connected]),
-		);
 
 		return c.json(
 			{
@@ -102,7 +91,7 @@ export class GetProject extends BaseRoute {
 					devices: devices.map((d) => ({
 						device_id: d.device_slug,
 						name: d.name || null,
-						status: statusMap.get(d.id) ? "online" : "offline",
+						status: d.connected === 1 ? "online" : "offline",
 						last_connected_at: d.last_connected_at || null,
 					})),
 				},

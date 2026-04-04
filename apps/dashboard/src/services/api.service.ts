@@ -6,24 +6,25 @@ import { api } from '@/lib/api';
 
 interface PaginatedResponse<T> {
   items: T[];
-  next_cursor: string | null;
+  page: number;
+  per_page: number;
+  has_more: boolean;
 }
 
 async function fetchAllPages<T>(url: string): Promise<T[]> {
   const all: T[] = [];
-  let cursor: string | undefined;
-  do {
-    const params = new URLSearchParams();
-    if (cursor) params.set('cursor', cursor);
-    params.set('limit', '100');
-    const qs = params.toString();
+  let page = 1;
+  const per_page = 100;
+  let hasMore = true;
+  while (hasMore) {
     const data = await api.call<ApiResponse<PaginatedResponse<T>>>(
-      `${url}${qs ? `?${qs}` : ''}`,
+      `${url}?page=${page}&per_page=${per_page}`,
     );
     if (!data?.success) throw new Error('Failed to fetch');
     all.push(...data.result.items);
-    cursor = data.result.next_cursor ?? undefined;
-  } while (cursor);
+    hasMore = data.result.has_more;
+    page++;
+  }
   return all;
 }
 

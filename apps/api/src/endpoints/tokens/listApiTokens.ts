@@ -10,8 +10,8 @@ export class ListApiTokens extends BaseRoute {
 		operationId: "tokens-list",
 		request: {
 			query: z.object({
-				cursor: z.string().optional(),
-				limit: z.coerce.number().min(1).max(100).default(50),
+				page: z.coerce.number().int().min(1).default(1),
+				per_page: z.coerce.number().int().min(1).max(100).default(50),
 			}),
 		},
 		responses: {
@@ -31,7 +31,9 @@ export class ListApiTokens extends BaseRoute {
 									managed: z.boolean().optional(),
 								}),
 							),
-							next_cursor: z.string().nullable(),
+							page: z.number().int(),
+							per_page: z.number().int(),
+							has_more: z.boolean(),
 						}),
 					}),
 				),
@@ -43,19 +45,7 @@ export class ListApiTokens extends BaseRoute {
 		const user = c.get("user");
 		const qb = c.get("qb");
 		const data = await this.getValidatedData<typeof this.schema>();
-		const { cursor, limit } = data.query;
-
-		const conditions: string[] = ["user_id = ?1"];
-		const params: (string | number)[] = [user.id];
-
-		if (cursor) {
-			const decodedCursor = Number(atob(cursor));
-			if (Number.isNaN(decodedCursor)) {
-				return c.json({ success: false, error: "Invalid cursor" }, 400);
-			}
-			conditions.push(`created_at < ?${params.length + 1}`);
-			params.push(decodedCursor);
-		}
+		const { page, per_page } = data.query;
 
 		const { results: tokens } = await qb
 			.fetchAll<tableTokens>({
@@ -69,27 +59,27 @@ export class ListApiTokens extends BaseRoute {
 					"managed",
 				],
 				where: {
-					conditions,
-					params,
+					conditions: ["user_id = ?1"],
+					params: [user.id],
 				},
 				orderBy: "created_at DESC",
-				limit: limit + 1,
+				limit: per_page + 1,
+				offset: (page - 1) * per_page,
 			})
 			.execute();
 
 		if (!tokens) {
 			return c.json(
-				{ success: true, result: { items: [], next_cursor: null } },
+				{
+					success: true,
+					result: { items: [], page, per_page, has_more: false },
+				},
 				200,
 			);
 		}
 
-		let nextCursor: string | null = null;
-		if (tokens.length > limit) {
-			tokens.pop();
-			const lastItem = tokens[tokens.length - 1];
-			nextCursor = btoa(String(lastItem.created_at));
-		}
+		const has_more = tokens.length > per_page;
+		if (has_more) tokens.pop();
 
 		return c.json(
 			{
@@ -102,7 +92,9 @@ export class ListApiTokens extends BaseRoute {
 						description: t.description ?? null,
 						managed: t.managed === 1,
 					})),
-					next_cursor: nextCursor,
+					page,
+					per_page,
+					has_more,
 				},
 			},
 			200,

@@ -65,12 +65,19 @@ async function purgeUserData(env: Env, userId: string): Promise<void> {
 					.run();
 			}
 
-			// Delete R2 script objects for this project
+			// Delete R2 script objects for this project (paginate — list returns max 1000)
 			const r2Prefix = `${userId}/${project.project_slug}/`;
-			const objects = await env.SCRIPTS.list({ prefix: r2Prefix });
-			for (const obj of objects.objects) {
-				await env.SCRIPTS.delete(obj.key);
-			}
+			let r2Cursor: string | undefined;
+			do {
+				const listed = await env.SCRIPTS.list({
+					prefix: r2Prefix,
+					cursor: r2Cursor,
+				});
+				for (const obj of listed.objects) {
+					await env.SCRIPTS.delete(obj.key);
+				}
+				r2Cursor = listed.truncated ? listed.cursor : undefined;
+			} while (r2Cursor);
 
 			// Delete project env vars
 			await env.DB.prepare("DELETE FROM project_env_vars WHERE project_id = ?")

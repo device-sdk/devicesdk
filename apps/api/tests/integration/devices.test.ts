@@ -279,7 +279,7 @@ describe.sequential("Devices endpoint", () => {
 			const json = await resp.json();
 			expect(json.success).toBe(true);
 			expect(json.result.items.length).toBe(2);
-			expect(json.result.next_cursor).toBeNull();
+			expect(json.result.has_more).toBe(false);
 		});
 
 		it("should return empty array for project with no devices", async () => {
@@ -311,7 +311,7 @@ describe.sequential("Devices endpoint", () => {
 			const json = await resp.json();
 			expect(json.success).toBe(true);
 			expect(json.result.items.length).toBe(0);
-			expect(json.result.next_cursor).toBeNull();
+			expect(json.result.has_more).toBe(false);
 		});
 	});
 
@@ -1332,13 +1332,12 @@ describe.sequential("Devices endpoint", () => {
 			expect(json.success).toBe(true);
 			expect(json.result.items).toBeDefined();
 			expect(Array.isArray(json.result.items)).toBe(true);
-			expect(
-				json.result.next_cursor === null ||
-					typeof json.result.next_cursor === "string",
-			).toBe(true);
+			expect(typeof json.result.has_more).toBe("boolean");
+			expect(typeof json.result.page).toBe("number");
+			expect(typeof json.result.per_page).toBe("number");
 		});
 
-		it("should paginate with cursor across multiple pages", async () => {
+		it("should paginate with page/per_page across multiple pages", async () => {
 			// Create a dedicated project for pagination tests
 			await qb
 				.insert<tableProjects>({
@@ -1371,9 +1370,9 @@ describe.sequential("Devices endpoint", () => {
 					.execute();
 			}
 
-			// First page with limit=2
+			// First page with per_page=2
 			const resp1 = await SELF.fetch(
-				"http://localhost/v1/projects/dev-pagination/devices?limit=2",
+				"http://localhost/v1/projects/dev-pagination/devices?per_page=2",
 				{
 					method: "GET",
 					headers: {
@@ -1386,11 +1385,12 @@ describe.sequential("Devices endpoint", () => {
 			const json1 = await resp1.json();
 			expect(json1.success).toBe(true);
 			expect(json1.result.items.length).toBe(2);
-			expect(json1.result.next_cursor).not.toBeNull();
+			expect(json1.result.page).toBe(1);
+			expect(json1.result.has_more).toBe(true);
 
-			// Second page using cursor
+			// Second page
 			const resp2 = await SELF.fetch(
-				`http://localhost/v1/projects/dev-pagination/devices?limit=2&cursor=${json1.result.next_cursor}`,
+				"http://localhost/v1/projects/dev-pagination/devices?per_page=2&page=2",
 				{
 					method: "GET",
 					headers: {
@@ -1401,6 +1401,7 @@ describe.sequential("Devices endpoint", () => {
 			const json2 = await resp2.json();
 			expect(json2.success).toBe(true);
 			expect(json2.result.items.length).toBe(2);
+			expect(json2.result.page).toBe(2);
 
 			// Ensure no overlap between pages
 			const page1Ids = json1.result.items.map((d: { id: string }) => d.id);
@@ -1409,9 +1410,9 @@ describe.sequential("Devices endpoint", () => {
 				expect(page1Ids).not.toContain(id);
 			}
 
-			// Last page should have 1 item and null cursor
+			// Last page should have 1 item and has_more=false
 			const resp3 = await SELF.fetch(
-				`http://localhost/v1/projects/dev-pagination/devices?limit=2&cursor=${json2.result.next_cursor}`,
+				"http://localhost/v1/projects/dev-pagination/devices?per_page=2&page=3",
 				{
 					method: "GET",
 					headers: {
@@ -1422,7 +1423,7 @@ describe.sequential("Devices endpoint", () => {
 			const json3 = await resp3.json();
 			expect(json3.success).toBe(true);
 			expect(json3.result.items.length).toBe(1);
-			expect(json3.result.next_cursor).toBeNull();
+			expect(json3.result.has_more).toBe(false);
 		});
 	});
 });

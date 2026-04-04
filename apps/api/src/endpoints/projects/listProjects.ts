@@ -10,8 +10,8 @@ export class ListProjects extends BaseRoute {
 		operationId: "projects-list",
 		request: {
 			query: z.object({
-				cursor: z.string().optional(),
-				limit: z.coerce.number().min(1).max(100).default(50),
+				page: z.coerce.number().int().min(1).default(1),
+				per_page: z.coerce.number().int().min(1).max(100).default(50),
 			}),
 		},
 		responses: {
@@ -28,13 +28,12 @@ export class ListProjects extends BaseRoute {
 									created_at: z.number(),
 								}),
 							),
-							next_cursor: z.string().nullable(),
+							page: z.number().int(),
+							per_page: z.number().int(),
+							has_more: z.boolean(),
 						}),
 					}),
 				),
-			},
-			"400": {
-				description: "Bad request",
 			},
 		},
 	};
@@ -43,45 +42,33 @@ export class ListProjects extends BaseRoute {
 		const user = c.get("user");
 		const qb = c.get("qb");
 		const data = await this.getValidatedData<typeof this.schema>();
-		const { cursor, limit } = data.query;
-
-		const conditions: string[] = ["user_id = ?1"];
-		const params: (string | number)[] = [user.id];
-
-		if (cursor) {
-			const decodedCursor = Number(atob(cursor));
-			if (Number.isNaN(decodedCursor)) {
-				return c.json({ success: false, error: "Invalid cursor" }, 400);
-			}
-			conditions.push(`created_at < ?${params.length + 1}`);
-			params.push(decodedCursor);
-		}
+		const { page, per_page } = data.query;
 
 		const { results: projects } = await qb
 			.fetchAll<tableProjects>({
 				tableName: "projects",
 				where: {
-					conditions,
-					params,
+					conditions: ["user_id = ?1"],
+					params: [user.id],
 				},
 				orderBy: "created_at DESC",
-				limit: limit + 1,
+				limit: per_page + 1,
+				offset: (page - 1) * per_page,
 			})
 			.execute();
 
 		if (!projects) {
 			return c.json(
-				{ success: true, result: { items: [], next_cursor: null } },
+				{
+					success: true,
+					result: { items: [], page, per_page, has_more: false },
+				},
 				200,
 			);
 		}
 
-		let nextCursor: string | null = null;
-		if (projects.length > limit) {
-			projects.pop();
-			const lastItem = projects[projects.length - 1];
-			nextCursor = btoa(String(lastItem.created_at));
-		}
+		const has_more = projects.length > per_page;
+		if (has_more) projects.pop();
 
 		return c.json(
 			{
@@ -92,7 +79,9 @@ export class ListProjects extends BaseRoute {
 						project_slug: p.project_slug,
 						created_at: p.created_at,
 					})),
-					next_cursor: nextCursor,
+					page,
+					per_page,
+					has_more,
 				},
 			},
 			200,

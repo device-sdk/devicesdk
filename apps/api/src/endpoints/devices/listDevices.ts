@@ -13,8 +13,8 @@ export class ListDevices extends BaseRoute {
 				projectId: z.string().min(1).max(36),
 			}),
 			query: z.object({
-				cursor: z.string().optional(),
-				limit: z.coerce.number().min(1).max(100).default(50),
+				page: z.coerce.number().int().min(1).default(1),
+				per_page: z.coerce.number().int().min(1).max(100).default(50),
 			}),
 		},
 		responses: {
@@ -36,7 +36,9 @@ export class ListDevices extends BaseRoute {
 									updated_at: z.number(),
 								}),
 							),
-							next_cursor: z.string().nullable(),
+							page: z.number().int(),
+							per_page: z.number().int(),
+							has_more: z.boolean(),
 						}),
 					}),
 				),
@@ -52,7 +54,7 @@ export class ListDevices extends BaseRoute {
 		const qb = c.get("qb");
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { projectId } = data.params;
-		const { cursor, limit } = data.query;
+		const { page, per_page } = data.query;
 
 		// Find the project
 		const project = await qb
@@ -70,37 +72,22 @@ export class ListDevices extends BaseRoute {
 			return c.json({ success: false, error: "Project not found" }, 404);
 		}
 
-		const conditions: string[] = ["project_id = ?1"];
-		const params: (string | number)[] = [project.id];
-
-		if (cursor) {
-			const decodedCursor = Number(atob(cursor));
-			if (Number.isNaN(decodedCursor)) {
-				return c.json({ success: false, error: "Invalid cursor" }, 400);
-			}
-			conditions.push(`created_at < ?${params.length + 1}`);
-			params.push(decodedCursor);
-		}
-
 		const devicesResult = await qb
 			.fetchAll<tableDevices>({
 				tableName: "devices",
 				where: {
-					conditions,
-					params,
+					conditions: ["project_id = ?1"],
+					params: [project.id],
 				},
 				orderBy: "created_at DESC",
-				limit: limit + 1,
+				limit: per_page + 1,
+				offset: (page - 1) * per_page,
 			})
 			.execute();
 		const devices = devicesResult.results || [];
 
-		let nextCursor: string | null = null;
-		if (devices.length > limit) {
-			devices.pop();
-			const lastItem = devices[devices.length - 1];
-			nextCursor = btoa(String(lastItem.created_at));
-		}
+		const has_more = devices.length > per_page;
+		if (has_more) devices.pop();
 
 		return c.json({
 			success: true,
@@ -115,7 +102,9 @@ export class ListDevices extends BaseRoute {
 					created_at: device.created_at,
 					updated_at: device.updated_at,
 				})),
-				next_cursor: nextCursor,
+				page,
+				per_page,
+				has_more,
 			},
 		});
 	}

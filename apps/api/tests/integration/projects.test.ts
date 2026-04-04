@@ -149,7 +149,7 @@ describe.sequential("Projects endpoint", () => {
 		const json = await resp.json();
 		expect(json.success).toBe(true);
 		expect(json.result.items.length).toBeGreaterThanOrEqual(2);
-		expect(json.result.next_cursor).toBeDefined();
+		expect(json.result.has_more).toBeDefined();
 		const projectSlugs = json.result.items.map((p: any) => p.project_slug);
 		expect(projectSlugs).toContain("existing-project-200");
 		expect(projectSlugs).toContain("another-project-300");
@@ -562,15 +562,13 @@ describe.sequential("Projects endpoint", () => {
 			expect(json.success).toBe(true);
 			expect(json.result.items).toBeDefined();
 			expect(Array.isArray(json.result.items)).toBe(true);
-			// next_cursor is null or a string
-			expect(
-				json.result.next_cursor === null ||
-					typeof json.result.next_cursor === "string",
-			).toBe(true);
+			expect(typeof json.result.has_more).toBe("boolean");
+			expect(typeof json.result.page).toBe("number");
+			expect(typeof json.result.per_page).toBe("number");
 		});
 
-		it("should paginate with cursor across multiple pages", async () => {
-			// Create 5 projects with distinct created_at values
+		it("should paginate with page/per_page across multiple pages", async () => {
+			// Create 5 projects
 			const baseTime = Date.now() + 100000;
 			for (let i = 0; i < 5; i++) {
 				await qb
@@ -587,24 +585,28 @@ describe.sequential("Projects endpoint", () => {
 					.execute();
 			}
 
-			// First page with limit=2
-			const resp1 = await SELF.fetch("http://localhost/v1/projects?limit=2", {
-				method: "GET",
-				headers: {
-					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+			// First page with per_page=2
+			const resp1 = await SELF.fetch(
+				"http://localhost/v1/projects?per_page=2",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
 				},
-			});
+			);
 
 			expect(resp1.status).toBe(200);
 			const json1 = await resp1.json();
 			expect(json1.success).toBe(true);
 			expect(json1.result.items.length).toBe(2);
-			expect(json1.result.next_cursor).not.toBeNull();
-			expect(typeof json1.result.next_cursor).toBe("string");
+			expect(json1.result.page).toBe(1);
+			expect(json1.result.per_page).toBe(2);
+			expect(json1.result.has_more).toBe(true);
 
-			// Second page using cursor
+			// Second page
 			const resp2 = await SELF.fetch(
-				`http://localhost/v1/projects?limit=2&cursor=${json1.result.next_cursor}`,
+				"http://localhost/v1/projects?per_page=2&page=2",
 				{
 					method: "GET",
 					headers: {
@@ -615,6 +617,7 @@ describe.sequential("Projects endpoint", () => {
 			const json2 = await resp2.json();
 			expect(json2.success).toBe(true);
 			expect(json2.result.items.length).toBe(2);
+			expect(json2.result.page).toBe(2);
 
 			// Ensure no overlap between pages
 			const page1Ids = json1.result.items.map((p: { id: string }) => p.id);
@@ -623,12 +626,13 @@ describe.sequential("Projects endpoint", () => {
 				expect(page1Ids).not.toContain(id);
 			}
 
-			// Continue paginating until we reach the last page
-			let cursor = json2.result.next_cursor;
+			// Collect remaining pages
+			let currentPage = 3;
 			const allIds = [...page1Ids, ...page2Ids];
-			while (cursor) {
+			let hasMore = json2.result.has_more;
+			while (hasMore) {
 				const resp = await SELF.fetch(
-					`http://localhost/v1/projects?limit=2&cursor=${cursor}`,
+					`http://localhost/v1/projects?per_page=2&page=${currentPage}`,
 					{
 						method: "GET",
 						headers: {
@@ -642,25 +646,27 @@ describe.sequential("Projects endpoint", () => {
 					expect(allIds).not.toContain(item.id);
 					allIds.push(item.id);
 				}
-				cursor = json.result.next_cursor;
+				hasMore = json.result.has_more;
+				currentPage++;
 			}
 
-			// We should have collected all projects
 			expect(allIds.length).toBeGreaterThanOrEqual(5);
 		});
 
-		it("should return null next_cursor on last page", async () => {
-			// Fetch all items by using a large limit
-			const resp = await SELF.fetch("http://localhost/v1/projects?limit=100", {
-				method: "GET",
-				headers: {
-					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+		it("should return has_more=false on last page", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects?per_page=100",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
 				},
-			});
+			);
 
 			const json = await resp.json();
 			expect(json.success).toBe(true);
-			expect(json.result.next_cursor).toBeNull();
+			expect(json.result.has_more).toBe(false);
 		});
 	});
 });

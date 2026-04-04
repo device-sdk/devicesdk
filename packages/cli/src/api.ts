@@ -114,20 +114,20 @@ Response body (${response.status}):`);
 
 async function fetchAllPages<T>(endpoint: string, token: string): Promise<T[]> {
 	const all: T[] = [];
-	let cursor: string | undefined;
-	do {
-		const params = new URLSearchParams();
-		if (cursor) params.set("cursor", cursor);
-		params.set("limit", "100");
-		const qs = params.toString();
-		const result = await request<{ items: T[]; next_cursor: string | null }>(
-			`${endpoint}?${qs}`,
-			{},
-			token,
-		);
+	let page = 1;
+	const per_page = 100;
+	let hasMore = true;
+	while (hasMore) {
+		const result = await request<{
+			items: T[];
+			page: number;
+			per_page: number;
+			has_more: boolean;
+		}>(`${endpoint}?page=${page}&per_page=${per_page}`, {}, token);
 		all.push(...result.items);
-		cursor = result.next_cursor ?? undefined;
-	} while (cursor);
+		hasMore = result.has_more;
+		page++;
+	}
 	return all;
 }
 

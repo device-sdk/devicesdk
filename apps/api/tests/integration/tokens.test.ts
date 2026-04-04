@@ -74,7 +74,7 @@ describe.sequential("Tokens endpoint", () => {
 		const json = await resp.json();
 		expect(json.success).toBe(true);
 		expect(json.result.items.length).toBe(1);
-		expect(json.result.next_cursor).toBeNull();
+		expect(json.result.has_more).toBe(false);
 		expect(json.result.items[0].id).toBeDefined();
 		expect(json.result.items[0].token).toBeUndefined();
 		expect(json.result.items[0].last_four).toBe(token.slice(-4));
@@ -293,13 +293,12 @@ describe.sequential("Tokens endpoint", () => {
 			expect(json.success).toBe(true);
 			expect(json.result.items).toBeDefined();
 			expect(Array.isArray(json.result.items)).toBe(true);
-			expect(
-				json.result.next_cursor === null ||
-					typeof json.result.next_cursor === "string",
-			).toBe(true);
+			expect(typeof json.result.has_more).toBe("boolean");
+			expect(typeof json.result.page).toBe("number");
+			expect(typeof json.result.per_page).toBe("number");
 		});
 
-		it("should paginate with cursor across multiple pages", async () => {
+		it("should paginate with page/per_page across multiple pages", async () => {
 			// Create 5 tokens
 			for (let i = 0; i < 5; i++) {
 				await SELF.fetch("http://localhost/v1/tokens", {
@@ -310,8 +309,8 @@ describe.sequential("Tokens endpoint", () => {
 				});
 			}
 
-			// First page with limit=2
-			const resp1 = await SELF.fetch("http://localhost/v1/tokens?limit=2", {
+			// First page with per_page=2
+			const resp1 = await SELF.fetch("http://localhost/v1/tokens?per_page=2", {
 				method: "GET",
 				headers: {
 					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
@@ -322,11 +321,12 @@ describe.sequential("Tokens endpoint", () => {
 			const json1 = await resp1.json();
 			expect(json1.success).toBe(true);
 			expect(json1.result.items.length).toBe(2);
-			expect(json1.result.next_cursor).not.toBeNull();
+			expect(json1.result.page).toBe(1);
+			expect(json1.result.has_more).toBe(true);
 
-			// Second page using cursor
+			// Second page
 			const resp2 = await SELF.fetch(
-				`http://localhost/v1/tokens?limit=2&cursor=${json1.result.next_cursor}`,
+				"http://localhost/v1/tokens?per_page=2&page=2",
 				{
 					method: "GET",
 					headers: {
@@ -337,6 +337,7 @@ describe.sequential("Tokens endpoint", () => {
 			const json2 = await resp2.json();
 			expect(json2.success).toBe(true);
 			expect(json2.result.items.length).toBeGreaterThanOrEqual(1);
+			expect(json2.result.page).toBe(2);
 
 			// Ensure no overlap between pages
 			const page1Ids = json1.result.items.map((t: { id: string }) => t.id);
@@ -346,8 +347,8 @@ describe.sequential("Tokens endpoint", () => {
 			}
 		});
 
-		it("should return null next_cursor on last page", async () => {
-			const resp = await SELF.fetch("http://localhost/v1/tokens?limit=100", {
+		it("should return has_more=false on last page", async () => {
+			const resp = await SELF.fetch("http://localhost/v1/tokens?per_page=100", {
 				method: "GET",
 				headers: {
 					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
@@ -356,7 +357,7 @@ describe.sequential("Tokens endpoint", () => {
 
 			const json = await resp.json();
 			expect(json.success).toBe(true);
-			expect(json.result.next_cursor).toBeNull();
+			expect(json.result.has_more).toBe(false);
 		});
 	});
 

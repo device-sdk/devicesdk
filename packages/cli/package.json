@@ -24,7 +24,7 @@
 		"copy-assets": "cp -r ../../apps/simulation/dist dist/simulator/assets/",
 		"start": "tsx src/index.ts",
 		"dev": "tsx src/index.ts",
-		"test": "tsc && vitest",
+		"test": "tsc && vitest run",
 		"check-types": "tsc --noEmit",
 		"clean": "rm -rf dist"
 	},

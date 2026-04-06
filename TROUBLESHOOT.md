@@ -132,3 +132,36 @@ ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip_
 3. In hal.c, use `led_strip_new_spi_device()` (SPI backend, since C61 lacks RMT)
 4. Control LED with `led_strip_set_pixel(handle, 0, r, g, b)` + `led_strip_refresh()` for ON, `led_strip_clear()` for OFF
 5. Intercept GPIO 8 and virtual pin 99 in `iotkit_hal_set_gpio()` to route through led_strip driver
+
+### Biome `noConstantCondition` rejects `while (true)` in pagination loops
+**Date**: 2026-04-04
+**Question/Problem**: Using `do { ... } while (true)` or `while (true) { ... break; }` to loop through paginated results triggers a Biome lint error (`noConstantCondition`). Committing fails because `pnpm lint` catches it.
+**Root Cause**: Biome enforces `noConstantCondition` by default, treating `while (true)` as a constant-expression loop.
+**Solution**: Use a mutable boolean variable: `let hasMore = true; while (hasMore) { ...; hasMore = result.has_more; }` — or use `do { } while (cursor)` with a cursor that becomes `undefined` when exhausted.
+
+### R2 `list()` silently truncates at 1000 objects
+**Date**: 2026-04-04
+**Question/Problem**: `env.SCRIPTS.list({ prefix })` returns at most 1000 objects. Scripts beyond that limit were silently skipped during purge/deletion operations.
+**Root Cause**: Cloudflare R2's `list()` API returns a maximum of 1000 results per call. When `listed.truncated === true`, more objects exist that require another call using the provided `cursor`.
+**Solution**: Paginate with a cursor loop:
+```typescript
+let r2Cursor: string | undefined;
+do {
+  const listed = await env.SCRIPTS.list({ prefix, cursor: r2Cursor });
+  for (const obj of listed.objects) { await env.SCRIPTS.delete(obj.key); }
+  r2Cursor = listed.truncated ? listed.cursor : undefined;
+} while (r2Cursor);
+```
+
+### CLI token auth path requires `dsdk_` prefix — test tokens without prefix fall to 401
+**Date**: 2026-04-04
+**Question/Problem**: An integration test for suspended-user CLI token auth was returning 401 instead of 403. The token was inserted into `cli_tokens` with a valid hash, but the test still failed.
+**Root Cause**: `auth.ts` checks `token.startsWith("dsdk_")` (and not `"dsdk_refresh_"`) to route into the CLI token auth branch. Tokens that don't start with `dsdk_` fall through to the session/API token path, where the token hash is not found → 401.
+**Solution**: Prefix the test token with `dsdk_`: use `"dsdk_suspended-user-cli-token"` instead of `"suspended-user-cli-token"`.
+**Rule**: All CLI `access_token` values must begin with `dsdk_`. Use this prefix in tests that exercise the CLI token path.
+
+### `getProject` endpoint fired N DO RPC calls to get live device status
+**Date**: 2026-04-04
+**Question/Problem**: `GET /v1/projects/:projectId` was calling `getDeviceConnectionStatus()` on each device's Durable Object to return `"online"/"offline"` status. For projects at the device limit, every request spawned N concurrent DO subrequests.
+**Root Cause**: Live connection status was not persisted anywhere — the only source of truth was the running DO instance.
+**Solution**: Added a `connected INTEGER NOT NULL DEFAULT 0` column to the `devices` table (migration `0019_add_connected_to_devices.sql`). The DO writes `connected = 1` on WebSocket connect and `connected = 0` on disconnect/error. `getProject.ts` reads the column directly from D1 — zero extra network hops.

@@ -154,7 +154,8 @@ export class DownloadFirmware extends BaseRoute {
 		}
 
 		const object = await c.env.FIRMWARES.get(firmwareKey);
-		if (!object) return c.text("Firmware not found", 404);
+		if (!object)
+			return c.json({ success: false, error: "Firmware not found" }, 404);
 
 		const arrayBuffer = await object.arrayBuffer();
 		const bytes = new Uint8Array(arrayBuffer);

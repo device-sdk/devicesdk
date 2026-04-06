@@ -43,6 +43,7 @@ declare namespace Cloudflare {
 		DEVICE: DurableObjectNamespace;
 		LOADER: WorkerLoader;
 		ENV: "local" | "production";
+		SENTRY_DSN: string | undefined;
 	}
 }
 export interface Env extends Cloudflare.Env {}
@@ -54,6 +55,8 @@ export type tableUser = {
 	email: string;
 	verified_email: number;
 	plan: "free" | "paid";
+	suspended_at?: number;
+	deletion_requested_at?: number;
 	created_at: number;
 };
 export type tableUserSessions = {
@@ -89,6 +92,7 @@ export type tableDevices = {
 	description?: string;
 	current_version_id?: string;
 	last_connected_at?: number;
+	connected?: number;
 	created_at: number;
 	updated_at: number;
 };

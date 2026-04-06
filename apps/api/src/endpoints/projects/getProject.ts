@@ -65,7 +65,8 @@ export class GetProject extends BaseRoute {
 			return c.json({ success: false, error: "Project not found" }, 404);
 		}
 
-		// Fetch devices for this project
+		// Fetch devices for this project — the `connected` column is kept up-to-date
+		// by the Durable Object on connect/disconnect, so no DO round-trips are needed.
 		const devicesResult = await qb
 			.fetchAll<tableDevices>({
 				tableName: "devices",
@@ -90,7 +91,7 @@ export class GetProject extends BaseRoute {
 					devices: devices.map((d) => ({
 						device_id: d.device_slug,
 						name: d.name || null,
-						status: "online",
+						status: d.connected === 1 ? "online" : "offline",
 						last_connected_at: d.last_connected_at || null,
 					})),
 				},

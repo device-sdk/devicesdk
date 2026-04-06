@@ -2,11 +2,16 @@ import { env, SELF } from "cloudflare:test";
 import { ApiException } from "chanfana";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { beforeEach, describe, expect, it, test, vi } from "vitest";
 import { D1QB } from "workers-qb";
 import { handleGoogleCallback, hashPassword } from "../../src/foundation/auth";
 import type { AppContext, tableUser, tableUserSessions } from "../../src/types";
-import { TEST_USER_ID } from "../setup-test-data";
+import {
+	TEST_SUSPENDED_SESSION_TOKEN,
+	TEST_SUSPENDED_USER_ID,
+	TEST_USER_ID,
+} from "../setup-test-data";
 
 describe.sequential("Authentication", () => {
 	let qb: D1QB;
@@ -276,9 +281,13 @@ describe.sequential("Authentication", () => {
 			}>();
 			app.onError((err, c) => {
 				if (err instanceof ApiException) {
+					const messages = err.buildResponse();
 					return c.json(
-						{ success: false, errors: err.buildResponse() },
-						err.status as any,
+						{
+							success: false,
+							error: messages[0]?.message || "Unknown error",
+						},
+						err.status as ContentfulStatusCode,
 					);
 				}
 				if (err instanceof HTTPException) {
@@ -287,7 +296,7 @@ describe.sequential("Authentication", () => {
 				return c.json(
 					{
 						success: false,
-						errors: [{ code: 7000, message: "Internal Server Error" }],
+						error: "Internal Server Error",
 					},
 					500,
 				);
@@ -313,9 +322,123 @@ describe.sequential("Authentication", () => {
 			const res = await app.request("/v1/auth/google");
 			expect(res.status).toBe(500);
 			const body = await res.json();
-			expect(body.errors[0].message).toBe(
-				"Google account does not have an email",
+			expect(body.error).toBe("Google account does not have an email");
+		});
+	});
+
+	describe("user suspension", () => {
+		test("should return 403 for suspended user with session token", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: {
+					Authorization: `Bearer ${TEST_SUSPENDED_SESSION_TOKEN}`,
+				},
+			});
+			expect(res.status).toBe(403);
+			const body = (await res.json()) as {
+				success: boolean;
+				error: string;
+			};
+			expect(body.success).toBe(false);
+			expect(body.error).toBe(
+				"Account suspended. Contact support@devicesdk.com",
 			);
+		});
+
+		test("should return 403 for suspended user with API token", async () => {
+			// Create an API token for the suspended user
+			const tokenValue = "suspended-user-api-token";
+			const { hashToken } = await import("../../src/foundation/tokenHash");
+			const tokenHash = await hashToken(tokenValue);
+			await env.DB.prepare(
+				"INSERT INTO tokens (id, user_id, token, token_hash, last_four, created_at) VALUES (?, ?, '', ?, ?, ?)",
+			)
+				.bind(
+					"suspended-token-id",
+					TEST_SUSPENDED_USER_ID,
+					tokenHash,
+					tokenValue.slice(-4),
+					Date.now(),
+				)
+				.run();
+
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: {
+					Authorization: `Bearer ${tokenValue}`,
+				},
+			});
+			expect(res.status).toBe(403);
+			const body = (await res.json()) as {
+				success: boolean;
+				error: string;
+			};
+			expect(body.success).toBe(false);
+			expect(body.error).toBe(
+				"Account suspended. Contact support@devicesdk.com",
+			);
+		});
+
+		test("should return 403 for suspended user with CLI token", async () => {
+			const { hashToken } = await import("../../src/foundation/tokenHash");
+			const tokenValue = "dsdk_suspended-user-cli-token";
+			const tokenHash = await hashToken(tokenValue);
+			await env.DB.prepare(
+				"INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+			)
+				.bind(
+					"suspended-cli-id",
+					TEST_SUSPENDED_USER_ID,
+					tokenHash,
+					"suspended-refresh-hash",
+					Date.now(),
+					Date.now() + 86400000,
+				)
+				.run();
+
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: `Bearer ${tokenValue}` },
+			});
+			expect(res.status).toBe(403);
+			const body = (await res.json()) as { success: boolean; error: string };
+			expect(body.success).toBe(false);
+			expect(body.error).toBe(
+				"Account suspended. Contact support@devicesdk.com",
+			);
+		});
+
+		test("should include support email in suspension error response", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: {
+					Authorization: `Bearer ${TEST_SUSPENDED_SESSION_TOKEN}`,
+				},
+			});
+			const body = (await res.json()) as {
+				success: boolean;
+				error: string;
+			};
+			expect(body.error).toContain("support@devicesdk.com");
+		});
+	});
+
+	describe("security headers", () => {
+		test("should include X-Content-Type-Options header", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: "Bearer invalid" },
+			});
+			expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+		});
+
+		test("should include X-Frame-Options header", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: "Bearer invalid" },
+			});
+			expect(res.headers.get("x-frame-options")).toBe("SAMEORIGIN");
+		});
+
+		test("should include Referrer-Policy header", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: "Bearer invalid" },
+			});
+			expect(res.headers.get("referrer-policy")).toBe("no-referrer");
 		});
 	});
 

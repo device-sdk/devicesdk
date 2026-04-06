@@ -1,8 +1,10 @@
 import { googleAuth } from "@hono/oauth-providers/google";
+import * as Sentry from "@sentry/cloudflare";
 import { ApiException, fromHono } from "chanfana";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
+import { secureHeaders } from "hono/secure-headers";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { D1QB } from "workers-qb";
 import {
@@ -30,6 +32,7 @@ import {
 	rateLimitMiddleware,
 	userRateLimitMiddleware,
 } from "./foundation/rateLimit";
+import { handleScheduled } from "./scheduled";
 import type { Env, Variables } from "./types";
 
 const app = fromHono(new Hono<{ Bindings: Env; Variables: Variables }>(), {
@@ -53,8 +56,12 @@ app.registry.registerComponent("securitySchemes", "bearerAuth", {
 app.onError((err, c) => {
 	if (err instanceof ApiException) {
 		// If it's a Chanfana ApiException, let Chanfana handle the response
+		const messages = err.buildResponse();
 		return c.json(
-			{ success: false, errors: err.buildResponse() },
+			{
+				success: false,
+				error: messages[0]?.message || "Unknown error",
+			},
 			err.status as ContentfulStatusCode,
 		);
 	}
@@ -79,19 +86,21 @@ app.onError((err, c) => {
 	return c.json(
 		{
 			success: false,
-			errors: [
-				{
-					code: 7000,
-					...(isDev
-						? { name: err.name, message: err.message }
-						: { message: "Internal Server Error" }),
-				},
-			],
+			error: isDev ? err.message : "Internal Server Error",
 		},
 		500,
 	);
 });
 
+app.use(
+	"*",
+	secureHeaders({
+		contentSecurityPolicy: {
+			defaultSrc: ["'self'"],
+			styleSrc: ["'self'", "'unsafe-inline'"],
+		},
+	}),
+);
 app.use(
 	"*",
 	cors({
@@ -157,7 +166,19 @@ app.route("/v1/projects/:projectId/devices/:deviceId/script", scriptsRouter);
 app.route("/v1/projects/:projectId/devices/:deviceId/logs", logsRouter);
 app.route("/v1/projects/:projectId/scripts", batchScriptsRouter);
 
-export default app;
+const sentryWrapped = Sentry.withSentry(
+	(env: Env) => ({
+		dsn: env.SENTRY_DSN,
+		sendDefaultPii: false,
+		environment: env.ENV,
+	}),
+	{
+		fetch: app.fetch,
+		scheduled: handleScheduled,
+	} as ExportedHandler<Env>,
+);
+
+export default sentryWrapped;
 export { BaseDevice as Device } from "./durableObjects/lib/device";
 export { DeviceSender } from "./durableObjects/lib/deviceSender";
 export { DevicesBridge } from "./durableObjects/lib/devicesBridge";
@@ -167,14 +188,3 @@ export { DevicesBridge } from "./durableObjects/lib/devicesBridge";
 // Exported here solely because miniflare requires DO classes to come from the main
 // worker script; auxiliary worker TypeScript resolution is not supported by miniflare.
 export { TestDevice } from "./durableObjects/lib/testDevice";
-
-// export default Sentry.withSentry(
-//   env => ({
-//     dsn: "https://5fbf4d8253dca6977a71ff13d52295b6@o247228.ingest.us.sentry.io/4509820143665152",
-//
-//     // Setting this option to true will send default PII data to Sentry.
-//     // For example, automatic IP address collection on events
-//     sendDefaultPii: true,
-//   }),
-//   app,
-// );

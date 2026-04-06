@@ -1,6 +1,34 @@
 import { api } from '@/lib/api';
 
 // ============================================================================
+// Pagination Helper
+// ============================================================================
+
+interface PaginatedResponse<T> {
+  items: T[];
+  page: number;
+  per_page: number;
+  has_more: boolean;
+}
+
+async function fetchAllPages<T>(url: string): Promise<T[]> {
+  const all: T[] = [];
+  let page = 1;
+  const per_page = 100;
+  let hasMore = true;
+  while (hasMore) {
+    const data = await api.call<ApiResponse<PaginatedResponse<T>>>(
+      `${url}?page=${page}&per_page=${per_page}`,
+    );
+    if (!data?.success) throw new Error('Failed to fetch');
+    all.push(...data.result.items);
+    hasMore = data.result.has_more;
+    page++;
+  }
+  return all;
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -109,6 +137,16 @@ export const userService = {
       console.error('Error calling logout endpoint:', error);
     }
   },
+
+  async deleteAccount(): Promise<{ deletion_scheduled_at: number }> {
+    const data = await api.call<ApiResponse<{ deletion_scheduled_at: number }>>('/v1/user/me', {
+      method: 'DELETE',
+    });
+    if (!data || !data.success) {
+      throw new Error('Failed to delete account');
+    }
+    return data.result;
+  },
 };
 
 // ============================================================================
@@ -128,11 +166,7 @@ export interface UpdateProjectInput {
 
 export const projectService = {
   async getAll(): Promise<Project[]> {
-    const data = await api.call<ApiResponse<Project[]>>('/v1/projects');
-    if (!data || !data.success) {
-      throw new Error('Failed to fetch projects');
-    }
-    return data.result;
+    return fetchAllPages<Project>('/v1/projects');
   },
 
   async getById(projectId: string): Promise<Project> {
@@ -197,13 +231,7 @@ export interface UpdateDeviceInput {
 
 export const deviceService = {
   async getAll(projectId: string): Promise<Device[]> {
-    const data = await api.call<ApiResponse<Device[]>>(
-      `/v1/projects/${projectId}/devices`
-    );
-    if (!data || !data.success) {
-      throw new Error('Failed to fetch devices');
-    }
-    return data.result;
+    return fetchAllPages<Device>(`/v1/projects/${projectId}/devices`);
   },
 
   async getById(projectId: string, deviceId: string): Promise<Device> {
@@ -388,6 +416,13 @@ export const logService = {
 // Token Endpoints
 // ============================================================================
 
+export interface CliToken {
+  id: string;
+  created_at: number;
+  expires_at: number;
+  last_used_at?: number | null;
+}
+
 export interface CreateTokenInput {
   description?: string;
   managed?: boolean;
@@ -403,11 +438,7 @@ export interface CreateTokenResponse {
 
 export const tokenService = {
   async getAll(): Promise<Token[]> {
-    const data = await api.call<ApiResponse<Token[]>>('/v1/tokens');
-    if (!data || !data.success) {
-      throw new Error('Failed to fetch tokens');
-    }
-    return data.result;
+    return fetchAllPages<Token>('/v1/tokens');
   },
 
   async create(input?: CreateTokenInput): Promise<CreateTokenResponse> {
@@ -428,6 +459,16 @@ export const tokenService = {
     await api.call(`/v1/tokens/${tokenId}`, {
       method: 'DELETE',
     });
+  },
+
+  async getCliTokens(): Promise<CliToken[]> {
+    const data = await api.call<ApiResponse<CliToken[]>>('/v1/tokens/cli');
+    if (!data || !data.success) throw new Error('Failed to fetch CLI tokens');
+    return data.result;
+  },
+
+  async deleteCliToken(tokenId: string): Promise<void> {
+    await api.call(`/v1/tokens/cli/${tokenId}`, { method: 'DELETE' });
   },
 };
 

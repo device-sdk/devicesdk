@@ -112,6 +112,25 @@ Response body (${response.status}):`);
 		: (data ?? responseText);
 }
 
+async function fetchAllPages<T>(endpoint: string, token: string): Promise<T[]> {
+	const all: T[] = [];
+	let page = 1;
+	const per_page = 100;
+	let hasMore = true;
+	while (hasMore) {
+		const result = await request<{
+			items: T[];
+			page: number;
+			per_page: number;
+			has_more: boolean;
+		}>(`${endpoint}?page=${page}&per_page=${per_page}`, {}, token);
+		all.push(...result.items);
+		hasMore = result.has_more;
+		page++;
+	}
+	return all;
+}
+
 // User endpoints
 export interface User {
 	id: string;
@@ -238,7 +257,7 @@ export interface Project {
 }
 
 export async function listProjects(token: string): Promise<Project[]> {
-	return request<Project[]>("/v1/projects", {}, token);
+	return fetchAllPages<Project>("/v1/projects", token);
 }
 
 export async function getProject(
@@ -294,7 +313,7 @@ export async function listDevices(
 	token: string,
 	projectId: string,
 ): Promise<Device[]> {
-	return request<Device[]>(`/v1/projects/${projectId}/devices`, {}, token);
+	return fetchAllPages<Device>(`/v1/projects/${projectId}/devices`, token);
 }
 
 export async function getDevice(
@@ -597,7 +616,7 @@ export interface ApiToken {
 }
 
 export async function listTokens(token: string): Promise<ApiToken[]> {
-	return request<ApiToken[]>("/v1/tokens", {}, token);
+	return fetchAllPages<ApiToken>("/v1/tokens", token);
 }
 
 export async function createToken(

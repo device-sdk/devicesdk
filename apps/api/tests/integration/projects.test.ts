@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { D1QB } from "workers-qb";
-import type { tableProjects } from "../../src/types";
+import type { tableDevices, tableProjects } from "../../src/types";
 import { TEST_SESSION_TOKEN, TEST_USER_ID } from "../setup-test-data";
 
 describe.sequential("Projects endpoint", () => {
@@ -148,8 +148,9 @@ describe.sequential("Projects endpoint", () => {
 		expect(resp.status).toBe(200);
 		const json = await resp.json();
 		expect(json.success).toBe(true);
-		expect(json.result.length).toBeGreaterThanOrEqual(2);
-		const projectSlugs = json.result.map((p: any) => p.project_slug);
+		expect(json.result.items.length).toBeGreaterThanOrEqual(2);
+		expect(json.result.has_more).toBeDefined();
+		const projectSlugs = json.result.items.map((p: any) => p.project_slug);
 		expect(projectSlugs).toContain("existing-project-200");
 		expect(projectSlugs).toContain("another-project-300");
 	});
@@ -449,6 +450,223 @@ describe.sequential("Projects endpoint", () => {
 			expect(resp.status).toBeOneOf([403, 404]);
 			const json = await resp.json();
 			expect(json.success).toBe(false);
+		});
+	});
+
+	describe("GET /v1/projects/:projectId - device status", () => {
+		it("should return device status for project devices", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableProjects>({
+					tableName: "projects",
+					data: {
+						id: "proj-status-1",
+						user_id: TEST_USER_ID,
+						project_slug: "project-status-1",
+						created_at: now,
+					},
+				})
+				.execute();
+
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-status-1",
+						project_id: "proj-status-1",
+						device_slug: "status-sensor-1",
+						name: "Status Sensor 1",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/project-status-1",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.devices).toHaveLength(1);
+			expect(json.result.devices[0].status).toBeDefined();
+			// Status should come from the Durable Object, not be hardcoded
+			expect(["online", "offline"]).toContain(json.result.devices[0].status);
+		});
+
+		it("should default to offline for devices that never connected", async () => {
+			const now = Date.now();
+			await qb
+				.insert<tableProjects>({
+					tableName: "projects",
+					data: {
+						id: "proj-status-2",
+						user_id: TEST_USER_ID,
+						project_slug: "project-status-2",
+						created_at: now,
+					},
+				})
+				.execute();
+
+			await qb
+				.insert<tableDevices>({
+					tableName: "devices",
+					data: {
+						id: "device-status-2",
+						project_id: "proj-status-2",
+						device_slug: "status-sensor-2",
+						name: "Never Connected Sensor",
+						created_at: now,
+						updated_at: now,
+					},
+				})
+				.execute();
+
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/project-status-2",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.devices).toHaveLength(1);
+			// Device has never connected, so status should be "offline"
+			expect(json.result.devices[0].status).toBe("offline");
+		});
+	});
+
+	describe("GET /v1/projects - pagination", () => {
+		it("should return paginated results with default limit", async () => {
+			const resp = await SELF.fetch("http://localhost/v1/projects", {
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+				},
+			});
+
+			expect(resp.status).toBe(200);
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.items).toBeDefined();
+			expect(Array.isArray(json.result.items)).toBe(true);
+			expect(typeof json.result.has_more).toBe("boolean");
+			expect(typeof json.result.page).toBe("number");
+			expect(typeof json.result.per_page).toBe("number");
+		});
+
+		it("should paginate with page/per_page across multiple pages", async () => {
+			// Create 5 projects
+			const baseTime = Date.now() + 100000;
+			for (let i = 0; i < 5; i++) {
+				await qb
+					.insert<tableProjects>({
+						tableName: "projects",
+						data: {
+							id: `proj-page-${i}`,
+							user_id: TEST_USER_ID,
+							project_slug: `page-project-${i}`,
+							created_at: baseTime + i * 1000,
+						},
+						onConflict: "IGNORE",
+					})
+					.execute();
+			}
+
+			// First page with per_page=2
+			const resp1 = await SELF.fetch(
+				"http://localhost/v1/projects?per_page=2",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp1.status).toBe(200);
+			const json1 = await resp1.json();
+			expect(json1.success).toBe(true);
+			expect(json1.result.items.length).toBe(2);
+			expect(json1.result.page).toBe(1);
+			expect(json1.result.per_page).toBe(2);
+			expect(json1.result.has_more).toBe(true);
+
+			// Second page
+			const resp2 = await SELF.fetch(
+				"http://localhost/v1/projects?per_page=2&page=2",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+			const json2 = await resp2.json();
+			expect(json2.success).toBe(true);
+			expect(json2.result.items.length).toBe(2);
+			expect(json2.result.page).toBe(2);
+
+			// Ensure no overlap between pages
+			const page1Ids = json1.result.items.map((p: { id: string }) => p.id);
+			const page2Ids = json2.result.items.map((p: { id: string }) => p.id);
+			for (const id of page2Ids) {
+				expect(page1Ids).not.toContain(id);
+			}
+
+			// Collect remaining pages
+			let currentPage = 3;
+			const allIds = [...page1Ids, ...page2Ids];
+			let hasMore = json2.result.has_more;
+			while (hasMore) {
+				const resp = await SELF.fetch(
+					`http://localhost/v1/projects?per_page=2&page=${currentPage}`,
+					{
+						method: "GET",
+						headers: {
+							Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+						},
+					},
+				);
+				const json = await resp.json();
+				expect(json.success).toBe(true);
+				for (const item of json.result.items) {
+					expect(allIds).not.toContain(item.id);
+					allIds.push(item.id);
+				}
+				hasMore = json.result.has_more;
+				currentPage++;
+			}
+
+			expect(allIds.length).toBeGreaterThanOrEqual(5);
+		});
+
+		it("should return has_more=false on last page", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects?per_page=100",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			const json = await resp.json();
+			expect(json.success).toBe(true);
+			expect(json.result.has_more).toBe(false);
 		});
 	});
 });

@@ -196,6 +196,13 @@ export class BaseDevice extends DurableObject<Env> {
 
 		await this.ctx.storage.put(CONNECTED_SINCE_KEY, Date.now());
 
+		// Cache connection status in D1 so getProject can read it without DO round-trips
+		await this.env.DB.prepare(
+			"UPDATE devices SET connected = 1, last_connected_at = ? WHERE id = ?",
+		)
+			.bind(Date.now(), this.deviceMeta.deviceId)
+			.run();
+
 		return new Response(null, {
 			status: 101,
 			webSocket: client,
@@ -615,6 +622,15 @@ export class BaseDevice extends DurableObject<Env> {
 		this._connectedSince = undefined;
 
 		await this.ctx.storage.delete(CONNECTED_SINCE_KEY);
+
+		// Update cached connection status in D1. deviceMeta may be absent after
+		// hibernation, so fall back to reading it from durable storage.
+		const meta = await this.getDeviceMeta();
+		if (meta?.deviceId) {
+			await this.env.DB.prepare("UPDATE devices SET connected = 0 WHERE id = ?")
+				.bind(meta.deviceId)
+				.run();
+		}
 
 		// Clean up the user worker (restore it first if needed)
 		const worker = await this.getOrCreateUserWorker();

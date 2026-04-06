@@ -353,6 +353,16 @@ describe.sequential("Inter-device RPC", () => {
 			expect(code).not.toContain("target.env = Object.assign");
 		});
 
+		it("should freeze user-facing env to prevent tampering", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			expect(code).toContain("Object.freeze");
+			// Env passed to user constructor should be frozen
+			expect(code).toContain("Object.freeze(Object.assign({}, publicEnv");
+		});
+
 		it("should include DEVICE method allowlist", async () => {
 			const { getProxyEntrypoint } = await import(
 				"../../src/durableObjects/lib/classProxy"

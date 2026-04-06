@@ -214,7 +214,7 @@ test.describe("Device details page", () => {
       ).toBeVisible();
     });
 
-    test("shows level filter and auto-refresh controls", async ({ page }) => {
+    test("shows level filter and live stream controls", async ({ page }) => {
       await page.goto(deviceUrl);
       await expect(
         page.getByRole("heading", { name: "Temperature Sensor" }),
@@ -223,7 +223,7 @@ test.describe("Device details page", () => {
       await page.getByRole("tab", { name: /logs/i }).click();
 
       await expect(page.getByText("Level", { exact: true })).toBeVisible();
-      await expect(page.getByText("Auto-refresh")).toBeVisible();
+      await expect(page.getByText("Live")).toBeVisible();
     });
   });
 

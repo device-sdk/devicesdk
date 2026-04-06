@@ -1016,6 +1016,131 @@ describe.sequential("CLI Authentication", () => {
 			expect(authCode?.status).toBe("denied");
 			expect(authCode?.user_id).toBeNull();
 		});
+
+		test("should reject POST without CSRF token", async () => {
+			const userId = crypto.randomUUID();
+			const sessionToken = "csrf-missing-session";
+			await qb
+				.insert<tableUser>({
+					tableName: "user",
+					data: {
+						id: userId,
+						name: "CSRF Missing User",
+						email: "csrf-missing@devicesdk.com",
+						created_at: Date.now(),
+						verified_email: 1,
+						picture: "",
+					},
+				})
+				.execute();
+			await qb
+				.insert({
+					tableName: "user_sessions",
+					data: {
+						user_id: userId,
+						token: sessionToken,
+						created_at: Date.now(),
+						expires_at: Date.now() + 100000,
+					},
+				})
+				.execute();
+
+			const userCode = "CSRF-1111";
+			await env.DB.prepare(
+				`INSERT INTO cli_auth_codes (id, device_code, user_code, status, created_at, expires_at)
+				 VALUES (?, ?, ?, 'pending', ?, ?)`,
+			)
+				.bind(
+					crypto.randomUUID(),
+					`DSDK_DEVICE_${"q".repeat(32)}`,
+					userCode,
+					Date.now(),
+					Date.now() + 900000,
+				)
+				.run();
+
+			// POST without any CSRF token should be rejected
+			const res = await SELF.fetch("http://localhost/cli/auth", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+					Cookie: `devicesdk-session=${sessionToken}`,
+				},
+				body: `code=${userCode}&action=approve`,
+			});
+
+			expect(res.status).toBe(403);
+			const html = await res.text();
+			expect(html).toContain("Invalid request");
+		});
+
+		test("should reject POST with mismatched CSRF token", async () => {
+			const userId = crypto.randomUUID();
+			const sessionToken = "csrf-mismatch-session";
+			await qb
+				.insert<tableUser>({
+					tableName: "user",
+					data: {
+						id: userId,
+						name: "CSRF Mismatch User",
+						email: "csrf-mismatch@devicesdk.com",
+						created_at: Date.now(),
+						verified_email: 1,
+						picture: "",
+					},
+				})
+				.execute();
+			await qb
+				.insert({
+					tableName: "user_sessions",
+					data: {
+						user_id: userId,
+						token: sessionToken,
+						created_at: Date.now(),
+						expires_at: Date.now() + 100000,
+					},
+				})
+				.execute();
+
+			const userCode = "CSRF-2222";
+			await env.DB.prepare(
+				`INSERT INTO cli_auth_codes (id, device_code, user_code, status, created_at, expires_at)
+				 VALUES (?, ?, ?, 'pending', ?, ?)`,
+			)
+				.bind(
+					crypto.randomUUID(),
+					`DSDK_DEVICE_${"r".repeat(32)}`,
+					userCode,
+					Date.now(),
+					Date.now() + 900000,
+				)
+				.run();
+
+			// GET the page to obtain the real CSRF cookie
+			const getRes = await SELF.fetch(
+				`http://localhost/cli/auth?code=${userCode}`,
+				{
+					headers: { Cookie: `devicesdk-session=${sessionToken}` },
+				},
+			);
+			const csrfCookie = getRes.headers
+				.get("Set-Cookie")
+				?.match(/cli_csrf=([^;]+)/)?.[1];
+
+			// POST with a different CSRF token in the form body
+			const res = await SELF.fetch("http://localhost/cli/auth", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+					Cookie: `devicesdk-session=${sessionToken}; cli_csrf=${csrfCookie}`,
+				},
+				body: `code=${userCode}&action=approve&csrf_token=wrong-token-value`,
+			});
+
+			expect(res.status).toBe(403);
+			const html = await res.text();
+			expect(html).toContain("Invalid request");
+		});
 	});
 
 	describe("Full CLI Auth Flow", () => {

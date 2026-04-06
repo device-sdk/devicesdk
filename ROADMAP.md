@@ -2,7 +2,7 @@
 
 Internal planning backlog for the DeviceSDK monorepo. Generated from a full codebase audit of all 12 packages, every TODO/FIXME, CI/CD config, test coverage, and feature completeness gaps.
 
-Last updated: 2026-02-07
+Last updated: 2026-04-06
 
 ---
 
@@ -12,26 +12,26 @@ Last updated: 2026-02-07
 |---|------|-------------|--------|
 | 1 | [Rewrite Simulator in Vue.js](#1-rewrite-simulator-in-vuejs) | Delete `apps/simulation/` (Next.js) and rewrite as a Vue 3 app that compiles to a static export for the CLI | [ x ]  |
 | 2 | [Finish the `dev` Command](#2-finish-the-dev-command) | Un-stub `packages/cli/src/commands/dev.ts` so `devicesdk dev` launches a local workerd simulator | [ x ]  |
-| 3 | [Implement Dashboard Script Templates](#3-implement-dashboard-script-templates) | Replace the 6 placeholder templates in DeviceDetailsPage.vue with real, working code | [ ]    |
+| 3 | [Implement Dashboard Script Templates](#3-implement-dashboard-script-templates) | Replace the 6 placeholder templates in DeviceDetailsPage.vue with real, working code | [ x ]  |
 | 4 | [Implement I2C Batch Write in Pico Firmware](#4-implement-i2c-batch-write-in-pico-firmware) | Wire up `CMD_I2C_BATCH_WRITE` in the Pico Core 1 worker instead of returning an error | [ ]    |
 | 5 | [Fix Durable Object Worker Caching Bug](#5-fix-durable-object-worker-caching-bug) | Remove the LOADER.get() workaround once the upstream EW-9769 bug is fixed | [ ]    |
 | 6 | [Bring ESP32 Firmware to Feature Parity](#6-bring-esp32-firmware-to-feature-parity) | ESP32 firmware lacks I2C, display, and sensor driver support present in the Pico firmware | [ x ]  |
-| 7 | [Add Device Logging Pipeline](#7-add-device-logging-pipeline) | End-to-end: device-side log transport, API ingestion/storage, dashboard log viewer | [ ]    |
-| 8 | [Add Real-Time Dashboard Features](#8-add-real-time-dashboard-features) | Live device status, console output, and pin state monitoring in the dashboard | [ ]    |
-| 9 | [Add Dashboard Tests](#9-add-dashboard-tests) | Unit tests (Vitest + Vue Test Utils) and E2E tests (Playwright) for the dashboard | [ ]    |
-| 10 | [Add API Test Coverage Reporting](#10-add-api-test-coverage-reporting) | Emit coverage from the 63 integration tests, set thresholds, report in CI | [ ]    |
+| 7 | [Add Device Logging Pipeline](#7-add-device-logging-pipeline) | End-to-end: device-side log transport, API ingestion/storage, dashboard log viewer | [ x ]  |
+| 8 | [Add Real-Time Dashboard Features](#8-add-real-time-dashboard-features) | Live device status, console output, and pin state monitoring in the dashboard | [ x ]  |
+| 9 | [Add Dashboard Tests](#9-add-dashboard-tests) | Unit tests (Vitest + Vue Test Utils) and E2E tests (Playwright) for the dashboard | [ x ]  |
+| 10 | [Add API Test Coverage Reporting](#10-add-api-test-coverage-reporting) | Emit coverage from the 63 integration tests, set thresholds, report in CI | [ x ]  |
 | 11 | [Unify Linting on Biome](#11-unify-linting-on-biome) | Migrate dashboard and simulation from ESLint to Biome for consistency | [ ]    |
-| 12 | [Add Continuous Deployment](#12-add-continuous-deployment) | Automated deploy-on-merge for the API, dashboard, and website | [ ]    |
+| 12 | [Add Continuous Deployment](#12-add-continuous-deployment) | Automated deploy-on-merge for the API, dashboard, and website | [ x ]  |
 | 13 | [Add Dependency & Security Scanning](#13-add-dependency--security-scanning) | Dependabot/Renovate for dependency updates; SAST scanning in CI | [ ]    |
 | 14 | [Add API Rate Limiting](#14-add-api-rate-limiting) | Protect public endpoints from abuse | [ x ]  |
-| 15 | [Add Account Deletion Endpoint](#15-add-account-deletion-endpoint) | GDPR-style `DELETE /v1/user/me` that cascades through projects, devices, scripts, sessions | [ ]    |
+| 15 | [Add Account Deletion Endpoint](#15-add-account-deletion-endpoint) | GDPR-style `DELETE /v1/user/me` that cascades through projects, devices, scripts, sessions | [ x ]  |
 | 16 | [Expand Public Documentation](#16-expand-public-documentation) | API reference, I2C guide, sensor cookbook, `dev` command docs, architecture overview | [ ]    |
-| 17 | [Add Monitoring & Error Tracking](#17-add-monitoring--error-tracking) | APM, structured logging, error tracking, and alerting for production | [ ]    |
-| 18 | [Automate npm Publishing & Releases](#18-automate-npm-publishing--releases) | Changesets (or similar) for versioning `@devicesdk/core` and `@devicesdk/cli`, CI publish | [ ]    |
+| 17 | [Add Monitoring & Error Tracking](#17-add-monitoring--error-tracking) | APM, structured logging, error tracking, and alerting for production | [ x ]  |
+| 18 | [Automate npm Publishing & Releases](#18-automate-npm-publishing--releases) | Changesets (or similar) for versioning `@devicesdk/core` and `@devicesdk/cli`, CI publish | [ x ]  |
 | 19 | [Miscellaneous Cleanup](#19-miscellaneous-cleanup) | Small TODOs, type fixes, and dead code across the repo | [ ]    |
 | 20 | [Inter-Device Communication (RPC)](#20-inter-device-communication-rpc) | Type-safe method calls between devices in the same project | [ x ]  |
 | 21 | [Inter-Device Events / Pub-Sub](#21-inter-device-events--pub-sub) | Project-level event broadcasting between devices | [ ]    |
-| 22 | [Firmware TLS Certificate Verification (Pico)](#22-firmware-tls-certificate-verification-pico) | Embed CA cert or pin server public key so Pico TLS verifies the server identity | [ ]    |
+| 22 | [Firmware TLS Certificate Verification (Pico)](#22-firmware-tls-certificate-verification-pico) | Embed CA cert or pin server public key so Pico TLS verifies the server identity | [ x ]  |
 
 ---
 

@@ -1062,8 +1062,7 @@ export class BaseDevice extends DurableObject<Env> {
 		const status = await this.getConnectionStatus();
 		stringWriter.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`);
 
-		// Clean up when the stream closes
-		readable.pipeTo(new WritableStream()).catch(() => {});
+		// Clean up watcher when the writable side closes (client disconnects)
 		writer.closed.then(
 			() => this.logWatchers.delete(watcherId),
 			() => this.logWatchers.delete(watcherId),

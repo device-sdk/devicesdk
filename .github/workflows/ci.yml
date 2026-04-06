@@ -52,6 +52,15 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run test --filter='!@devicesdk/dashboard'
+      - name: API Coverage Report
+        run: pnpm --filter @devicesdk/api test:coverage
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: apps/api/coverage/
+          retention-days: 14
 
   changeset:
     name: Changeset

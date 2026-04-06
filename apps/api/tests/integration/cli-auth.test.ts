@@ -894,13 +894,30 @@ describe.sequential("CLI Authentication", () => {
 				)
 				.run();
 
+			// First GET the approval page to obtain CSRF cookie and token
+			const getRes = await SELF.fetch(
+				`http://localhost/cli/auth?code=${userCode}`,
+				{
+					headers: { Cookie: `devicesdk-session=${sessionToken}` },
+				},
+			);
+			expect(getRes.status).toBe(200);
+			const pageHtml = await getRes.text();
+			const csrfMatch = pageHtml.match(/name="csrf_token"\s+value="([^"]+)"/);
+			expect(csrfMatch).toBeTruthy();
+			const csrfToken = csrfMatch![1];
+			const csrfCookie = getRes.headers
+				.get("Set-Cookie")
+				?.match(/cli_csrf=([^;]+)/)?.[1];
+			expect(csrfCookie).toBeTruthy();
+
 			const res = await SELF.fetch("http://localhost/cli/auth", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/x-www-form-urlencoded",
-					Cookie: `devicesdk-session=${sessionToken}`,
+					Cookie: `devicesdk-session=${sessionToken}; cli_csrf=${csrfCookie}`,
 				},
-				body: `code=${userCode}&action=approve`,
+				body: `code=${userCode}&action=approve&csrf_token=${csrfToken}`,
 			});
 
 			expect(res.status).toBe(200);
@@ -963,13 +980,27 @@ describe.sequential("CLI Authentication", () => {
 				)
 				.run();
 
+			// First GET the approval page to obtain CSRF cookie and token
+			const getRes = await SELF.fetch(
+				`http://localhost/cli/auth?code=${userCode}`,
+				{
+					headers: { Cookie: `devicesdk-session=${sessionToken}` },
+				},
+			);
+			const pageHtml = await getRes.text();
+			const csrfMatch = pageHtml.match(/name="csrf_token"\s+value="([^"]+)"/);
+			const csrfToken = csrfMatch![1];
+			const csrfCookie = getRes.headers
+				.get("Set-Cookie")
+				?.match(/cli_csrf=([^;]+)/)?.[1];
+
 			const res = await SELF.fetch("http://localhost/cli/auth", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/x-www-form-urlencoded",
-					Cookie: `devicesdk-session=${sessionToken}`,
+					Cookie: `devicesdk-session=${sessionToken}; cli_csrf=${csrfCookie}`,
 				},
-				body: `code=${userCode}&action=deny`,
+				body: `code=${userCode}&action=deny&csrf_token=${csrfToken}`,
 			});
 
 			expect(res.status).toBe(200);
@@ -1034,14 +1065,29 @@ describe.sequential("CLI Authentication", () => {
 				expect(startBody.success).toBe(true);
 				const { device_code, user_code } = startBody.result;
 
-				// Step 2: User approves in browser
+				// Step 2: User approves in browser (first GET for CSRF, then POST)
+				const getApproval = await SELF.fetch(
+					`http://localhost/cli/auth?code=${user_code}`,
+					{
+						headers: { Cookie: `devicesdk-session=${sessionToken}` },
+					},
+				);
+				const approvalHtml = await getApproval.text();
+				const csrfMatch = approvalHtml.match(
+					/name="csrf_token"\s+value="([^"]+)"/,
+				);
+				const csrfToken = csrfMatch![1];
+				const csrfCookie = getApproval.headers
+					.get("Set-Cookie")
+					?.match(/cli_csrf=([^;]+)/)?.[1];
+
 				const approveRes = await SELF.fetch("http://localhost/cli/auth", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/x-www-form-urlencoded",
-						Cookie: `devicesdk-session=${sessionToken}`,
+						Cookie: `devicesdk-session=${sessionToken}; cli_csrf=${csrfCookie}`,
 					},
-					body: `code=${user_code}&action=approve`,
+					body: `code=${user_code}&action=approve&csrf_token=${csrfToken}`,
 				});
 				expect(approveRes.status).toBe(200);
 

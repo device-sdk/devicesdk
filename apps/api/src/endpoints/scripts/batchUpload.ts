@@ -215,7 +215,8 @@ export class BatchUploadScripts extends BaseRoute {
 				status = "created";
 			}
 
-			// Prune oldest non-current versions if at the limit (FIFO)
+			// Prune oldest non-current versions if at the limit (FIFO), then insert.
+			// FIFO pruning is the enforcement mechanism for script version limits.
 			await pruneOldVersions(
 				c.env.DB,
 				c.env.SCRIPTS,

@@ -135,7 +135,10 @@ export type WatchdogConfigureCommand = Command<
 	}
 >;
 
-export type WatchdogFeedCommand = Command<"watchdog_feed", {}>;
+export type WatchdogFeedCommand = Command<
+	"watchdog_feed",
+	Record<string, never>
+>;
 
 // --- SPI Commands ---
 export type SpiConfigureCommand = Command<

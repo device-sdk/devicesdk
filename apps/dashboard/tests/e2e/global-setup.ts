@@ -13,7 +13,7 @@ const PID_FILE = path.resolve(__dirname, ".pids.json");
 
 async function waitForServer(
   url: string,
-  timeoutMs: number = 60000,
+  timeoutMs: number = 120000,
 ): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -56,18 +56,31 @@ export default async function globalSetup() {
   });
 
   // 2. Start API server
+  // stdio: inherit forwards wrangler's output to the parent process so CI logs
+  // show startup errors. Using "pipe" without consuming the streams causes the
+  // child to block when the pipe buffer fills.
   const apiProcess = spawn(
     "npx",
     ["wrangler", "dev", "--port", String(API_PORT)],
-    { cwd: API_DIR, stdio: "pipe", detached: true },
+    { cwd: API_DIR, stdio: ["ignore", "inherit", "inherit"], detached: true },
   );
+  apiProcess.on("exit", (code, signal) => {
+    console.error(
+      `[e2e] wrangler dev exited unexpectedly code=${code} signal=${signal}`,
+    );
+  });
 
   // 3. Start dashboard dev server
   const dashProcess = spawn("npx", ["quasar", "dev"], {
     cwd: DASHBOARD_DIR,
-    stdio: "pipe",
+    stdio: ["ignore", "inherit", "inherit"],
     env: { ...process.env, BROWSER: "none" },
     detached: true,
+  });
+  dashProcess.on("exit", (code, signal) => {
+    console.error(
+      `[e2e] quasar dev exited unexpectedly code=${code} signal=${signal}`,
+    );
   });
 
   // Save PIDs for teardown

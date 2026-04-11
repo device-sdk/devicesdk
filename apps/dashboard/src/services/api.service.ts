@@ -39,6 +39,7 @@ export interface User {
   picture?: string;
   verified_email: number;
   created_at: number;
+  onboarding_completed: number;
   plan: 'free' | 'paid';
   limits: {
     max_projects: number;
@@ -146,6 +147,10 @@ export const userService = {
       throw new Error('Failed to delete account');
     }
     return data.result;
+  },
+
+  async completeOnboarding(): Promise<void> {
+    await api.call('/v1/user/me/onboarding', { method: 'PATCH' });
   },
 };
 

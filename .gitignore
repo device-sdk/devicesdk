@@ -64,6 +64,9 @@ yarn-error.log*
 # DeviceSDK CLI
 .devicesdk/
 
+# Simulator assets are built from apps/simulation — biome skips this broken symlink in CI
+packages/cli/src/simulator/assets
+
 # Quasar
 /quasar.config.*.temporary.compiled*
 

@@ -81,6 +81,8 @@ app.onError((err, c) => {
 		err: JSON.stringify(err),
 	}); // Log the error if it's not known
 
+	Sentry.captureException(err);
+
 	// For other errors, return a generic 500 response
 	const isDev = c.env.ENV === "local";
 	return c.json(
@@ -110,6 +112,21 @@ app.use(
 );
 app.use(async (c, next) => {
 	c.set("qb", new D1QB(c.env.DB));
+	await next();
+});
+
+// Guard: reject requests if ENV is misconfigured — prevents deploys with an
+// invalid ENV value from serving traffic (e.g. rate limiting disabled by
+// mistake). We can't cross-check env vs. host here because wrangler dev
+// simulates the production custom domain in local mode.
+app.use("*", async (c, next) => {
+	const env = c.env.ENV;
+	if (!env || !["local", "production"].includes(env)) {
+		return c.json(
+			{ success: false, error: "Server misconfiguration: invalid ENV" },
+			500,
+		);
+	}
 	await next();
 });
 
@@ -150,6 +167,18 @@ app.post("/cli/auth", cliAuthUser, handleApproval);
 
 // 2. Authentication middleware
 app.use("*", authenticateUser);
+
+// Set Sentry user context for all authenticated requests.
+// sendDefaultPii is false, so we only attach the opaque user ID (not email)
+// to keep PII out of Sentry while still being able to correlate errors to accounts.
+app.use("*", async (c, next) => {
+	const user = c.get("user");
+	if (user) {
+		Sentry.setUser({ id: user.id });
+		Sentry.setTag("plan", user.plan ?? "free");
+	}
+	await next();
+});
 
 // 3. Per-user rate limiting (plan-aware)
 app.use("*", userRateLimitMiddleware());

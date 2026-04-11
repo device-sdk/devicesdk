@@ -183,7 +183,12 @@ export class DownloadFirmware extends BaseRoute {
 				await recalculateEsp32Checksum(bytes);
 			}
 
-			// Validate UF2 block structure after patching credentials
+			// Validate UF2 block structure after patching credentials.
+			// No CRC/hash recalculation is needed for UF2 Pico firmware because:
+			// 1. UF2 blocks have no per-block CRC in the spec (only magic numbers).
+			// 2. Credentials are in .rodata (main flash), not in the RP2040 boot2 area
+			//    (bytes 0-251 with CRC32 at offset 252).
+			// 3. RP2350 image definition hashes only apply to signed/secure-boot builds.
 			if (deviceType === "pico-w" || deviceType === "pico2-w") {
 				try {
 					validateUf2Structure(bytes);

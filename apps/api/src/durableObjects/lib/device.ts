@@ -73,6 +73,9 @@ export class BaseDevice extends DurableObject<Env> {
 	private logsTableReady = false;
 	// In-memory only — cosmetic field, not durable. Avoids a storage write on the hot path.
 	private _connectedSince?: number;
+	// SSE log stream watchers — each watcher gets log events in real time
+	private logWatchers: Map<string, WritableStreamDefaultWriter<string>> =
+		new Map();
 
 	// Message counting for daily rate limits
 	private _messageCountToday = 0;
@@ -194,7 +197,13 @@ export class BaseDevice extends DurableObject<Env> {
 		this._connectedSince = Date.now();
 		this._messageLimitNotified = false;
 
-		await this.ctx.storage.put(CONNECTED_SINCE_KEY, Date.now());
+		await this.ctx.storage.put(CONNECTED_SINCE_KEY, this._connectedSince);
+
+		// Notify SSE watchers of new connection
+		this.emitStatusEvent({
+			connected: true,
+			connectedSince: this._connectedSince,
+		});
 
 		// Cache connection status in D1 so getProject can read it without DO round-trips
 		await this.env.DB.prepare(
@@ -623,6 +632,9 @@ export class BaseDevice extends DurableObject<Env> {
 
 		await this.ctx.storage.delete(CONNECTED_SINCE_KEY);
 
+		// Notify SSE watchers of disconnection
+		this.emitStatusEvent({ connected: false, connectedSince: null });
+
 		// Update cached connection status in D1. deviceMeta may be absent after
 		// hibernation, so fall back to reading it from durable storage.
 		const meta = await this.getDeviceMeta();
@@ -679,7 +691,10 @@ export class BaseDevice extends DurableObject<Env> {
 						: nextCronTime(expr, now);
 				storage[name] = { cron: expr, nextFireAt };
 			} catch (err) {
-				console.error(`Invalid cron expression for "${name}": ${err}`);
+				console.error(
+					`Invalid cron expression for ${JSON.stringify(name.slice(0, 64))}:`,
+					err,
+				);
 			}
 		}
 
@@ -884,13 +899,26 @@ export class BaseDevice extends DurableObject<Env> {
 			message.length > LOG_MESSAGE_MAX_LENGTH
 				? message.slice(0, LOG_MESSAGE_MAX_LENGTH)
 				: message;
+		const id = crypto.randomUUID();
+		const now = Date.now();
 		this.ctx.storage.sql.exec(
 			"INSERT INTO device_logs (id, level, message, created_at) VALUES (?, ?, ?, ?)",
-			crypto.randomUUID(),
+			id,
 			level,
 			truncated,
-			Date.now(),
+			now,
 		);
+		// Emit to SSE watchers
+		if (this.logWatchers.size > 0) {
+			const event = `data: ${JSON.stringify({ id, level, message: truncated, created_at: now })}\n\n`;
+			for (const [watcherId, writer] of this.logWatchers) {
+				try {
+					writer.write(event);
+				} catch {
+					this.logWatchers.delete(watcherId);
+				}
+			}
+		}
 		this.logWriteCount++;
 		if (this.logWriteCount % LOG_CLEANUP_INTERVAL === 0) {
 			this.ctx.storage.sql.exec(
@@ -988,6 +1016,59 @@ export class BaseDevice extends DurableObject<Env> {
 		// since connected_since is cosmetic (the connected boolean is always authoritative).
 		const connectedSince = connected ? (this._connectedSince ?? null) : null;
 		return { connected, connectedSince };
+	}
+
+	private emitStatusEvent(status: {
+		connected: boolean;
+		connectedSince: number | null;
+	}) {
+		if (this.logWatchers.size === 0) return;
+		const event = `event: status\ndata: ${JSON.stringify(status)}\n\n`;
+		for (const [watcherId, writer] of this.logWatchers) {
+			try {
+				writer.write(event);
+			} catch {
+				this.logWatchers.delete(watcherId);
+			}
+		}
+	}
+
+	/**
+	 * Returns an SSE-compatible ReadableStream that emits log events in real time.
+	 * The stream stays open until the client disconnects.
+	 */
+	async streamLogs(): Promise<ReadableStream<Uint8Array>> {
+		const watcherId = crypto.randomUUID();
+		const encoder = new TextEncoder();
+		const { readable, writable } = new TransformStream<
+			Uint8Array,
+			Uint8Array
+		>();
+		const writer = writable.getWriter();
+
+		// Wrap the writer so logWatchers can write strings (converted to bytes)
+		const stringWriter = {
+			write(s: string) {
+				writer.write(encoder.encode(s));
+			},
+			closed: writer.closed,
+		};
+		this.logWatchers.set(
+			watcherId,
+			stringWriter as unknown as WritableStreamDefaultWriter<string>,
+		);
+
+		// Send initial connection status
+		const status = await this.getConnectionStatus();
+		stringWriter.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`);
+
+		// Clean up watcher when the writable side closes (client disconnects)
+		writer.closed.then(
+			() => this.logWatchers.delete(watcherId),
+			() => this.logWatchers.delete(watcherId),
+		);
+
+		return readable;
 	}
 
 	/**

@@ -1,3 +1,4 @@
+import { getCookie, setCookie } from "hono/cookie";
 import { html, raw } from "hono/html";
 import type { AppContext } from "../../types";
 
@@ -176,8 +177,9 @@ function renderCodeEntryPage() {
 	);
 }
 
-function renderApprovalPage(userCode: string) {
+function renderApprovalPage(userCode: string, csrfToken: string) {
 	const safe = escapeHtml(userCode);
+	const safeCsrf = escapeHtml(csrfToken);
 	return renderPage(
 		"Approve CLI Login",
 		`
@@ -195,6 +197,7 @@ function renderApprovalPage(userCode: string) {
 
     <form method="POST" action="/cli/auth">
       <input type="hidden" name="code" value="${safe}" />
+      <input type="hidden" name="csrf_token" value="${safeCsrf}" />
       <div class="actions">
         <button type="submit" name="action" value="deny" class="btn-deny">Deny</button>
         <button type="submit" name="action" value="approve" class="btn-approve">Approve</button>
@@ -248,7 +251,16 @@ export async function getApprovalPage(c: AppContext) {
 		return c.html(renderErrorPage("Invalid or expired code"));
 	}
 
-	return c.html(renderApprovalPage(code.toUpperCase()));
+	const csrfToken = crypto.randomUUID();
+	setCookie(c, "cli_csrf", csrfToken, {
+		path: "/cli/auth",
+		httpOnly: true,
+		sameSite: "Strict",
+		secure: c.env.ENV !== "local",
+		maxAge: 600,
+	});
+
+	return c.html(renderApprovalPage(code.toUpperCase(), csrfToken));
 }
 
 export async function handleApproval(c: AppContext) {
@@ -256,6 +268,12 @@ export async function handleApproval(c: AppContext) {
 	const code = formData.code as string;
 	const action = formData.action as string;
 	const user = c.get("user");
+
+	const csrfFromForm = formData.csrf_token as string;
+	const csrfFromCookie = getCookie(c, "cli_csrf");
+	if (!csrfFromForm || !csrfFromCookie || csrfFromForm !== csrfFromCookie) {
+		return c.html(renderErrorPage("Invalid request. Please try again."), 403);
+	}
 
 	if (!code) {
 		return c.html(renderErrorPage("Code is required"));

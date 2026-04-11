@@ -80,7 +80,7 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
       }
     });
 
-    const env = Object.assign({}, publicEnv, { DEVICE: safeDevice, DEVICES: devicesProxy, VARS });
+    const env = Object.freeze(Object.assign({}, publicEnv, { DEVICE: safeDevice, DEVICES: devicesProxy, VARS }));
     const target = new ${entrypointName}(this.ctx, env);
 
     const BLOCKED_METHODS = new Set([${blockedMethodsLiteral}]);
@@ -112,10 +112,15 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     	      });
     	    }
     	  });
-    	  const originalEnv = target.env;
-    	  target.env = Object.assign({}, target.env, { DEVICES: callScopedDevices });
-    	  try { return await target[name](...args); }
-    	  finally { target.env = originalEnv; }
+    	  const scopedEnv = Object.freeze(Object.assign({}, target.env, { DEVICES: callScopedDevices }));
+    	  const scopedTarget = new Proxy(target, {
+    	    get(t, prop) {
+    	      if (prop === 'env') return scopedEnv;
+    	      const val = t[prop];
+    	      return typeof val === 'function' ? val.bind(t) : val;
+    	    }
+    	  });
+    	  return await scopedTarget[name](...args);
     	},
     }
   }

@@ -13,6 +13,13 @@ export default defineWorkersConfig({
 	},
 	test: {
 		setupFiles: ["./tests/apply-migrations.ts", "./tests/setup-test-data.ts"],
+		coverage: {
+			provider: "istanbul",
+			reporter: ["text", "json-summary", "html"],
+			reportsDirectory: "./coverage",
+			include: ["src/**/*.ts"],
+			exclude: ["src/types.d.ts"],
+		},
 		poolOptions: {
 			workers: {
 				isolatedStorage: true,

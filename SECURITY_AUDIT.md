@@ -2,15 +2,16 @@
 
 **Date:** 2026-03-29
 **Methodology:** 5 parallel review agents covering authentication, WebSocket communications, script sandboxing, input validation, and firmware security.
+**Last status update:** 2026-04-06
 
 ## Executive Summary
 
-| Severity | Count |
-|----------|-------|
-| CRITICAL | 3 |
-| HIGH | 12 |
-| MEDIUM | 13 |
-| LOW | 5 |
+| Severity | Count | Fixed |
+|----------|-------|-------|
+| CRITICAL | 3 | 3 |
+| HIGH | 12 | 11 |
+| MEDIUM | 13 | 11 |
+| LOW | 5 | 1 |
 
 ---
 
@@ -19,7 +20,7 @@
 ### C1: Code Injection via Unsanitized `entrypointName`
 
 **Severity:** CRITICAL
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48) — `JS_IDENTIFIER_REGEX` added to `consts.ts`, validated in `uploadScript.ts`, `batchUpload.ts`, and `scriptValidator.ts`
 **Files:**
 - `apps/api/src/durableObjects/lib/classProxy.ts` lines 11, 64
 - `apps/api/src/foundation/scriptValidator.ts` lines 38, 63
@@ -71,7 +72,7 @@ Additionally, add a defensive assertion in `device.ts` before calling `getProxyE
 ### C2: Both Firmware Platforms Connect Over Plain `ws://` — No TLS
 
 **Severity:** CRITICAL
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48, #52) — Pico uses `altcp_tls` with embedded GTS Root R4 CA cert; ESP32 uses `wss://` with Espressif CA bundle
 **Files:**
 - `firmware/pico/lib/lwip_ws/ws_client.cpp` lines 14, 34-37
 - `firmware/esp32/main/iotkit_main.c` line 426
@@ -100,7 +101,7 @@ Both firmware platforms transmit:
 ### C3: All Token Generation Uses `Math.random()` — Not Cryptographically Secure
 
 **Severity:** CRITICAL
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48) — All token generation now uses `crypto.randomUUID()` and `crypto.getRandomValues()`
 **Files:**
 - `apps/api/src/foundation/auth.ts` line 226
 - `apps/api/src/endpoints/cli-auth/utils.ts` lines 9-11, 17-19
@@ -165,7 +166,7 @@ Or use `crypto.randomUUID().replaceAll("-", "")` where format allows.
 ### H1: API and Device Tokens Stored Plaintext in Database
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48) — API tokens stored as `token_hash` (SHA-256); migration `0013_hash_api_tokens.sql`
 **Files:**
 - `apps/api/src/endpoints/tokens/createApiToken.ts` line 70
 - `apps/api/src/endpoints/devices/downloadFirmware.ts` lines 102-136
@@ -203,7 +204,7 @@ By contrast, CLI tokens ARE properly hashed with SHA-256 before storage (`access
 ### H2: `SameSite=None` Cookie in Production Enables CSRF
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48) — Changed to `sameSite: "Lax"` in `auth.ts`
 **Files:**
 - `apps/api/src/foundation/auth.ts` lines 255-262, 277-285
 
@@ -233,7 +234,7 @@ The same `sameSite: "None"` is set on the logout cookie (line 283).
 ### H3: Logout Doesn't Invalidate Server-Side Session
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48) — `handleLogout` now DELETEs session from `user_sessions` table
 **File:** `apps/api/src/foundation/auth.ts` lines 267-292
 
 **Description:**
@@ -268,7 +269,7 @@ if (token) {
 ### H4: CLI Approval Form Has No CSRF Protection
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** FIXED (PR #52) — Synchronizer token pattern: GET sets `cli_csrf` cookie + hidden form field, POST validates both match
 **File:** `apps/api/src/endpoints/cli-auth/approvalPage.ts` lines 186-193
 
 **Description:**
@@ -294,7 +295,7 @@ No CSRF token is present. Combined with `sameSite: "None"` (H2), a malicious pag
 ### H5: Timing Attack on Plaintext Token Lookup
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48) — Tokens now hashed before storage (H1 fix), eliminating timing correlation
 **File:** `apps/api/src/foundation/auth.ts` lines 131-132, 148-150
 
 **Description:**
@@ -316,7 +317,7 @@ SQLite string comparison and B-tree index scans are not constant-time. An attack
 ### H6: `target.env` Mutation in RPC Proxy Not Concurrency-Safe
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** FIXED (PR #52) — Replaced mutation with per-call `Proxy`; `Object.freeze()` on user-facing env
 **File:** `apps/api/src/durableObjects/lib/classProxy.ts` line 95
 
 **Description:**
@@ -343,7 +344,7 @@ finally { target.env = originalEnv; }
 ### H7: WebSocket Messages Parsed Without Runtime Validation
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48) — Zod `DeviceMessageSchema` with `safeParse` at WebSocket boundary; malformed messages discarded
 **File:** `apps/api/src/durableObjects/lib/device.ts` line 389
 
 **Description:**
@@ -374,7 +375,7 @@ if (!parseResult.success) return; // log and discard
 ### H8: Script Validation Only Checks Method Existence
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** OPEN — Validation still lacks execution timeout and resource constraints
 **File:** `apps/api/src/foundation/scriptValidator.ts` lines 17-113
 
 **Description:**
@@ -404,7 +405,7 @@ const result = await Promise.race([
 ### H9: User Scripts Receive `DeviceSender` Binding; Env Stripping Incomplete
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48, #52) — `ALLOWED_DEVICE_METHODS` allowlist proxy in `classProxy.ts`; `Object.freeze()` on env
 **Files:**
 - `apps/api/src/durableObjects/lib/device.ts` lines 218-229
 - `apps/api/src/durableObjects/lib/classProxy.ts` line 38
@@ -426,7 +427,7 @@ However, `DEVICE` (the `DeviceSender` RPC stub) is intentionally left in `public
 ### H10: No Pico UF2 Integrity Verification After Firmware Patching
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** NOT APPLICABLE (PR #52) — Investigated: UF2 has no per-block CRC; credentials are in `.rodata` outside boot2 CRC region; RP2350 image hashes only apply to signed builds. Documented in `downloadFirmware.ts`
 **File:** `apps/api/src/endpoints/devices/downloadFirmware.ts` lines 176-179
 
 **Description:**
@@ -448,7 +449,7 @@ ESP32 firmware gets checksum recalculation via `recalculateEsp32Checksum()` afte
 ### H11: Open Redirect in Dashboard Post-Login Flow
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** FIXED (PR #51) — Hostname re-validation added in `boot/auth.ts` before redirect
 **Files:**
 - `apps/dashboard/src/pages/LoginPage.vue` lines 59-70
 - `apps/dashboard/src/boot/auth.ts` lines 9-13
@@ -483,7 +484,7 @@ if (redirectUri) {
 ### H12: Plaintext Credentials Embedded in Firmware Binaries
 
 **Severity:** HIGH
-**Status:** CONFIRMED
+**Status:** OPEN (Design Limitation) — Credentials are compile-time constants; encryption at rest would require a device-side decryption key (chicken-and-egg). Mitigated by token rotation on every firmware download.
 **Files:**
 - `apps/api/src/endpoints/devices/downloadFirmware.ts` lines 6-12
 - `firmware/esp32/main/config.h` lines 4-9
@@ -513,7 +514,7 @@ Anyone with physical access to a device can dump flash (Pico: BOOTSEL mode; ESP3
 ### M1: No Rate Limiting on Any Auth Endpoint
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED (PR #49) — Tier-aware rate limiting on all endpoints via Cloudflare rate limit bindings
 **File:** `apps/api/src/index.ts` (route definitions)
 
 **Description:**
@@ -532,7 +533,7 @@ The user code space (`generateUserCode()`) is approximately 23 million combinati
 ### M2: Missing UNIQUE Constraint and Index on `user_sessions.token`
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED — Migration `0014_add_session_token_index.sql` adds UNIQUE index
 **File:** `apps/api/migrations/0001_add_tasks_table.sql` lines 11-20
 
 **Description:**
@@ -558,7 +559,7 @@ CREATE UNIQUE INDEX idx_user_sessions_token ON user_sessions(token);
 ### M3: Refresh Token Rotation Not Atomic (Race Condition)
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED — Uses `DB.batch()` for atomic DELETE + INSERT in `refreshToken.ts`
 **File:** `apps/api/src/endpoints/cli-auth/refreshToken.ts` lines 40-55
 
 **Description:**
@@ -583,7 +584,7 @@ await c.env.DB.batch([
 ### M4: Command Payload Uses `.passthrough()` Zod Schema — Unbounded
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED — Payload limited to 4KB via Zod `refine` in `sendCommand.ts`
 **File:** `apps/api/src/endpoints/devices/sendCommand.ts` lines 32-35
 
 **Description:**
@@ -609,7 +610,7 @@ payload: z.object({}).passthrough().optional().default({}).refine(
 ### M5: Inter-Device RPC Has No Per-Device Permissions
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** OPEN (Design Decision) — Same-project trust model is intentional; documented as a known limitation
 **File:** `apps/api/src/durableObjects/lib/devicesBridge.ts` lines 28-91
 
 **Description:**
@@ -628,7 +629,7 @@ Any device in a project can call any non-blocked method on any other device in t
 ### M6: `BLOCKED_METHODS` Missing `getCrons` and `onCron`
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED — Both `getCrons` and `onCron` added to `BLOCKED_METHODS` in `rpcConstants.ts`
 **File:** `apps/api/src/durableObjects/lib/rpcConstants.ts` lines 6-14
 
 **Description:**
@@ -652,7 +653,7 @@ These are platform lifecycle methods that should only be invoked by the DO infra
 ### M7: `handleRemoteCall` Bootstraps `deviceMeta` from Caller-Supplied `scriptMeta`
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** OPEN — `scriptMeta` is assembled from DB values in `DevicesBridge` (trustworthy in normal flow), but architecturally the DO should resolve metadata independently
 **File:** `apps/api/src/durableObjects/lib/device.ts` lines 274-282
 
 **Description:**
@@ -678,7 +679,7 @@ The `scriptMeta` is assembled from DB values in `DevicesBridge`, so it's trustwo
 ### M8: Legacy `handleCommandRequest` HTTP POST Path on DO
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED — Legacy POST handler removed from `device.ts` fetch(); commands use WebSocket RPC only
 **File:** `apps/api/src/durableObjects/lib/device.ts` lines 97-98, 300-329
 
 **Description:**
@@ -698,7 +699,7 @@ This is a legacy HTTP-based command path that coexists with the newer typed RPC 
 ### M9: Latent XSS in CLI Approval Page
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED (currently mitigated, architecturally unsound)
+**Status:** FIXED (PR #48) — `escapeHtml()` applied to `userCode` before interpolation in template
 **File:** `apps/api/src/endpoints/cli-auth/approvalPage.ts` lines 149, 170-195, 224-241
 
 **Description:**
@@ -730,7 +731,7 @@ function escapeHtml(s: string): string {
 ### M10: Error Handler Leaks Internal Details in Production
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED (PR #48) — `isDev` check in global error handler; production returns generic "Internal Server Error"
 **File:** `apps/api/src/index.ts` lines 69-88
 
 **Description:**
@@ -765,7 +766,7 @@ return c.json({
 ### M11: Integer Truncation in Firmware Message Parsing
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED — Range checks added before all double-to-integer casts in both Pico and ESP32 firmware handlers
 **Files:**
 - `firmware/pico/src/websocket_handler.cpp` lines 114, 232, 557 (and many others)
 - `firmware/esp32/main/websocket_handler.c` lines 95, 178, 504 (and many others)
@@ -797,7 +798,7 @@ cmd.payload.gpio.pin = (uint8_t)raw;
 ### M12: I2C/SPI/UART Read Lengths Unbounded
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED — `MAX_I2C_DATA_LEN`, `MAX_SPI_DATA_LEN`, and UART length validation enforced in both firmware platforms
 **Files:**
 - `firmware/pico/src/websocket_handler.cpp` lines 306, 451, 537
 - `firmware/esp32/main/websocket_handler.c` lines 234, 425, 485
@@ -819,7 +820,7 @@ A value like `1e9` is stored as-is. Downstream buffer allocation depends on thes
 ### M13: WebSocket Masking Key Uses Unseeded `rand()`
 
 **Severity:** MEDIUM
-**Status:** CONFIRMED
+**Status:** FIXED — Replaced with `get_rand_32()` from `pico_rand` (hardware TRNG via ROSC entropy)
 **File:** `firmware/pico/lib/lwip_ws/ws_client.cpp` line 224
 
 **Description:**
@@ -838,7 +839,7 @@ RFC 6455 requires unpredictable masking keys (Section 10.3, defense against prox
 ### L1: `pendingCommands` Map Unbounded
 
 **Severity:** LOW
-**Status:** CONFIRMED
+**Status:** FIXED — `MAX_PENDING_COMMANDS = 100` guard in `device.ts`; rejects commands when limit reached
 **File:** `apps/api/src/durableObjects/lib/device.ts` line 58
 
 **Description:**
@@ -903,29 +904,42 @@ Device API tokens are embedded at firmware patch time. There is no API endpoint 
 
 ---
 
-## Remediation Priority
+## Remediation Status
 
-### Immediate (this week)
-1. **C1** — JS identifier regex on `entrypoint` field (one-line fix per file)
-2. **C3** — Replace `Math.random()` with `crypto.getRandomValues()` (4 files)
-3. **H1** — Hash API tokens before storage
-4. **H2** — Change `sameSite: "None"` to `sameSite: "Lax"` (fixes H4 as well)
-5. **H3** — Delete session row on logout
-6. **M10** — Strip error details in production
+All items from the original remediation priority list have been addressed except where noted.
 
-### Short-term (next sprint)
-7. **C2** — Add TLS to both firmware platforms
-8. **H6** — Fix `target.env` mutation in classProxy
-9. **H7** — Add Zod validation for WebSocket device messages
-10. **M1** — Add rate limiting on auth endpoints
-11. **M6** — Add `getCrons`/`onCron` to `BLOCKED_METHODS`
-12. **M9** — Escape HTML in approval page
+### Completed ✓
+1. **C1** — JS identifier regex (PR #48)
+2. **C2** — TLS on both firmware platforms (PR #48, #52)
+3. **C3** — `crypto.getRandomValues()` / `crypto.randomUUID()` (PR #48)
+4. **H1** — API tokens hashed before storage (PR #48)
+5. **H2** — `sameSite: "Lax"` (PR #48)
+6. **H3** — Session invalidation on logout (PR #48)
+7. **H4** — CSRF synchronizer token on approval form (PR #52)
+8. **H5** — Timing attack eliminated by H1 fix (PR #48)
+9. **H6** — Scoped Proxy for RPC env (PR #52)
+10. **H7** — Zod `DeviceMessageSchema` at WebSocket boundary (PR #48)
+11. **H9** — `ALLOWED_DEVICE_METHODS` allowlist proxy (PR #48, #52)
+12. **H10** — Investigated; no recalculation needed (PR #52)
+13. **H11** — Redirect URI re-validation (PR #51)
+14. **M1** — Rate limiting (PR #49)
+15. **M2** — Session token UNIQUE index (migration 0014)
+16. **M3** — Atomic refresh token rotation via `DB.batch()`
+17. **M4** — 4KB payload size limit
+18. **M6** — `getCrons`/`onCron` blocked
+19. **M8** — Legacy POST handler removed
+20. **M9** — HTML escaping on approval page (PR #48)
+21. **M10** — Error details stripped in production (PR #48)
+22. **M11/M12** — Integer range checks in firmware
+23. **M13** — Hardware RNG for masking key
+24. **L1** — Pending commands bounded
 
-### Medium-term (next quarter)
-13. **H10** — UF2 CRC recalculation for Pico
-14. **H11** — Re-validate redirect URI before navigation
-15. **M3** — Atomic refresh token rotation
-16. **M4** — Per-command-type payload schemas
-17. **M11/M12** — Integer range checks in firmware handlers
-18. **H8** — Script validation timeout
-19. **H9** — Audit and restrict DeviceSender exposure
+### Remaining Open Items
+- **H8** — Script validation timeout (no execution timeout on validator worker)
+- **H12** — Plaintext firmware credentials (design limitation; mitigated by token rotation)
+- **M5** — Same-project RPC trust model (intentional design; needs documentation)
+- **M7** — `handleRemoteCall` deviceMeta from caller (low risk; scriptMeta assembled from DB)
+- **L2** — Cron name log injection (partially hardened — `JSON.stringify` + truncation)
+- **L3** — capnp config string interpolation (low risk; attacker already has code exec)
+- **L4** — Static placeholder strings (cosmetic)
+- **L5** — No device token rotation without reflashing (design limitation)

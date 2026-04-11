@@ -146,4 +146,45 @@ describe.sequential("Logs endpoint", () => {
 			expect(json.result.logs).toEqual([]);
 		});
 	});
+
+	describe("GET /v1/projects/:projectId/devices/:deviceId/logs/stream", () => {
+		it("should return 404 for non-existent project", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/non-existent/devices/log-device/logs/stream",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+		});
+
+		it("should return 404 for non-existent device", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/non-existent/logs/stream",
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+				},
+			);
+
+			expect(resp.status).toBe(404);
+		});
+
+		it("should return 401 without auth", async () => {
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/log-device/logs/stream",
+				{
+					method: "GET",
+				},
+			);
+
+			expect(resp.status).toBe(401);
+		});
+	});
 });

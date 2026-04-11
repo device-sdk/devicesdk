@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "picojson.h"
 #include "websocket_handler.h"
+#include "ca_cert.h"
 
 #define WEBSOCKET_OPCODE_TEXT 0x1
 #define BUF_SIZE 2048
@@ -123,8 +124,8 @@ void WebsocketClient::on_dns_found(const ip_addr_t *ipaddr) {
     if (ipaddr) {
         remote_addr = *ipaddr;
 
-        // Create TLS config (NULL CA cert = no server certificate verification)
-        tls_config = altcp_tls_create_config_client(NULL, 0);
+        // Create TLS config with embedded root CA for server certificate verification
+        tls_config = altcp_tls_create_config_client(ca_cert_pem, ca_cert_pem_len);
         if (!tls_config) {
             return;
         }

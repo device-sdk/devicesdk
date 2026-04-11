@@ -392,6 +392,11 @@ export interface LogsResponse {
   next_cursor: string | null;
 }
 
+export interface DeviceStatus {
+  connected: boolean;
+  connectedSince: number | null;
+}
+
 export const logService = {
   async getLogs(
     projectId: string,
@@ -409,6 +414,11 @@ export const logService = {
       throw new Error('Failed to fetch logs');
     }
     return data.result;
+  },
+
+  getStreamUrl(projectId: string, deviceId: string): string {
+    const base = import.meta.env.PROD ? 'https://api.devicesdk.com' : 'http://localhost:8787';
+    return `${base}/v1/projects/${projectId}/devices/${deviceId}/logs/stream`;
   },
 };
 

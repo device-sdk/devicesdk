@@ -9,6 +9,7 @@ catalog:
   "@types/node": ^22
   vitest: ^3.2.4
   "@vitest/runner": ^3.2.4
+  "@vitest/coverage-istanbul": ^3.2.4
   "@vitest/snapshot": ^3.2.4
   wrangler: ^4.58.0
   tsx: ^4.20.5

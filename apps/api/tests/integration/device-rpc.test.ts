@@ -341,13 +341,26 @@ describe.sequential("Inter-device RPC", () => {
 			expect(() => getProxyEntrypoint("_Private")).not.toThrow();
 		});
 
-		it("should save and restore env in callMethod", async () => {
+		it("should use scoped Proxy for env in callMethod instead of mutating target.env", async () => {
 			const { getProxyEntrypoint } = await import(
 				"../../src/durableObjects/lib/classProxy"
 			);
 			const code = getProxyEntrypoint("TestDevice");
-			expect(code).toContain("const originalEnv = target.env");
-			expect(code).toContain("finally { target.env = originalEnv; }");
+			expect(code).toContain("scopedEnv");
+			expect(code).toContain("scopedTarget");
+			expect(code).toContain("new Proxy(target");
+			// Should NOT mutate target.env directly
+			expect(code).not.toContain("target.env = Object.assign");
+		});
+
+		it("should freeze user-facing env to prevent tampering", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			expect(code).toContain("Object.freeze");
+			// Env passed to user constructor should be frozen
+			expect(code).toContain("Object.freeze(Object.assign({}, publicEnv");
 		});
 
 		it("should include DEVICE method allowlist", async () => {

@@ -12,27 +12,39 @@
         style="min-width: 150px"
       />
       <q-space />
-      <q-toggle v-model="autoRefresh" label="Auto-refresh" />
+      <q-chip
+        :color="deviceStatus.connected ? 'green' : 'grey-6'"
+        text-color="white"
+        size="sm"
+        icon="circle"
+      >
+        {{ deviceStatus.connected ? 'Online' : 'Offline' }}
+      </q-chip>
+      <q-toggle v-model="liveStream" label="Live" />
+      <q-btn v-if="liveStream" flat icon="delete_sweep" @click="clearLogs">
+        <q-tooltip>Clear live logs</q-tooltip>
+      </q-btn>
       <q-btn flat icon="refresh" :loading="loading" @click="fetchLogs()">
         <q-tooltip>Refresh</q-tooltip>
       </q-btn>
     </div>
 
-    <div v-if="loading && logs.length === 0" class="text-center q-pa-xl">
+    <div v-if="loading && displayLogs.length === 0" class="text-center q-pa-xl">
       <q-spinner-dots color="primary" size="40px" />
     </div>
 
-    <div v-else-if="logs.length === 0" class="text-center q-pa-xl">
+    <div v-else-if="displayLogs.length === 0" class="text-center q-pa-xl">
       <q-icon name="article" size="64px" color="grey-4" class="q-mb-md" />
       <div class="text-h6 text-grey-6 q-mb-sm">No logs yet</div>
       <p class="text-body2 text-grey-5">
         Logs from console.log, console.warn, etc. in your device script will appear here.
+        <span v-if="!liveStream">Enable <b>Live</b> to stream logs in real time.</span>
       </p>
     </div>
 
-    <div v-else class="logs-container">
+    <div v-else ref="logsContainer" class="logs-container">
       <div
-        v-for="log in logs"
+        v-for="log in filteredLogs"
         :key="log.id"
         class="log-entry row items-start q-py-xs q-px-sm"
       >
@@ -51,7 +63,7 @@
         <span class="font-mono log-message">{{ formatMessage(log.message) }}</span>
       </div>
 
-      <div v-if="nextCursor" class="text-center q-pa-md">
+      <div v-if="!liveStream && nextCursor" class="text-center q-pa-md">
         <q-btn
           outline
           color="primary"
@@ -65,21 +77,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { logService, type DeviceLog } from '@/services/api.service';
+import { useDeviceStream } from '@/composables/useDeviceStream';
 
 const props = defineProps<{
   projectId: string;
   deviceId: string;
 }>();
 
+// REST-based log fetching (history)
 const logs = ref<DeviceLog[]>([]);
 const nextCursor = ref<string | null>(null);
 const loading = ref(false);
 const loadingMore = ref(false);
-const autoRefresh = ref(false);
 const levelFilter = ref<string | null>(null);
-let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+// Live streaming
+const liveStream = ref(false);
+const { streamedLogs, deviceStatus, connect, disconnect, clearLogs: clearStreamLogs } = useDeviceStream(props.projectId, props.deviceId);
+
+// Display either streamed logs (live mode) or REST logs (history mode)
+const displayLogs = computed(() => liveStream.value ? streamedLogs.value : logs.value);
+
+const filteredLogs = computed(() => {
+  const source = displayLogs.value;
+  if (!levelFilter.value) return source;
+  return source.filter((log) => log.level === levelFilter.value);
+});
 
 const levelOptions = [
   { label: 'All Levels', value: null },
@@ -158,16 +183,23 @@ const loadMore = async () => {
   }
 };
 
+const clearLogs = () => {
+  clearStreamLogs();
+};
+
 watch(levelFilter, () => {
-  void fetchLogs();
+  if (!liveStream.value) {
+    void fetchLogs();
+  }
 });
 
-watch(autoRefresh, (enabled) => {
+watch(liveStream, (enabled) => {
   if (enabled) {
-    refreshInterval = setInterval(() => void fetchLogs(), 5000);
-  } else if (refreshInterval) {
-    clearInterval(refreshInterval);
-    refreshInterval = null;
+    connect();
+  } else {
+    disconnect();
+    // Refresh REST logs when switching back to history mode
+    void fetchLogs();
   }
 });
 
@@ -176,9 +208,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (refreshInterval) {
-    clearInterval(refreshInterval);
-  }
+  disconnect();
 });
 </script>
 

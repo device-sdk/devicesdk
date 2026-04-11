@@ -57,7 +57,7 @@ This is a pnpm + Turborepo monorepo for the DeviceSDK IoT platform. The platform
 
 **`apps/api`** (`@devicesdk/api`) — Cloudflare Workers API using Hono + Chanfana (auto-generates OpenAPI schema). Uses D1 (SQLite) via `workers-qb`, R2 for script/firmware storage, Durable Objects for WebSocket device connections. Depends on `@devicesdk/core` via `workspace:*`.
 
-**`apps/dashboard`** (`@devicesdk/dashboard`) — Vue 3 + Quasar SPA. Google OAuth login, project/device/token management. Deployed to `dash.devicesdk.com`. Requires `shamefully-hoist=true` in `.npmrc` for Quasar compatibility. Runs `quasar prepare` on postinstall.
+**`apps/dashboard`** (`@devicesdk/dashboard`) — Vue 3 + Quasar SPA. Google OAuth login, project/device/token management. Deployed to `dash.devicesdk.com`. Requires `shamefully-hoist=true` in `.npmrc` for Quasar compatibility. Runs `quasar prepare` on postinstall. Key composables: `useAuth` (auth state), `useDeviceStream` (SSE-based real-time log streaming with auto-reconnect).
 
 **`apps/simulation`** (`@devicesdk/simulation`) — Vue 3 + Vite app for device simulation UI. Builds to `dist/` which is consumed by the CLI package at build time. Uses Tailwind CSS v4, `@floating-ui/vue` for popovers, and Biome for linting.
 
@@ -85,6 +85,7 @@ examples/*
 - **Endpoints**: `src/endpoints/{resource}/router.ts` defines routes, individual files extend `OpenAPIRoute` with Zod schemas.
 - **Auth**: `src/foundation/auth.ts` — checks Bearer token → session cookie → API token (prefix `dsdk_`). User available via `c.get("user")`, query builder via `c.get("qb")`.
 - **Durable Objects**: `src/durableObjects/lib/device.ts` — `BaseDevice` handles WebSocket device connections. Uses the Hibernation API (`webSocketMessage`, `webSocketClose`, `webSocketError`). Both `webSocketClose` and `webSocketError` must be implemented — abrupt TCP drops (e.g. device hard reboot) fire `webSocketError`, not `webSocketClose`. Never send a WebSocket close frame immediately after a command that triggers a device reboot; let the connection drop naturally.
+- **SSE Streaming**: `GET /v1/projects/:projectId/devices/:deviceId/logs/stream` — Server-Sent Events endpoint for real-time log streaming. The DO's `streamLogs()` method returns a `ReadableStream<Uint8Array>` that emits `data:` events (log entries) and `event: status` events (connection changes). Watchers are stored in `logWatchers` Map and cleaned up automatically.
 - **Bindings**: `DB` (D1), `SCRIPTS`/`FIRMWARES` (R2), `DEVICE` (Durable Object), `LOADER` (Worker Loader for sandboxed user scripts).
 - **Response format**: `{ "success": true, "result": ... }` or `{ "success": false, "error": "..." }`.
 
@@ -104,6 +105,7 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 - `tests/apply-migrations.ts` — applies D1 migrations before tests
 - `tests/setup-test-data.ts` — seeds users, projects, sessions
 - `tests/vitest.config.mts` — configures pool-workers with wrangler bindings
+- **Coverage**: Istanbul provider configured; run `pnpm --filter @devicesdk/api test:coverage` for HTML/JSON reports in `apps/api/coverage/`. CI uploads coverage artifacts on every run.
 
 ### CLI Architecture (packages/cli)
 
@@ -189,6 +191,9 @@ pnpm --filter @devicesdk/example-basic flash-local
 | Inter-device RPC types | `packages/core/src/index.ts` (`RemoteDevice`, `GetEnv`) |
 | DevicesBridge (inter-device RPC) | `apps/api/src/durableObjects/lib/devicesBridge.ts` |
 | CLI type generation | `packages/cli/src/commands/build.ts` (`generateDeviceTypes`) |
+| Real-time log streaming (SSE) | `apps/api/src/endpoints/logs/streamLogs.ts`, `apps/api/src/durableObjects/lib/device.ts` (`streamLogs`, `logWatchers`) |
+| Dashboard SSE composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
+| License | `LICENSE` (proprietary, all rights reserved) |
 
 ## Multi-Agent Safety
 

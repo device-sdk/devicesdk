@@ -76,6 +76,9 @@ export interface DeviceSenderInterface {
 
 	// Persist a log entry to DO SQLite storage
 	persistLog(level: string, message: string): Promise<void>;
+
+	// Emit a structured state event to watcher subscribers (dashboard, HA, etc)
+	emitState(entityId: string, value: unknown): Promise<void>;
 }
 
 // Props passed to the DeviceSender entrypoint

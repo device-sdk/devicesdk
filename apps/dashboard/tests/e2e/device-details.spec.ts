@@ -223,7 +223,7 @@ test.describe("Device details page", () => {
       await page.getByRole("tab", { name: /logs/i }).click();
 
       await expect(page.getByText("Level", { exact: true })).toBeVisible();
-      await expect(page.getByText("Live")).toBeVisible();
+      await expect(page.getByLabel("Live")).toBeVisible();
     });
   });
 

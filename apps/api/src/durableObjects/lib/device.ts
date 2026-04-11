@@ -100,10 +100,9 @@ export class BaseDevice extends DurableObject<Env> {
 			return this._session;
 		}
 
-		const sockets = this.ctx.getWebSockets();
-		console.log("sockets ", sockets);
+		// Filter by "device" tag so watcher WebSockets don't get picked up as the firmware session
+		const sockets = this.ctx.getWebSockets("device");
 		if (sockets.length > 0) {
-			console.log("Restoring session from hibernation.");
 			this._session = { websocket: sockets[0] };
 			return this._session;
 		}
@@ -114,11 +113,40 @@ export class BaseDevice extends DurableObject<Env> {
 	async fetch(request: Request) {
 		const url = new URL(request.url);
 
+		if (url.pathname.endsWith("/watch-websocket")) {
+			return this.handleWatcherUpgrade(request);
+		}
 		if (url.pathname.endsWith("/websocket")) {
 			return this.handleWebSocketUpgrade(request);
 		}
 		// POST handler removed — commands use WebSocket RPC only
 		return new Response("Not found", { status: 404 });
+	}
+
+	/**
+	 * Handles a watcher WebSocket upgrade (e.g. dashboard, Home Assistant).
+	 * The accepted socket is tagged "watcher" so it hibernates like the
+	 * firmware connection and is never mistaken for the device session.
+	 */
+	async handleWatcherUpgrade(request: Request) {
+		const upgradeHeader = request.headers.get("Upgrade");
+		if (!upgradeHeader || upgradeHeader !== "websocket") {
+			return new Response("Expected Upgrade: websocket", { status: 426 });
+		}
+
+		const [client, server] = Object.values(new WebSocketPair());
+		this.ctx.acceptWebSocket(server, ["watcher"]);
+
+		// Send initial connection status so new watchers don't have to wait
+		// for the next connect/disconnect event to know the device state.
+		try {
+			const status = await this.getConnectionStatus();
+			server.send(JSON.stringify({ event: "status", data: status }));
+		} catch (error) {
+			console.error("Failed to send initial status to watcher:", error);
+		}
+
+		return new Response(null, { status: 101, webSocket: client });
 	}
 
 	/**
@@ -155,7 +183,7 @@ export class BaseDevice extends DurableObject<Env> {
 
 				// Accept WS briefly to send rate_limit message (firmware can't parse HTTP error bodies)
 				const [client, server] = Object.values(new WebSocketPair());
-				this.ctx.acceptWebSocket(server);
+				this.ctx.acceptWebSocket(server, ["device"]);
 
 				server.send(
 					JSON.stringify({
@@ -192,7 +220,7 @@ export class BaseDevice extends DurableObject<Env> {
 
 		const [client, server] = Object.values(new WebSocketPair());
 
-		this.ctx.acceptWebSocket(server);
+		this.ctx.acceptWebSocket(server, ["device"]);
 		this._session = { websocket: server };
 		this._connectedSince = Date.now();
 		this._messageLimitNotified = false;
@@ -422,6 +450,12 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	async webSocketMessage(_ws: WebSocket, data: ArrayBuffer | string) {
+		// Watcher sockets are read-only; ignore any inbound messages.
+		const tags = this.ctx.getTags(_ws);
+		if (!tags.includes("device")) {
+			return;
+		}
+
 		// Ensure _session is set from the current WebSocket
 		// This is needed because RPC calls from user workers may not have access to ctx.getWebSockets()
 		this._session = { websocket: _ws };
@@ -461,6 +495,11 @@ export class BaseDevice extends DurableObject<Env> {
 				}
 				return;
 			}
+
+			// Fan out structured state events to watchers for known hardware messages.
+			// Doing this alongside (not instead of) pending-command resolution and user
+			// worker dispatch so existing flows are unaffected.
+			this.broadcastStateFromMessage(message);
 
 			const pendingCommand = this.pendingCommands.get(message.id);
 
@@ -508,6 +547,13 @@ export class BaseDevice extends DurableObject<Env> {
 		reason: string,
 		_wasClean: boolean,
 	) {
+		// Watcher disconnects are handled entirely by the hibernation runtime;
+		// nothing to tear down on our side.
+		const tags = this.ctx.getTags(ws);
+		if (!tags.includes("device")) {
+			return;
+		}
+
 		console.log(`webSocketClose with code ${code}, ${reason}`);
 		await this.handleConnectionLost(
 			`WebSocket closed. Code: ${code}, Reason: ${reason}`,
@@ -516,6 +562,17 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	async webSocketError(ws: WebSocket, error: unknown) {
+		const tags = this.ctx.getTags(ws);
+		if (!tags.includes("device")) {
+			// Best-effort close of the errored watcher socket; no state to clean.
+			try {
+				ws.close(1011, "WebSocket error");
+			} catch {
+				/* already closed */
+			}
+			return;
+		}
+
 		console.log(`webSocketError: ${error}`);
 		await this.handleConnectionLost(`WebSocket error: ${error}`);
 		ws.close(1011, "WebSocket error");
@@ -908,7 +965,7 @@ export class BaseDevice extends DurableObject<Env> {
 			truncated,
 			now,
 		);
-		// Emit to SSE watchers
+		// Emit to legacy SSE watchers
 		if (this.logWatchers.size > 0) {
 			const event = `data: ${JSON.stringify({ id, level, message: truncated, created_at: now })}\n\n`;
 			for (const [watcherId, writer] of this.logWatchers) {
@@ -919,6 +976,13 @@ export class BaseDevice extends DurableObject<Env> {
 				}
 			}
 		}
+		// Emit to hibernating watcher WebSockets (dashboard, HA, etc).
+		this.broadcastToWatchers("log", {
+			id,
+			level,
+			message: truncated,
+			created_at: now,
+		});
 		this.logWriteCount++;
 		if (this.logWriteCount % LOG_CLEANUP_INTERVAL === 0) {
 			this.ctx.storage.sql.exec(
@@ -1009,7 +1073,7 @@ export class BaseDevice extends DurableObject<Env> {
 		connected: boolean;
 		connectedSince: number | null;
 	}> {
-		const sockets = this.ctx.getWebSockets();
+		const sockets = this.ctx.getWebSockets("device");
 		const connected = sockets.length > 0;
 		// _connectedSince is in-memory only — set on connect, cleared on disconnect.
 		// After hibernation it will be undefined even if a socket exists, which is acceptable
@@ -1022,15 +1086,99 @@ export class BaseDevice extends DurableObject<Env> {
 		connected: boolean;
 		connectedSince: number | null;
 	}) {
-		if (this.logWatchers.size === 0) return;
-		const event = `event: status\ndata: ${JSON.stringify(status)}\n\n`;
-		for (const [watcherId, writer] of this.logWatchers) {
-			try {
-				writer.write(event);
-			} catch {
-				this.logWatchers.delete(watcherId);
+		// Legacy SSE watchers (log stream). Remove once the dashboard is migrated.
+		if (this.logWatchers.size > 0) {
+			const event = `event: status\ndata: ${JSON.stringify(status)}\n\n`;
+			for (const [watcherId, writer] of this.logWatchers) {
+				try {
+					writer.write(event);
+				} catch {
+					this.logWatchers.delete(watcherId);
+				}
 			}
 		}
+		// Hibernating watcher WebSockets (dashboard, Home Assistant, etc).
+		this.broadcastToWatchers("status", status);
+	}
+
+	/**
+	 * Fans an event out to every hibernating "watcher"-tagged WebSocket.
+	 * Called from within `webSocketMessage` and other handlers that are
+	 * already in a woken-DO context — adding watchers costs no extra duration.
+	 */
+	private broadcastToWatchers(event: string, data: unknown) {
+		const sockets = this.ctx.getWebSockets("watcher");
+		if (sockets.length === 0) return;
+		const msg = JSON.stringify({ event, data });
+		for (const ws of sockets) {
+			try {
+				ws.send(msg);
+			} catch {
+				// client gone; hibernation runtime will clean up
+			}
+		}
+	}
+
+	/**
+	 * Emits a structured `state` event to watchers for well-known hardware
+	 * messages from the firmware. Unknown message types are ignored here and
+	 * still flow through the normal user worker `onMessage` path.
+	 */
+	private broadcastStateFromMessage(message: DeviceResponse) {
+		try {
+			switch (message.type) {
+				case "gpio_state_changed": {
+					const { pin, state } = message.payload as {
+						pin: number;
+						state: "high" | "low";
+					};
+					if (typeof pin !== "number" || pin < 0 || pin > 255) break;
+					this.broadcastToWatchers("state", {
+						entity_id: `gpio_pin_${pin}`,
+						value: state,
+						source: "gpio_state_changed",
+					});
+					break;
+				}
+				case "pin_state_update": {
+					const { pin, value } = message.payload as {
+						pin: number;
+						value: number | string;
+					};
+					if (typeof pin !== "number" || pin < 0 || pin > 255) break;
+					this.broadcastToWatchers("state", {
+						entity_id: `gpio_pin_${pin}_analog`,
+						value,
+						source: "pin_state_update",
+					});
+					break;
+				}
+				case "temperature_result": {
+					const { celsius } = message.payload as { celsius: number };
+					this.broadcastToWatchers("state", {
+						entity_id: "temperature",
+						value: celsius,
+						source: "temperature_result",
+					});
+					break;
+				}
+			}
+		} catch (error) {
+			console.error("Failed to broadcast state from message:", error);
+		}
+	}
+
+	/**
+	 * RPC entry point for user scripts calling `this.env.DEVICE.emitState(...)`.
+	 * The user worker invokes this via DeviceSender; it broadcasts a `state`
+	 * event with `source: "user"` to all watcher sockets.
+	 */
+	async emitState(entityId: string, value: unknown): Promise<void> {
+		this.broadcastToWatchers("state", {
+			entity_id: entityId,
+			value,
+			source: "user",
+		});
 	}
 
 	/**
@@ -1078,7 +1226,7 @@ export class BaseDevice extends DurableObject<Env> {
 	async handleCommand(
 		command: Omit<DeviceCommand, "id">,
 	): Promise<{ status: number; body: string }> {
-		const sockets = this.ctx.getWebSockets();
+		const sockets = this.ctx.getWebSockets("device");
 		if (sockets.length === 0) {
 			return { status: 503, body: "Device not connected" };
 		}

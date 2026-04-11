@@ -126,6 +126,15 @@ export type tableProjectEnvVars = {
 	updated_at: number;
 };
 
+export type tableDeviceEntityConfigs = {
+	id: string;
+	device_id: string;
+	entity_id: string;
+	config: string;
+	created_at: number;
+	updated_at: number;
+};
+
 export interface Variables {
 	user: tableUser;
 	qb: D1QB;

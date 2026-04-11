@@ -22,6 +22,8 @@ Complete command-line interface documentation:
 ## Guides
 
 - [**Inter-Device Communication**](/docs/guides/inter-device-communication/) - Call methods between devices with type-safe RPC
+- [**Home Assistant Integration**](/docs/guides/home-assistant/) - Expose devices as native Home Assistant entities
+- [**Real-Time Watch WebSocket**](/docs/guides/real-time-watch/) - Subscribe to status, logs, and structured state events
 
 ## Concepts
 
@@ -30,6 +32,7 @@ Understand how DeviceSDK works:
 - [**Platform Architecture**](/docs/concepts/architecture/) - End-to-end system overview
 - [**Device Entrypoints**](/docs/concepts/entrypoints/) - Lifecycle and message handling
 - [**Script Versioning**](/docs/concepts/versioning/) - Deployment and rollback
+- [**Emit State**](/docs/concepts/emit-state/) - Publish structured state from device scripts
 
 ## Resources
 

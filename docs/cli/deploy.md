@@ -34,6 +34,7 @@ When you deploy:
 2. **Upload** - Scripts are sent to the edge
 3. **Activate** - New version becomes active
 4. **Notify** - Connected devices receive update
+5. **Publish entity declarations** - If any device defines `ha.entities` in `devicesdk.ts`, those declarations are uploaded so the [Home Assistant integration](/docs/guides/home-assistant/) can discover them.
 
 ## Examples
 

@@ -34,15 +34,12 @@ describe.sequential("User endpoint", () => {
 
 	describe("PATCH /v1/user/me/onboarding", () => {
 		it("should mark onboarding as completed", async () => {
-			const resp = await SELF.fetch(
-				"http://localhost/v1/user/me/onboarding",
-				{
-					method: "PATCH",
-					headers: {
-						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
-					},
+			const resp = await SELF.fetch("http://localhost/v1/user/me/onboarding", {
+				method: "PATCH",
+				headers: {
+					Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
 				},
-			);
+			});
 
 			expect(resp.status).toBe(200);
 			const json = await resp.json();
@@ -66,10 +63,9 @@ describe.sequential("User endpoint", () => {
 		});
 
 		it("should return 401 without auth", async () => {
-			const resp = await SELF.fetch(
-				"http://localhost/v1/user/me/onboarding",
-				{ method: "PATCH" },
-			);
+			const resp = await SELF.fetch("http://localhost/v1/user/me/onboarding", {
+				method: "PATCH",
+			});
 
 			expect(resp.status).toBe(401);
 		});

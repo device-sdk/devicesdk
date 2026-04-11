@@ -1,5 +1,11 @@
 # @devicesdk/api
 
+## 0.2.1
+
+### Patch Changes
+
+- e2b18c1: Pre-launch quality fixes: onboarding_completed backend flag, ENV misconfiguration guard, Sentry user context and error capture, and onboarding wizard wired to backend state
+
 ## 0.2.0
 
 ### Minor Changes

@@ -3,12 +3,18 @@
 #include "multicore/response_queue.h"
 #include "multicore/shared_buffers.h"
 #include "multicore/core1_worker.h"
+#include "commands/i2c_batch_write.h"
+#include "commands/i2c_command_handler.h"
 #include "base64.h"
 #include "pico/stdlib.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <climits>
+
+// Forward declarations for callbacks used by i2c_command_handler
+static void send_response(const char* type, const picojson::value& data);
+static void send_error(const char* message);
 
 static send_response_fn g_send_response = nullptr;
 static std::string g_current_message_id;
@@ -18,6 +24,9 @@ void websocket_handler_init(send_response_fn send_fn, configure_gpio_input_fn gp
     g_send_response = send_fn;
     // gpio_fn no longer used - GPIO monitoring handled by Core 1
     (void)gpio_fn;
+    // Initialize i2c_command_handler with our response/error callbacks so that
+    // handle_i2c_batch_write can send responses via the WebSocket connection.
+    i2c_commands_init(send_response, send_error, &g_current_message_id);
 }
 
 const std::string& get_current_message_id() {
@@ -348,6 +357,12 @@ void handle_websocket_message(const picojson::value& v) {
         } else {
             send_error("Missing bus, address, or length parameter");
         }
+    }
+    // === I2C BATCH WRITE ===
+    // Handled directly (not via multicore queue) since the writes array is
+    // variable-length and doesn't fit the fixed-size command_queue payload.
+    else if (type == "i2c_batch_write") {
+        handle_i2c_batch_write(payload);
     }
     // === GET TEMPERATURE ===
     else if (type == "get_temperature") {

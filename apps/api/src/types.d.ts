@@ -57,6 +57,7 @@ export type tableUser = {
 	plan: "free" | "paid";
 	suspended_at?: number;
 	deletion_requested_at?: number;
+	onboarding_completed: number;
 	created_at: number;
 };
 export type tableUserSessions = {

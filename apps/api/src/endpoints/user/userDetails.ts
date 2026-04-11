@@ -22,6 +22,7 @@ export class UserDetails extends BaseRoute {
 							email: z.string(),
 							verified_email: z.number().int(),
 							created_at: z.number().int(),
+							onboarding_completed: z.number().int(),
 							plan: z.enum(["free", "paid"]),
 							limits: z.object({
 								max_projects: z.number().int(),
@@ -69,6 +70,7 @@ export class UserDetails extends BaseRoute {
 				email: user.email,
 				verified_email: user.verified_email,
 				created_at: user.created_at,
+				onboarding_completed: user.onboarding_completed ?? 0,
 				plan,
 				limits: {
 					max_projects: limits.maxProjects,

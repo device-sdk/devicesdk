@@ -81,6 +81,8 @@ app.onError((err, c) => {
 		err: JSON.stringify(err),
 	}); // Log the error if it's not known
 
+	Sentry.captureException(err);
+
 	// For other errors, return a generic 500 response
 	const isDev = c.env.ENV === "local";
 	return c.json(
@@ -110,6 +112,26 @@ app.use(
 );
 app.use(async (c, next) => {
 	c.set("qb", new D1QB(c.env.DB));
+	await next();
+});
+
+// Guard: reject requests if ENV is misconfigured — prevents local-mode bypasses from
+// reaching production (e.g. rate limiting disabled, insecure cookies).
+app.use("*", async (c, next) => {
+	const env = c.env.ENV;
+	if (!env || !["local", "production"].includes(env)) {
+		return c.json(
+			{ success: false, error: "Server misconfiguration: invalid ENV" },
+			500,
+		);
+	}
+	const host = c.req.header("host") ?? "";
+	if (env === "local" && host.includes("devicesdk.com")) {
+		return c.json(
+			{ success: false, error: "Server misconfiguration: ENV mismatch" },
+			500,
+		);
+	}
 	await next();
 });
 
@@ -150,6 +172,16 @@ app.post("/cli/auth", cliAuthUser, handleApproval);
 
 // 2. Authentication middleware
 app.use("*", authenticateUser);
+
+// Set Sentry user context for all authenticated requests
+app.use("*", async (c, next) => {
+	const user = c.get("user");
+	if (user) {
+		Sentry.setUser({ id: user.id, email: user.email });
+		Sentry.setTag("plan", user.plan ?? "free");
+	}
+	await next();
+});
 
 // 3. Per-user rate limiting (plan-aware)
 app.use("*", userRateLimitMiddleware());

@@ -191,33 +191,32 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { projectService, type Project } from '@/services/api.service';
+import { projectService, userService, type Project } from '@/services/api.service';
+import { useAuth } from '@/composables/useAuth';
 import CreateProjectDialog from '@/components/CreateProjectDialog.vue';
 import OnboardingWizard from '@/components/OnboardingWizard.vue';
 
-const ONBOARDING_STORAGE_KEY = 'devicesdk-onboarding-completed';
-
 const router = useRouter();
 const $q = useQuasar();
+const auth = useAuth();
 const projects = ref<Project[]>([]);
 const loading = ref(false);
 const showCreateDialog = ref(false);
 const searchQuery = ref('');
-const onboardingCompleted = ref(localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true');
 
 const showOnboarding = computed(() => {
-  return !loading.value && projects.value.length === 0 && !onboardingCompleted.value;
+  return !loading.value && projects.value.length === 0 && auth.user?.onboarding_completed === 0;
 });
 
-const completeOnboarding = () => {
-  onboardingCompleted.value = true;
-  localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+const completeOnboarding = async () => {
+  await userService.completeOnboarding();
+  await auth.fetchUser();
   void fetchProjects();
 };
 
-const onOnboardingProjectCreated = () => {
-  onboardingCompleted.value = true;
-  localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+const onOnboardingProjectCreated = async () => {
+  await userService.completeOnboarding();
+  await auth.fetchUser();
   void fetchProjects();
 };
 

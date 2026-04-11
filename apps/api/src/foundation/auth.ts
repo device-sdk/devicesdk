@@ -104,7 +104,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		const tokenHash = await hashToken(token);
 
 		const cliToken = await c.env.DB.prepare(
-			`SELECT ct.*, u.id as user_id, u.name, u.email, u.picture, u.verified_email, u.plan, u.suspended_at, u.deletion_requested_at, u.created_at as user_created_at
+			`SELECT ct.*, u.id as user_id, u.name, u.email, u.picture, u.verified_email, u.plan, u.suspended_at, u.deletion_requested_at, u.onboarding_completed, u.created_at as user_created_at
 			 FROM cli_tokens ct
 			 JOIN user u ON ct.user_id = u.id
 			 WHERE ct.access_token_hash = ? AND ct.expires_at > ?`,
@@ -120,6 +120,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 				plan: "free" | "paid";
 				suspended_at?: number;
 				deletion_requested_at?: number;
+				onboarding_completed: number;
 				user_created_at: number;
 			}>();
 
@@ -155,6 +156,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 			picture: cliToken.picture,
 			verified_email: cliToken.verified_email,
 			plan: cliToken.plan,
+			onboarding_completed: cliToken.onboarding_completed ?? 1,
 			created_at: cliToken.user_created_at,
 		});
 		await next();

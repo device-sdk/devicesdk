@@ -1,0 +1,1 @@
+ALTER TABLE user ADD COLUMN onboarding_completed INTEGER NOT NULL DEFAULT 0;

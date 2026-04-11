@@ -7,7 +7,7 @@ social_image: /og-images/docs/resources/changelog.png
 ## April 11, 2026
 
 - **Home Assistant integration** — expose DeviceSDK devices as native Home Assistant entities (sensors, switches, lights). Declare entities in `devicesdk.ts` under `ha.entities`; run `devicesdk deploy` to publish them. See the [Home Assistant guide](/docs/guides/home-assistant/).
-- **Generic watch WebSocket** — new `GET /v1/projects/:projectId/devices/:deviceId/watch` endpoint delivers real-time status, log, and structured state events over a single hibernation-friendly WebSocket. The dashboard now uses this endpoint in place of the legacy SSE log stream. See the [Real-Time Watch guide](/docs/guides/real-time-watch/).
+- **Generic watch WebSocket** — new `GET /v1/projects/:projectId/devices/:deviceId/watch` endpoint delivers real-time status, log, and structured state events over a persistent WebSocket connection. The dashboard now uses this endpoint in place of the legacy SSE log stream. See the [Real-Time Watch guide](/docs/guides/real-time-watch/).
 - **`emitState` SDK method** — publish structured state values from device scripts with `this.env.DEVICE.emitState(entity_id, value)`. Feeds custom telemetry into Home Assistant entities. See the [Emit State concept](/docs/concepts/emit-state/).
 - SSE log stream endpoint (`GET /logs/stream`) is deprecated in favor of the watch WebSocket.
 

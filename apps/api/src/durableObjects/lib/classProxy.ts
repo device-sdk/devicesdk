@@ -46,7 +46,7 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
         'getTemperature', 'watchdogConfigure', 'watchdogFeed',
         'spiConfigure', 'spiTransfer', 'spiWrite', 'spiRead',
         'uartConfigure', 'uartWrite', 'uartRead',
-        'pioWs2812Configure', 'pioWs2812Update', 'persistLog',
+        'pioWs2812Configure', 'pioWs2812Update', 'persistLog', 'emitState',
         'kvGet', 'kvPut', 'kvDelete', 'kvList'
     ]);
     const safeDevice = new Proxy(publicEnv.DEVICE, {

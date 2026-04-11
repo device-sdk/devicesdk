@@ -8,6 +8,39 @@ const deviceTypeSchema: z.ZodType<DeviceType> = z.enum([
 	"esp32c61",
 ]);
 
+const HaEntityDeclarationSchema = z.object({
+	entity_id: z
+		.string()
+		.min(1)
+		.max(64)
+		.regex(
+			/^[a-z][a-z0-9_]*$/,
+			"entity_id must be lowercase letters, digits, and underscores, starting with a letter",
+		),
+	type: z.enum(["binary_sensor", "sensor", "switch", "light", "number"]),
+	name: z.string().min(1).max(128),
+	device_class: z.string().max(64).optional(),
+	unit: z.string().max(32).optional(),
+	source: z.enum([
+		"gpio_state_changed",
+		"pin_state_update",
+		"temperature_result",
+		"user",
+	]),
+	pin: z.number().int().min(0).max(255).optional(),
+	state_map: z
+		.object({
+			high: z.string().max(32),
+			low: z.string().max(32),
+		})
+		.optional(),
+	light_type: z.enum(["pwm", "ws2812"]).optional(),
+	pwm_frequency: z.number().int().positive().optional(),
+	num_leds: z.number().int().positive().max(1024).optional(),
+});
+
+export type HaEntityDeclaration = z.infer<typeof HaEntityDeclarationSchema>;
+
 export const DeviceConfigSchema = z
 	.object({
 		entrypoint: z
@@ -25,6 +58,11 @@ export const DeviceConfigSchema = z
 			ssid: z.string().min(1, "wifi.ssid is required"),
 			password: z.string().min(1, "wifi.password is required"),
 		}),
+		ha: z
+			.object({
+				entities: z.array(HaEntityDeclarationSchema),
+			})
+			.optional(),
 	})
 	.transform((data) => {
 		// Ensure main is always populated for downstream consumers
@@ -38,6 +76,7 @@ export const DeviceConfigSchema = z
 			name?: string;
 			description?: string;
 			wifi: { ssid: string; password: string };
+			ha?: { entities: HaEntityDeclaration[] };
 		};
 	});
 

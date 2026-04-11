@@ -191,8 +191,11 @@ pnpm --filter @devicesdk/example-basic flash-local
 | Inter-device RPC types | `packages/core/src/index.ts` (`RemoteDevice`, `GetEnv`) |
 | DevicesBridge (inter-device RPC) | `apps/api/src/durableObjects/lib/devicesBridge.ts` |
 | CLI type generation | `packages/cli/src/commands/build.ts` (`generateDeviceTypes`) |
-| Real-time log streaming (SSE) | `apps/api/src/endpoints/logs/streamLogs.ts`, `apps/api/src/durableObjects/lib/device.ts` (`streamLogs`, `logWatchers`) |
-| Dashboard SSE composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
+| Real-time watch WebSocket (canonical) | `apps/api/src/endpoints/devices/watchDevice.ts`, `apps/api/src/durableObjects/lib/device.ts` (`handleWatcherUpgrade`, `broadcastToWatchers`, `broadcastStateFromMessage`) |
+| Real-time log streaming (SSE, deprecated) | `apps/api/src/endpoints/logs/streamLogs.ts`, `apps/api/src/durableObjects/lib/device.ts` (`streamLogs`, `logWatchers`) |
+| Dashboard watch WebSocket composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
+| HA entity declaration types | `packages/core/src/index.ts` (`HaEntityDeclaration`, `HaEntityType`, `HaEntitySource`) |
+| HA entity persistence | `apps/api/src/endpoints/devices/getDeviceEntities.ts`, `apps/api/src/endpoints/devices/upsertDeviceEntities.ts`, `device_entity_configs` table |
 | License | `LICENSE` (proprietary, all rights reserved) |
 
 ## Multi-Agent Safety

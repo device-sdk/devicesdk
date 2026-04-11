@@ -251,4 +251,8 @@ export class DeviceSender extends WorkerEntrypoint<
 	async persistLog(level: string, message: string): Promise<void> {
 		await this.getDoStub().persistLog(level, message);
 	}
+
+	async emitState(entityId: string, value: unknown): Promise<void> {
+		await this.getDoStub().emitState(entityId, value);
+	}
 }

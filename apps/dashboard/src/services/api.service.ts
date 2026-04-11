@@ -420,6 +420,17 @@ export const logService = {
     const base = import.meta.env.PROD ? 'https://api.devicesdk.com' : 'http://localhost:8787';
     return `${base}/v1/projects/${projectId}/devices/${deviceId}/logs/stream`;
   },
+
+  /**
+   * Returns the WebSocket URL for the generic watch endpoint. Receives JSON
+   * frames of the form `{ event: "status" | "log" | "state", data: ... }`.
+   * The browser sends the session cookie automatically on the upgrade.
+   */
+  getWatchUrl(projectId: string, deviceId: string): string {
+    const httpBase = import.meta.env.PROD ? 'https://api.devicesdk.com' : 'http://localhost:8787';
+    const wsBase = httpBase.replace(/^http/, 'ws');
+    return `${wsBase}/v1/projects/${projectId}/devices/${deviceId}/watch`;
+  },
 };
 
 // ============================================================================

@@ -6,6 +6,7 @@ import {
 	getProject,
 	uploadScript,
 	uploadScriptsBatch,
+	upsertDeviceEntities,
 } from "../api.js";
 import { requireAuth } from "../credentials.js";
 import { getConfigDir, loadConfig } from "../utils.js";
@@ -91,6 +92,7 @@ export default async function deploy(
 			script: string;
 			size: number;
 			entrypointName?: string;
+			haEntities?: unknown[];
 		}> = [];
 
 		for (const [deviceId, device] of devicesToDeploy) {
@@ -117,6 +119,7 @@ export default async function deploy(
 					script,
 					size,
 					entrypointName: device.entrypoint,
+					haEntities: device.ha?.entities,
 				});
 				console.log(`✓ Built ${deviceId} (${formatSize(size)})`);
 			} catch (error) {
@@ -207,6 +210,36 @@ export default async function deploy(
 					throw error;
 				}
 				process.exit(6);
+			}
+		}
+
+		// Upload Home Assistant entity declarations for any devices that declared them.
+		// Done after script deploy so a failed entity upload doesn't block the script.
+		const devicesWithEntities = builtDevices.filter(
+			(d) => d.haEntities && d.haEntities.length > 0,
+		);
+		if (devicesWithEntities.length > 0) {
+			console.log("\n⬆ Uploading Home Assistant entity declarations...");
+			for (const { deviceId, haEntities } of devicesWithEntities) {
+				try {
+					const result = await upsertDeviceEntities(
+						token,
+						config.projectId,
+						deviceId,
+						haEntities!,
+					);
+					console.log(
+						`✓ ${deviceId}: ${result.count} entit${result.count === 1 ? "y" : "ies"}`,
+					);
+				} catch (error) {
+					const msg =
+						error instanceof DeviceSDKApiError
+							? error.message
+							: error instanceof Error
+								? error.message
+								: "Unknown error";
+					console.error(`⚠ ${deviceId}: failed to upload entities — ${msg}`);
+				}
 			}
 		}
 	} catch (error) {

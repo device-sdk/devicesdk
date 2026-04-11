@@ -115,20 +115,15 @@ app.use(async (c, next) => {
 	await next();
 });
 
-// Guard: reject requests if ENV is misconfigured — prevents local-mode bypasses from
-// reaching production (e.g. rate limiting disabled, insecure cookies).
+// Guard: reject requests if ENV is misconfigured — prevents deploys with an
+// invalid ENV value from serving traffic (e.g. rate limiting disabled by
+// mistake). We can't cross-check env vs. host here because wrangler dev
+// simulates the production custom domain in local mode.
 app.use("*", async (c, next) => {
 	const env = c.env.ENV;
 	if (!env || !["local", "production"].includes(env)) {
 		return c.json(
 			{ success: false, error: "Server misconfiguration: invalid ENV" },
-			500,
-		);
-	}
-	const host = c.req.header("host") ?? "";
-	if (env === "local" && host.includes("devicesdk.com")) {
-		return c.json(
-			{ success: false, error: "Server misconfiguration: ENV mismatch" },
 			500,
 		);
 	}

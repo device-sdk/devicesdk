@@ -1,5 +1,27 @@
 # @devicesdk/example-temperature
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [0006ef0]
+- Updated dependencies [5012c53]
+- Updated dependencies [c9a38e3]
+- Updated dependencies [5d8f9da]
+- Updated dependencies [77935f2]
+- Updated dependencies [8c397df]
+- Updated dependencies [3998ff1]
+- Updated dependencies [14d569d]
+- Updated dependencies [9ab6698]
+- Updated dependencies [00991a8]
+- Updated dependencies [06fb0a4]
+- Updated dependencies [59cb75a]
+- Updated dependencies [0380536]
+- Updated dependencies [1c28cba]
+- Updated dependencies [efcf060]
+- Updated dependencies [d13518c]
+  - @devicesdk/cli@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes

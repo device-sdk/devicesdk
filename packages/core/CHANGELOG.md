@@ -1,5 +1,41 @@
 # @devicesdk/core
 
+## 1.1.0
+
+### Minor Changes
+
+- c9a38e3: Add cron-style scheduling for device scripts via `crons` property and `onCron()` lifecycle method.
+
+  Device scripts can now declare named cron schedules using standard 5-field cron expressions. The runtime automatically manages DO alarms to fire `onCron(name)` at the scheduled times.
+
+  ```typescript
+  class MyDevice extends DeviceEntrypoint {
+    crons = {
+      heartbeat: "*/5 * * * *", // every 5 minutes
+      dailyReport: "0 8 * * *", // every day at 08:00 UTC
+    };
+
+    async onCron(name: string) {
+      if (name === "heartbeat") {
+        const reading = await this.env.DEVICE.i2cRead(0, "0x76", 6);
+        console.info("Sensor:", reading);
+      }
+    }
+  }
+  ```
+
+- 9ab6698: Add hardware peripheral support: SPI, UART, watchdog timer, on-die temperature sensor, I2C batch write (ESP32), and PIO WS2812 addressable LEDs (Pico). Includes full-stack implementation across firmware, core types, device sender, API, CLI inspect REPL, and simulator.
+- 00991a8: Add Home Assistant integration support across the stack:
+  - **Generic watch WebSocket** (`GET /v1/projects/:projectId/devices/:deviceId/watch`) delivers real-time `status`, `log`, and structured `state` events over a single hibernation-friendly connection. Replaces the legacy SSE log stream as the canonical real-time primitive. The dashboard now uses this endpoint.
+  - **`emitState(entityId, value)` SDK method** on `DeviceSenderInterface` lets device scripts publish structured telemetry to watchers (custom sensors, I2C readings, derived values).
+  - **Auto-emitted state events** for built-in hardware messages: `gpio_state_changed`, `pin_state_update`, and `temperature_result` are broadcast as structured `state` events without requiring `emitState` calls.
+  - **`HaEntityDeclaration` types** in `@devicesdk/core` for declaring Home Assistant entities.
+  - **`ha.entities` config key** in `devicesdk.ts` — the CLI's `deploy` command uploads these declarations to the new `GET/PUT /entities` endpoints after a successful script push.
+
+- 1c28cba: Add project-scoped environment variables for device scripts.
+
+  Device scripts can now access secrets via `this.env.VARS.get("KEY")` without hardcoding them in source code. Variables are managed per-project with CLI commands (`devicesdk env set KEY=VALUE`, `env list`, `env unset KEY`) and stored securely outside of device scripts.
+
 ## 1.0.0
 
 ### Major Changes

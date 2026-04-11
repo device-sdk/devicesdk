@@ -1,5 +1,15 @@
 # @devicesdk/example-basic
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [c9a38e3]
+- Updated dependencies [9ab6698]
+- Updated dependencies [00991a8]
+- Updated dependencies [1c28cba]
+  - @devicesdk/core@1.1.0
+
 ## 0.1.1
 
 ### Patch Changes

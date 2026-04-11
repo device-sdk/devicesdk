@@ -13,7 +13,7 @@ const PID_FILE = path.resolve(__dirname, ".pids.json");
 
 async function waitForServer(
   url: string,
-  timeoutMs: number = 60000,
+  timeoutMs: number = 120000,
 ): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -59,13 +59,13 @@ export default async function globalSetup() {
   const apiProcess = spawn(
     "npx",
     ["wrangler", "dev", "--port", String(API_PORT)],
-    { cwd: API_DIR, stdio: "pipe", detached: true },
+    { cwd: API_DIR, stdio: "ignore", detached: true },
   );
 
   // 3. Start dashboard dev server
   const dashProcess = spawn("npx", ["quasar", "dev"], {
     cwd: DASHBOARD_DIR,
-    stdio: "pipe",
+    stdio: "ignore",
     env: { ...process.env, BROWSER: "none" },
     detached: true,
   });

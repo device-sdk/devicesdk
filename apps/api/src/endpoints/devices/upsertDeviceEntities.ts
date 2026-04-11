@@ -5,7 +5,8 @@ import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 // Validation schema mirrors `HaEntityDeclaration` from @devicesdk/core.
 // Kept in this file to avoid importing runtime code from a pure-type package.
-const HaEntityDeclarationSchema = z.object({
+// Exported so getDeviceEntities.ts can re-validate stored JSON on read.
+export const HaEntityDeclarationSchema = z.object({
 	entity_id: z
 		.string()
 		.min(1)

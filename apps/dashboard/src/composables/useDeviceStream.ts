@@ -40,10 +40,27 @@ export function useDeviceStream(projectId: string, deviceId: string) {
       try {
         const frame = JSON.parse(event.data as string) as { event: string; data: unknown };
         if (frame.event === 'log') {
-          const log = frame.data as DeviceLog;
-          streamedLogs.value = [log, ...streamedLogs.value.slice(0, 499)];
+          const d = frame.data;
+          if (
+            d !== null &&
+            typeof d === 'object' &&
+            'id' in d && typeof (d as Record<string, unknown>).id === 'string' &&
+            'level' in d && typeof (d as Record<string, unknown>).level === 'string' &&
+            'message' in d && typeof (d as Record<string, unknown>).message === 'string' &&
+            'created_at' in d && typeof (d as Record<string, unknown>).created_at === 'number'
+          ) {
+            const log = d as DeviceLog;
+            streamedLogs.value = [log, ...streamedLogs.value.slice(0, 499)];
+          }
         } else if (frame.event === 'status') {
-          deviceStatus.value = frame.data as DeviceStatus;
+          const d = frame.data;
+          if (
+            d !== null &&
+            typeof d === 'object' &&
+            'connected' in d && typeof (d as Record<string, unknown>).connected === 'boolean'
+          ) {
+            deviceStatus.value = d as DeviceStatus;
+          }
         }
         // event === 'state' is reserved for future UI features
       } catch {

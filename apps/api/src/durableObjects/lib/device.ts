@@ -1132,6 +1132,7 @@ export class BaseDevice extends DurableObject<Env> {
 						pin: number;
 						state: "high" | "low";
 					};
+					if (typeof pin !== "number" || pin < 0 || pin > 255) break;
 					this.broadcastToWatchers("state", {
 						entity_id: `gpio_pin_${pin}`,
 						value: state,
@@ -1144,6 +1145,7 @@ export class BaseDevice extends DurableObject<Env> {
 						pin: number;
 						value: number | string;
 					};
+					if (typeof pin !== "number" || pin < 0 || pin > 255) break;
 					this.broadcastToWatchers("state", {
 						entity_id: `gpio_pin_${pin}_analog`,
 						value,

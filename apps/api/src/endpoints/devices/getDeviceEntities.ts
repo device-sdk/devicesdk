@@ -7,6 +7,7 @@ import type {
 	tableDevices,
 	tableProjects,
 } from "../../types";
+import { HaEntityDeclarationSchema } from "./upsertDeviceEntities";
 
 /**
  * GET /v1/projects/:projectId/devices/:deviceId/entities
@@ -90,12 +91,18 @@ export class GetDeviceEntities extends BaseRoute {
 			})
 			.execute();
 
-		const entities = (rows ?? []).map((row: tableDeviceEntityConfigs) => {
+		const entities = (rows ?? []).flatMap((row: tableDeviceEntityConfigs) => {
+			let parsed: unknown;
 			try {
-				return JSON.parse(row.config) as Record<string, unknown>;
+				parsed = JSON.parse(row.config);
 			} catch {
-				return { entity_id: row.entity_id };
+				return [];
 			}
+			const result = HaEntityDeclarationSchema.safeParse(parsed);
+			if (!result.success) {
+				return [];
+			}
+			return [result.data];
 		});
 
 		return c.json({

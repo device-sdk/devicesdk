@@ -1,5 +1,11 @@
 # @devicesdk/dashboard
 
+## 0.1.1
+
+### Patch Changes
+
+- fe1bad8: Replace stub script templates in the dashboard with working examples covering blink, temperature monitoring, I2C sensor reading, PWM motor control, button LED toggle, and GPIO input monitoring.
+
 ## 0.1.0
 
 ### Minor Changes

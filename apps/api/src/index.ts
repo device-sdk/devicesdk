@@ -173,11 +173,13 @@ app.post("/cli/auth", cliAuthUser, handleApproval);
 // 2. Authentication middleware
 app.use("*", authenticateUser);
 
-// Set Sentry user context for all authenticated requests
+// Set Sentry user context for all authenticated requests.
+// sendDefaultPii is false, so we only attach the opaque user ID (not email)
+// to keep PII out of Sentry while still being able to correlate errors to accounts.
 app.use("*", async (c, next) => {
 	const user = c.get("user");
 	if (user) {
-		Sentry.setUser({ id: user.id, email: user.email });
+		Sentry.setUser({ id: user.id });
 		Sentry.setTag("plan", user.plan ?? "free");
 	}
 	await next();

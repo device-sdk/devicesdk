@@ -156,6 +156,8 @@ export async function authenticateUser(c: AppContext, next: Next) {
 			picture: cliToken.picture,
 			verified_email: cliToken.verified_email,
 			plan: cliToken.plan,
+			// CLI tokens are issued to users who have already onboarded; default to 1
+			// so the wizard never appears in CLI-authenticated contexts.
 			onboarding_completed: cliToken.onboarding_completed ?? 1,
 			created_at: cliToken.user_created_at,
 		});

@@ -21,11 +21,8 @@ test("smoke: full user flow (create project → device → token → delete)", a
 
   // ── Step 2: create a new project ─────────────────────────────────────────
   await page.getByRole("button", { name: "Create Project" }).first().click();
-
-  const manualBtn = page.getByRole("button", { name: /manually/i });
-  if (await manualBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await manualBtn.click();
-  }
+  await expect(page.getByText("Create New Project")).toBeVisible();
+  await page.getByRole("button", { name: /manually/i }).click();
 
   await page.getByPlaceholder("e.g., smart-home-hub").fill(SMOKE_PROJECT);
   await page
@@ -82,13 +79,16 @@ test("smoke: full user flow (create project → device → token → delete)", a
   ).toBeVisible({ timeout: 10000 });
 
   // ── Step 5: device details show offline status ────────────────────────────
-  await page.getByText("smoke-device").first().click();
+  await page.getByRole("tab", { name: /devices/i }).click();
+  await page.locator(".q-table").getByText("smoke-device").first().click();
 
   await expect(page).toHaveURL(
     new RegExp(`/projects/${SMOKE_PROJECT}/devices/smoke-device`),
     { timeout: 10000 },
   );
-  await expect(page.getByText("Smoke Device")).toBeVisible({ timeout: 10000 });
+  await expect(
+    page.getByRole("heading", { name: "Smoke Device" }),
+  ).toBeVisible({ timeout: 10000 });
   await expect(page.getByText("Offline").first()).toBeVisible({
     timeout: 5000,
   });

@@ -1,6 +1,8 @@
+import * as Sentry from "@sentry/cloudflare";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
+import { getDeviceStub } from "../../foundation/durableObjectStub";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 const VALID_COMMAND_TYPES = [
@@ -129,16 +131,18 @@ export class SendDeviceCommand extends BaseRoute {
 		}
 
 		// Dispatch the command to the Durable Object via RPC
-		const doName = `${project.id}:${device.id}`;
-		const durableObjectId = c.env.DEVICE.idFromName(doName);
-		const stub = c.env.DEVICE.get(durableObjectId) as unknown as {
-			handleCommand(command: {
-				type: string;
-				payload: Record<string, unknown>;
-			}): Promise<{ status: number; body: string }>;
-		};
+		const stub = getDeviceStub(c.env, project.id, device.id);
 
-		const doResult = await stub.handleCommand({ type, payload });
+		let doResult: { status: number; body: string };
+		try {
+			doResult = await stub.handleCommand({ type, payload });
+		} catch (err) {
+			Sentry.captureException(err);
+			return c.json(
+				{ success: false, error: "Device service temporarily unavailable" },
+				503,
+			);
+		}
 
 		if (doResult.status === 503) {
 			return c.json({ success: false, error: "Device is not connected" }, 503);

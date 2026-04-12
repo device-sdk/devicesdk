@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/cloudflare";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
@@ -90,6 +91,14 @@ export class WatchDevice extends BaseRoute {
 			headers: c.req.raw.headers,
 		});
 
-		return durableObjectStub.fetch(doRequest);
+		try {
+			return await durableObjectStub.fetch(doRequest);
+		} catch (err) {
+			Sentry.captureException(err);
+			return c.json(
+				{ success: false, error: "Device service temporarily unavailable" },
+				503,
+			);
+		}
 	}
 }

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/cloudflare";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
@@ -104,11 +105,23 @@ export class BatchUploadScripts extends BaseRoute {
 			warnings: string[];
 		}[] = [];
 		for (const [deviceId, data] of Object.entries(devicesData)) {
-			const validation = await validateUserScript(
-				c.env,
-				data.script,
-				data.entrypoint,
-			);
+			let validation: Awaited<ReturnType<typeof validateUserScript>>;
+			try {
+				validation = await validateUserScript(
+					c.env,
+					data.script,
+					data.entrypoint,
+				);
+			} catch (err) {
+				Sentry.captureException(err);
+				return c.json(
+					{
+						success: false,
+						error: "Script validation service unavailable",
+					},
+					503,
+				);
+			}
 			if (!validation.valid) {
 				validationResults.push({
 					deviceId,
@@ -232,15 +245,26 @@ export class BatchUploadScripts extends BaseRoute {
 			// Store the script in R2 using slug-based paths to match the reading
 			// endpoints (getScript, getVersion, deployVersion) which use URL slugs.
 			// /{userId}/{projectSlug}/{deviceSlug}/{versionId}.js
-			await r2.put(
-				`${user.id}/${projectId}/${deviceSlug}/${versionId}.js`,
-				data.script,
-			);
-			// Write latest.js so getScript can return the currently deployed script.
-			await r2.put(
-				`${user.id}/${projectId}/${deviceSlug}/latest.js`,
-				data.script,
-			);
+			try {
+				await r2.put(
+					`${user.id}/${projectId}/${deviceSlug}/${versionId}.js`,
+					data.script,
+				);
+				// Write latest.js so getScript can return the currently deployed script.
+				await r2.put(
+					`${user.id}/${projectId}/${deviceSlug}/latest.js`,
+					data.script,
+				);
+			} catch (err) {
+				Sentry.captureException(err);
+				return c.json(
+					{
+						success: false,
+						error: `Failed to store script for device ${deviceSlug}`,
+					},
+					500,
+				);
+			}
 
 			// Create the script version record
 			await qb

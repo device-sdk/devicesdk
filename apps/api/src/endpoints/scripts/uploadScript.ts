@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/cloudflare";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
@@ -76,7 +77,16 @@ export class UploadScript extends BaseRoute {
 		const message = data.body.message || null;
 
 		// Validate the user script before saving
-		const validation = await validateUserScript(c.env, script, entrypoint);
+		let validation: Awaited<ReturnType<typeof validateUserScript>>;
+		try {
+			validation = await validateUserScript(c.env, script, entrypoint);
+		} catch (err) {
+			Sentry.captureException(err);
+			return c.json(
+				{ success: false, error: "Script validation service unavailable" },
+				503,
+			);
+		}
 		if (!validation.valid) {
 			return c.json(
 				{
@@ -140,9 +150,17 @@ export class UploadScript extends BaseRoute {
 		// Store the script in R2 using slug-based paths to match the reading
 		// endpoints (getScript, getVersion, deployVersion) which use URL slugs.
 		// /{userId}/{projectSlug}/{deviceSlug}/{versionId}.js
-		await r2.put(`${user.id}/${projectId}/${deviceId}/${versionId}.js`, script);
-		// Write latest.js so getScript can return the currently deployed script.
-		await r2.put(`${user.id}/${projectId}/${deviceId}/latest.js`, script);
+		try {
+			await r2.put(
+				`${user.id}/${projectId}/${deviceId}/${versionId}.js`,
+				script,
+			);
+			// Write latest.js so getScript can return the currently deployed script.
+			await r2.put(`${user.id}/${projectId}/${deviceId}/latest.js`, script);
+		} catch (err) {
+			Sentry.captureException(err);
+			return c.json({ success: false, error: "Failed to store script" }, 500);
+		}
 
 		const now = Date.now();
 

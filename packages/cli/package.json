@@ -1,8 +1,22 @@
 {
 	"name": "@devicesdk/cli",
 	"version": "0.2.0",
-	"description": "CLI tool for developing and deploying DeviceSDK IoT applications.",
-	"author": "",
+	"description": "CLI for building, deploying, and flashing DeviceSDK IoT projects.",
+	"author": "DeviceSDK <hello@devicesdk.com>",
+	"license": "SEE LICENSE IN LICENSE",
+	"homepage": "https://devicesdk.com",
+	"bugs": {
+		"url": "https://github.com/device-sdk/devicesdk-monorepo/issues"
+	},
+	"keywords": [
+		"cli",
+		"iot",
+		"typescript",
+		"devicesdk",
+		"deploy",
+		"flash",
+		"firmware"
+	],
 	"main": "dist/index.js",
 	"bin": {
 		"devicesdk": "dist/index.js"

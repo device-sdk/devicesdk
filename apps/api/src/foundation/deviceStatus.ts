@@ -1,4 +1,5 @@
 import type { Env } from "../types";
+import { getDeviceStub } from "./durableObjectStub";
 
 export interface DeviceStatusResult {
 	connected: boolean;
@@ -14,11 +15,7 @@ export async function getDeviceConnectionStatus(
 	projectId: string,
 	deviceId: string,
 ): Promise<DeviceStatusResult> {
-	const doName = `${projectId}:${deviceId}`;
-	const durableObjectId = env.DEVICE.idFromName(doName);
-	const stub = env.DEVICE.get(durableObjectId) as unknown as {
-		getConnectionStatus(): Promise<DeviceStatusResult>;
-	};
+	const stub = getDeviceStub(env, projectId, deviceId);
 
 	try {
 		return await stub.getConnectionStatus();

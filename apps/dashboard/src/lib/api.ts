@@ -24,13 +24,22 @@ async function call<T>(path: string, options?: ApiCallOptions): Promise<T> {
     const response = await fetch(url, finalOptions);
 
     if (!response.ok) {
+      // Session expired — redirect to login instead of showing a generic error.
+      // Skip the redirect for /v1/users/me (the initial auth check on page load)
+      // since that 401 is expected when the user is not logged in.
+      if (response.status === 401 && !path.endsWith('/user/me')) {
+        window.location.href = '/login?expired=true';
+        // Return a never-resolving promise so callers don't continue
+        return new Promise<never>(() => {});
+      }
+
       let errorData;
       try {
         errorData = await response.json();
       } catch {
         // Not a JSON response
       }
-      
+
       // Extract error message from API response
       let errorMessage = response.statusText || 'API request failed';
       if (errorData?.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
@@ -41,7 +50,7 @@ async function call<T>(path: string, options?: ApiCallOptions): Promise<T> {
       } else if (errorData?.message) {
         errorMessage = errorData.message;
       }
-      
+
       const error = new Error(errorMessage) as Error & { errorData?: unknown };
       error.errorData = errorData;
       throw error;

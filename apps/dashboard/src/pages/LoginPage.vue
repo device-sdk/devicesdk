@@ -10,6 +10,13 @@
       </div>
 
       <div class="login-content">
+        <q-banner v-if="sessionExpired" class="session-expired-banner q-mb-md" rounded>
+          <template v-slot:avatar>
+            <q-icon name="info" color="warning" />
+          </template>
+          Your session has expired. Please sign in again.
+        </q-banner>
+
         <h1 class="welcome-title">Welcome back</h1>
         <p class="welcome-subtitle">Sign in to your account to continue</p>
 
@@ -46,10 +53,12 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
+import { isAllowedRedirectUrl } from '@/lib/redirect';
 
 const router = useRouter();
 const auth = useAuth();
 const loading = ref(false);
+const sessionExpired = ref(new URLSearchParams(window.location.search).has('expired'));
 
 onMounted(() => {
   if (auth.isAuthenticated) {
@@ -57,16 +66,8 @@ onMounted(() => {
   }
   
   const redirectUri = new URLSearchParams(window.location.search).get('redirect_uri');
-  if (redirectUri) {
-    try {
-      const url = new URL(redirectUri);
-      const hostname = url.hostname;
-      if (hostname === 'localhost' || hostname === 'devicesdk.com' || hostname.endsWith('.devicesdk.com')) {
-        sessionStorage.setItem('auth_redirect_uri', redirectUri);
-      }
-    } catch {
-      // Invalid URL, skip
-    }
+  if (redirectUri && isAllowedRedirectUrl(redirectUri)) {
+    sessionStorage.setItem('auth_redirect_uri', redirectUri);
   }
 });
 
@@ -184,6 +185,13 @@ const handleSignIn = () => {
   &:hover {
     color: var(--foreground-muted);
   }
+}
+
+.session-expired-banner {
+  background: var(--background-secondary);
+  border: 1px solid var(--border);
+  font-size: 0.875rem;
+  color: var(--foreground);
 }
 
 .login-footer {

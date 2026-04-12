@@ -68,8 +68,31 @@ function getLoginRedirectUrl(returnUrl: string, env: { ENV: string }): string {
 		env.ENV === "local"
 			? "http://localhost:9000"
 			: "https://dash.devicesdk.com";
-	const encodedReturnUrl = encodeURIComponent(returnUrl);
-	return `${dashboardUrl}/login?redirect_uri=${encodedReturnUrl}`;
+
+	// Only pass through validated redirect URIs to prevent open redirect
+	let safeReturnUrl = "";
+	try {
+		const parsed = new URL(returnUrl);
+		const h = parsed.hostname;
+		if (
+			h === "localhost" ||
+			h === "devicesdk.com" ||
+			h.endsWith(".devicesdk.com")
+		) {
+			safeReturnUrl = returnUrl;
+		}
+	} catch {
+		// If returnUrl is a relative path starting with /, treat it as a dashboard path
+		if (returnUrl.startsWith("/")) {
+			safeReturnUrl = `${dashboardUrl}${returnUrl}`;
+		}
+	}
+
+	if (safeReturnUrl) {
+		const encodedReturnUrl = encodeURIComponent(safeReturnUrl);
+		return `${dashboardUrl}/login?redirect_uri=${encodedReturnUrl}`;
+	}
+	return `${dashboardUrl}/login`;
 }
 
 export async function cliAuthUser(c: AppContext, next: Next) {

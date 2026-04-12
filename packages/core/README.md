@@ -12,18 +12,31 @@ npm install @devicesdk/core
 
 ### Device entrypoints
 
-Import the base types for writing device scripts:
+Extend the `DeviceEntrypoint` class to write device scripts:
 
 ```typescript
-import { type DeviceEntrypoint, type GetEnv } from "@devicesdk/core";
+import { DeviceEntrypoint } from "@devicesdk/core";
 
-export default class MyDevice implements DeviceEntrypoint {
-  async setup() {
-    // Runs once when the device connects
+export default class MyDevice extends DeviceEntrypoint {
+  // Called when the physical device connects via WebSocket
+  async onDeviceConnect() {
+    await this.ctx.device.log("Device connected!");
   }
 
-  async loop() {
-    // Runs repeatedly after setup
+  // Called when a response/event is received from the device
+  async onMessage(message) {
+    await this.ctx.device.log(`Received: ${JSON.stringify(message)}`);
+  }
+
+  // Called when the device disconnects
+  onDeviceDisconnect() {}
+
+  // Optional: define named cron schedules (UTC)
+  crons = { daily: "0 8 * * *" };
+
+  // Called when a named cron fires
+  async onCron(name) {
+    await this.ctx.device.log(`Cron fired: ${name}`);
   }
 }
 ```

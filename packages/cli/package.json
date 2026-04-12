@@ -1,6 +1,6 @@
 {
 	"name": "@devicesdk/cli",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "CLI for building, deploying, and flashing DeviceSDK IoT projects.",
 	"author": "DeviceSDK <hello@devicesdk.com>",
 	"license": "SEE LICENSE IN LICENSE",

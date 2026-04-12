@@ -1,5 +1,12 @@
 # @devicesdk/core
 
+## 1.1.1
+
+### Patch Changes
+
+- 618636f: Add error handling for DO RPC calls, R2 operations, and script validation; fix npm package metadata and README
+- 6ba99ed: Security and quality improvements for public launch: 401 session handling, logout error handling, UF2 validation surfacing, redirect URL validation consolidation, security headers, privacy policy, terms of service, CLI version fix, and core README update.
+
 ## 1.1.0
 
 ### Minor Changes

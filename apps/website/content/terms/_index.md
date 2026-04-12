@@ -5,6 +5,8 @@ layout: terms
 social_image: /og-images/terms.png
 ---
 
+# Terms of Service
+
 **Effective Date:** April 12, 2026
 
 These Terms of Service ("Terms") govern your use of the DeviceSDK platform, including the API, dashboard, CLI tools, firmware, and related services (collectively, the "Service") operated by DeviceSDK ("we", "us", or "our").

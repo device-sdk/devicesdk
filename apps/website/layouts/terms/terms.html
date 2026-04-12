@@ -6,111 +6,13 @@
             <nav class="hidden lg:block lg:col-span-1">
                 <div class="sticky top-24">
                     <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">On this page</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#acceptance" class="text-zinc-500 hover:text-zinc-900 transition-colors">Acceptance of Terms</a></li>
-                        <li><a href="#use-license" class="text-zinc-500 hover:text-zinc-900 transition-colors">Use License</a></li>
-                        <li><a href="#disclaimer" class="text-zinc-500 hover:text-zinc-900 transition-colors">Disclaimer</a></li>
-                        <li><a href="#limitations" class="text-zinc-500 hover:text-zinc-900 transition-colors">Limitations</a></li>
-                        <li><a href="#accuracy" class="text-zinc-500 hover:text-zinc-900 transition-colors">Accuracy</a></li>
-                        <li><a href="#links" class="text-zinc-500 hover:text-zinc-900 transition-colors">Links</a></li>
-                        <li><a href="#modifications" class="text-zinc-500 hover:text-zinc-900 transition-colors">Modifications</a></li>
-                        <li><a href="#governing-law" class="text-zinc-500 hover:text-zinc-900 transition-colors">Governing Law</a></li>
-                        <li><a href="#user-accounts" class="text-zinc-500 hover:text-zinc-900 transition-colors">User Accounts</a></li>
-                        <li><a href="#acceptable-use" class="text-zinc-500 hover:text-zinc-900 transition-colors">Acceptable Use</a></li>
-                        <li><a href="#intellectual-property" class="text-zinc-500 hover:text-zinc-900 transition-colors">Intellectual Property</a></li>
-                        <li><a href="#liability" class="text-zinc-500 hover:text-zinc-900 transition-colors">Limitation of Liability</a></li>
-                        <li><a href="#contact" class="text-zinc-500 hover:text-zinc-900 transition-colors">Contact</a></li>
-                    </ul>
+                    {{ .TableOfContents }}
                 </div>
             </nav>
 
             <!-- Content -->
             <div class="lg:col-span-3 prose-legal">
-                <h1 class="text-3xl sm:text-4xl font-bold text-zinc-900 tracking-tight mb-2">Terms of Service</h1>
-                <p class="text-sm text-zinc-400 mb-12">Last updated: December 31, 2025</p>
-
-                <section id="acceptance" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">1. Acceptance of Terms</h2>
-                    <p class="text-zinc-600 leading-relaxed">By accessing and using DeviceSDK ("Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service. These terms are governed by and construed in accordance with the laws of the European Union, specifically the General Data Protection Regulation (GDPR) and applicable EU directives.</p>
-                </section>
-
-                <section id="use-license" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">2. Use License</h2>
-                    <p class="text-zinc-600 leading-relaxed mb-3">Permission is granted to temporarily download one copy of the materials (information or software) on DeviceSDK for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not:</p>
-                    <ul class="list-disc list-inside text-zinc-600 space-y-1.5">
-                        <li>Modify or copy the materials</li>
-                        <li>Use the materials for any commercial purpose or for any public display</li>
-                        <li>Attempt to decompile or reverse engineer any software contained on the Service</li>
-                        <li>Remove any copyright or other proprietary notations from the materials</li>
-                        <li>Transfer the materials to another person or "mirror" the materials on any other server</li>
-                        <li>Violate any applicable laws or regulations</li>
-                    </ul>
-                </section>
-
-                <section id="disclaimer" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">3. Disclaimer</h2>
-                    <p class="text-zinc-600 leading-relaxed">The materials on DeviceSDK are provided on an 'as is' basis. DeviceSDK makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties including, without limitation, implied warranties or conditions of merchantability, fitness for a particular purpose, or non-infringement of intellectual property or other violation of rights.</p>
-                </section>
-
-                <section id="limitations" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">4. Limitations</h2>
-                    <p class="text-zinc-600 leading-relaxed">In no event shall DeviceSDK or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit, or due to business interruption) arising out of the use or inability to use the materials on DeviceSDK, even if DeviceSDK or an authorized representative has been notified orally or in writing of the possibility of such damage.</p>
-                </section>
-
-                <section id="accuracy" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">5. Accuracy of Materials</h2>
-                    <p class="text-zinc-600 leading-relaxed">The materials appearing on DeviceSDK could include technical, typographical, or photographic errors. DeviceSDK does not warrant that any of the materials on the Service are accurate, complete, or current. DeviceSDK may make changes to the materials contained on the Service at any time without notice.</p>
-                </section>
-
-                <section id="links" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">6. Links</h2>
-                    <p class="text-zinc-600 leading-relaxed">DeviceSDK has not reviewed all of the sites linked to its website and is not responsible for the contents of any such linked site. The inclusion of any link does not imply endorsement by DeviceSDK of the site. Use of any such linked website is at the user's own risk.</p>
-                </section>
-
-                <section id="modifications" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">7. Modifications</h2>
-                    <p class="text-zinc-600 leading-relaxed">DeviceSDK may revise these terms of service for the Service at any time without notice. By using this Service, you are agreeing to be bound by the then current version of these terms of service. We will notify users of any material changes via email or prominent notice on the Service.</p>
-                </section>
-
-                <section id="governing-law" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">8. Governing Law (GDPR Compliance)</h2>
-                    <p class="text-zinc-600 leading-relaxed">These terms and conditions are governed by and construed in accordance with the laws of the European Union and the General Data Protection Regulation (GDPR). Any dispute arising out of or relating to these terms shall be subject to the exclusive jurisdiction of the courts of the European Union member state where the user is located, or where DeviceSDK is established.</p>
-                    <p class="text-zinc-600 leading-relaxed mt-3">Users have the right to lodge a complaint with their national data protection authority if they believe their rights under GDPR have been violated.</p>
-                </section>
-
-                <section id="user-accounts" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">9. User Accounts</h2>
-                    <p class="text-zinc-600 leading-relaxed">If you create an account on DeviceSDK, you are responsible for maintaining the confidentiality of your account information and password. You agree to accept responsibility for all activities that occur under your account. You must notify us immediately of any unauthorized use of your account.</p>
-                </section>
-
-                <section id="acceptable-use" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">10. Acceptable Use Policy</h2>
-                    <p class="text-zinc-600 leading-relaxed mb-3">You agree not to use the Service:</p>
-                    <ul class="list-disc list-inside text-zinc-600 space-y-1.5">
-                        <li>For any illegal purpose or in violation of any applicable laws or regulations</li>
-                        <li>To harass, abuse, or threaten others</li>
-                        <li>To transmit obscene or offensive content</li>
-                        <li>To disrupt the normal flow of dialogue within the Service</li>
-                        <li>To attempt to gain unauthorized access to the Service or its systems</li>
-                        <li>To transmit any viruses or malicious code</li>
-                    </ul>
-                </section>
-
-                <section id="intellectual-property" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">11. Intellectual Property Rights</h2>
-                    <p class="text-zinc-600 leading-relaxed">All content included on the Service, such as text, graphics, logos, images, as well as the compilation thereof, and any software used on the Service, is the property of DeviceSDK or its content suppliers and protected by international copyright laws.</p>
-                </section>
-
-                <section id="liability" class="mb-10">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">12. Limitation of Liability</h2>
-                    <p class="text-zinc-600 leading-relaxed">To the fullest extent permitted by law, DeviceSDK shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to damages for loss of profits, goodwill, use, data or other intangible losses, even if DeviceSDK has been advised of the possibility of such damages.</p>
-                </section>
-
-                <section id="contact">
-                    <h2 class="text-xl font-bold text-zinc-900 mb-3">13. Contact Information</h2>
-                    <p class="text-zinc-600 leading-relaxed">If you have any questions about these Terms of Service, please contact us at:</p>
-                    <p class="text-zinc-600 mt-2">Email: support@devicesdk.com</p>
-                </section>
+                {{ .Content }}
             </div>
         </div>
     </div>

@@ -198,6 +198,18 @@
         color: #3f3f46;
         line-height: 1.75;
     }
+    .prose-legal h1 {
+        color: #18181b;
+        font-size: 1.875rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        margin-bottom: 0.5rem;
+    }
+    @media (min-width: 640px) {
+        .prose-legal h1 {
+            font-size: 2.25rem;
+        }
+    }
     .prose-legal h2 {
         color: #18181b;
         font-size: 1.25rem;
@@ -226,6 +238,28 @@
     .prose-legal a {
         color: #10b981;
         text-decoration: underline;
+    }
+    .prose-legal strong {
+        color: #18181b;
+    }
+
+    /* Hugo-generated TableOfContents sidebar */
+    #TableOfContents ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    #TableOfContents li {
+        margin-bottom: 0.5rem;
+    }
+    #TableOfContents a {
+        color: #71717a;
+        font-size: 0.875rem;
+        text-decoration: none;
+        transition: color 0.15s;
+    }
+    #TableOfContents a:hover {
+        color: #18181b;
     }
 
     /* Accordion */

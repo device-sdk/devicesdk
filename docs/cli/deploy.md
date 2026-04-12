@@ -156,20 +156,30 @@ Get your token from the [dashboard](https://dash.devicesdk.com).
 
 **Authentication failed?**
 
+Your session may have expired. Re-authenticate with:
+```bash
+devicesdk login
+```
+If using an API token, verify it's still valid in the [dashboard](https://dash.devicesdk.com) under Settings > API Tokens.
+
 **Build fails?**
 
 Fix TypeScript errors before deploying:
 ```bash
 npm run build
 ```
+Common causes: missing imports, type errors in your entrypoint class, or an entrypoint name that doesn't match the exported class.
 
 **Deployment stuck?**
 
-Check dashboard for deployment status and error details.
+Check the dashboard for deployment status and error details. If a deployment appears hung, try deploying again — only one deployment per project runs at a time, and the previous one will be superseded.
 
 **Need to rollback?**
 
-Use the dashboard to revert to a previous version immediately.
+Open the device in the dashboard and select a previous version to redeploy. You can also redeploy from the CLI:
+```bash
+devicesdk deploy --version <version-id>
+```
 
 ## Best Practices
 

@@ -1,4 +1,5 @@
-import type { BaseDevice } from "../../durableObjects/lib/device";
+import * as Sentry from "@sentry/cloudflare";
+import { getDeviceStub } from "../../foundation/durableObjectStub";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 /**
@@ -41,9 +42,18 @@ export async function streamLogs(c: AppContext) {
 		return c.json({ success: false, error: "Device not found" }, 404);
 	}
 
-	const doId = c.env.DEVICE.idFromName(`${project.id}:${device.id}`);
-	const stub = c.env.DEVICE.get(doId) as unknown as BaseDevice;
-	const stream = await stub.streamLogs();
+	const stub = getDeviceStub(c.env, project.id, device.id);
+
+	let stream: ReadableStream<Uint8Array>;
+	try {
+		stream = await stub.streamLogs();
+	} catch (err) {
+		Sentry.captureException(err);
+		return c.json(
+			{ success: false, error: "Device service temporarily unavailable" },
+			503,
+		);
+	}
 
 	return new Response(stream, {
 		headers: {

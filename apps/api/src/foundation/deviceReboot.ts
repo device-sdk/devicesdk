@@ -1,4 +1,5 @@
 import type { Env } from "../types";
+import { getDeviceStub } from "./durableObjectStub";
 
 export interface RebootResult {
 	rebooted: boolean;
@@ -16,10 +17,7 @@ export async function triggerDeviceReboot(
 ): Promise<RebootResult> {
 	const doName = `${projectId}:${deviceId}`;
 	console.log(`[reboot] Triggering reboot for DO: ${doName}`);
-	const durableObjectId = env.DEVICE.idFromName(doName);
-	const stub = env.DEVICE.get(durableObjectId) as unknown as {
-		triggerRebootForDeploy(): Promise<RebootResult>;
-	};
+	const stub = getDeviceStub(env, projectId, deviceId);
 
 	try {
 		const result = await stub.triggerRebootForDeploy();

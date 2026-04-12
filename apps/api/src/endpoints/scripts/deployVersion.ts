@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/cloudflare";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
@@ -99,21 +100,30 @@ export class DeployVersion extends BaseRoute {
 
 		const r2 = c.env.SCRIPTS;
 
-		// Get the script from R2 for this version
-		const scriptObj = await r2.get(
-			`${user.id}/${projectId}/${deviceId}/${versionId}.js`,
-		);
-		if (!scriptObj) {
+		// Get the script from R2 for this version and update latest.js
+		let script: string;
+		try {
+			const scriptObj = await r2.get(
+				`${user.id}/${projectId}/${deviceId}/${versionId}.js`,
+			);
+			if (!scriptObj) {
+				return c.json(
+					{ success: false, error: "Script file not found in storage" },
+					404,
+				);
+			}
+
+			script = await scriptObj.text();
+
+			// Update latest.js with this version's script
+			await r2.put(`${user.id}/${projectId}/${deviceId}/latest.js`, script);
+		} catch (err) {
+			Sentry.captureException(err);
 			return c.json(
-				{ success: false, error: "Script file not found in storage" },
-				404,
+				{ success: false, error: "Failed to access script storage" },
+				500,
 			);
 		}
-
-		const script = await scriptObj.text();
-
-		// Update latest.js with this version's script
-		await r2.put(`${user.id}/${projectId}/${deviceId}/latest.js`, script);
 
 		const now = Date.now();
 

@@ -1,8 +1,21 @@
 {
 	"name": "@devicesdk/core",
 	"version": "1.1.0",
-	"description": "CLI tool for developing and deploying DeviceSDK IoT applications.",
-	"author": "",
+	"description": "Core TypeScript types and device abstractions for DeviceSDK IoT applications.",
+	"author": "DeviceSDK <hello@devicesdk.com>",
+	"license": "SEE LICENSE IN LICENSE",
+	"homepage": "https://devicesdk.com",
+	"bugs": {
+		"url": "https://github.com/device-sdk/devicesdk-monorepo/issues"
+	},
+	"keywords": [
+		"iot",
+		"typescript",
+		"devicesdk",
+		"microcontroller",
+		"pico",
+		"esp32"
+	],
 	"main": "dist/index.js",
 	"exports": {
 		".": {

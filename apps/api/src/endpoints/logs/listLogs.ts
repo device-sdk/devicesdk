@@ -1,7 +1,8 @@
+import * as Sentry from "@sentry/cloudflare";
 import { contentJson } from "chanfana";
 import { z } from "zod";
-import type { BaseDevice } from "../../durableObjects/lib/device";
 import { BaseRoute } from "../../foundation/baseRoute";
+import { getDeviceStub } from "../../foundation/durableObjectStub";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
 export class ListLogs extends BaseRoute {
@@ -83,9 +84,18 @@ export class ListLogs extends BaseRoute {
 			return c.json({ success: false, error: "Device not found" }, 404);
 		}
 
-		const doId = c.env.DEVICE.idFromName(`${project.id}:${device.id}`);
-		const stub = c.env.DEVICE.get(doId) as unknown as BaseDevice;
-		const result = await stub.getLogs({ cursor, limit, level });
+		const stub = getDeviceStub(c.env, project.id, device.id);
+
+		let result: Awaited<ReturnType<typeof stub.getLogs>>;
+		try {
+			result = await stub.getLogs({ cursor, limit, level });
+		} catch (err) {
+			Sentry.captureException(err);
+			return c.json(
+				{ success: false, error: "Device service temporarily unavailable" },
+				503,
+			);
+		}
 
 		return c.json({ success: true, result });
 	}

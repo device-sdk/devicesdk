@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/cloudflare";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
@@ -65,12 +66,16 @@ export class DeleteProject extends BaseRoute {
 			})
 			.execute();
 
-		// Also delete all scripts from R2 for this project
-		const r2 = c.env.SCRIPTS;
-		const prefix = `${user.id}/${projectId}/`;
-		const objects = await r2.list({ prefix });
-		for (const obj of objects.objects) {
-			await r2.delete(obj.key);
+		// Best-effort R2 cleanup — DB delete already committed
+		try {
+			const r2 = c.env.SCRIPTS;
+			const prefix = `${user.id}/${projectId}/`;
+			const objects = await r2.list({ prefix });
+			for (const obj of objects.objects) {
+				await r2.delete(obj.key);
+			}
+		} catch (err) {
+			Sentry.captureException(err);
 		}
 
 		return c.json({

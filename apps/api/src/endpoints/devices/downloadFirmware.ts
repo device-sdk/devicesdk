@@ -189,28 +189,32 @@ export class DownloadFirmware extends BaseRoute {
 			// 2. Credentials are in .rodata (main flash), not in the RP2040 boot2 area
 			//    (bytes 0-251 with CRC32 at offset 252).
 			// 3. RP2350 image definition hashes only apply to signed/secure-boot builds.
+			let uf2Valid = true;
 			if (deviceType === "pico-w" || deviceType === "pico2-w") {
 				try {
 					validateUf2Structure(bytes);
 				} catch (uf2Err) {
+					uf2Valid = false;
 					console.error(
 						"UF2 structure validation failed after patching:",
 						uf2Err instanceof Error ? uf2Err.message : uf2Err,
 					);
 				}
 			}
+
+			const headers: Record<string, string> = {
+				"Content-Type": "application/octet-stream",
+				"Content-Disposition": `attachment; filename="${filename}"`,
+			};
+			if (!uf2Valid) {
+				headers["X-Firmware-Validation"] = "failed";
+			}
+			return new Response(bytes, { headers });
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Firmware patch failed";
 			return c.json({ success: false, error: message }, 400);
 		}
-
-		return new Response(bytes, {
-			headers: {
-				"Content-Type": "application/octet-stream",
-				"Content-Disposition": `attachment; filename="${filename}"`,
-			},
-		});
 	}
 }
 

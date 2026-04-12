@@ -37,7 +37,11 @@ export const useAuthStore = defineStore('auth', () => {
   };
 
   const signOut = async () => {
-    await userService.logout();
+    try {
+      await userService.logout();
+    } catch (error) {
+      console.error('Server-side logout failed:', error);
+    }
     user.value = null;
     window.location.href = '/login';
   };

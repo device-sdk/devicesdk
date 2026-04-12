@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
+import { createRequire } from "node:module";
 import { Command } from "commander";
+
+const require = createRequire(import.meta.url);
+const pkg = require("../package.json") as { version: string };
+
 import build from "./commands/build.js";
 import deploy from "./commands/deploy.js";
 import dev from "./commands/dev.js";
@@ -23,7 +28,7 @@ program
 	.description(
 		"CLI tool for developing and deploying DeviceSDK IoT applications",
 	)
-	.version("0.1.0");
+	.version(pkg.version);
 
 // Auth commands
 program

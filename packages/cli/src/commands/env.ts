@@ -6,6 +6,7 @@ import {
 	setEnvVars,
 } from "../api.js";
 import { requireAuth } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 import { loadConfig } from "../utils.js";
 
 interface EnvOptions {
@@ -28,7 +29,7 @@ export async function envSet(
 	try {
 		if (pairs.length === 0) {
 			console.error("✗ Provide at least one KEY=VALUE pair.");
-			process.exit(1);
+			process.exit(EXIT.GENERIC);
 		}
 
 		const vars: Record<string, string> = {};
@@ -36,7 +37,7 @@ export async function envSet(
 			const eqIdx = pair.indexOf("=");
 			if (eqIdx === -1) {
 				console.error(`✗ Invalid format "${pair}". Expected KEY=VALUE.`);
-				process.exit(1);
+				process.exit(EXIT.GENERIC);
 			}
 			const key = pair.slice(0, eqIdx);
 			const value = pair.slice(eqIdx + 1);
@@ -45,7 +46,7 @@ export async function envSet(
 				console.error(
 					`✗ Invalid key "${key}". Keys must be uppercase letters, digits, and underscores, starting with a letter (max 64 chars).`,
 				);
-				process.exit(1);
+				process.exit(EXIT.GENERIC);
 			}
 
 			vars[key] = value;
@@ -62,7 +63,7 @@ export async function envSet(
 	} catch (error) {
 		if (error instanceof DeviceSDKApiError) {
 			console.error(`✗ ${error.message}`);
-			process.exit(1);
+			process.exit(EXIT.GENERIC);
 		}
 		throw error;
 	}
@@ -98,7 +99,7 @@ export async function envList(options: EnvOptions): Promise<void> {
 	} catch (error) {
 		if (error instanceof DeviceSDKApiError) {
 			console.error(`✗ ${error.message}`);
-			process.exit(1);
+			process.exit(EXIT.GENERIC);
 		}
 		throw error;
 	}
@@ -118,10 +119,10 @@ export async function envUnset(
 		if (error instanceof DeviceSDKApiError) {
 			if (error.statusCode === 404) {
 				console.error(`✗ Env var "${key}" not found.`);
-				process.exit(1);
+				process.exit(EXIT.GENERIC);
 			}
 			console.error(`✗ ${error.message}`);
-			process.exit(1);
+			process.exit(EXIT.GENERIC);
 		}
 		throw error;
 	}

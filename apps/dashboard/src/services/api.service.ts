@@ -1,3 +1,4 @@
+import { API_HOST, WS_API_HOST } from '@/config/apiHost';
 import { api } from '@/lib/api';
 
 // ============================================================================
@@ -422,8 +423,7 @@ export const logService = {
   },
 
   getStreamUrl(projectId: string, deviceId: string): string {
-    const base = import.meta.env.PROD ? 'https://api.devicesdk.com' : 'http://localhost:8787';
-    return `${base}/v1/projects/${projectId}/devices/${deviceId}/logs/stream`;
+    return `${API_HOST}/v1/projects/${projectId}/devices/${deviceId}/logs/stream`;
   },
 
   /**
@@ -432,9 +432,7 @@ export const logService = {
    * The browser sends the session cookie automatically on the upgrade.
    */
   getWatchUrl(projectId: string, deviceId: string): string {
-    const httpBase = import.meta.env.PROD ? 'https://api.devicesdk.com' : 'http://localhost:8787';
-    const wsBase = httpBase.replace(/^http/, 'ws');
-    return `${wsBase}/v1/projects/${projectId}/devices/${deviceId}/watch`;
+    return `${WS_API_HOST}/v1/projects/${projectId}/devices/${deviceId}/watch`;
   },
 };
 

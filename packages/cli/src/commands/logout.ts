@@ -1,5 +1,6 @@
 import { revokeToken } from "../api.js";
 import { deleteCredentials, loadCredentials } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 
 export default async function logout(): Promise<void> {
 	try {
@@ -22,6 +23,6 @@ export default async function logout(): Promise<void> {
 		if (error instanceof Error) {
 			console.error(`  ${error.message}`);
 		}
-		process.exit(1);
+		process.exit(EXIT.GENERIC);
 	}
 }

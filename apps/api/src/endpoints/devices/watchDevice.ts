@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/cloudflare";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
-import type { AppContext, tableDevices, tableProjects } from "../../types";
+import { resolveProjectAndDevice } from "../../foundation/projectDeviceResolve";
+import type { AppContext } from "../../types";
 
 /**
  * Generic watcher WebSocket endpoint. Subscribes to real-time status, log,
@@ -43,40 +44,12 @@ export class WatchDevice extends BaseRoute {
 			);
 		}
 
-		const user = c.get("user");
-		const qb = c.get("qb");
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { projectId, deviceId } = data.params;
 
-		const project = await qb
-			.fetchOne<tableProjects>({
-				tableName: "projects",
-				where: {
-					conditions: ["user_id = ?1", "project_slug = ?2"],
-					params: [user.id, projectId],
-				},
-			})
-			.execute()
-			.then((p) => p.results);
-
-		if (!project) {
-			return c.json({ success: false, error: "Project not found" }, 404);
-		}
-
-		const device = await qb
-			.fetchOne<tableDevices>({
-				tableName: "devices",
-				where: {
-					conditions: ["project_id = ?1", "device_slug = ?2"],
-					params: [project.id, deviceId],
-				},
-			})
-			.execute()
-			.then((d) => d.results);
-
-		if (!device) {
-			return c.json({ success: false, error: "Device not found" }, 404);
-		}
+		const resolved = await resolveProjectAndDevice(c, projectId, deviceId);
+		if (resolved instanceof Response) return resolved;
+		const { project, device } = resolved;
 
 		const doName = `${project.id}:${device.id}`;
 		const durableObjectId = c.env.DEVICE.idFromName(doName);

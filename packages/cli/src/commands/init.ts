@@ -5,6 +5,7 @@ import path from "node:path";
 import { execa } from "execa";
 import { createProject, DeviceSDKApiError } from "../api.js";
 import { requireAuth } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 
 interface InitOptions {
 	yes?: boolean;
@@ -173,7 +174,7 @@ export default async function init(
 	if (!template) {
 		console.error(`✗ Error: Unknown template "${templateName}"\n`);
 		console.error("  Available templates: basic, multi-device, empty");
-		process.exit(2);
+		process.exit(EXIT.CONFIG_INVALID);
 	}
 
 	const projectId = projectIdArg || "my-project";
@@ -190,7 +191,7 @@ export default async function init(
 	if (configExists) {
 		console.error("✗ Error: devicesdk.ts already exists\n");
 		console.error("  This directory is already a DeviceSDK project.");
-		process.exit(1);
+		process.exit(EXIT.GENERIC);
 	}
 
 	try {
@@ -310,6 +311,6 @@ Next steps:`);
 		if (error instanceof Error) {
 			console.error(`  ${error.message}`);
 		}
-		process.exit(1);
+		process.exit(EXIT.GENERIC);
 	}
 }

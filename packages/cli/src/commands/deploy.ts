@@ -9,6 +9,7 @@ import {
 	upsertDeviceEntities,
 } from "../api.js";
 import { requireAuth } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 import { getConfigDir, loadConfig } from "../utils.js";
 import { buildDevice, formatSize } from "./build.js";
 
@@ -71,7 +72,7 @@ export default async function deploy(
 				console.error(
 					`  Available devices: ${Object.keys(config.devices).join(", ")}`,
 				);
-				process.exit(5);
+				process.exit(EXIT.BUILD_ERROR);
 			}
 			devicesToDeploy = [[options.device, device]];
 		}
@@ -79,7 +80,7 @@ export default async function deploy(
 		if (devicesToDeploy.length === 0) {
 			console.error("✗ Error: No devices configured\n");
 			console.error("  Add devices to your devicesdk.ts configuration file.");
-			process.exit(5);
+			process.exit(EXIT.BUILD_ERROR);
 		}
 
 		// Build all devices first
@@ -103,7 +104,7 @@ export default async function deploy(
 				await fs.access(mainFile);
 			} catch {
 				console.error(`✗ ${deviceId}: Main file not found: ${device.main}`);
-				process.exit(5);
+				process.exit(EXIT.BUILD_ERROR);
 			}
 
 			try {
@@ -126,7 +127,7 @@ export default async function deploy(
 				const message =
 					error instanceof Error ? error.message : "Unknown error";
 				console.error(`✗ ${deviceId}: Build failed - ${message}`);
-				process.exit(5);
+				process.exit(EXIT.BUILD_ERROR);
 			}
 		}
 
@@ -167,7 +168,7 @@ export default async function deploy(
 				} else {
 					throw error;
 				}
-				process.exit(6);
+				process.exit(EXIT.DEPLOY_ERROR);
 			}
 		} else {
 			// Batch upload
@@ -209,7 +210,7 @@ export default async function deploy(
 				} else {
 					throw error;
 				}
-				process.exit(6);
+				process.exit(EXIT.DEPLOY_ERROR);
 			}
 		}
 
@@ -247,6 +248,6 @@ export default async function deploy(
 		if (error instanceof Error) {
 			console.error(`  ${error.message}`);
 		}
-		process.exit(6);
+		process.exit(EXIT.DEPLOY_ERROR);
 	}
 }

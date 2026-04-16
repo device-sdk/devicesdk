@@ -6,6 +6,7 @@ import chokidar from "chokidar";
 import * as esbuild from "esbuild";
 import { type ExecaChildProcess, type ExecaError, execa } from "execa";
 import type { DeviceConfig } from "../config.js";
+import { EXIT } from "../exitCodes.js";
 import { loadConfig } from "../utils.js";
 import { generateDeviceTypes } from "./build.js";
 
@@ -162,7 +163,7 @@ const dev = async (options: { config?: string; port?: string }) => {
 		console.error(
 			`Error: Could not find ${configPath}. Make sure the file or directory exists.`,
 		);
-		process.exit(1);
+		process.exit(EXIT.CONFIG_LOAD_FAILED);
 	}
 	const tmpDir = path.join(path.dirname(configPath), ".devicesdk");
 
@@ -180,7 +181,7 @@ const dev = async (options: { config?: string; port?: string }) => {
 	process.on("SIGINT", async () => {
 		console.log("\nShutting down devicesdk...");
 		await cleanup();
-		process.exit(0);
+		process.exit(EXIT.SUCCESS);
 	});
 
 	try {
@@ -207,23 +208,38 @@ const dev = async (options: { config?: string; port?: string }) => {
 
 		await fs.mkdir(tmpDir, { recursive: true });
 
-		// Resolve simulator assets path
-		let simulatorAssetsPath = path.resolve(__dirname, "../simulator/assets");
-		try {
-			await fs.access(simulatorAssetsPath);
-		} catch {
-			// Fallback: dev path when running from source
-			simulatorAssetsPath = path.resolve(
-				__dirname,
-				"../../../../apps/simulation/dist",
-			);
+		// Resolve simulator assets path.
+		// Precedence: DEVICESDK_SIMULATOR_ASSETS_PATH override > packaged assets > monorepo fallback.
+		let simulatorAssetsPath: string;
+		const envOverride = process.env.DEVICESDK_SIMULATOR_ASSETS_PATH;
+		if (envOverride) {
+			simulatorAssetsPath = path.resolve(envOverride);
 			try {
 				await fs.access(simulatorAssetsPath);
 			} catch {
 				console.error(
-					"Error: Simulator assets not found. Run `pnpm build --filter @devicesdk/simulation` first.",
+					`Error: DEVICESDK_SIMULATOR_ASSETS_PATH points to a missing directory: ${simulatorAssetsPath}`,
 				);
-				process.exit(1);
+				process.exit(EXIT.GENERIC);
+			}
+		} else {
+			simulatorAssetsPath = path.resolve(__dirname, "../simulator/assets");
+			try {
+				await fs.access(simulatorAssetsPath);
+			} catch {
+				// Fallback: dev path when running from source in the monorepo
+				simulatorAssetsPath = path.resolve(
+					__dirname,
+					"../../../../apps/simulation/dist",
+				);
+				try {
+					await fs.access(simulatorAssetsPath);
+				} catch {
+					console.error(
+						"Error: Simulator assets not found. Run `pnpm build --filter @devicesdk/simulation` first, or set DEVICESDK_SIMULATOR_ASSETS_PATH to a built assets directory.",
+					);
+					process.exit(EXIT.GENERIC);
+				}
 			}
 		}
 

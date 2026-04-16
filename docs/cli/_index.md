@@ -69,3 +69,17 @@ Run any command with `--help` to see detailed usage:
 ```bash
 npx @devicesdk/cli deploy --help
 ```
+
+## Exit Codes
+
+The CLI uses stable numeric exit codes so scripts and CI pipelines can dispatch on failure type. These values will not be renumbered — new categories get new values.
+
+| Code | Name               | Meaning                                                       |
+|------|--------------------|---------------------------------------------------------------|
+| 0    | SUCCESS            | Command completed successfully                                 |
+| 1    | GENERIC            | Unclassified error; treat as "retry or file a bug"             |
+| 2    | CONFIG_INVALID     | Bad template, unknown command, or invalid argument            |
+| 3    | NOT_AUTHENTICATED  | No valid credentials; run `devicesdk login`                    |
+| 4    | CONFIG_LOAD_FAILED | `devicesdk.ts` is missing, unparseable, or semantically wrong |
+| 5    | BUILD_ERROR        | esbuild bundling failed — check device script for TS errors    |
+| 6    | DEPLOY_ERROR       | Script upload, firmware flash, or device-communication failure |

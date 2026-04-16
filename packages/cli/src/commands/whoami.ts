@@ -1,5 +1,6 @@
 import { getMe } from "../api.js";
 import { requireAuth } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 
 export default async function whoami(): Promise<void> {
 	try {
@@ -12,12 +13,12 @@ export default async function whoami(): Promise<void> {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
 			console.error("✗ Error: Not logged in\n");
 			console.error("  Run `devicesdk login` to authenticate.");
-			process.exit(3);
+			process.exit(EXIT.NOT_AUTHENTICATED);
 		}
 		console.error("✗ Error: Failed to get user info\n");
 		if (error instanceof Error) {
 			console.error(`  ${error.message}`);
 		}
-		process.exit(1);
+		process.exit(EXIT.GENERIC);
 	}
 }

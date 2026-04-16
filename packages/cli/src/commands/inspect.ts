@@ -6,6 +6,7 @@ import {
 	sendDeviceCommand,
 } from "../api.js";
 import { requireAuth } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 import { loadConfig } from "../utils.js";
 
 interface InspectOptions {
@@ -512,12 +513,12 @@ export default async function inspect(
 
 		rl.on("close", () => {
 			console.log("\nGoodbye.");
-			process.exit(0);
+			process.exit(EXIT.SUCCESS);
 		});
 	} catch (error) {
 		if (error instanceof DeviceSDKApiError) {
 			console.error(`✗ Error: ${error.message}`);
-			process.exit(1);
+			process.exit(EXIT.GENERIC);
 		}
 		throw error;
 	}

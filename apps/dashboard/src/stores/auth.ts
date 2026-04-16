@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { API_HOST } from '@/config/apiHost';
 import { userService, type User } from '@/services/api.service';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -24,16 +25,13 @@ export const useAuthStore = defineStore('auth', () => {
   };
 
   const signIn = () => {
-    const apiHost = import.meta.env.PROD
-      ? 'https://api.devicesdk.com'
-      : 'http://localhost:8787';
     const params = new URLSearchParams();
     const redirectUri = sessionStorage.getItem('auth_redirect_uri');
     if (redirectUri) {
       params.append('redirect_uri', redirectUri);
     }
     const queryString = params.toString();
-    window.location.href = `${apiHost}/v1/auth/google${queryString ? '?' + queryString : ''}`;
+    window.location.href = `${API_HOST}/v1/auth/google${queryString ? '?' + queryString : ''}`;
   };
 
   const signOut = async () => {

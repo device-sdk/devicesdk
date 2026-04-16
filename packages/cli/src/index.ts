@@ -35,16 +35,35 @@ program
 	.command("login")
 	.description("Authenticate the CLI with the DeviceSDK API")
 	.option("-v, --verbose", "Enable verbose output")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk login
+  $ devicesdk login --verbose`,
+	)
 	.action(login);
 
 program
 	.command("logout")
 	.description("Remove stored credentials")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk logout`,
+	)
 	.action(logout);
 
 program
 	.command("whoami")
 	.description("Display current authenticated user")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk whoami`,
+	)
 	.action(whoami);
 
 // Project commands
@@ -58,6 +77,14 @@ program
 		"basic",
 	)
 	.option("--no-git", "Skip git initialization")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk init my-iot-project
+  $ devicesdk init --template multi-device my-farm
+  $ devicesdk init --no-git empty-scaffold`,
+	)
 	.action((projectId, options) => init(projectId, options));
 
 // Development commands
@@ -66,6 +93,14 @@ program
 	.description("Run the local development server")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
 	.option("-p, --port <port>", "Port for the dev server (default: 8181)")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk dev
+  $ devicesdk dev --port 3000
+  $ devicesdk dev --config ./devicesdk.custom.ts`,
+	)
 	.action(dev);
 
 program
@@ -76,6 +111,14 @@ program
 	.option("--minify", "Minify output")
 	.option("--sourcemap", "Generate source maps")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk build
+  $ devicesdk build --device sensor-1 --minify
+  $ devicesdk build --outdir dist/ --sourcemap`,
+	)
 	.action(build);
 
 program
@@ -85,6 +128,14 @@ program
 	.option("-m, --message <text>", "Deployment message (version note)")
 	.option("--dry-run", "Validate without uploading")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk deploy
+  $ devicesdk deploy --device sensor-1 -m "Fix temperature drift"
+  $ devicesdk deploy --dry-run`,
+	)
 	.action(deploy);
 
 program
@@ -95,6 +146,14 @@ program
 	.option(
 		"--level <level>",
 		"Filter by log level: log, info, warn, error, debug",
+	)
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk logs my-project sensor-1
+  $ devicesdk logs my-project sensor-1 --tail
+  $ devicesdk logs my-project sensor-1 --level error -n 200`,
 	)
 	.action((projectId, deviceId, options) =>
 		logs(projectId, deviceId, {
@@ -128,6 +187,14 @@ program
 		"--before <method>",
 		"Reset method before flashing (default_reset or no_reset)",
 	)
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk flash pico-w-device
+  $ devicesdk flash esp32-device --port /dev/cu.usbserial-0001
+  $ devicesdk flash pico-w-device --host http://192.168.1.50:9000`,
+	)
 	.action((deviceId, options) => flash(deviceId, options));
 
 program
@@ -136,6 +203,14 @@ program
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-d, --device <id>", "Show status for a single device only")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk status
+  $ devicesdk status --project my-project
+  $ devicesdk status --device sensor-1`,
+	)
 	.action(status);
 
 program
@@ -145,6 +220,13 @@ program
 	)
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
 	.option("--project <id>", "Project ID (if no devicesdk.ts config)")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk inspect sensor-1
+  $ devicesdk inspect sensor-1 --project my-project`,
+	)
 	.action((deviceId, options) => inspect(deviceId, options));
 
 // Env var commands
@@ -157,6 +239,13 @@ envCmd
 	.description("Set one or more env vars (KEY=VALUE format)")
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk env set DISCORD_WEBHOOK=https://discord.com/api/webhooks/...
+  $ devicesdk env set API_KEY=abc123 DEBUG=true`,
+	)
 	.action((pairs, options) => envSet(pairs, options));
 
 envCmd
@@ -164,6 +253,13 @@ envCmd
 	.description("List env var keys for the project (values are never shown)")
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk env list
+  $ devicesdk env list --project my-project`,
+	)
 	.action((options) => envList(options));
 
 envCmd
@@ -171,6 +267,12 @@ envCmd
 	.description("Remove an env var")
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ devicesdk env unset DISCORD_WEBHOOK`,
+	)
 	.action((key, options) => envUnset(key, options));
 
 program.parse(process.argv);

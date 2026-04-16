@@ -323,7 +323,7 @@ bool handle_websocket_message(const char *message) {
         for (int i = 0; i < writes_count; i++) {
             cJSON *write_op = cJSON_GetArrayItem(writes_obj, i);
             if (!cJSON_IsArray(write_op)) {
-                // Send error response
+                // Error-path cleanup: cJSON_Delete(err_resp) below cascade-frees err_payload; err_str is free()'d before goto done. No leak.
                 cJSON *err_resp = cJSON_CreateObject();
                 cJSON *err_payload = cJSON_CreateObject();
                 cJSON_AddStringToObject(err_resp, "type", "command_error");

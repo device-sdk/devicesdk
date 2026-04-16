@@ -30,6 +30,12 @@ static i2c_config_t i2c_configs[2] = {
 
 static bool adc_initialized = false;
 
+// Reject pins outside the hardware-valid range (NUM_BANK0_GPIOS is 30 on RP2040, 48 on RP2350).
+// The virtual pin 99 addresses the onboard LED via the CYW43 WiFi coprocessor and is always allowed.
+static inline bool is_valid_gpio(uint8_t pin) {
+    return pin == 99 || pin < NUM_BANK0_GPIOS;
+}
+
 void hal_init() {
     // Nothing to do here for now - peripherals initialized on demand
 }
@@ -41,6 +47,10 @@ void hal_reboot() {
 }
 
 void hal_set_gpio(uint8_t pin, gpio_state_t state) {
+    if (!is_valid_gpio(pin)) {
+        printf("Invalid GPIO pin: %d\n", pin);
+        return;
+    }
     bool pin_state = (state == GPIO_STATE_HIGH);
     if (pin == 99) { // Special case for the onboard LED
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, pin_state);
@@ -51,10 +61,15 @@ void hal_set_gpio(uint8_t pin, gpio_state_t state) {
     }
 }
 
-// Track which pins have been configured as inputs
+// Track which pins have been configured as inputs (bitmask is 32 bits — safe because
+// is_valid_gpio() rejects pin >= NUM_BANK0_GPIOS before any shift).
 static uint32_t gpio_input_configured_mask = 0;
 
 bool hal_get_gpio_digital(uint8_t pin) {
+    if (!is_valid_gpio(pin)) {
+        printf("Invalid GPIO pin: %d\n", pin);
+        return false;
+    }
     if (pin == 99) {
         // Can't read onboard LED state reliably
         return false;
@@ -69,6 +84,10 @@ bool hal_get_gpio_digital(uint8_t pin) {
 }
 
 void hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
+    if (!is_valid_gpio(pin)) {
+        printf("Invalid GPIO pin: %d\n", pin);
+        return;
+    }
     if (pin == 99) {
         // Can't configure onboard LED as input
         return;

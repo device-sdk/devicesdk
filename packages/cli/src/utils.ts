@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
 import { ZodError, type z } from "zod";
 import { type DeviceSDKConfig, DeviceSDKConfigSchema } from "./config.js";
+import { EXIT } from "./exitCodes.js";
 
 export async function loadConfig(
 	configPath?: string,
@@ -30,7 +31,7 @@ export async function loadConfig(
 		console.error(`✗ Error: Config file not found\n`);
 		console.error(`  Expected: ${resolvedPath}`);
 		console.error(`  Run \`devicesdk init\` to create a new project.`);
-		process.exit(4);
+		process.exit(EXIT.CONFIG_LOAD_FAILED);
 	}
 
 	try {
@@ -67,13 +68,13 @@ export async function loadConfig(
 			error.issues.forEach((issue: z.ZodIssue) => {
 				console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
 			});
-			process.exit(4);
+			process.exit(EXIT.CONFIG_LOAD_FAILED);
 		}
 		console.error(`✗ Error: Could not load config file\n`);
 		if (error instanceof Error) {
 			console.error(`  ${error.message}`);
 		}
-		process.exit(4);
+		process.exit(EXIT.CONFIG_LOAD_FAILED);
 	}
 
 	// This should never be reached but TypeScript needs it

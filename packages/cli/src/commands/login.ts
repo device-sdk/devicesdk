@@ -1,6 +1,7 @@
 import open from "open";
 import { getMe, pollAuth, setVerbose, startAuth } from "../api.js";
 import { type Credentials, saveCredentials } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 
 const POLL_INTERVAL = 5000; // 5 seconds
 const MAX_POLL_TIME = 60000; // 1 minute
@@ -55,7 +56,7 @@ export default async function login(options?: {
 		if (!authResult) {
 			console.error("\n✗ Error: Authentication timed out\n");
 			console.error("  Please try again with `devicesdk login`");
-			process.exit(1);
+			process.exit(EXIT.GENERIC);
 		}
 
 		// Get user info (retry once if token not yet active)
@@ -93,6 +94,6 @@ export default async function login(options?: {
 			console.error(`  ${error.message}`);
 			console.error(`  Stack: ${error.stack}`);
 		}
-		process.exit(1);
+		process.exit(EXIT.GENERIC);
 	}
 }

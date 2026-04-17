@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeviceSDKApiError } from "../api.js";
+import { EXIT } from "../exitCodes.js";
 import flash from "./flash.js";
 
 vi.mock("../credentials.js", () => ({
@@ -200,7 +201,7 @@ describe("flash command", () => {
 		});
 
 		await expect(flash("pico-1")).rejects.toThrowError(/exit:6/);
-		expect(exitSpy).toHaveBeenCalledWith(5);
+		expect(exitSpy).toHaveBeenCalledWith(EXIT.CONFIG_INVALID);
 	});
 
 	it("exits when firmware download fails", async () => {

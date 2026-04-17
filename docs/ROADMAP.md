@@ -126,3 +126,41 @@ Features identified as hardware-capable but not yet planned for implementation.
 - **Firmware status**: USB used for stdio only
 - **Use cases**: USB HID devices, USB storage, USB MIDI
 - **Effort**: Very High — complex USB stack; security implications
+
+---
+
+## Platform Roadmap
+
+Non-hardware initiatives that span the API, dashboard, CLI, or developer tooling.
+
+### Metrics instrumentation (edge analytics)
+
+- **Status**: Not started. Sentry captures errors but there are no operational metrics.
+- **Gaps**: no device-connection count, no script execution time, no rate-limit rejection counter, no firmware-download volume.
+- **Minimum useful set** (emit via edge analytics):
+  - `device.connections` — live WebSocket connection count per project
+  - `script.execution_time_ms` — per-device script latency distribution
+  - `rate_limit.rejections_by_endpoint` — which endpoints hit 429s
+  - `firmware.download_bytes` — bytes served per firmware version
+- **Why it matters**: without these, platform connectivity degradation is invisible until users complain.
+- **Effort**: Small–Medium — wire a single analytics sink and emit from ~5 hot paths.
+
+### Test coverage: simulation app + real OAuth E2E
+
+- **Status**: `apps/simulation` has 0 tests. Dashboard Playwright flow uses `TEST_SESSION_TOKEN` and never exercises the real Google OAuth handshake.
+- **Gaps**:
+  - Simulation: canvas rendering, pin state logic, WebSocket integration — all untested.
+  - Dashboard: OAuth redirect flow, session creation, expired-session recovery.
+- **Why it matters**: breakage in either path only surfaces in production.
+- **Effort**: Medium — scaffold Vitest for `apps/simulation`, add a Playwright login spec that mocks Google's OAuth endpoint (not just the session token).
+
+### Split oversized files
+
+Several files exceed the 700-LOC project standard. Splitting them needs an isolated PR with thorough integration testing (the DO in particular carries production WebSocket state).
+
+- `apps/api/src/durableObjects/lib/device.ts` (1305 LOC) — candidate splits: `device-watchers.ts` (broadcast + streamLogs), `device-rpc.ts` (handleCommand + user-worker bootstrap). Keep lifecycle and upgrade handlers in `device.ts`.
+- `apps/dashboard/src/pages/DeviceDetailsPage.vue` (939 LOC) — five tabs → one panel component each (`DeviceOverviewPanel.vue`, `DeviceScriptPanel.vue`, `DeviceVersionsPanel.vue`, `DeviceLogsPanel.vue`, `DeviceSettingsPanel.vue`).
+- `apps/simulation/src/components/pico/PinComponent.vue` (597 LOC) — extract the Teleport'd popover into `PinPopover.vue`.
+
+**Why it matters**: large files are harder to review, prone to merge conflicts, and hide dead-code accumulation.
+**Effort**: Medium per file, with full regression testing required (Playwright for dashboard, DO integration tests for device.ts).

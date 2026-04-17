@@ -2,7 +2,8 @@ import * as Sentry from "@sentry/cloudflare";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
-import type { AppContext, tableDevices, tableProjects } from "../../types";
+import { resolveProjectAndDevice } from "../../foundation/projectDeviceResolve";
+import type { AppContext } from "../../types";
 
 export class DeleteDevice extends BaseRoute {
 	public schema = {
@@ -40,37 +41,9 @@ export class DeleteDevice extends BaseRoute {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { projectId, deviceId } = data.params;
 
-		// Find the project
-		const project = await qb
-			.fetchOne<tableProjects>({
-				tableName: "projects",
-				where: {
-					conditions: ["user_id = ?1", "project_slug = ?2"],
-					params: [user.id, projectId],
-				},
-			})
-			.execute()
-			.then((p) => p.results);
-
-		if (!project) {
-			return c.json({ success: false, error: "Project not found" }, 404);
-		}
-
-		// Find the device
-		const device = await qb
-			.fetchOne<tableDevices>({
-				tableName: "devices",
-				where: {
-					conditions: ["project_id = ?1", "device_slug = ?2"],
-					params: [project.id, deviceId],
-				},
-			})
-			.execute()
-			.then((d) => d.results);
-
-		if (!device) {
-			return c.json({ success: false, error: "Device not found" }, 404);
-		}
+		const resolved = await resolveProjectAndDevice(c, projectId, deviceId);
+		if (resolved instanceof Response) return resolved;
+		const { device } = resolved;
 
 		// Delete the device (cascades to device_scripts via FK)
 		await qb

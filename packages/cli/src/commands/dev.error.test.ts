@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EXIT } from "../exitCodes";
 import dev from "./dev";
 
 describe("dev command error handling", () => {
@@ -27,6 +28,6 @@ describe("dev command error handling", () => {
 		expect(consoleErrorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Could not find"),
 		);
-		expect(processExitSpy).toHaveBeenCalledWith(1);
+		expect(processExitSpy).toHaveBeenCalledWith(EXIT.CONFIG_LOAD_FAILED);
 	});
 });

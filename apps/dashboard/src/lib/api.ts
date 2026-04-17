@@ -1,6 +1,6 @@
-const API_BASE_URL = import.meta.env.PROD
-  ? 'https://api.devicesdk.com'
-  : 'http://localhost:8787';
+import { API_HOST } from '@/config/apiHost';
+
+const API_BASE_URL = API_HOST;
 
 type ApiCallOptions = RequestInit;
 

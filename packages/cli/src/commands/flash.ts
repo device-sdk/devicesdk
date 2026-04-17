@@ -11,6 +11,7 @@ import {
 	isEsp32DeviceType,
 } from "../api.js";
 import { requireAuth } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 import { checkEsptoolInstalled, flashESP32 } from "../flash/esp32.js";
 import { flashPico } from "../flash/pico.js";
 import { getConfigDir, loadConfig } from "../utils.js";
@@ -91,7 +92,7 @@ export default async function flash(
 ): Promise<void> {
 	if (!deviceId) {
 		console.error("✗ Error: Device ID is required");
-		process.exit(5);
+		process.exit(EXIT.CONFIG_INVALID);
 	}
 
 	try {
@@ -105,7 +106,7 @@ export default async function flash(
 			console.error(
 				`  Available devices: ${Object.keys(config.devices).join(", ")}`,
 			);
-			process.exit(5);
+			process.exit(EXIT.CONFIG_INVALID);
 		}
 
 		await ensureProjectExists(token, config.projectId);
@@ -128,7 +129,7 @@ export default async function flash(
 				console.error(
 					"  Or see: https://docs.espressif.com/projects/esptool/en/latest/",
 				);
-				process.exit(6);
+				process.exit(EXIT.DEPLOY_ERROR);
 			}
 
 			console.log(`\n⬇ Downloading firmware for ${deviceId}...`);
@@ -202,6 +203,6 @@ export default async function flash(
 		if (error instanceof Error) {
 			console.error(`  ${error.message}`);
 		}
-		process.exit(6);
+		process.exit(EXIT.DEPLOY_ERROR);
 	}
 }

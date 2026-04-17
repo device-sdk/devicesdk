@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { refreshToken as apiRefreshToken } from "./api.js";
+import { EXIT } from "./exitCodes.js";
 
 export interface Credentials {
 	accessToken: string;
@@ -85,7 +86,7 @@ export async function requireAuth(): Promise<string> {
 	if (!token) {
 		console.error("✗ Error: Authentication required\n");
 		console.error("  Please run `devicesdk login` to authenticate.");
-		process.exit(3);
+		process.exit(EXIT.NOT_AUTHENTICATED);
 	}
 	return token;
 }

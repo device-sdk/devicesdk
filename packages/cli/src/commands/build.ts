@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import * as esbuild from "esbuild";
 import type { DeviceSDKConfig } from "../config.js";
+import { EXIT } from "../exitCodes.js";
 import { loadConfig } from "../utils.js";
 
 interface BuildOptions {
@@ -143,7 +144,7 @@ export default async function build(options: BuildOptions = {}): Promise<void> {
 				console.error(
 					`  Available devices: ${Object.keys(config.devices).join(", ")}`,
 				);
-				process.exit(5);
+				process.exit(EXIT.CONFIG_INVALID);
 			}
 			devicesToBuild = [[options.device, device]];
 		}
@@ -151,7 +152,7 @@ export default async function build(options: BuildOptions = {}): Promise<void> {
 		if (devicesToBuild.length === 0) {
 			console.error("✗ Error: No devices configured\n");
 			console.error("  Add devices to your devicesdk.ts configuration file.");
-			process.exit(5);
+			process.exit(EXIT.CONFIG_INVALID);
 		}
 
 		let totalSize = 0;
@@ -206,14 +207,14 @@ export default async function build(options: BuildOptions = {}): Promise<void> {
 			console.error(
 				`\n${failCount} device${failCount !== 1 ? "s" : ""} failed to build`,
 			);
-			process.exit(5);
+			process.exit(EXIT.BUILD_ERROR);
 		}
 	} catch (error) {
 		console.error("✗ Error: Build failed\n");
 		if (error instanceof Error) {
 			console.error(`  ${error.message}`);
 		}
-		process.exit(5);
+		process.exit(EXIT.BUILD_ERROR);
 	}
 }
 

@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance } from 'axios';
+import { API_HOST } from '@/config/apiHost';
 
 declare module 'vue' {
   interface ComponentCustomProperties {
@@ -7,11 +8,7 @@ declare module 'vue' {
   }
 }
 
-const baseURL = import.meta.env.PROD
-  ? 'https://api.devicesdk.com'
-  : 'http://localhost:8787';
-
-const api = axios.create({ baseURL });
+const api = axios.create({ baseURL: API_HOST });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default ({ app }: any) => {

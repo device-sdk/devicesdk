@@ -5,6 +5,7 @@ import {
 	listDevices,
 } from "../api.js";
 import { requireAuth } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 import { loadConfig } from "../utils.js";
 
 interface StatusOptions {
@@ -61,7 +62,7 @@ export default async function status(
 		} catch (error) {
 			if (error instanceof DeviceSDKApiError && error.statusCode === 404) {
 				console.error(`✗ Project "${projectId}" not found.`);
-				process.exit(1);
+				process.exit(EXIT.GENERIC);
 			}
 			throw error;
 		}
@@ -80,7 +81,7 @@ export default async function status(
 				console.error(
 					`✗ Device "${options.device}" not found in project "${projectId}".`,
 				);
-				process.exit(1);
+				process.exit(EXIT.GENERIC);
 			}
 		}
 
@@ -156,7 +157,7 @@ export default async function status(
 	} catch (error) {
 		if (error instanceof DeviceSDKApiError) {
 			console.error(`✗ Error: ${error.message}`);
-			process.exit(1);
+			process.exit(EXIT.GENERIC);
 		}
 		throw error;
 	}

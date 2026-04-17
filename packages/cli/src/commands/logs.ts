@@ -5,6 +5,7 @@ import {
 	type LogsResponse,
 } from "../api.js";
 import { requireAuth } from "../credentials.js";
+import { EXIT } from "../exitCodes.js";
 
 export const POLL_INTERVAL_MS = 2000;
 
@@ -54,7 +55,7 @@ export default async function logs(
 		// Register SIGINT handler before any async work so Ctrl-C is always caught
 		const sigintHandler = () => {
 			console.log("\nStopped tailing.");
-			process.exit(0);
+			process.exit(EXIT.SUCCESS);
 		};
 		process.once("SIGINT", sigintHandler);
 
@@ -78,7 +79,7 @@ export default async function logs(
 			process.removeListener("SIGINT", sigintHandler);
 			if (err instanceof DeviceSDKApiError && err.statusCode === 404) {
 				console.error(`✗ Error: Project or device not found.`);
-				process.exit(1);
+				process.exit(EXIT.GENERIC);
 			}
 			throw err;
 		}
@@ -119,7 +120,7 @@ export default async function logs(
 			} catch (err) {
 				if (err instanceof DeviceSDKApiError && err.statusCode === 404) {
 					console.error(`✗ Error: Project or device not found.`);
-					process.exit(1);
+					process.exit(EXIT.GENERIC);
 				}
 				// Network error — warn and retry
 				console.warn(`Warning: Failed to fetch logs, retrying...`);
@@ -136,7 +137,7 @@ export default async function logs(
 		} catch (err) {
 			if (err instanceof DeviceSDKApiError && err.statusCode === 404) {
 				console.error(`✗ Error: Project or device not found.`);
-				process.exit(1);
+				process.exit(EXIT.GENERIC);
 			}
 			throw err;
 		}

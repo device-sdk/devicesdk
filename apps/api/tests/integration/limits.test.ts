@@ -1,12 +1,35 @@
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { D1QB } from "workers-qb";
 import {
 	TEST_FREE_SESSION_TOKEN,
 	TEST_FREE_USER_ID,
 	TEST_SESSION_TOKEN,
 } from "../setup-test-data";
 
+// Resets the free user's owned projects so each test starts at 0/3. This
+// replaces the fragile `if (403) delete previous project and retry` pattern
+// that previously coupled tests to execution order.
+async function resetFreeUserProjects(): Promise<void> {
+	const qb = new D1QB(env.DB);
+	await qb
+		.delete({
+			tableName: "projects",
+			where: {
+				conditions: ["user_id = ?1"],
+				params: [TEST_FREE_USER_ID],
+			},
+		})
+		.execute();
+}
+
 describe.sequential("Usage limits enforcement", () => {
+	beforeEach(async () => {
+		// Fresh slate for every test in this file — limit tests only work
+		// when the free user starts at 0 projects.
+		await resetFreeUserProjects();
+	});
+
 	describe("Project creation limits", () => {
 		it("should block free user from creating more than 3 projects", async () => {
 			// Create 3 projects (free tier limit)
@@ -63,7 +86,7 @@ describe.sequential("Usage limits enforcement", () => {
 
 	describe("Device creation limits", () => {
 		it("should block free user from creating more than 5 devices in a project", async () => {
-			// Create a project for this test
+			// beforeEach resets projects so the free user starts at 0/3.
 			const projResp = await SELF.fetch("http://localhost/v1/projects", {
 				method: "POST",
 				headers: {
@@ -72,25 +95,7 @@ describe.sequential("Usage limits enforcement", () => {
 				},
 				body: JSON.stringify({ project_slug: "dev-limit-test" }),
 			});
-			// May be 201 or 403 (if project limit already reached from prior test)
-			// If 403, the free user already has 3 projects. Delete one first.
-			if (projResp.status === 403) {
-				await SELF.fetch("http://localhost/v1/projects/free-proj-3", {
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
-					},
-				});
-				const retryResp = await SELF.fetch("http://localhost/v1/projects", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
-					},
-					body: JSON.stringify({ project_slug: "dev-limit-test" }),
-				});
-				expect(retryResp.status).toBe(201);
-			}
+			expect(projResp.status).toBe(201);
 
 			for (let i = 1; i <= 5; i++) {
 				const resp = await SELF.fetch(
@@ -168,7 +173,7 @@ describe.sequential("Usage limits enforcement", () => {
 
 	describe("Script version FIFO pruning", () => {
 		it("should auto-prune oldest non-current version when at limit", async () => {
-			// Create a project and device for the free user
+			// beforeEach resets projects so the free user starts at 0/3.
 			const projResp = await SELF.fetch("http://localhost/v1/projects", {
 				method: "POST",
 				headers: {
@@ -177,24 +182,7 @@ describe.sequential("Usage limits enforcement", () => {
 				},
 				body: JSON.stringify({ project_slug: "fifo-test" }),
 			});
-			if (projResp.status === 403) {
-				// Free user may have hit project limit — delete one
-				await SELF.fetch("http://localhost/v1/projects/free-proj-2", {
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
-					},
-				});
-				const retryResp = await SELF.fetch("http://localhost/v1/projects", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}`,
-					},
-					body: JSON.stringify({ project_slug: "fifo-test" }),
-				});
-				expect(retryResp.status).toBe(201);
-			}
+			expect(projResp.status).toBe(201);
 
 			const devResp = await SELF.fetch(
 				"http://localhost/v1/projects/fifo-test/devices",

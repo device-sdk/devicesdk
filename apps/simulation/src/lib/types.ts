@@ -23,12 +23,7 @@ export interface InputMonitoring {
 	pull: "up" | "down" | "none";
 }
 
-export interface PinType {
-	id: number;
-	gpio: number | null;
-	name: string;
-	position: { top: string; left?: string; right?: string };
-	functions: string[];
+export interface PinState {
 	mode: PinMode;
 	digitalState: "high" | "low";
 	pwm?: PwmConfig;
@@ -40,19 +35,4 @@ export interface LogEntry {
 	timestamp: string;
 	message: string;
 	commandType?: DeviceCommand["type"];
-}
-
-export type Protocol = "SPI" | "I2C" | "UART" | "ADC";
-
-export type SensorType = "DHT22" | "Push Button" | "SSD1306 OLED";
-
-export interface SensorInfo {
-	name: SensorType;
-	protocol: Protocol;
-	pins: { [key: string]: string };
-}
-
-export interface ConnectedSensor {
-	type: SensorType;
-	pins: { [key: string]: number };
 }

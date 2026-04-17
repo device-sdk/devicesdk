@@ -1,127 +1,84 @@
 <script setup lang="ts">
-import { onMounted, watch } from "vue";
-import SimHeader from "@/components/SimHeader.vue";
-import LogPanel from "@/components/LogPanel.vue";
-import VirtualSensorConnector from "@/components/VirtualSensorConnector.vue";
-import PicoBoard from "@/components/pico/PicoBoard.vue";
-import OledDisplay from "@/components/OledDisplay.vue";
-import { useSimulator } from "@/composables/useSimulator";
+import { onMounted, onUnmounted, watch } from "vue";
+import InspectorPanel from "@/components/layout/InspectorPanel.vue";
+import LogDrawer from "@/components/layout/LogDrawer.vue";
+import PalettePanel from "@/components/layout/PalettePanel.vue";
+import SimHeader from "@/components/layout/SimHeader.vue";
+import StagePanel from "@/components/layout/StagePanel.vue";
+import TimelineDock from "@/components/layout/TimelineDock.vue";
 import { useDeviceConnection } from "@/composables/useDeviceConnection";
+import { useSimulator } from "@/composables/useSimulator";
+import { usePinStateStore } from "@/stores/pinState";
+import { useSimulatorStore } from "@/stores/simulator";
 
-const {
-	selectedDevice,
-	pins,
-	logs,
-	connectedSensors,
-	latestDisplayUpdate,
-	addLog,
-	clearLogs,
-	changeDevice,
-	updatePin,
-	connectSensor,
-	disconnectSensor,
-	handleDeviceCommand,
-} = useSimulator();
+const simulator = useSimulatorStore();
+const pinState = usePinStateStore();
 
+const { handleDeviceCommand } = useSimulator();
 const {
 	status: connectionStatus,
 	isDevMode,
 	availableDevices,
 	detectDevMode,
 	connect,
-	disconnect,
 	sendEvent,
 } = useDeviceConnection();
 
-function hasOledConnected(): boolean {
-	return connectedSensors.value.some((s) => s.type === "SSD1306 OLED");
-}
-
 function handleDeviceChange(deviceId: string) {
-	changeDevice(deviceId);
-	if (isDevMode.value) {
+	simulator.setDevice(deviceId);
+	if (simulator.isDevMode) {
 		connect(deviceId, handleDeviceCommand);
 	}
 }
 
-// When a pin in digital_input mode changes (user interaction), send event to user code
-watch(
-	pins,
-	(newPins, oldPins) => {
-		if (!isDevMode.value || connectionStatus.value !== "connected") return;
-		if (!oldPins) return;
+watch(connectionStatus, (status) => simulator.setConnectionStatus(status));
+watch(isDevMode, (dev) => {
+	simulator.isDevMode = dev;
+});
+watch(availableDevices, (devices) => {
+	simulator.availableDevices = [...devices];
+});
 
-		for (let i = 0; i < newPins.length; i++) {
-			const newPin = newPins[i];
-			const oldPin = oldPins[i];
-			if (
-				newPin.mode === "digital_input" &&
-				oldPin.mode === "digital_input" &&
-				newPin.gpio !== null &&
-				newPin.monitoring?.enabled &&
-				oldPin.digitalState !== newPin.digitalState
-			) {
-				sendEvent({
-					type: "gpio_state_changed",
-					id: crypto.randomUUID(),
-					payload: {
-						pin: newPin.gpio,
-						state: newPin.digitalState,
-					},
-				});
-			}
-		}
-	},
-	{ deep: true },
-);
+// Forward digital-input pin state changes to the firmware when monitoring is enabled.
+const stopDigitalWatch = pinState.onDigitalChange((gpio, _old, next) => {
+	if (simulator.connectionStatus !== "connected") return;
+	const s = pinState.get(gpio);
+	if (s.mode !== "digital_input") return;
+	if (!s.monitoring?.enabled) return;
+	sendEvent({
+		type: "gpio_state_changed",
+		id: crypto.randomUUID(),
+		payload: { pin: gpio, state: next },
+	});
+});
+
+onUnmounted(() => stopDigitalWatch());
 
 onMounted(async () => {
 	const devMode = await detectDevMode();
+	simulator.isDevMode = devMode;
+	simulator.availableDevices = [...availableDevices.value];
 	if (devMode && availableDevices.value.length > 0) {
-		const firstDevice = availableDevices.value[0];
-		selectedDevice.value = firstDevice;
-		connect(firstDevice, handleDeviceCommand);
-		addLog(`Dev mode: connecting to ${firstDevice}...`);
+		const first = availableDevices.value[0];
+		simulator.setDevice(first);
+		connect(first, handleDeviceCommand);
+		simulator.addLog(`Dev mode: connecting to ${first}...`);
 	}
 });
 </script>
 
 <template>
-	<div class="flex flex-col h-screen bg-background">
-		<SimHeader
-			:selected-device="selectedDevice"
-			:is-dev-mode="isDevMode"
-			:connection-status="connectionStatus"
-			:available-devices="availableDevices"
-			@device-change="handleDeviceChange"
-		/>
+	<div class="flex flex-col h-screen bg-background text-foreground">
+		<SimHeader @device-change="handleDeviceChange" />
 		<main
-			class="flex-grow grid md:grid-cols-2 gap-8 p-4 md:p-8 overflow-hidden"
+			class="flex-1 grid overflow-hidden"
+			style="grid-template-columns: 240px 1fr 320px"
 		>
-			<div class="flex flex-col items-center justify-center h-full overflow-hidden gap-4">
-				<PicoBoard :pins="pins" @pin-update="updatePin" />
-				<OledDisplay
-					v-if="hasOledConnected() || latestDisplayUpdate"
-					:display-command="latestDisplayUpdate"
-					@log="addLog"
-				/>
-			</div>
-			<div class="flex flex-col gap-8 h-full overflow-hidden">
-				<VirtualSensorConnector
-					:pins="pins"
-					:connected-sensors="connectedSensors"
-					@connect-sensor="connectSensor"
-					@disconnect-sensor="disconnectSensor"
-					@log="addLog"
-				/>
-				<div
-					class="flex-grow flex flex-col h-full overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm"
-				>
-					<div class="p-4 flex-grow overflow-hidden">
-						<LogPanel :logs="logs" @clear="clearLogs" />
-					</div>
-				</div>
-			</div>
+			<PalettePanel />
+			<StagePanel />
+			<InspectorPanel />
 		</main>
+		<TimelineDock />
+		<LogDrawer />
 	</div>
 </template>

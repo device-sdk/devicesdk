@@ -4,332 +4,113 @@ import type {
 	DisplayUpdateCommand,
 } from "@devicesdk/core";
 import { ref } from "vue";
-import { PIN_CAPABILITIES } from "@/lib/pinCapabilities";
-import { pinsData } from "@/lib/pins";
-import type { ConnectedSensor, LogEntry, PinType } from "@/lib/types";
+import { usePinStateStore } from "@/stores/pinState";
+import { useSimulatorStore } from "@/stores/simulator";
+import { useWidgetsStore } from "@/stores/widgets";
 
+/**
+ * Bridge between incoming DeviceCommands (firmware → simulator) and the Pinia stores.
+ * In Phase 2 this becomes a thin router into the emulator registry; for now it handles
+ * the same command set as the original Pico simulator, adapted to ESP32.
+ */
 export function useSimulator() {
-	const selectedDevice = ref("PicoW-A");
-	const pins = ref<PinType[]>(structuredClone(pinsData));
-	const logs = ref<LogEntry[]>([]);
-	const connectedSensors = ref<ConnectedSensor[]>([]);
+	const simulator = useSimulatorStore();
+	const pinState = usePinStateStore();
+	const widgets = useWidgetsStore();
+
 	const latestDisplayUpdate = ref<DisplayUpdateCommand>();
-
-	function addLog(message: string, commandType?: DeviceCommand["type"]) {
-		logs.value.unshift({
-			timestamp: new Date().toLocaleTimeString(),
-			message,
-			commandType,
-		});
-	}
-
-	function clearLogs() {
-		logs.value = [];
-	}
-
-	function changeDevice(deviceId: string) {
-		selectedDevice.value = deviceId;
-		pins.value = structuredClone(pinsData);
-		logs.value = [];
-		connectedSensors.value = [];
-		addLog(`Switched to device: ${deviceId}. Board reset.`);
-	}
-
-	function updatePin(updatedPin: PinType) {
-		const index = pins.value.findIndex((p) => p.id === updatedPin.id);
-		if (index === -1) return;
-
-		const oldPin = pins.value[index];
-		const gpio = updatedPin.gpio;
-
-		// Validate mode change against capabilities
-		if (gpio !== null && oldPin.mode !== updatedPin.mode) {
-			const caps = PIN_CAPABILITIES[gpio];
-			if (caps) {
-				if (updatedPin.mode === "analog_input" && !caps.adc) {
-					addLog(
-						`Error: GP${gpio} does not support ADC. Only GPIO 26, 27, 28 have ADC capability.`,
-					);
-					return;
-				}
-			}
-		}
-
-		// Log mode changes
-		if (oldPin.mode !== updatedPin.mode) {
-			const label =
-				updatedPin.gpio !== null ? `GP${updatedPin.gpio}` : updatedPin.name;
-
-			if (updatedPin.mode === "pwm_output") {
-				const freq = updatedPin.pwm?.frequency ?? 1000;
-				const duty = updatedPin.pwm?.dutyCycle ?? 0;
-				addLog(
-					`${label} configured as PWM output (${freq} Hz, ${Math.round(duty * 100)}% duty)`,
-					"set_pwm_state",
-				);
-			} else if (updatedPin.mode === "analog_input") {
-				addLog(`${label} configured as analog input (ADC)`, "get_pin_state");
-			} else if (updatedPin.mode === "digital_input") {
-				addLog(`${label} configured as digital input`);
-			} else if (updatedPin.mode === "digital_output") {
-				addLog(`${label} configured as digital output`);
-			}
-		}
-
-		// Log state changes per mode
-		if (oldPin.mode === updatedPin.mode || oldPin.mode !== updatedPin.mode) {
-			const label =
-				updatedPin.gpio !== null ? `GP${updatedPin.gpio}` : updatedPin.name;
-
-			// Digital state changes
-			if (
-				updatedPin.mode === "digital_output" &&
-				oldPin.digitalState !== updatedPin.digitalState &&
-				oldPin.mode === updatedPin.mode
-			) {
-				addLog(
-					`${label} → ${updatedPin.digitalState.toUpperCase()}`,
-					"set_gpio_state",
-				);
-			}
-
-			// PWM config changes
-			if (
-				updatedPin.mode === "pwm_output" &&
-				oldPin.mode === "pwm_output" &&
-				updatedPin.pwm &&
-				oldPin.pwm &&
-				(oldPin.pwm.frequency !== updatedPin.pwm.frequency ||
-					oldPin.pwm.dutyCycle !== updatedPin.pwm.dutyCycle)
-			) {
-				addLog(
-					`${label} PWM updated: ${updatedPin.pwm.frequency} Hz, ${Math.round(updatedPin.pwm.dutyCycle * 100)}% duty`,
-					"set_pwm_state",
-				);
-			}
-
-			// Analog reading changes
-			if (
-				updatedPin.mode === "analog_input" &&
-				oldPin.mode === "analog_input" &&
-				updatedPin.analog &&
-				oldPin.analog &&
-				oldPin.analog.voltage !== updatedPin.analog.voltage
-			) {
-				addLog(
-					`${label} ADC read: ${updatedPin.analog.voltage.toFixed(2)}V (raw: ${updatedPin.analog.raw})`,
-					"get_pin_state",
-				);
-			}
-
-			// Monitoring config changes
-			if (
-				updatedPin.mode === "digital_input" &&
-				oldPin.mode === "digital_input" &&
-				updatedPin.monitoring &&
-				(oldPin.monitoring?.enabled !== updatedPin.monitoring.enabled ||
-					oldPin.monitoring?.pull !== updatedPin.monitoring.pull)
-			) {
-				if (updatedPin.monitoring.enabled) {
-					addLog(
-						`${label} input monitoring enabled (pull: ${updatedPin.monitoring.pull})`,
-						"configure_gpio_input_monitoring",
-					);
-				} else {
-					addLog(
-						`${label} input monitoring disabled`,
-						"configure_gpio_input_monitoring",
-					);
-				}
-			}
-
-			// Simulated input change (digital_input state toggle)
-			if (
-				updatedPin.mode === "digital_input" &&
-				oldPin.mode === "digital_input" &&
-				oldPin.digitalState !== updatedPin.digitalState
-			) {
-				addLog(
-					`${label} input changed → ${updatedPin.digitalState.toUpperCase()}`,
-					"configure_gpio_input_monitoring",
-				);
-			}
-		}
-
-		pins.value[index] = updatedPin;
-	}
-
-	function connectSensor(sensor: ConnectedSensor) {
-		if (connectedSensors.value.some((s) => s.type === sensor.type)) {
-			addLog(
-				`Sensor ${sensor.type} is already connected. Disconnect it first.`,
-			);
-			return;
-		}
-		connectedSensors.value.push(sensor);
-		const pinList = Object.entries(sensor.pins)
-			.map(([role, gpio]) => `${role}: GP${gpio}`)
-			.join(", ");
-		addLog(`Connected ${sensor.type} (${pinList})`, "i2c_configure");
-	}
-
-	function disconnectSensor(sensorType: string) {
-		connectedSensors.value = connectedSensors.value.filter(
-			(s) => s.type !== sensorType,
-		);
-		addLog(`Disconnected ${sensorType}`);
-	}
-
-	function findPinByGpio(gpio: number): { pin: PinType; index: number } | null {
-		const index = pins.value.findIndex((p) => p.gpio === gpio);
-		if (index === -1) return null;
-		return { pin: pins.value[index], index };
-	}
 
 	function handleDeviceCommand(command: DeviceCommand): DeviceResponse | null {
 		switch (command.type) {
 			case "set_gpio_state": {
-				const result = findPinByGpio(command.payload.pin);
-				if (result) {
-					const updated = { ...result.pin };
-					updated.mode = "digital_output";
-					updated.digitalState = command.payload.state;
-					pins.value[result.index] = updated;
-					addLog(
-						`GP${command.payload.pin} → ${command.payload.state.toUpperCase()}`,
-						"set_gpio_state",
-					);
-				}
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				const { pin, state } = command.payload;
+				pinState.setMode(pin, "digital_output");
+				pinState.setDigital(pin, state);
+				simulator.addLog(
+					`GPIO ${pin} → ${state.toUpperCase()}`,
+					"set_gpio_state",
+				);
+				return ack(command);
 			}
 
 			case "set_pwm_state": {
-				const result = findPinByGpio(command.payload.pin);
-				if (result) {
-					const updated = { ...result.pin };
-					updated.mode = "pwm_output";
-					updated.pwm = {
-						frequency: command.payload.frequency,
-						dutyCycle: command.payload.duty_cycle,
-					};
-					pins.value[result.index] = updated;
-					addLog(
-						`GP${command.payload.pin} PWM: ${command.payload.frequency} Hz, ${Math.round(command.payload.duty_cycle * 100)}% duty`,
-						"set_pwm_state",
-					);
-				}
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				const { pin, frequency, duty_cycle } = command.payload;
+				pinState.setPwm(pin, { frequency, dutyCycle: duty_cycle });
+				simulator.addLog(
+					`GPIO ${pin} PWM: ${frequency} Hz, ${Math.round(duty_cycle * 100)}% duty`,
+					"set_pwm_state",
+				);
+				return ack(command);
 			}
 
 			case "get_pin_state": {
-				const result = findPinByGpio(command.payload.pin);
+				const { pin, mode } = command.payload;
+				const s = pinState.get(pin);
 				const value =
-					command.payload.mode === "digital"
-						? result?.pin.digitalState === "high"
+					mode === "digital"
+						? s.digitalState === "high"
 							? 1
 							: 0
-						: (result?.pin.analog?.raw ?? 0);
-				addLog(
-					`GP${command.payload.pin} read: ${value} (${command.payload.mode})`,
+						: (s.analog?.raw ?? 0);
+				simulator.addLog(
+					`GPIO ${pin} read: ${value} (${mode})`,
 					"get_pin_state",
 				);
 				return {
 					id: command.id,
 					type: "pin_state_update",
-					payload: {
-						pin: command.payload.pin,
-						mode: command.payload.mode,
-						value,
-					},
+					payload: { pin, mode, value },
 				};
 			}
 
 			case "configure_gpio_input_monitoring": {
-				const result = findPinByGpio(command.payload.pin);
-				if (result) {
-					const updated = { ...result.pin };
-					updated.mode = "digital_input";
-					updated.monitoring = {
-						enabled: command.payload.enable,
-						pull: command.payload.pull ?? "none",
-					};
-					pins.value[result.index] = updated;
-					addLog(
-						`GP${command.payload.pin} monitoring ${command.payload.enable ? "enabled" : "disabled"}`,
-						"configure_gpio_input_monitoring",
-					);
-				}
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				const { pin, enable, pull } = command.payload;
+				pinState.setMonitoring(pin, {
+					enabled: enable,
+					pull: pull ?? "none",
+				});
+				simulator.addLog(
+					`GPIO ${pin} monitoring ${enable ? "enabled" : "disabled"}`,
+					"configure_gpio_input_monitoring",
+				);
+				return ack(command);
 			}
 
 			case "display_update": {
 				latestDisplayUpdate.value = command;
-				addLog(
+				simulator.addLog(
 					`Display update: ${command.payload.width}x${command.payload.height} (${command.payload.segments.length} segments)`,
 					"display_update",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "i2c_configure": {
-				addLog(
-					`I2C bus ${command.payload.bus} configured: SDA=GP${command.payload.sda_pin}, SCL=GP${command.payload.scl_pin}`,
+				simulator.addLog(
+					`I2C bus ${command.payload.bus} configured: SDA=GPIO ${command.payload.sda_pin}, SCL=GPIO ${command.payload.scl_pin}`,
 					"i2c_configure",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "i2c_scan": {
-				// Return connected I2C sensor addresses
-				const addresses: string[] = [];
-				for (const sensor of connectedSensors.value) {
-					if (sensor.type === "SSD1306 OLED") addresses.push("0x3C");
-					if (sensor.type === "DHT22") addresses.push("0x44");
-				}
-				addLog(
-					`I2C scan bus ${command.payload.bus}: found [${addresses.join(", ")}]`,
-					"i2c_scan",
-				);
+				simulator.addLog(`I2C scan bus ${command.payload.bus}: []`, "i2c_scan");
 				return {
 					id: command.id,
 					type: "i2c_scan_result",
 					payload: {
 						bus: command.payload.bus,
-						addresses_found: addresses,
+						addresses_found: [],
 					},
 				};
 			}
 
 			case "i2c_write": {
-				addLog(
+				simulator.addLog(
 					`I2C write to ${command.payload.address}: [${command.payload.data.join(", ")}]`,
 					"i2c_write",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "i2c_read": {
@@ -337,7 +118,7 @@ export function useSimulator() {
 					{ length: command.payload.bytes_to_read },
 					() => "0x00",
 				);
-				addLog(
+				simulator.addLog(
 					`I2C read from ${command.payload.address}: ${command.payload.bytes_to_read} bytes`,
 					"i2c_read",
 				);
@@ -353,30 +134,22 @@ export function useSimulator() {
 			}
 
 			case "i2c_batch_write": {
-				addLog(
+				simulator.addLog(
 					`I2C batch write to ${command.payload.address}: ${command.payload.writes.length} writes`,
 					"i2c_batch_write",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "reboot": {
-				pins.value = structuredClone(pinsData);
+				pinState.resetAll();
 				latestDisplayUpdate.value = undefined;
-				addLog("Device rebooted", "reboot");
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				simulator.addLog("Device rebooted", "reboot");
+				return ack(command);
 			}
 
 			case "get_temperature": {
-				addLog("Temperature: 25.0°C (simulated)", "get_temperature");
+				simulator.addLog("Temperature: 25.0°C (simulated)", "get_temperature");
 				return {
 					id: command.id,
 					type: "temperature_result",
@@ -385,38 +158,25 @@ export function useSimulator() {
 			}
 
 			case "watchdog_configure": {
-				const enable = command.payload.enable;
-				const ms = command.payload.timeout_ms;
-				addLog(
-					`Watchdog ${enable ? `enabled (${ms}ms)` : "disabled"} (simulated)`,
+				const { enable, timeout_ms } = command.payload;
+				simulator.addLog(
+					`Watchdog ${enable ? `enabled (${timeout_ms}ms)` : "disabled"} (simulated)`,
 					"watchdog_configure",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "watchdog_feed": {
-				addLog("Watchdog fed (simulated)", "watchdog_feed");
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				simulator.addLog("Watchdog fed (simulated)", "watchdog_feed");
+				return ack(command);
 			}
 
 			case "spi_configure": {
-				addLog(
-					`SPI bus ${command.payload.bus} configured: CLK=GP${command.payload.clk_pin}, MOSI=GP${command.payload.mosi_pin}, MISO=GP${command.payload.miso_pin}, CS=GP${command.payload.cs_pin}`,
+				simulator.addLog(
+					`SPI bus ${command.payload.bus} configured: CLK=GPIO ${command.payload.clk_pin}, MOSI=GPIO ${command.payload.mosi_pin}, MISO=GPIO ${command.payload.miso_pin}, CS=GPIO ${command.payload.cs_pin}`,
 					"spi_configure",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "spi_transfer": {
@@ -424,7 +184,7 @@ export function useSimulator() {
 					{ length: command.payload.data.length },
 					() => "0x00",
 				);
-				addLog(
+				simulator.addLog(
 					`SPI transfer on bus ${command.payload.bus}: ${command.payload.data.length} bytes`,
 					"spi_transfer",
 				);
@@ -436,15 +196,11 @@ export function useSimulator() {
 			}
 
 			case "spi_write": {
-				addLog(
+				simulator.addLog(
 					`SPI write on bus ${command.payload.bus}: [${command.payload.data.join(", ")}]`,
 					"spi_write",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "spi_read": {
@@ -452,7 +208,7 @@ export function useSimulator() {
 					{ length: command.payload.bytes_to_read },
 					() => "0x00",
 				);
-				addLog(
+				simulator.addLog(
 					`SPI read on bus ${command.payload.bus}: ${command.payload.bytes_to_read} bytes`,
 					"spi_read",
 				);
@@ -464,31 +220,23 @@ export function useSimulator() {
 			}
 
 			case "uart_configure": {
-				addLog(
-					`UART port ${command.payload.port} configured: TX=GP${command.payload.tx_pin}, RX=GP${command.payload.rx_pin}, ${command.payload.baud_rate} baud`,
+				simulator.addLog(
+					`UART port ${command.payload.port} configured: TX=GPIO ${command.payload.tx_pin}, RX=GPIO ${command.payload.rx_pin}, ${command.payload.baud_rate} baud`,
 					"uart_configure",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "uart_write": {
-				addLog(
+				simulator.addLog(
 					`UART write port ${command.payload.port}: [${command.payload.data.join(", ")}]`,
 					"uart_write",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "uart_read": {
-				addLog(
+				simulator.addLog(
 					`UART read port ${command.payload.port}: ${command.payload.bytes_to_read} bytes (simulated)`,
 					"uart_read",
 				);
@@ -504,50 +252,37 @@ export function useSimulator() {
 			}
 
 			case "pio_ws2812_configure": {
-				addLog(
-					`WS2812 configured: pin GP${command.payload.pin}, ${command.payload.num_leds} LEDs`,
+				simulator.addLog(
+					`WS2812 configured: GPIO ${command.payload.pin}, ${command.payload.num_leds} LEDs`,
 					"pio_ws2812_configure",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			case "pio_ws2812_update": {
-				addLog(
+				simulator.addLog(
 					`WS2812 update: ${command.payload.pixels.length} pixels`,
 					"pio_ws2812_update",
 				);
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: command.type },
-				};
+				return ack(command);
 			}
 
 			default:
-				return {
-					id: command.id,
-					type: "command_ack",
-					payload: { command_type: (command as DeviceCommand).type },
-				};
+				return ack(command);
 		}
 	}
 
 	return {
-		selectedDevice,
-		pins,
-		logs,
-		connectedSensors,
 		latestDisplayUpdate,
-		addLog,
-		clearLogs,
-		changeDevice,
-		updatePin,
-		connectSensor,
-		disconnectSensor,
 		handleDeviceCommand,
+		widgets,
+	};
+}
+
+function ack(command: DeviceCommand): DeviceResponse {
+	return {
+		id: command.id,
+		type: "command_ack",
+		payload: { command_type: command.type },
 	};
 }

@@ -32,6 +32,12 @@ Last updated: 2026-04-06
 | 20 | [Inter-Device Communication (RPC)](#20-inter-device-communication-rpc) | Type-safe method calls between devices in the same project | [ x ]  |
 | 21 | [Inter-Device Events / Pub-Sub](#21-inter-device-events--pub-sub) | Project-level event broadcasting between devices | [ ]    |
 | 22 | [Firmware TLS Certificate Verification (Pico)](#22-firmware-tls-certificate-verification-pico) | Embed CA cert or pin server public key so Pico TLS verifies the server identity | [ x ]  |
+| 23 | [Capture Console Logs in Simulator](#23-capture-console-logs-in-simulator) | Pipe user-script `console.log/info/warn/error` through to the simulator UI log drawer — today they only hit terminal stdout | [ ]    |
+| 24 | [Restore OLED Display Rendering as Widget](#24-restore-oled-display-rendering-as-widget) | Regression from the ESP32 redesign: `display_update` commands are logged but no pixels are drawn | [ ]    |
+| 25 | [Source Code Viewer in the Simulator](#25-source-code-viewer-in-the-simulator) | Collapsible drawer showing the running device script so users can debug `onMessage` flow without leaving the simulator | [ ]    |
+| 26 | [Device Reboot Button](#26-device-reboot-button) | UI trigger to restart the device (re-run `onDeviceConnect`) without editing a file to trigger chokidar | [ ]    |
+| 27 | [WS2812 LED Strip Visualization](#27-ws2812-led-strip-visualization) | Render a horizontal strip of colored LEDs when firmware calls `pioWs2812Configure` / `pioWs2812Update` | [ ]    |
+| 28 | [Off-Board Pin Activity Indicator](#28-off-board-pin-activity-indicator) | Visual cue on the board when a pin the script uses isn't exposed on the current board visual | [ ]    |
 
 ---
 
@@ -475,3 +481,96 @@ embed any root CA.
 3. Pass the DER buffer and length to `altcp_tls_create_config_client()` instead of `NULL, 0`.
 4. Verify TLS handshake succeeds against the real server and fails against a self-signed cert (simulated MITM).
 5. Update the Pico firmware CI build to fail if the CA buffer is empty.
+
+---
+
+### 23. Capture Console Logs in Simulator
+
+**Priority**: High
+**Packages affected**: `apps/simulation`, `packages/cli`
+**Files**: `packages/cli/src/simulator/localDeviceSender.ts` (`persistLog` is a no-op), `apps/simulation/src/composables/useSimulator.ts`, `apps/simulation/src/components/layout/LogDrawer.vue`
+
+Today when a user's script calls `console.info("Ready!")` the output only hits the workerd terminal stdout — nothing appears in the simulator UI. The `persistLog` method in `LocalDeviceSender` is stubbed with a `// No-op in local simulator` comment. Debugging is essentially blind from the browser.
+
+**Work required**:
+1. Decide on transport: simplest is to have `persistLog` fire a `log_entry` message over the existing WebSocket (sender→UI direction). This requires extending the `DeviceResponse` discriminated union in `@devicesdk/core` (or using a simulator-local side-channel command).
+2. Route the frame through the Vue app's `handleDeviceCommand` (or a new watcher that reads inbound non-response messages).
+3. Render in the log drawer with a new badge kind (`log`) and level-based coloring (debug grey / info blue / log green / warn amber / error red), matching the dashboard's existing `DeviceLogs.vue` styling for consistency.
+4. Patch `packages/core/src/index.ts` `DeviceEntrypoint.console` so calls both hit native `console.*` AND `this.env.DEVICE.persistLog(level, msg)` (may already do this — verify).
+5. Add a filter chip in the log drawer to show "commands only" vs "script logs only" vs "both".
+
+**Docs impact**: Document the log drawer in the new `docs/cli/dev.md` (blocked on task #16).
+
+---
+
+### 24. Restore OLED Display Rendering as Widget
+
+**Priority**: High
+**Packages affected**: `apps/simulation`
+
+Regression from the ESP32 redesign (PR that added this roadmap item): `apps/simulation/src/components/OledDisplay.vue` was deleted without being migrated into the new widget framework. Scripts that call `i2cWrite` + `display_update` to drive an SSD1306 now log the command but paint zero pixels.
+
+**Work required**:
+1. Create `apps/simulation/src/components/widgets/probes/OledDisplayWidget.vue` based on the deleted component (Canvas 2D renderer using the `SSD1306` class from `@devicesdk/core/i2c`).
+2. Auto-mount the widget the first time a `display_update` command arrives (no palette drag needed) — store the latest `DisplayUpdateCommand` in a Pinia slice and have the widget watch it.
+3. Register as a palette entry (`SSD1306 OLED`) so users can also pre-place it onto I2C pins 21/22 (matches the existing `VirtualSensorConnector` flow pre-redesign).
+4. Add E2E test: send a `display_update` from a fixture firmware, assert the canvas renders non-zero pixels.
+
+---
+
+### 25. Source Code Viewer in the Simulator
+
+**Priority**: Medium
+**Packages affected**: `apps/simulation`, `packages/cli`
+
+Users debugging a failing script cannot see what code is actually running — they have to context-switch to their editor to cross-reference the simulator's command log with their source. A collapsible drawer showing the user's compiled entrypoint (or the raw `.ts`) would close this loop.
+
+**Work required**:
+1. Expose the user's script source from the CLI side — either inline it into the `simulator.js` worker bundle as a text-loader import, or serve it via a new `/api/script/:deviceId` endpoint on the simulator worker.
+2. Build `apps/simulation/src/components/layout/ScriptDrawer.vue` — a collapsible panel alongside the log drawer, rendered with syntax highlighting (e.g. `shiki` or `highlight.js` — keep bundle cost in mind).
+3. Show the file path and a "Open in editor" link using `vscode://file/…` URLs (and `cursor://…` for Cursor users).
+4. Optional: highlight the last line the simulator observed executing by capturing stack frames on each outbound command (non-trivial — defer unless needed).
+
+---
+
+### 26. Device Reboot Button
+
+**Priority**: Medium
+**Packages affected**: `apps/simulation`, `packages/cli`
+
+The only way to re-run `onDeviceConnect` today is to edit a source file and let chokidar trigger a rebuild. Users routinely want to test "what happens on fresh boot" without editing anything.
+
+**Work required**:
+1. Add a `⟳` reboot button to `SimHeader.vue`. On click, send a synthetic `reboot` command to the simulator's command router.
+2. In `apps/simulation/src/composables/useSimulator.ts` `reboot` handler, also close the current WebSocket so the DO's `webSocketClose` fires → `onDeviceDisconnect` → cleanup, then reconnect so `onDeviceConnect` runs fresh.
+3. Clear `pinState`, `widgets`, and log state on reboot (the `reset` flow already exists in the store — wire it up to the reboot action).
+4. Preserve widget placements across reboots (users don't want to re-drag a BME280 every time). Persist placements to `localStorage` keyed by device id.
+
+---
+
+### 27. WS2812 LED Strip Visualization
+
+**Priority**: Medium
+**Packages affected**: `apps/simulation`
+
+`pioWs2812Configure` and `pioWs2812Update` commands currently log text like `WS2812 update: 8 pixels` but never show colors. This is low-effort, high-delight polish — particularly relevant now that the ESP32-C61 and Pico both support addressable strips as a first-class peripheral.
+
+**Work required**:
+1. On `pio_ws2812_configure`, create a "LED Strip" widget auto-placed near the top of the stage (no drag needed) bound to the configured GPIO and strip length.
+2. On `pio_ws2812_update`, render each pixel as a colored `<circle>` or `<rect>` in SVG. Accept `[r, g, b]` tuples; convert to `rgb(r,g,b)`.
+3. Show the pin binding and strip length as widget metadata.
+4. Provide a "color sampler" probe for the strip (Phase 4 manual probe) — click a pixel to see its RGB value.
+
+---
+
+### 28. Off-Board Pin Activity Indicator
+
+**Priority**: Low
+**Packages affected**: `apps/simulation`
+
+When a user's script drives a pin not exposed on the current board visual (e.g. GPIO 99 on an ESP32 DevKit-C), the Script Pins panel reflects the state but the main board surface shows no activity. A small banner or status row above the board reading "3 off-board pins active · GPIO 99, GPIO 20, GPIO 40" would make the disconnect obvious at a glance.
+
+**Work required**:
+1. Compute `offBoardPinsInUse` from the `pinState` store filtered by pins not in `board.pins`.
+2. Render a one-line chip row above the `Esp32Board` SVG with clickable chips that scroll the Script Pins panel into view and highlight the selected row.
+3. Pulse the chip when a state change happens on that pin (brief flash animation).

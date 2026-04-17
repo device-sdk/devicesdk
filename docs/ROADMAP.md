@@ -164,3 +164,19 @@ Several files exceed the 700-LOC project standard. Splitting them needs an isola
 
 **Why it matters**: large files are harder to review, prone to merge conflicts, and hide dead-code accumulation.
 **Effort**: Medium per file, with full regression testing required (Playwright for dashboard, DO integration tests for device.ts).
+
+### Public OpenAPI exposure
+
+- **Status**: Chanfana already auto-serves the OpenAPI schema at `/`, but nothing links to it. Users can't discover the API reference without reading the source.
+- **Gaps**: no explicit `/openapi.json` route, no link from the website docs or root README, no hosted Swagger/ReDoc UI.
+- **Recommendation**: add an explicit `GET /openapi.json` route, add a ReDoc-rendered HTML page (or link to the auto-generated one), reference it from `docs/cli/_index.md` and the website documentation index.
+- **Effort**: Small.
+
+### Dashboard i18n + error-handling consistency
+
+- **Status**: 62 `console.error` calls and 0 `Notify.create` calls across the dashboard — errors are silently logged to the devtools console without any user-facing notification. No i18n library is installed; all strings are hardcoded English.
+- **Proposed approach**:
+  - Add `vue-i18n` and scaffold `src/locales/en.json`. Extract user-facing strings progressively — don't do it all at once.
+  - Add a `useToast()` composable that wraps `Notify.create` and also writes to `console.error` for devtools. Migrate the existing `console.error` sites one page at a time.
+- **Why it matters**: silent failures give users no recovery path; i18n is effectively impossible without the scaffolding.
+- **Effort**: Medium — scaffolding is small; the progressive migration is the actual work.

@@ -1,4 +1,9 @@
+import type { HaEntityDeclaration } from "@devicesdk/core";
 import { z } from "zod";
+
+// Re-export the canonical type from core so CLI consumers (e.g. downstream
+// configs) can continue to `import { HaEntityDeclaration } from "@devicesdk/cli"`.
+export type { HaEntityDeclaration } from "@devicesdk/core";
 
 export type DeviceType = "pico-w" | "pico2-w" | "esp32" | "esp32c61";
 const deviceTypeSchema: z.ZodType<DeviceType> = z.enum([
@@ -8,7 +13,10 @@ const deviceTypeSchema: z.ZodType<DeviceType> = z.enum([
 	"esp32c61",
 ]);
 
-const HaEntityDeclarationSchema = z.object({
+// Zod schema must stay in the CLI (core has no runtime deps). The type assertion
+// below ensures this schema shape matches `HaEntityDeclaration` from core — if
+// the two drift, `z.ZodType<HaEntityDeclaration>` will fail to typecheck.
+const HaEntityDeclarationSchema: z.ZodType<HaEntityDeclaration> = z.object({
 	entity_id: z
 		.string()
 		.min(1)
@@ -38,8 +46,6 @@ const HaEntityDeclarationSchema = z.object({
 	pwm_frequency: z.number().int().positive().optional(),
 	num_leds: z.number().int().positive().max(1024).optional(),
 });
-
-export type HaEntityDeclaration = z.infer<typeof HaEntityDeclarationSchema>;
 
 export const DeviceConfigSchema = z
 	.object({

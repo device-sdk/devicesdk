@@ -143,7 +143,7 @@ Non-hardware initiatives that span the API, dashboard, CLI, or developer tooling
   - `rate_limit.rejections_by_endpoint` — which endpoints hit 429s
   - `firmware.download_bytes` — bytes served per firmware version
 - **Why it matters**: without these, platform connectivity degradation is invisible until users complain.
-- **Effort**: Small–Medium — one `ANALYTICS` binding plus ~5 `.writeDataPoint()` call sites.
+- **Effort**: Small–Medium — wire a single analytics sink and emit from ~5 hot paths.
 
 ### Test coverage: simulation app + real OAuth E2E
 

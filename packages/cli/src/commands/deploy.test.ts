@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeviceSDKApiError } from "../api.js";
+import { EXIT } from "../exitCodes.js";
 import deploy from "./deploy.js";
 
 vi.mock("../credentials.js", () => ({
@@ -153,7 +154,7 @@ describe("deploy command", () => {
 		});
 
 		await expect(deploy()).rejects.toThrowError(/exit:6/);
-		expect(exitSpy).toHaveBeenCalledWith(5);
+		expect(exitSpy).toHaveBeenCalledWith(EXIT.CONFIG_INVALID);
 	});
 
 	it("deploys all devices in batch when no device filter is specified", async () => {
@@ -205,7 +206,7 @@ describe("deploy command", () => {
 		await expect(deploy({ device: "non-existent" })).rejects.toThrowError(
 			/exit:6/,
 		);
-		expect(exitSpy).toHaveBeenCalledWith(5);
+		expect(exitSpy).toHaveBeenCalledWith(EXIT.CONFIG_INVALID);
 	});
 
 	it("exits when main file does not exist", async () => {

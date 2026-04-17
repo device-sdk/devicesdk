@@ -78,7 +78,7 @@ The CLI uses stable numeric exit codes so scripts and CI pipelines can dispatch 
 |------|--------------------|---------------------------------------------------------------|
 | 0    | SUCCESS            | Command completed successfully                                 |
 | 1    | GENERIC            | Unclassified error; treat as "retry or file a bug"             |
-| 2    | CONFIG_INVALID     | Bad template, unknown command, or invalid argument            |
+| 2    | CONFIG_INVALID     | Bad template, unknown/missing device, or invalid argument     |
 | 3    | NOT_AUTHENTICATED  | No valid credentials; run `devicesdk login`                    |
 | 4    | CONFIG_LOAD_FAILED | `devicesdk.ts` is missing, unparseable, or semantically wrong |
 | 5    | BUILD_ERROR        | esbuild bundling failed — check device script for TS errors    |

@@ -144,7 +144,7 @@ export default async function build(options: BuildOptions = {}): Promise<void> {
 				console.error(
 					`  Available devices: ${Object.keys(config.devices).join(", ")}`,
 				);
-				process.exit(EXIT.BUILD_ERROR);
+				process.exit(EXIT.CONFIG_INVALID);
 			}
 			devicesToBuild = [[options.device, device]];
 		}
@@ -152,7 +152,7 @@ export default async function build(options: BuildOptions = {}): Promise<void> {
 		if (devicesToBuild.length === 0) {
 			console.error("✗ Error: No devices configured\n");
 			console.error("  Add devices to your devicesdk.ts configuration file.");
-			process.exit(EXIT.BUILD_ERROR);
+			process.exit(EXIT.CONFIG_INVALID);
 		}
 
 		let totalSize = 0;

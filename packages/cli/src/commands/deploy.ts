@@ -72,7 +72,7 @@ export default async function deploy(
 				console.error(
 					`  Available devices: ${Object.keys(config.devices).join(", ")}`,
 				);
-				process.exit(EXIT.BUILD_ERROR);
+				process.exit(EXIT.CONFIG_INVALID);
 			}
 			devicesToDeploy = [[options.device, device]];
 		}
@@ -80,7 +80,7 @@ export default async function deploy(
 		if (devicesToDeploy.length === 0) {
 			console.error("✗ Error: No devices configured\n");
 			console.error("  Add devices to your devicesdk.ts configuration file.");
-			process.exit(EXIT.BUILD_ERROR);
+			process.exit(EXIT.CONFIG_INVALID);
 		}
 
 		// Build all devices first

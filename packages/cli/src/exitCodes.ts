@@ -6,7 +6,7 @@
 // Categories reflect how each class of failure should be handled by callers:
 //   SUCCESS           — everything worked
 //   GENERIC           — unclassified error; treat as "try again or file a bug"
-//   CONFIG_INVALID    — user supplied a bad template / unknown command / invalid arg
+//   CONFIG_INVALID    — bad template, unknown/missing device, or otherwise invalid CLI argument
 //   NOT_AUTHENTICATED — no valid credentials; prompt `devicesdk login`
 //   CONFIG_LOAD_FAILED — devicesdk.ts is missing, unparseable, or semantically wrong
 //   BUILD_ERROR       — esbuild bundling failed; user's device script has errors

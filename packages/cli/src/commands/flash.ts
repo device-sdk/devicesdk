@@ -92,7 +92,7 @@ export default async function flash(
 ): Promise<void> {
 	if (!deviceId) {
 		console.error("✗ Error: Device ID is required");
-		process.exit(EXIT.BUILD_ERROR);
+		process.exit(EXIT.CONFIG_INVALID);
 	}
 
 	try {
@@ -106,7 +106,7 @@ export default async function flash(
 			console.error(
 				`  Available devices: ${Object.keys(config.devices).join(", ")}`,
 			);
-			process.exit(EXIT.BUILD_ERROR);
+			process.exit(EXIT.CONFIG_INVALID);
 		}
 
 		await ensureProjectExists(token, config.projectId);

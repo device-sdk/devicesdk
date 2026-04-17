@@ -61,9 +61,10 @@ void hal_set_gpio(uint8_t pin, gpio_state_t state) {
     }
 }
 
-// Track which pins have been configured as inputs (bitmask is 32 bits — safe because
-// is_valid_gpio() rejects pin >= NUM_BANK0_GPIOS before any shift).
-static uint32_t gpio_input_configured_mask = 0;
+// Track which pins have been configured as inputs. 64-bit mask covers both
+// RP2040 (NUM_BANK0_GPIOS=30) and RP2350 (NUM_BANK0_GPIOS=48); is_valid_gpio()
+// rejects pins outside that range before any shift.
+static uint64_t gpio_input_configured_mask = 0;
 
 bool hal_get_gpio_digital(uint8_t pin) {
     if (!is_valid_gpio(pin)) {
@@ -75,10 +76,10 @@ bool hal_get_gpio_digital(uint8_t pin) {
         return false;
     }
     // Only initialize the pin if not already configured as input
-    if (!(gpio_input_configured_mask & (1u << pin))) {
+    if (!(gpio_input_configured_mask & (1ull << pin))) {
         gpio_init(pin);
         gpio_set_dir(pin, GPIO_IN);
-        gpio_input_configured_mask |= (1u << pin);
+        gpio_input_configured_mask |= (1ull << pin);
     }
     return gpio_get(pin);
 }
@@ -96,7 +97,7 @@ void hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
     gpio_set_dir(pin, GPIO_IN);
 
     // Mark this pin as configured for input reads
-    gpio_input_configured_mask |= (1u << pin);
+    gpio_input_configured_mask |= (1ull << pin);
 
     // Configure pull-up or pull-down
     if (pull == GPIO_PULL_UP) {

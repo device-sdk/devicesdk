@@ -12,26 +12,23 @@ interface InitOptions {
 	noGit?: boolean;
 }
 
-const DEFAULT_CORE_VERSION = "1.1.1";
-const DEFAULT_CLI_VERSION = "0.2.1";
-
-function resolvePackageVersion(packageName: string, fallback: string): string {
-	try {
-		const require = createRequire(import.meta.url);
-		const pkgJsonPath = require.resolve(`${packageName}/package.json`);
-		const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf8")) as {
-			version?: string;
-		};
-		return pkg.version ?? fallback;
-	} catch {
-		return fallback;
+function resolvePackageVersion(packageName: string): string {
+	const require = createRequire(import.meta.url);
+	const pkgJsonPath = require.resolve(`${packageName}/package.json`);
+	const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf8")) as {
+		version?: string;
+	};
+	if (!pkg.version) {
+		throw new Error(`${packageName}/package.json has no version field`);
 	}
+	return pkg.version;
 }
 
-function detectPackageManager(): "pnpm" | "yarn" | "npm" {
+function detectPackageManager(): "pnpm" | "yarn" | "npm" | "bun" {
 	const ua = process.env.npm_config_user_agent ?? "";
 	if (ua.startsWith("pnpm/")) return "pnpm";
 	if (ua.startsWith("yarn/")) return "yarn";
+	if (ua.startsWith("bun/")) return "bun";
 	return "npm";
 }
 
@@ -109,14 +106,8 @@ ${devicesStr}
 }
 
 function generatePackageJson(projectId: string): string {
-	const coreVersion = resolvePackageVersion(
-		"@devicesdk/core",
-		DEFAULT_CORE_VERSION,
-	);
-	const cliVersion = resolvePackageVersion(
-		"@devicesdk/cli",
-		DEFAULT_CLI_VERSION,
-	);
+	const coreVersion = resolvePackageVersion("@devicesdk/core");
+	const cliVersion = resolvePackageVersion("@devicesdk/cli");
 	return JSON.stringify(
 		{
 			name: projectId,

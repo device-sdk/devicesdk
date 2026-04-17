@@ -285,6 +285,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@devicesdk/core':
+        specifier: workspace:*
+        version: link:../core
       chokidar:
         specifier: ^3.5.3
         version: 3.6.0

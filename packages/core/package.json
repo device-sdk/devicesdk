@@ -29,7 +29,8 @@
 		"./devices/pico": {
 			"types": "./dist/devices/pico.d.ts",
 			"import": "./dist/devices/pico.js"
-		}
+		},
+		"./package.json": "./package.json"
 	},
 	"files": [
 		"dist",

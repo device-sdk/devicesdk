@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { execa } from "execa";
 import { createProject, DeviceSDKApiError } from "../api.js";
@@ -8,6 +10,26 @@ interface InitOptions {
 	yes?: boolean;
 	template?: string;
 	noGit?: boolean;
+}
+
+function resolvePackageVersion(packageName: string): string {
+	const require = createRequire(import.meta.url);
+	const pkgJsonPath = require.resolve(`${packageName}/package.json`);
+	const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf8")) as {
+		version?: string;
+	};
+	if (!pkg.version) {
+		throw new Error(`${packageName}/package.json has no version field`);
+	}
+	return pkg.version;
+}
+
+function detectPackageManager(): "pnpm" | "yarn" | "npm" | "bun" {
+	const ua = process.env.npm_config_user_agent ?? "";
+	if (ua.startsWith("pnpm/")) return "pnpm";
+	if (ua.startsWith("yarn/")) return "yarn";
+	if (ua.startsWith("bun/")) return "bun";
+	return "npm";
 }
 
 const TEMPLATES = {
@@ -84,6 +106,8 @@ ${devicesStr}
 }
 
 function generatePackageJson(projectId: string): string {
+	const coreVersion = resolvePackageVersion("@devicesdk/core");
+	const cliVersion = resolvePackageVersion("@devicesdk/cli");
 	return JSON.stringify(
 		{
 			name: projectId,
@@ -96,10 +120,10 @@ function generatePackageJson(projectId: string): string {
 				deploy: "devicesdk deploy",
 			},
 			dependencies: {
-				"@devicesdk/core": "^0.0.1",
+				"@devicesdk/core": `^${coreVersion}`,
 			},
 			devDependencies: {
-				"@devicesdk/cli": "^0.0.1",
+				"@devicesdk/cli": `^${cliVersion}`,
 				typescript: "^5.3.0",
 			},
 		},
@@ -258,14 +282,18 @@ export default async function init(
 			}
 		}
 
-		// Install dependencies
-		console.log("\nInstalling dependencies...");
+		// Install dependencies using the package manager that invoked this command
+		const packageManager = detectPackageManager();
+		console.log(`\nInstalling dependencies with ${packageManager}...`);
 		try {
-			await execa("npm", ["install"], { cwd: projectDir, stdio: "inherit" });
+			await execa(packageManager, ["install"], {
+				cwd: projectDir,
+				stdio: "inherit",
+			});
 			console.log("✓ Installed dependencies");
 		} catch {
 			console.log(
-				"⚠ Could not install dependencies. Run `npm install` manually.",
+				`⚠ Could not install dependencies. Run \`${packageManager} install\` manually.`,
 			);
 		}
 

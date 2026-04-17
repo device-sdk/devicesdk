@@ -17,7 +17,7 @@ pnpm dev --filter @devicesdk/dashboard    # Quasar dev server
 pnpm dev --filter @devicesdk/simulation   # Vite dev on port 9002
 
 # Tests
-pnpm test --filter @devicesdk/api         # 63 integration tests (vitest + cloudflare workers pool)
+pnpm test --filter @devicesdk/api         # integration tests (vitest + cloudflare workers pool)
 
 # Run a single API test file or test name
 cd apps/api && npx vitest run --config tests/vitest.config.mts tests/integration/devices.test.ts
@@ -51,13 +51,13 @@ This is a pnpm + Turborepo monorepo for the DeviceSDK IoT platform. The platform
 
 **`packages/core`** (`@devicesdk/core`) — Shared TypeScript types and device abstractions. Published to npm. Exports `"."`, `"./i2c"`, `"./devices/pico"`. Has no runtime dependencies — pure type definitions.
 
-**`packages/cli`** (`@devicesdk/cli`) — CLI tool (`devicesdk` binary). Commands: `login`, `init`, `build`, `dev`, `deploy`, `flash`. Uses esbuild to bundle user device scripts, workerd for local simulation. Build copies Vite build output from `apps/simulation/dist` into `dist/simulator/assets/`.
+**`packages/cli`** (`@devicesdk/cli`) — CLI tool (`devicesdk` binary). Commands: `login`, `logout`, `whoami`, `init`, `build`, `dev`, `deploy`, `flash`, `logs` (with `--tail`), `status`, `inspect`. Uses esbuild to bundle user device scripts, workerd for local simulation. Build copies Vite build output from `apps/simulation/dist` into `dist/simulator/assets/`.
 
 **`packages/typescript-config`** (`@repo/typescript-config`) — Shared `base.json` tsconfig extended by `core` and `cli`.
 
 **`apps/api`** (`@devicesdk/api`) — Cloudflare Workers API using Hono + Chanfana (auto-generates OpenAPI schema). Uses D1 (SQLite) via `workers-qb`, R2 for script/firmware storage, Durable Objects for WebSocket device connections. Depends on `@devicesdk/core` via `workspace:*`.
 
-**`apps/dashboard`** (`@devicesdk/dashboard`) — Vue 3 + Quasar SPA. Google OAuth login, project/device/token management. Deployed to `dash.devicesdk.com`. Requires `shamefully-hoist=true` in `.npmrc` for Quasar compatibility. Runs `quasar prepare` on postinstall. Key composables: `useAuth` (auth state), `useDeviceStream` (SSE-based real-time log streaming with auto-reconnect).
+**`apps/dashboard`** (`@devicesdk/dashboard`) — Vue 3 + Quasar SPA. Google OAuth login, project/device/token management. Deployed to `dash.devicesdk.com`. Requires `shamefully-hoist=true` in `.npmrc` for Quasar compatibility. Runs `quasar prepare` on postinstall. Key composables: `useAuth` (auth state), `useDeviceStream` (WebSocket-based real-time stream of `status`/`log`/`state` frames with exponential-backoff reconnect).
 
 **`apps/simulation`** (`@devicesdk/simulation`) — Vue 3 + Vite app for device simulation UI. Builds to `dist/` which is consumed by the CLI package at build time. Uses Tailwind CSS v4, `@floating-ui/vue` for popovers, and Biome for linting.
 
@@ -87,6 +87,7 @@ examples/*
 - **Durable Objects**: `src/durableObjects/lib/device.ts` — `BaseDevice` handles WebSocket device connections. Uses the Hibernation API (`webSocketMessage`, `webSocketClose`, `webSocketError`). Both `webSocketClose` and `webSocketError` must be implemented — abrupt TCP drops (e.g. device hard reboot) fire `webSocketError`, not `webSocketClose`. Never send a WebSocket close frame immediately after a command that triggers a device reboot; let the connection drop naturally.
 - **SSE Streaming**: `GET /v1/projects/:projectId/devices/:deviceId/logs/stream` — Server-Sent Events endpoint for real-time log streaming. The DO's `streamLogs()` method returns a `ReadableStream<Uint8Array>` that emits `data:` events (log entries) and `event: status` events (connection changes). Watchers are stored in `logWatchers` Map and cleaned up automatically.
 - **Bindings**: `DB` (D1), `SCRIPTS`/`FIRMWARES` (R2), `DEVICE` (Durable Object), `LOADER` (Worker Loader for sandboxed user scripts).
+- **Cron**: Hourly trigger (`"0 * * * *"` in `wrangler.jsonc`) — handler in `src/scheduled.ts` (or routed via `src/index.ts`'s `scheduled` export). See `tests/integration/cronDispatch.test.ts` for behavior.
 - **Response format**: `{ "success": true, "result": ... }` or `{ "success": false, "error": "..." }`.
 
 ### API Testing
@@ -145,6 +146,15 @@ DEVICESDK_API_URL=http://localhost:8787 pnpm --filter @devicesdk/example-basic d
 
 # 4. Flash a device pointing to the local server
 pnpm --filter @devicesdk/example-basic flash-local
+```
+
+Root-level convenience scripts (defined in the root `package.json`) wrap the same workflow:
+
+```bash
+pnpm local          # Run API + dashboard concurrently
+pnpm local:login    # devicesdk login against http://localhost:8787
+pnpm local:deploy   # Deploy examples/basic to the local API
+pnpm local:flash    # Flash a Pico pointing at the local API
 ```
 
 - **ESP32 local flash** (build from source to avoid checksum issues):
@@ -211,7 +221,7 @@ pnpm --filter @devicesdk/example-basic flash-local
 
 - **Never commit directly to `main`**. Always create a new branch for your changes.
 - **Before every commit**, run `pnpm lint` to fix lint issues. Do not commit if linting fails.
-- **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in existing changesets (see `.changeset/security-fixes.md` for an example). Use `patch` for bug fixes, `minor` for new features, `major` for breaking changes. Only include packages published to npm (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`). Apps (`apps/dashboard`, `apps/website`) and firmware are not versioned and do not need changeset entries.
+- **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in any prior PR's changeset entry (or `.changeset/README.md` for the format reference). Use `patch` for bug fixes, `minor` for new features, `major` for breaking changes. Only include packages published to npm (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`). Apps (`apps/dashboard`, `apps/website`) and firmware are not versioned and do not need changeset entries.
 
 ## Coding Standards
 

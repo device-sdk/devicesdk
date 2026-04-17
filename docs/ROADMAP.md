@@ -70,7 +70,7 @@ Features identified as hardware-capable but not yet planned for implementation.
 - **Firmware status**: Not exposed (no device-side persistent storage for user scripts)
 - **Use cases**: Calibration data, WiFi fallback configs, offline data buffering
 - **Effort**: Medium
-- **Notes**: Different from cloud KV (Durable Objects); this would persist without network connectivity
+- **Notes**: Different from the cloud-side per-device state container; this would persist without network connectivity
 
 #### RTC (Real-Time Clock)
 - **Hardware**: ESP32 has RTC with battery backup option; Pico has basic RTC

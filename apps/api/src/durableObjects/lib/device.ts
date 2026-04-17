@@ -1201,6 +1201,9 @@ export class BaseDevice extends DurableObject<Env> {
 			},
 			closed: writer.closed,
 		};
+		// `logWatchers` is in-memory only; on DO hibernation the Map is torn down alongside the
+		// live streams, so no cross-instance leak. Cleanup on client disconnect is handled by
+		// the `writer.closed.then(...)` below.
 		this.logWatchers.set(
 			watcherId,
 			stringWriter as unknown as WritableStreamDefaultWriter<string>,

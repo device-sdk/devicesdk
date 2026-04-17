@@ -1,6 +1,6 @@
 # DeviceSDK
 
-IoT platform for writing TypeScript device scripts, deploying them to Cloudflare Workers, and flashing firmware onto microcontrollers that connect via WebSocket.
+IoT platform for writing TypeScript device scripts, deploying them to our managed edge runtime, and flashing firmware onto microcontrollers that connect via WebSocket.
 
 ## Getting Started
 
@@ -21,7 +21,7 @@ See [docs/quickstart.md](docs/quickstart.md) for a full tutorial on creating you
 | `packages/core` | `@devicesdk/core` | Shared TypeScript types and device abstractions (published to npm) |
 | `packages/cli` | `@devicesdk/cli` | CLI tool (`devicesdk`) — init, build, dev, deploy, flash, logs, status, inspect |
 | `packages/typescript-config` | `@repo/typescript-config` | Shared tsconfig base |
-| `apps/api` | `@devicesdk/api` | Cloudflare Workers API (Hono + D1 + R2 + Durable Objects) |
+| `apps/api` | `@devicesdk/api` | Edge API (Hono + Chanfana, managed edge runtime) |
 | `apps/dashboard` | `@devicesdk/dashboard` | Vue 3 + Quasar SPA — project/device/token management |
 | `apps/simulation` | `@devicesdk/simulation` | Vue 3 device simulation UI (static export consumed by CLI) |
 | `apps/website` | `@devicesdk/website` | Hugo + Tailwind marketing site |
@@ -61,7 +61,7 @@ examples/*
 ### Per-Package Dev
 
 ```bash
-pnpm dev --filter @devicesdk/api          # Wrangler dev on port 9000
+pnpm dev --filter @devicesdk/api          # API dev server on port 9000
 pnpm dev --filter @devicesdk/dashboard    # Quasar dev server
 pnpm dev --filter @devicesdk/simulation   # Next.js on port 9002
 ```
@@ -80,10 +80,7 @@ cd apps/api && npx vitest run --config tests/vitest.config.mts -t "should create
 
 ### Database Migrations
 
-```bash
-cd apps/api && npx wrangler d1 migrations apply DB --local   # Local
-cd apps/api && npx wrangler d1 migrations apply DB --remote  # Production
-```
+See `CLAUDE.md` for internal migration commands.
 
 ## CLI
 
@@ -95,18 +92,18 @@ The `@devicesdk/cli` package provides the `devicesdk` command:
 | `init` | Scaffold a new project |
 | `build` | Bundle device scripts with esbuild |
 | `dev` | Local dev server with workerd-based simulator |
-| `deploy` | Deploy scripts to Cloudflare Workers |
+| `deploy` | Deploy scripts to the managed runtime |
 | `flash` | Flash firmware onto a Pico W or ESP32 |
 | `logs` | View and stream device logs (`--tail` for real-time) |
 | `status` | Show live connection status for devices in a project |
 
 ## Architecture
 
-Devices running custom firmware connect via WebSocket to Cloudflare Workers at the edge. Each device connection is managed by a Durable Object, which loads and executes the user's TypeScript device script in a sandboxed Worker.
+Devices running custom firmware connect via WebSocket to the managed edge runtime. Each device connection is managed by a per-device state container, which loads and executes the user's TypeScript device script in an isolated sandbox.
 
 Devices within the same project can call methods on each other via type-safe RPC (`this.env.DEVICES["other-device"].method()`). The CLI auto-generates `devicesdk-env.d.ts` with full TypeScript types for inter-device communication.
 
-**Tech stack:** Hono (API framework), Chanfana (OpenAPI), D1/SQLite (database), R2 (script/firmware storage), Durable Objects (device connections), Vue 3 + Quasar (dashboard), Vue 3 (simulation UI), Hugo (website).
+**Tech stack:** Hono (API framework), Chanfana (OpenAPI), Vue 3 + Quasar (dashboard), Vue 3 (simulation UI), Hugo (website). Deployed on a managed edge runtime.
 
 ## Firmware
 

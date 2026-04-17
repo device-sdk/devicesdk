@@ -650,9 +650,9 @@ describe.sequential("Devices endpoint", () => {
 				})
 				.execute();
 
-			// Build a minimal fake pico-w firmware containing all placeholder strings.
-			// The patching logic searches for these exact byte sequences, so the fake
-			// binary only needs to contain them in order (no real UF2 structure needed).
+			// Build a valid 1-block UF2 with placeholder strings embedded in the payload.
+			// The patching logic searches for these byte sequences, and UF2 structure
+			// validation now runs after patching — so the binary must pass both paths.
 			const encoder = new TextEncoder();
 			const parts = [
 				OLD_TOKEN,
@@ -662,13 +662,23 @@ describe.sequential("Devices endpoint", () => {
 				OLD_PROJECT_ID,
 				OLD_DEVICE_ID,
 			];
-			const totalLen = parts.reduce((s, p) => s + p.length, 0);
-			const fakeBytes = new Uint8Array(totalLen);
-			let offset = 0;
+			const BLOCK_SIZE = 512;
+			const fakeBytes = new Uint8Array(BLOCK_SIZE);
+			const view = new DataView(fakeBytes.buffer);
+			view.setUint32(0, 0x0a324655, true); // magic start 0
+			view.setUint32(4, 0x9e5d5157, true); // magic start 1
+			view.setUint32(8, 0x00002000, true); // flags
+			view.setUint32(12, 0x10000000, true); // target address
+			view.setUint32(16, 256, true); // payload size
+			view.setUint32(20, 0, true); // block number
+			view.setUint32(24, 1, true); // total blocks
+			view.setUint32(28, 0xe48bff56, true); // family ID (RP2040)
+			view.setUint32(BLOCK_SIZE - 4, 0x0ab16f30, true); // magic end
+			let payloadOffset = 32;
 			for (const part of parts) {
 				const encoded = encoder.encode(part);
-				fakeBytes.set(encoded, offset);
-				offset += encoded.length;
+				fakeBytes.set(encoded, payloadOffset);
+				payloadOffset += encoded.length;
 			}
 
 			// Use beforeAll so the R2 write persists across all tests in this block
@@ -796,6 +806,76 @@ describe.sequential("Devices endpoint", () => {
 			expect(text).not.toContain(OLD_SSID);
 			expect(text).not.toContain(OLD_PASS);
 			expect(text).not.toContain(OLD_HOST);
+		});
+
+		it("should return 500 JSON error when post-patch UF2 structure is invalid", async () => {
+			// Stage a malformed pico-w firmware (placeholder strings present for patching,
+			// but not wrapped in a valid UF2 block). Validation must reject and return 500.
+			const encoder = new TextEncoder();
+			const parts = [
+				OLD_TOKEN,
+				OLD_SSID,
+				OLD_PASS,
+				OLD_HOST,
+				OLD_PROJECT_ID,
+				OLD_DEVICE_ID,
+			];
+			const totalLen = parts.reduce((s, p) => s + p.length, 0);
+			const malformed = new Uint8Array(totalLen);
+			let offset = 0;
+			for (const part of parts) {
+				const encoded = encoder.encode(part);
+				malformed.set(encoded, offset);
+				offset += encoded.length;
+			}
+			await env.FIRMWARES.put("devicesdk-pico-w-client.uf2", malformed);
+
+			try {
+				const resp = await SELF.fetch(
+					"http://localhost/v1/projects/smart-home/devices/fw-device/firmware",
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+						},
+						body: JSON.stringify({
+							device_type: "pico-w",
+							ssid: "MyHomeWiFi",
+							pass: "s3cr3tpass",
+							host: "api.devicesdk.com",
+						}),
+					},
+				);
+				expect(resp.status).toBe(500);
+				const json = (await resp.json()) as {
+					success: boolean;
+					error: string;
+				};
+				expect(json.success).toBe(false);
+				expect(json.error).toContain("Firmware validation failed");
+			} finally {
+				// Restore the valid 1-block UF2 for subsequent tests in this describe block.
+				const BLOCK_SIZE = 512;
+				const restored = new Uint8Array(BLOCK_SIZE);
+				const view = new DataView(restored.buffer);
+				view.setUint32(0, 0x0a324655, true);
+				view.setUint32(4, 0x9e5d5157, true);
+				view.setUint32(8, 0x00002000, true);
+				view.setUint32(12, 0x10000000, true);
+				view.setUint32(16, 256, true);
+				view.setUint32(20, 0, true);
+				view.setUint32(24, 1, true);
+				view.setUint32(28, 0xe48bff56, true);
+				view.setUint32(BLOCK_SIZE - 4, 0x0ab16f30, true);
+				let payloadOffset = 32;
+				for (const part of parts) {
+					const encoded = encoder.encode(part);
+					restored.set(encoded, payloadOffset);
+					payloadOffset += encoded.length;
+				}
+				await env.FIRMWARES.put("devicesdk-pico-w-client.uf2", restored);
+			}
 		});
 
 		it("should create a managed token for the device on first firmware download", async () => {

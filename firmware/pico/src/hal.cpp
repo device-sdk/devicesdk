@@ -30,6 +30,12 @@ static i2c_config_t i2c_configs[2] = {
 
 static bool adc_initialized = false;
 
+// Reject pins outside the hardware-valid range (NUM_BANK0_GPIOS is 30 on RP2040, 48 on RP2350).
+// The virtual pin 99 addresses the onboard LED via the CYW43 WiFi coprocessor and is always allowed.
+static inline bool is_valid_gpio(uint8_t pin) {
+    return pin == 99 || pin < NUM_BANK0_GPIOS;
+}
+
 void hal_init() {
     // Nothing to do here for now - peripherals initialized on demand
 }
@@ -41,6 +47,10 @@ void hal_reboot() {
 }
 
 void hal_set_gpio(uint8_t pin, gpio_state_t state) {
+    if (!is_valid_gpio(pin)) {
+        printf("Invalid GPIO pin: %d\n", pin);
+        return;
+    }
     bool pin_state = (state == GPIO_STATE_HIGH);
     if (pin == 99) { // Special case for the onboard LED
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, pin_state);
@@ -51,24 +61,34 @@ void hal_set_gpio(uint8_t pin, gpio_state_t state) {
     }
 }
 
-// Track which pins have been configured as inputs
-static uint32_t gpio_input_configured_mask = 0;
+// Track which pins have been configured as inputs. 64-bit mask covers both
+// RP2040 (NUM_BANK0_GPIOS=30) and RP2350 (NUM_BANK0_GPIOS=48); is_valid_gpio()
+// rejects pins outside that range before any shift.
+static uint64_t gpio_input_configured_mask = 0;
 
 bool hal_get_gpio_digital(uint8_t pin) {
+    if (!is_valid_gpio(pin)) {
+        printf("Invalid GPIO pin: %d\n", pin);
+        return false;
+    }
     if (pin == 99) {
         // Can't read onboard LED state reliably
         return false;
     }
     // Only initialize the pin if not already configured as input
-    if (!(gpio_input_configured_mask & (1u << pin))) {
+    if (!(gpio_input_configured_mask & (1ull << pin))) {
         gpio_init(pin);
         gpio_set_dir(pin, GPIO_IN);
-        gpio_input_configured_mask |= (1u << pin);
+        gpio_input_configured_mask |= (1ull << pin);
     }
     return gpio_get(pin);
 }
 
 void hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
+    if (!is_valid_gpio(pin)) {
+        printf("Invalid GPIO pin: %d\n", pin);
+        return;
+    }
     if (pin == 99) {
         // Can't configure onboard LED as input
         return;
@@ -77,7 +97,7 @@ void hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
     gpio_set_dir(pin, GPIO_IN);
 
     // Mark this pin as configured for input reads
-    gpio_input_configured_mask |= (1u << pin);
+    gpio_input_configured_mask |= (1ull << pin);
 
     // Configure pull-up or pull-down
     if (pull == GPIO_PULL_UP) {

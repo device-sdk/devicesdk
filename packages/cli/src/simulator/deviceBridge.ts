@@ -1,27 +1,6 @@
-// These types mirror the Cloudflare Workers runtime types.
-// At runtime this module runs inside workerd which provides them natively.
-// We declare minimal shapes here so tsc can check the file without
-// @cloudflare/workers-types.
+/// <reference path="./cloudflare-workers.d.ts" />
 
-declare class DurableObject {
-	ctx: { storage: any; acceptWebSocket(ws: any): void; getWebSockets(): any[] };
-	constructor(ctx: any, env: any);
-}
-
-declare class WebSocketPair {
-	0: WebSocket;
-	1: WebSocket;
-}
-
-interface DurableObjectState {
-	storage: {
-		get<T>(key: string): Promise<T | undefined>;
-		put<T>(key: string, value: T): Promise<void>;
-		delete(key: string): Promise<boolean>;
-	};
-	acceptWebSocket(ws: WebSocket): void;
-}
-
+import { DurableObject } from "cloudflare:workers";
 import type { DeviceEntrypoint, DeviceResponse } from "@devicesdk/core";
 import { LocalDeviceSender } from "./localDeviceSender.js";
 

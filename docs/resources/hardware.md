@@ -60,12 +60,28 @@ social_image: /og-images/docs/resources/hardware.png
 - **SPI**: 2 controllers
 - **UART**: 2 controllers
 
+### ESP32-C3
+
+✅ **Full support**
+
+- **Chip**: ESP32-C3 (Single RISC-V @ 160MHz)
+- **RAM**: 400KB SRAM
+- **Flash**: 4MB (typical)
+- **WiFi**: 2.4GHz 802.11 b/g/n
+- **Bluetooth**: BLE 5.0 (radio shared with WiFi; BLE not yet exposed in the SDK)
+- **GPIO**: 22 pins
+- **ADC**: 6 channels, 12-bit
+- **I2C**: 1 controller
+- **SPI**: 3 controllers (one reserved for flash)
+- **UART**: 2 controllers
+- **Addressable LEDs**: Onboard WS2812 on GPIO 8 (DevKitM-1). C3 has an RMT peripheral, so `led_strip` uses the RMT backend — unlike C61, which runs the same code path on the SPI backend.
+
 ## Hardware Requirements
 
 ### Minimum Requirements
 
 For DeviceSDK device support:
-- Raspberry Pi Pico W / Pico 2W, or an ESP32 / ESP32-C61 board
+- Raspberry Pi Pico W / Pico 2W, or an ESP32 / ESP32-C61 / ESP32-C3 board
 - Stable WiFi connectivity
 
 ### Recommended
@@ -106,6 +122,7 @@ Standard GPIO pin numbers are used directly. The onboard LED pin varies by board
 |-------|----------------|
 | ESP32 (classic) | GPIO 2 |
 | ESP32-C61 | GPIO 5 |
+| ESP32-C3 (DevKitM-1) | GPIO 8 (WS2812) |
 
 ```typescript
 // ESP32 onboard LED (GPIO 2)
@@ -113,6 +130,9 @@ await this.env.DEVICE.setGpioState(2, 'high');
 
 // ESP32-C61 onboard LED (GPIO 5)
 await this.env.DEVICE.setGpioState(5, 'high');
+
+// ESP32-C3 DevKitM-1 onboard WS2812 (GPIO 8)
+await this.env.DEVICE.setGpioState(8, 'high');
 ```
 
 ## Platform Feature Availability
@@ -360,8 +380,8 @@ Flashing is typically **one-time per device**. After the first flash, updates ar
 1. **Raspberry Pi Pico W or Pico 2W**
 2. **USB Cable** — Micro-USB data cable (not power-only)
 
-**For ESP32 / ESP32-C61:**
-1. **ESP32 or ESP32-C61 development board**
+**For ESP32 / ESP32-C61 / ESP32-C3:**
+1. **ESP32, ESP32-C61, or ESP32-C3 development board**
 2. **USB-C cable** — Data-capable USB-C cable
 3. **Python 3** — Required for esptool (`pip install esptool`)
 
@@ -384,11 +404,12 @@ Flash this code to verify hardware. Use the correct LED pin for your board:
 - **Pico W / Pico 2W**: pin `25`
 - **ESP32**: pin `2`
 - **ESP32-C61**: pin `5`
+- **ESP32-C3 (DevKitM-1)**: pin `8` (WS2812)
 
 ```typescript
 import { DeviceEntrypoint } from '@devicesdk/core';
 
-const LED_PIN = 25; // Pico W — use 2 for ESP32, 5 for ESP32-C61
+const LED_PIN = 25; // Pico W — use 2 for ESP32, 5 for ESP32-C61, 8 for ESP32-C3
 
 export default class TestDevice extends DeviceEntrypoint {
   async onDeviceConnect() {
@@ -410,7 +431,7 @@ If LED blinks, your hardware is working!
 ### Official Distributors
 
 - [Raspberry Pi](https://www.raspberrypi.com/products/) — Pico W, Pico 2W
-- [Espressif](https://www.espressif.com/en/products/devkits) — ESP32, ESP32-C61 dev boards
+- [Espressif](https://www.espressif.com/en/products/devkits) — ESP32, ESP32-C61, ESP32-C3 dev boards
 - [Adafruit](https://www.adafruit.com/)
 - [SparkFun](https://www.sparkfun.com/)
 - [Pimoroni](https://shop.pimoroni.com/)
@@ -460,7 +481,7 @@ Note: These are not officially supported but may work.
 
 ## Future Platform Support
 
-- ESP32-C3, ESP32-S3 (planned)
+- ESP32-S3 (planned)
 
 ## Next Steps
 

@@ -45,7 +45,9 @@ uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint
 #include "freertos/task.h"
 #ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
 #include "led_strip.h"
-#if !SOC_RMT_SUPPORTED
+#if SOC_RMT_SUPPORTED
+#include "led_strip_rmt.h"
+#else
 #include "led_strip_spi.h"
 #endif
 #endif

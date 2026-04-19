@@ -14,6 +14,8 @@ menu "IoTKit Configuration"
         default n
         help
             Enable if the onboard LED is an addressable RGB LED (WS2812).
-            ESP32-C61-DevKitC-1 and ESP32-C3-DevKitM-1 both carry a WS2812 on GPIO 8.
+            Per-board defaults (override via CONFIG_IOTKIT_LED_PIN in the matching
+            sdkconfig.defaults.<target> file): ESP32-C61-DevKitC-1 uses GPIO 5;
+            ESP32-C3-DevKitM-1 uses GPIO 8.
 
 endmenu

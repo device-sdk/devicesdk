@@ -774,6 +774,28 @@ describe.sequential("Devices endpoint", () => {
 			expect(resp.status).toBe(404);
 		});
 
+		it("should accept device_type: esp32c3 and 404 when firmware absent", async () => {
+			// The esp32c3 binary is built and uploaded by the firmware-esp32 workflow
+			// in CI, not seeded here — so we expect the endpoint to reach the R2 lookup
+			// (proving the Zod enum accepts esp32c3) and return 404 because no blob exists.
+			const resp = await SELF.fetch(
+				"http://localhost/v1/projects/smart-home/devices/fw-device/firmware",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+					},
+					body: JSON.stringify({ device_type: "esp32c3" }),
+				},
+			);
+
+			expect(resp.status).toBe(404);
+			const json = (await resp.json()) as { success: boolean; error: string };
+			expect(json.success).toBe(false);
+			expect(json.error).toBe("Firmware not found");
+		});
+
 		it("should return patched pico-w firmware with correct headers", async () => {
 			const resp = await SELF.fetch(
 				"http://localhost/v1/projects/smart-home/devices/fw-device/firmware",

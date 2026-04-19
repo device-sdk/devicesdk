@@ -320,11 +320,29 @@ void handle_display_update(const picojson::object& payload) {
     uint8_t page_offset = 0;
     auto col_off_it = payload.find("columnOffset");
     if (col_off_it != payload.end() && col_off_it->second.is<double>()) {
-        col_offset = (uint8_t)col_off_it->second.get<double>();
+        double v = col_off_it->second.get<double>();
+        if (v < 0 || v > 127) {
+            i2c_cmd_send_error("Invalid columnOffset (must be 0-127)");
+            return;
+        }
+        col_offset = (uint8_t)v;
     }
     auto page_off_it = payload.find("pageOffset");
     if (page_off_it != payload.end() && page_off_it->second.is<double>()) {
-        page_offset = (uint8_t)page_off_it->second.get<double>();
+        double v = page_off_it->second.get<double>();
+        if (v < 0 || v > 7) {
+            i2c_cmd_send_error("Invalid pageOffset (must be 0-7)");
+            return;
+        }
+        page_offset = (uint8_t)v;
+    }
+    if ((uint32_t)col_offset + width > 128) {
+        i2c_cmd_send_error("columnOffset + width exceeds 128");
+        return;
+    }
+    if ((uint32_t)page_offset + (height / 8) > 8) {
+        i2c_cmd_send_error("pageOffset + height/8 exceeds 8");
+        return;
     }
 
     // Resize local framebuffer if needed (preserves existing content for incremental updates)

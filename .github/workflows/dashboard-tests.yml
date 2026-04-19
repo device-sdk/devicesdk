@@ -39,7 +39,9 @@ jobs:
       - name: Build dependencies
         run: pnpm build --filter @devicesdk/core
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        # System libs are pre-installed on the self-hosted runner — skip --with-deps
+        # which requires passwordless sudo. Browser binaries still cache to ~/.cache.
+        run: npx playwright install chromium
         working-directory: apps/dashboard
       - name: Create API dev vars
         run: echo "ENV=local" > apps/api/.dev.vars

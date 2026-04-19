@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { findPinByGpio } from "@/boards/esp32-devkitc/board";
+import { findPinByGpio } from "@/boards";
 import { usePinStateStore } from "@/stores/pinState";
 import { useSimulatorStore } from "@/stores/simulator";
 
@@ -22,7 +22,7 @@ const rows = computed<PinRow[]>(() => {
 		.map(([k, v]) => [Number(k), v] as const)
 		.sort((a, b) => a[0] - b[0]);
 	return entries.map(([gpio, s]) => {
-		const pinDef = findPinByGpio(gpio);
+		const pinDef = findPinByGpio(simulator.board, gpio);
 		const modeLabel =
 			s.mode === "digital_input"
 				? "INPUT"

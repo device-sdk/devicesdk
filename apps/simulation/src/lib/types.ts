@@ -1,12 +1,7 @@
 import type { DeviceCommand, DisplayUpdateCommand } from "@devicesdk/core";
+import type { PinMode } from "@/boards/types";
 
-export type { DisplayUpdateCommand };
-
-export type PinMode =
-	| "digital_input"
-	| "digital_output"
-	| "analog_input"
-	| "pwm_output";
+export type { DisplayUpdateCommand, PinMode };
 
 export interface PwmConfig {
 	frequency: number;

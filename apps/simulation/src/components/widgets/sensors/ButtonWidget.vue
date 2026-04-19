@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { findPinByGpio } from "@/boards/esp32-devkitc/board";
+import { findPinByGpio } from "@/boards";
 import { usePinStateStore } from "@/stores/pinState";
 import { useSimulatorStore } from "@/stores/simulator";
 import type { WidgetInstance } from "@/stores/widgets";
@@ -19,7 +19,7 @@ const activeLow = computed(
 );
 
 const gpio = computed(() => props.widget.pins.pin);
-const pin = computed(() => findPinByGpio(gpio.value));
+const pin = computed(() => findPinByGpio(simulator.board, gpio.value));
 
 const isPressed = ref(false);
 

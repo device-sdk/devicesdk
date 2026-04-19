@@ -161,7 +161,3 @@ export const ESP32_DEVKITC: BoardDef = {
 	defaultSpi: { mosi: 23, miso: 19, clk: 18, cs: 5 },
 	rowCount: Math.max(LEFT.length, RIGHT.length),
 };
-
-export function findPinByGpio(gpio: number): PinDef | undefined {
-	return ESP32_DEVKITC.pins.find((p) => p.gpio === gpio);
-}

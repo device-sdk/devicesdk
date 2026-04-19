@@ -739,6 +739,8 @@ void handle_websocket_message(const picojson::value& v) {
         auto height_it = payload.find("height");
         auto segments_it = payload.find("segments");
         auto init_it = payload.find("init");
+        auto col_off_it = payload.find("columnOffset");
+        auto page_off_it = payload.find("pageOffset");
 
         if (bus_it == payload.end() || !bus_it->second.is<double>() ||
             addr_it == payload.end() || !addr_it->second.is<std::string>() ||
@@ -756,12 +758,36 @@ void handle_websocket_message(const picojson::value& v) {
         std::string addr_str = addr_it->second.get<std::string>();
         std::string controller = controller_it->second.get<std::string>();
         double width_val = width_it->second.get<double>();
-        if (width_val < 0 || width_val > 255) { send_error("Invalid width"); return; }
+        if (width_val <= 0 || width_val > 128) { send_error("Invalid width (must be 1-128)"); return; }
         uint8_t width = (uint8_t)width_val;
         double height_val = height_it->second.get<double>();
-        if (height_val < 0 || height_val > 255) { send_error("Invalid height"); return; }
+        if (height_val <= 0 || height_val > 64 || ((uint32_t)height_val % 8) != 0) {
+            send_error("Invalid height (must be 1-64 and a multiple of 8)");
+            return;
+        }
         uint8_t height = (uint8_t)height_val;
         const picojson::array& segments = segments_it->second.get<picojson::array>();
+
+        uint8_t col_offset = 0;
+        uint8_t page_offset = 0;
+        if (col_off_it != payload.end() && col_off_it->second.is<double>()) {
+            double v = col_off_it->second.get<double>();
+            if (v < 0 || v > 127) { send_error("Invalid columnOffset (must be 0-127)"); return; }
+            col_offset = (uint8_t)v;
+        }
+        if (page_off_it != payload.end() && page_off_it->second.is<double>()) {
+            double v = page_off_it->second.get<double>();
+            if (v < 0 || v > 7) { send_error("Invalid pageOffset (must be 0-7)"); return; }
+            page_offset = (uint8_t)v;
+        }
+        if ((uint32_t)col_offset + width > 128) {
+            send_error("columnOffset + width exceeds 128");
+            return;
+        }
+        if ((uint32_t)page_offset + (height / 8) > 8) {
+            send_error("pageOffset + height/8 exceeds 8");
+            return;
+        }
 
         if (bus > 1) {
             send_error("Invalid bus number");
@@ -826,6 +852,8 @@ void handle_websocket_message(const picojson::value& v) {
         cmd.payload.display.width = width;
         cmd.payload.display.height = height;
         cmd.payload.display.controller = is_ssd1306 ? 0 : 1;
+        cmd.payload.display.col_offset = col_offset;
+        cmd.payload.display.page_offset = page_offset;
         cmd.payload.display.init = init_it != payload.end() && init_it->second.is<bool>()
             ? init_it->second.get<bool>()
             : false;

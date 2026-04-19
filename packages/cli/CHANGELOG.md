@@ -1,5 +1,27 @@
 # @devicesdk/cli
 
+## 0.2.2
+
+### Patch Changes
+
+- 23b8924: - Fix `devicesdk init` template: declare `@devicesdk/core` as a runtime dep of the CLI so resolved versions reflect the installed package (was hardcoded `^0.0.1`); install with the package manager that invoked the CLI (pnpm, yarn, npm, or bun) via `npm_config_user_agent` detection.
+  - Expose `./package.json` in `@devicesdk/core` package exports so version lookups via `createRequire` / `require.resolve` work under Node's `exports`-enforced resolution.
+  - Return a 500 JSON error when UF2 firmware validation fails after patching, instead of a 200 response with an `X-Firmware-Validation: failed` header that most clients would ignore.
+  - Add a safety comment in the device Durable Object explaining the in-memory `logWatchers` cleanup behavior across hibernation.
+- 7900434: - Extract duplicate project+device lookup into `foundation/projectDeviceResolve.ts`, used by `getDevice`, `updateDevice`, `deleteDevice`, `sendCommand`, and `watchDevice`.
+  - Centralize dashboard API host in `config/apiHost.ts` with a `VITE_API_HOST` env override; four call sites now read from one source.
+  - Add `DEVICESDK_SIMULATOR_ASSETS_PATH` env override for `devicesdk dev` when the packaged simulator assets are unavailable.
+  - Introduce canonical CLI exit code constants (`packages/cli/src/exitCodes.ts`) and document them in `docs/cli/_index.md`. All 48 `process.exit()` call sites now use named constants.
+  - Remove order-dependent 403-retry pattern in `limits.test.ts` by resetting the free user's projects in `beforeEach`.
+  - Deduplicate firmware base64 primitives into a shared header-only `firmware/common/base64_core.h` used by both the ESP32 (C) and Pico (C++) implementations.
+  - Delete the orphaned `firmware/pico/lib/lwip_ws/ws_client.c` stub (the real implementation lives in `ws_client.cpp`).
+- b84d2cc: - Add usage examples (`.addHelpText("after", ...)`) to every `devicesdk` subcommand — `login`, `logout`, `whoami`, `init`, `dev`, `build`, `deploy`, `logs`, `flash`, `status`, `inspect`, `env set`/`list`/`unset`. Discoverable via `--help`.
+  - Import `HaEntityDeclaration` type from `@devicesdk/core` in `config.ts` instead of redeclaring it. The local Zod schema stays in the CLI (core has no runtime deps), but its inferred shape is now type-asserted against the core interface to catch drift.
+  - Remove `"dependsOn": ["^build"]` from the `lint` Turbo task — linting does not need built upstream artifacts, so this lets `pnpm lint` run in parallel with (and independently of) `pnpm build`.
+- 916fcd1: - Fix `devicesdk dev` crashing on startup with `ReferenceError: DurableObject is not defined`. The simulator's `deviceBridge.ts` had only a type-only `declare class DurableObject` and no runtime import, so workerd couldn't find the class and the user's script never loaded. Now imports `DurableObject` from `cloudflare:workers`.
+- Updated dependencies [23b8924]
+  - @devicesdk/core@1.1.2
+
 ## 0.2.1
 
 ### Patch Changes

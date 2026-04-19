@@ -15,7 +15,7 @@ defaults:
 jobs:
   build:
     name: Build Pico firmware
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, proxmox]
     permissions:
       contents: read
     env:
@@ -25,11 +25,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential ninja-build
-        working-directory: .
+      # Build deps (cmake, gcc-arm-none-eabi, libnewlib-arm-none-eabi,
+      # build-essential, ninja-build) are pre-installed on the runner.
 
       - name: Restore pico-sdk cache
         id: restore-pico-sdk
@@ -70,7 +67,7 @@ jobs:
 
   upload-to-r2:
     name: Upload firmware to R2
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, proxmox]
     needs: build
     if: github.event_name == 'push'
     steps:

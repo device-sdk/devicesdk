@@ -11,7 +11,7 @@ on:
 jobs:
   unit-tests:
     name: Host unit tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, proxmox]
     permissions:
       contents: read
 
@@ -34,7 +34,7 @@ jobs:
 
   python-tests:
     name: Python protocol tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, proxmox]
     permissions:
       contents: read
 
@@ -56,7 +56,7 @@ jobs:
 
   build:
     name: Build ESP32 firmware (${{ matrix.target }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, proxmox]
     permissions:
       contents: read
     container:
@@ -110,7 +110,7 @@ jobs:
 
   upload-to-r2:
     name: Upload firmware to R2
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, proxmox]
     needs: build
     if: github.event_name == 'push'
     strategy:

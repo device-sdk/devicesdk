@@ -1,0 +1,15 @@
+{
+  "serverInfo": {
+    "name": "com.devicesdk/docs-search",
+    "version": "1.0.0"
+  },
+  "transport": {
+    "type": "http",
+    "url": "https://b055c14c-4193-411f-ace0-f26c753376ee.search.ai.cloudflare.com/mcp"
+  },
+  "capabilities": {
+    "tools": {},
+    "resources": {},
+    "prompts": {}
+  }
+}

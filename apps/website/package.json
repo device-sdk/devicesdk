@@ -8,7 +8,7 @@
   "private": true,
   "scripts": {
     "build-tailwind": "npx @tailwindcss/cli -i ./src/input.css -o ./static/styles.css",
-    "build": "rm -rf public && pnpm run build-tailwind && node generate-og.js && hugo",
+    "build": "rm -rf public && mkdir -p static/api/docs && cp ../api/openapi.json static/api/docs/openapi.json && pnpm run build-tailwind && node generate-og.js && node generate-agent-skills.js && hugo",
     "dev": "hugo server -D",
     "deploy": "npx wrangler deploy",
     "clean": "rm -rf public resources/_gen"

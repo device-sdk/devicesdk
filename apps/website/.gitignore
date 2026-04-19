@@ -2,3 +2,5 @@ node_modules
 .idea
 .wrangler
 public
+static/api/docs/openapi.json
+static/.well-known/agent-skills/index.json

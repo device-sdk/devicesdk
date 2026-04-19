@@ -3,15 +3,8 @@
         <div class="grid grid-cols-2 md:grid-cols-5 gap-8">
             <div class="col-span-2 md:col-span-1">
                 <a href="/" class="flex items-center space-x-2.5">
-                    {{ $logo := resources.Get "logo.svg" }}
-                    {{ if $logo }}
-                    <img src="{{ $logo.RelPermalink }}" alt="DeviceSDK" class="w-8 h-8 rounded-md">
-                    {{ else }}
-                    <div class="w-8 h-8 bg-emerald-500 rounded-md flex items-center justify-center">
-                        <svg class="w-4 h-4 text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                        </svg>
-                    </div>
+                    {{ with resources.Get "logo.svg" }}
+                    <img src="{{ .RelPermalink }}" alt="DeviceSDK" class="w-8 h-8">
                     {{ end }}
                     <span class="text-lg font-bold text-zinc-50">DeviceSDK</span>
                 </a>

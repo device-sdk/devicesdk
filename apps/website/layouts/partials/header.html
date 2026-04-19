@@ -3,15 +3,8 @@
         <div class="flex justify-between items-center h-14">
             <div class="flex items-center">
                 <a href="/" class="flex items-center space-x-2.5">
-                    {{ $logo := resources.Get "logo.svg" }}
-                    {{ if $logo }}
-                    <img src="{{ $logo.RelPermalink }}" alt="DeviceSDK" class="w-7 h-7 rounded-md">
-                    {{ else }}
-                    <div class="w-7 h-7 bg-emerald-500 rounded-md flex items-center justify-center">
-                        <svg class="w-4 h-4 text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                        </svg>
-                    </div>
+                    {{ with resources.Get "logo.svg" }}
+                    <img src="{{ .RelPermalink }}" alt="DeviceSDK" class="w-7 h-7">
                     {{ end }}
                     <span class="text-[15px] font-semibold text-zinc-50 tracking-tight">DeviceSDK</span>
                 </a>

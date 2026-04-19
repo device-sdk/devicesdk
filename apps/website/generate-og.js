@@ -12,9 +12,21 @@ const __dirname = path.dirname(__filename);
 
 const CONTENT_DIR = path.join(__dirname, 'content');
 const OUTPUT_DIR = path.join(__dirname, 'static', 'og-images');
-const LOGO_URL = 'https://devicesdk.com/logo.svg'; // replace with absolute logo URL
 const WIDTH = 1200;
 const HEIGHT = 630;
+
+// Inline inverse mark (white chip, black braces) — renders on the dark OG card
+// without a network fetch. Sourced from the brand package, section 02 "Horizontal · dark".
+const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect x="14" y="12" width="36" height="44" rx="3" fill="#fafafa"/>
+  <g fill="#fafafa">
+    <rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/>
+    <rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/>
+  </g>
+  <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#09090b"/>
+  <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+</svg>`;
 
 const posixJoin = (...segments) => segments.join('/').replace(/\/+/g, '/');
 
@@ -54,8 +66,8 @@ function htmlTemplate({ title }) {
           border: 1px solid #27272a;
           display: grid; place-items: center;
         }
-        .logo-wrap img {
-          width: 150px; height: 150px; object-fit: contain;
+        .logo-wrap svg {
+          width: 150px; height: 150px;
         }
         .brand {
           font-size: 64px; font-weight: 780; letter-spacing: 0.65px;
@@ -75,7 +87,7 @@ function htmlTemplate({ title }) {
     </head>
     <body>
       <div class="card">
-        <div class="logo-wrap"><img src="${LOGO_URL}" /></div>
+        <div class="logo-wrap">${LOGO_SVG}</div>
         <div class="brand">Device<span class="accent">SDK</span></div>
         <div class="title">${title || 'Untitled'}</div>
       </div>

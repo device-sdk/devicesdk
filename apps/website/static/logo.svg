@@ -1,4 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="4" fill="#09090b"/>
-  <polygon points="16,6 26,16 16,26 6,16" fill="#fafafa"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <rect width="64" height="64" rx="10" fill="#09090b"/>
+  <g fill="#fafafa">
+    <rect x="6" y="22" width="8" height="4" rx="1"/>
+    <rect x="6" y="30" width="8" height="4" rx="1"/>
+    <rect x="6" y="38" width="8" height="4" rx="1"/>
+    <rect x="50" y="22" width="8" height="4" rx="1"/>
+    <rect x="50" y="30" width="8" height="4" rx="1"/>
+    <rect x="50" y="38" width="8" height="4" rx="1"/>
+  </g>
+  <rect x="14" y="16" width="36" height="32" rx="2" fill="#fafafa"/>
+  <path d="M26 16 a6 6 0 0 0 12 0 Z" fill="#09090b"/>
+  <path d="M26 24 Q22 24 22 28 Q22 32 19 32 Q22 32 22 36 Q22 40 26 40" stroke="#09090b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M38 24 Q42 24 42 28 Q42 32 45 32 Q42 32 42 36 Q42 40 38 40" stroke="#09090b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
 </svg>

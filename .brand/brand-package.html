@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>DeviceSDK · Brand Package · Chip-Braces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#09090b; --ink-2:#18181b; --ink-3:#27272a;
+    --line:#e4e4e7; --line-2:#d4d4d8;
+    --mute:#71717a; --mute-2:#a1a1aa;
+    --paper:#fafafa; --paper-2:#f4f4f5;
+    --card:#ffffff; --ts:#3178c6;
+    --ok:#10b981; --warn:#ef4444;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:"Inter Tight",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .page{max-width:1360px;margin:0 auto;padding:72px 56px 120px}
+
+  .hdr{display:flex;align-items:flex-end;justify-content:space-between;gap:48px;padding-bottom:40px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:0 0 14px}
+  h1{font-weight:600;font-size:48px;letter-spacing:-0.028em;margin:0;line-height:1.02}
+  .sub{max-width:620px;color:var(--ink-3);font-size:15px;line-height:1.55;margin-top:14px}
+  .meta{font-family:"Geist Mono",monospace;font-size:11px;color:var(--mute);text-align:right;line-height:1.7}
+  .meta b{color:var(--ink);font-weight:500}
+
+  h2.sec{font-size:11px;font-family:"Geist Mono",monospace;text-transform:uppercase;letter-spacing:.14em;color:var(--mute);font-weight:500;margin:64px 0 20px}
+  h3.sub-sec{font-size:20px;font-weight:600;letter-spacing:-0.015em;margin:0 0 16px}
+
+  /* Hero */
+  .hero{margin-top:48px;border:1px solid var(--line);border-radius:20px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr}
+  .hero-main{background:var(--ink);aspect-ratio:1/1;display:grid;place-items:center;padding:56px}
+  .hero-main svg{width:100%;max-width:360px}
+  .hero-info{padding:48px;display:flex;flex-direction:column;justify-content:center;gap:20px}
+  .hero-info h3{font-size:28px;font-weight:600;letter-spacing:-0.02em;margin:0}
+  .hero-info p{font-size:15px;line-height:1.6;color:var(--ink-2);margin:0}
+  .chip-specs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .spec{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--card)}
+  .spec .k{font-family:"Geist Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-bottom:4px}
+  .spec .v{font-size:13px;color:var(--ink);font-weight:500}
+
+  /* Lockup row */
+  .lockup-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .lockup-card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+  .lockup-card .hd{padding:14px 18px;border-bottom:1px solid var(--line);background:var(--paper-2);font-family:"Geist Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);display:flex;justify-content:space-between;align-items:center}
+  .lockup-card .hd b{color:var(--ink);font-weight:500}
+  .lockup-card .body{padding:52px 40px;display:flex;align-items:center;justify-content:center;gap:16px;min-height:180px}
+  .lockup-card.dark .body{background:var(--ink)}
+  .lockup-card .body .mark{width:56px;height:56px;flex:none}
+  .lockup-card .body .word{font-family:Geist,sans-serif;font-size:32px;font-weight:600;letter-spacing:-0.025em;color:var(--ink)}
+  .lockup-card.dark .body .word{color:var(--paper)}
+
+  /* Clearspace diagram */
+  .clearspace{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:36px;display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:center}
+  .cs-stage{aspect-ratio:16/10;background:var(--paper-2);border-radius:10px;position:relative;display:grid;place-items:center;overflow:hidden}
+  .cs-stage svg{width:52%;max-width:240px;position:relative;z-index:2}
+  .cs-stage .guides{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .cs-notes ul{margin:0;padding-left:18px;font-size:14px;line-height:1.75;color:var(--ink-2)}
+  .cs-notes li b{color:var(--ink);font-weight:600}
+
+  /* Favicon bundle */
+  .fav-bundle{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:40px;display:flex;align-items:flex-end;justify-content:space-around;gap:32px;flex-wrap:wrap}
+  .fv{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .fv .lbl{font-family:"Geist Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .fv .sz{font-family:"Geist Mono",monospace;font-size:11px;color:var(--ink)}
+  .fv-128{width:128px;height:128px}
+  .fv-64{width:64px;height:64px}
+  .fv-32{width:32px;height:32px}
+  .fv-24{width:24px;height:24px;image-rendering:pixelated}
+  .fv-16{width:16px;height:16px;image-rendering:pixelated}
+
+  /* Do / don't */
+  .dd{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .dd-card{border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden}
+  .dd-demo{aspect-ratio:1/1;display:grid;place-items:center;background:var(--paper-2);position:relative}
+  .dd-demo svg{width:55%}
+  .dd-foot{padding:14px 18px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2)}
+  .dd-badge{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;flex:none;font-family:"Geist Mono",monospace;font-size:11px;font-weight:700;color:#fff}
+  .dd-yes{background:var(--ok)}
+  .dd-no{background:var(--warn)}
+
+  /* Motion spec */
+  .motion{display:grid;grid-template-columns:1.2fr 1fr;gap:24px}
+  .mot-stage{aspect-ratio:1/1;background:var(--ink);border-radius:14px;display:grid;place-items:center;padding:48px}
+  .mot-stage svg{width:70%;max-width:280px}
+  .mot-info{display:flex;flex-direction:column;gap:14px}
+  .mot-row{border:1px solid var(--line);border-radius:10px;padding:14px 18px;background:var(--card)}
+  .mot-row .k{font-family:"Geist Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-bottom:6px}
+  .mot-row .v{font-size:14px;color:var(--ink-2);line-height:1.6}
+  .mot-row .v code{font-family:"Geist Mono",monospace;font-size:12px;background:var(--paper-2);padding:2px 6px;border-radius:4px;color:var(--ink)}
+
+  @keyframes chipPulse { 0%,60%,100%{opacity:.25} 20%,40%{opacity:1} }
+  .pin-a{animation:chipPulse 2.4s ease-in-out infinite}
+  .pin-a.d2{animation-delay:.1s}
+  .pin-a.d3{animation-delay:.2s}
+  .pin-a.d4{animation-delay:.3s}
+  .pin-a.d5{animation-delay:.4s}
+  .pin-a.d6{animation-delay:.5s}
+
+  /* Colors */
+  .palette{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .sw{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+  .sw-fill{aspect-ratio:3/2}
+  .sw-info{padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+  .sw-info .n{font-size:14px;font-weight:600;letter-spacing:-0.005em}
+  .sw-info .h{font-family:"Geist Mono",monospace;font-size:12px;color:var(--mute)}
+
+  /* Download card */
+  .dl{margin-top:48px;border:1px dashed var(--line-2);border-radius:14px;padding:24px 28px;display:flex;justify-content:space-between;align-items:center;gap:24px}
+  .dl .txt{font-size:14px;color:var(--ink-2);line-height:1.6}
+  .dl .txt b{color:var(--ink)}
+  .dl .files{display:flex;gap:8px;flex-wrap:wrap}
+  .dl .files a{font-family:"Geist Mono",monospace;font-size:11px;padding:6px 10px;background:var(--ink);color:var(--paper);border-radius:6px;text-decoration:none;letter-spacing:.02em}
+  .dl .files a:hover{background:var(--ink-3)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hdr">
+    <div>
+      <p class="eyebrow">Final Brand Package · Chip-Braces</p>
+      <h1>DeviceSDK identity v1.0</h1>
+      <p class="sub">Production-ready mark, lockups, favicon bundle, clearspace, do/don't rules, colour, and motion spec. The Chip silhouette with <code style="font-family:'Geist Mono',monospace;font-size:13px">{ }</code> braces on the die — language-adjacent without being tied to TypeScript.</p>
+    </div>
+    <div class="meta">
+      <div><b>Version</b> &nbsp;/&nbsp; 1.0 — Apr 2026</div>
+      <div><b>Wordmark</b> &nbsp;/&nbsp; Geist 600</div>
+      <div><b>Artboard</b> &nbsp;/&nbsp; 64 × 64</div>
+    </div>
+  </header>
+
+  <!-- ============================== HERO MARK ============================== -->
+  <h2 class="sec">01 · Primary mark</h2>
+
+  <div class="hero">
+    <div class="hero-main">
+      <svg viewBox="0 0 64 64" fill="none">
+        <rect x="14" y="12" width="36" height="44" rx="3" fill="#fafafa"/>
+        <g fill="#fafafa">
+          <rect x="4" y="18" width="10" height="4" rx="1"/>
+          <rect x="4" y="30" width="10" height="4" rx="1"/>
+          <rect x="4" y="42" width="10" height="4" rx="1"/>
+          <rect x="50" y="18" width="10" height="4" rx="1"/>
+          <rect x="50" y="30" width="10" height="4" rx="1"/>
+          <rect x="50" y="42" width="10" height="4" rx="1"/>
+        </g>
+        <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#09090b"/>
+        <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="hero-info">
+      <h3>Chip with braces</h3>
+      <p>A DIP-package silhouette — body, notch, six pins — with a pair of curly braces resting on the die. Hardware plus software, in one glyph. Language-agnostic on purpose: the mark holds whether you add Rust, Go, or Python later.</p>
+      <div class="chip-specs">
+        <div class="spec"><div class="k">Artboard</div><div class="v">64 × 64 units</div></div>
+        <div class="spec"><div class="k">Body radius</div><div class="v">3u · matches rounded-md</div></div>
+        <div class="spec"><div class="k">Brace stroke</div><div class="v">2.4u · round caps</div></div>
+        <div class="spec"><div class="k">Pin count</div><div class="v">3 per side · 6 total</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== LOCKUPS ============================== -->
+  <h2 class="sec">02 · Lockups</h2>
+
+  <div class="lockup-grid">
+    <div class="lockup-card">
+      <div class="hd"><span>Horizontal · light</span><b>primary</b></div>
+      <div class="body">
+        <svg class="mark" viewBox="0 0 64 64" fill="none">
+          <rect x="14" y="12" width="36" height="44" rx="3" fill="#09090b"/>
+          <g fill="#09090b"><rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/><rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/></g>
+          <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#fff"/>
+          <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span class="word">DeviceSDK</span>
+      </div>
+    </div>
+    <div class="lockup-card dark">
+      <div class="hd"><span>Horizontal · dark</span><b>inverse</b></div>
+      <div class="body">
+        <svg class="mark" viewBox="0 0 64 64" fill="none">
+          <rect x="14" y="12" width="36" height="44" rx="3" fill="#fafafa"/>
+          <g fill="#fafafa"><rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/><rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/></g>
+          <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#09090b"/>
+          <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span class="word">DeviceSDK</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== CLEARSPACE ============================== -->
+  <h2 class="sec">03 · Clearspace & minimum size</h2>
+
+  <div class="clearspace">
+    <div class="cs-stage">
+      <svg viewBox="0 0 64 64" fill="none" style="width:36%">
+        <rect x="14" y="12" width="36" height="44" rx="3" fill="#09090b"/>
+        <g fill="#09090b"><rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/><rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/></g>
+        <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#fff"/>
+        <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      </svg>
+      <svg class="guides" viewBox="0 0 160 100" preserveAspectRatio="none">
+        <!-- corner brackets at 25% margin -->
+        <g stroke="#3178c6" stroke-width="0.3" fill="none" stroke-dasharray="1.5 1.5" opacity=".8">
+          <rect x="25" y="15" width="110" height="70"/>
+          <rect x="52" y="27" width="56" height="46" stroke-dasharray="0"/>
+        </g>
+        <text x="80" y="12" text-anchor="middle" font-family="Geist Mono, monospace" font-size="3.5" fill="#3178c6">clearspace = x</text>
+      </svg>
+    </div>
+    <div class="cs-notes">
+      <h3 class="sub-sec">Breathing room</h3>
+      <ul>
+        <li><b>Clearspace</b> — always reserve a margin equal to the pin length (<code style="font-family:'Geist Mono',monospace;font-size:12px">x</code> = 10u at 64u artboard, ~16% of the mark) on every side.</li>
+        <li><b>Minimum horizontal lockup</b> — 120px wide. Below that, drop the wordmark and use the mark only.</li>
+        <li><b>Minimum mark (favicon)</b> — 16px with the pinout simplified (pins become single pixels, braces thin to 0.9u stroke).</li>
+        <li><b>Alignment</b> — optical centre sits on the chip body's centre, not the SVG viewbox centre. When using the mark next to another logo, align to the body, not the pins.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============================== FAVICONS ============================== -->
+  <h2 class="sec">04 · Favicon bundle</h2>
+  <div class="fav-bundle">
+    <div class="fv">
+      <svg class="fv-128" viewBox="0 0 64 64" fill="none">
+        <rect width="64" height="64" rx="10" fill="#09090b"/>
+        <g fill="#fafafa"><rect x="6" y="22" width="8" height="4" rx="1"/><rect x="6" y="30" width="8" height="4" rx="1"/><rect x="6" y="38" width="8" height="4" rx="1"/><rect x="50" y="22" width="8" height="4" rx="1"/><rect x="50" y="30" width="8" height="4" rx="1"/><rect x="50" y="38" width="8" height="4" rx="1"/></g>
+        <rect x="14" y="16" width="36" height="32" rx="2" fill="#fafafa"/>
+        <path d="M26 16 a6 6 0 0 0 12 0 Z" fill="#09090b"/>
+        <path d="M26 24 Q22 24 22 28 Q22 32 19 32 Q22 32 22 36 Q22 40 26 40" stroke="#09090b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M38 24 Q42 24 42 28 Q42 32 45 32 Q42 32 42 36 Q42 40 38 40" stroke="#09090b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div class="sz">128 · apple-touch</div>
+    </div>
+    <div class="fv">
+      <svg class="fv-64" viewBox="0 0 64 64" fill="none">
+        <rect width="64" height="64" rx="10" fill="#09090b"/>
+        <g fill="#fafafa"><rect x="6" y="22" width="8" height="4" rx="1"/><rect x="6" y="30" width="8" height="4" rx="1"/><rect x="6" y="38" width="8" height="4" rx="1"/><rect x="50" y="22" width="8" height="4" rx="1"/><rect x="50" y="30" width="8" height="4" rx="1"/><rect x="50" y="38" width="8" height="4" rx="1"/></g>
+        <rect x="14" y="16" width="36" height="32" rx="2" fill="#fafafa"/>
+        <path d="M26 16 a6 6 0 0 0 12 0 Z" fill="#09090b"/>
+        <path d="M26 24 Q22 24 22 28 Q22 32 19 32 Q22 32 22 36 Q22 40 26 40" stroke="#09090b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M38 24 Q42 24 42 28 Q42 32 45 32 Q42 32 42 36 Q42 40 38 40" stroke="#09090b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div class="sz">64</div>
+    </div>
+    <div class="fv">
+      <svg class="fv-32" viewBox="0 0 64 64" fill="none">
+        <rect width="64" height="64" rx="10" fill="#09090b"/>
+        <g fill="#fafafa"><rect x="6" y="22" width="8" height="4" rx="1"/><rect x="6" y="30" width="8" height="4" rx="1"/><rect x="6" y="38" width="8" height="4" rx="1"/><rect x="50" y="22" width="8" height="4" rx="1"/><rect x="50" y="30" width="8" height="4" rx="1"/><rect x="50" y="38" width="8" height="4" rx="1"/></g>
+        <rect x="14" y="16" width="36" height="32" rx="2" fill="#fafafa"/>
+        <path d="M26 16 a6 6 0 0 0 12 0 Z" fill="#09090b"/>
+        <path d="M26 24 Q22 24 22 28 Q22 32 19 32 Q22 32 22 36 Q22 40 26 40" stroke="#09090b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M38 24 Q42 24 42 28 Q42 32 45 32 Q42 32 42 36 Q42 40 38 40" stroke="#09090b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div class="sz">32</div>
+    </div>
+    <div class="fv">
+      <svg class="fv-24" viewBox="0 0 24 24" fill="none" shape-rendering="crispEdges">
+        <rect width="24" height="24" rx="3" fill="#09090b"/>
+        <rect x="2" y="8" width="3" height="1.5" fill="#fafafa"/><rect x="2" y="11.5" width="3" height="1.5" fill="#fafafa"/><rect x="2" y="15" width="3" height="1.5" fill="#fafafa"/>
+        <rect x="19" y="8" width="3" height="1.5" fill="#fafafa"/><rect x="19" y="11.5" width="3" height="1.5" fill="#fafafa"/><rect x="19" y="15" width="3" height="1.5" fill="#fafafa"/>
+        <rect x="5.5" y="6" width="13" height="12" rx="1" fill="#fafafa"/>
+        <path d="M10 6 a2 2 0 0 0 4 0 Z" fill="#09090b"/>
+        <path d="M10 10 Q8.5 10 8.5 11.5 Q8.5 13 7.5 13 Q8.5 13 8.5 14.5 Q8.5 16 10 16" stroke="#09090b" stroke-width="0.9" fill="none"/>
+        <path d="M14 10 Q15.5 10 15.5 11.5 Q15.5 13 16.5 13 Q15.5 13 15.5 14.5 Q15.5 16 14 16" stroke="#09090b" stroke-width="0.9" fill="none"/>
+      </svg>
+      <div class="sz">24</div>
+    </div>
+    <div class="fv">
+      <svg class="fv-16" viewBox="0 0 16 16" fill="none" shape-rendering="crispEdges">
+        <rect width="16" height="16" rx="2" fill="#09090b"/>
+        <rect x="1" y="5" width="2" height="1" fill="#fafafa"/><rect x="1" y="8" width="2" height="1" fill="#fafafa"/><rect x="1" y="11" width="2" height="1" fill="#fafafa"/>
+        <rect x="13" y="5" width="2" height="1" fill="#fafafa"/><rect x="13" y="8" width="2" height="1" fill="#fafafa"/><rect x="13" y="11" width="2" height="1" fill="#fafafa"/>
+        <rect x="4" y="4" width="8" height="8" rx="1" fill="#fafafa"/>
+        <path d="M7 4 a1 1 0 0 0 2 0 Z" fill="#09090b"/>
+        <path d="M6.8 6 L5.8 8 L6.8 10" stroke="#09090b" stroke-width="0.9" fill="none"/>
+        <path d="M9.2 6 L10.2 8 L9.2 10" stroke="#09090b" stroke-width="0.9" fill="none"/>
+      </svg>
+      <div class="sz">16 · favicon</div>
+    </div>
+  </div>
+
+  <!-- ============================== COLOUR ============================== -->
+  <h2 class="sec">05 · Colour</h2>
+  <div class="palette">
+    <div class="sw"><div class="sw-fill" style="background:#09090b"></div><div class="sw-info"><div class="n">Ink</div><div class="h">#09090b</div></div></div>
+    <div class="sw"><div class="sw-fill" style="background:#fafafa;border-bottom:1px solid var(--line)"></div><div class="sw-info"><div class="n">Paper</div><div class="h">#fafafa</div></div></div>
+    <div class="sw"><div class="sw-fill" style="background:#3178c6"></div><div class="sw-info"><div class="n">TS Blue · accent</div><div class="h">#3178c6</div></div></div>
+    <div class="sw"><div class="sw-fill" style="background:#71717a"></div><div class="sw-info"><div class="n">Mute</div><div class="h">#71717a</div></div></div>
+  </div>
+
+  <!-- ============================== DO / DON'T ============================== -->
+  <h2 class="sec">06 · Do &amp; Don't</h2>
+  <div class="dd">
+    <div class="dd-card">
+      <div class="dd-demo">
+        <svg viewBox="0 0 64 64" fill="none">
+          <rect x="14" y="12" width="36" height="44" rx="3" fill="#09090b"/>
+          <g fill="#09090b"><rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/><rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/></g>
+          <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#fff"/>
+          <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="dd-foot"><div class="dd-badge dd-yes">✓</div>Use on neutral or brand-safe backgrounds</div>
+    </div>
+    <div class="dd-card">
+      <div class="dd-demo" style="background:linear-gradient(135deg,#ff6b9d 0%,#9d4edd 100%)">
+        <svg viewBox="0 0 64 64" fill="none">
+          <rect x="14" y="12" width="36" height="44" rx="3" fill="#09090b"/>
+          <g fill="#09090b"><rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/><rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/></g>
+          <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#fff"/>
+          <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="dd-foot"><div class="dd-badge dd-no">✕</div>Never place on loud gradients</div>
+    </div>
+    <div class="dd-card">
+      <div class="dd-demo">
+        <svg viewBox="0 0 64 64" fill="none" style="transform:skewX(-10deg) scale(.9)">
+          <rect x="14" y="12" width="36" height="44" rx="3" fill="#09090b"/>
+          <g fill="#09090b"><rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/><rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/></g>
+          <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#fff"/>
+          <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="dd-foot"><div class="dd-badge dd-no">✕</div>No skew, stretch, or rotation</div>
+    </div>
+    <div class="dd-card">
+      <div class="dd-demo">
+        <svg viewBox="0 0 64 64" fill="none">
+          <rect x="14" y="12" width="36" height="44" rx="3" fill="#3178c6"/>
+          <g fill="#3178c6"><rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/><rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/></g>
+          <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#fff"/>
+          <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="dd-foot"><div class="dd-badge dd-yes">✓</div>Single-colour TS-Blue acceptable for campaigns</div>
+    </div>
+    <div class="dd-card">
+      <div class="dd-demo">
+        <svg viewBox="0 0 64 64" fill="none">
+          <rect x="14" y="12" width="36" height="44" rx="3" fill="#ff6b9d"/>
+          <g fill="#9d4edd"><rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/><rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/></g>
+          <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#fff"/>
+          <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="dd-foot"><div class="dd-badge dd-no">✕</div>Never recolour individual parts</div>
+    </div>
+    <div class="dd-card">
+      <div class="dd-demo" style="background:#09090b">
+        <svg viewBox="0 0 64 64" fill="none">
+          <rect x="14" y="12" width="36" height="44" rx="3" fill="#fafafa"/>
+          <g fill="#fafafa"><rect x="4" y="18" width="10" height="4" rx="1"/><rect x="4" y="30" width="10" height="4" rx="1"/><rect x="4" y="42" width="10" height="4" rx="1"/><rect x="50" y="18" width="10" height="4" rx="1"/><rect x="50" y="30" width="10" height="4" rx="1"/><rect x="50" y="42" width="10" height="4" rx="1"/></g>
+          <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#09090b"/>
+          <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="dd-foot"><div class="dd-badge dd-yes">✓</div>Inverse on Ink #09090b</div>
+    </div>
+  </div>
+
+  <!-- ============================== MOTION ============================== -->
+  <h2 class="sec">07 · Motion · Deploy pulse</h2>
+  <div class="motion">
+    <div class="mot-stage">
+      <svg viewBox="0 0 64 64" fill="none">
+        <rect x="14" y="12" width="36" height="44" rx="3" fill="#fafafa"/>
+        <g fill="#fafafa">
+          <rect class="pin-a"    x="4"  y="18" width="10" height="4" rx="1"/>
+          <rect class="pin-a d2" x="4"  y="30" width="10" height="4" rx="1"/>
+          <rect class="pin-a d3" x="4"  y="42" width="10" height="4" rx="1"/>
+          <rect class="pin-a d4" x="50" y="18" width="10" height="4" rx="1"/>
+          <rect class="pin-a d5" x="50" y="30" width="10" height="4" rx="1"/>
+          <rect class="pin-a d6" x="50" y="42" width="10" height="4" rx="1"/>
+        </g>
+        <path d="M26 12 a6 6 0 0 0 12 0 Z" fill="#09090b"/>
+        <path d="M26 26 Q22 26 22 30 Q22 34 19 34 Q22 34 22 38 Q22 42 26 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M38 26 Q42 26 42 30 Q42 34 45 34 Q42 34 42 38 Q42 42 38 42" stroke="#09090b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="mot-info">
+      <div class="mot-row"><div class="k">Duration</div><div class="v">2.4s total loop</div></div>
+      <div class="mot-row"><div class="k">Easing</div><div class="v"><code>ease-in-out</code></div></div>
+      <div class="mot-row"><div class="k">Stagger</div><div class="v">100ms between pins · ripple from top-left clockwise</div></div>
+      <div class="mot-row"><div class="k">Opacity range</div><div class="v">0.25 → 1.0 → 0.25 (pins only; body and braces stay solid)</div></div>
+      <div class="mot-row"><div class="k">Usage</div><div class="v">CLI spinner, dashboard deploy button, marketing hero idle. Never in static UI chrome.</div></div>
+    </div>
+  </div>
+
+  <!-- ============================== FILES ============================== -->
+  <div class="dl">
+    <div class="txt">
+      <b>Production files</b> are saved in <code style="font-family:'Geist Mono',monospace;font-size:12px;background:var(--paper-2);padding:2px 6px;border-radius:4px">/assets</code>. Source SVGs below — anything else (ICO bundle, social OG, dark-on-light inverse at specific sizes) I can generate on request.
+    </div>
+    <div class="files">
+      <a href="assets/devicesdk-mark.svg" download>mark.svg</a>
+      <a href="assets/devicesdk-mark-inverse.svg" download>mark-inverse.svg</a>
+      <a href="assets/favicon-16.svg" download>favicon-16.svg</a>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

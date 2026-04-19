@@ -10,6 +10,10 @@ export interface SSD1306Options extends I2cDeviceOptions {
 	width?: number;
 	height?: number;
 	controller?: DisplayController;
+	// For glasses whose visible window is offset from RAM column/page 0 — e.g. the
+	// 0.42" 72x40 panels, which use columnOffset: 30. Defaults to 0 (standard 128x64).
+	columnOffset?: number;
+	pageOffset?: number;
 }
 
 /**
@@ -29,12 +33,16 @@ export class SSD1306 extends I2cDevice {
 	private _width: number;
 	private _height: number;
 	private controller: DisplayController;
+	private columnOffset: number;
+	private pageOffset: number;
 
 	constructor(options: SSD1306Options) {
 		super({ bus: options.bus ?? 0, address: options.address ?? "0x3C" });
 		this._width = options.width ?? 128;
 		this._height = options.height ?? 64;
 		this.controller = options.controller ?? "ssd1306";
+		this.columnOffset = options.columnOffset ?? 0;
+		this.pageOffset = options.pageOffset ?? 0;
 		// Buffer size: width * (height / 8) for page-based addressing
 		this.buffer = new Uint8Array((this._width * this._height) / 8);
 	}
@@ -363,6 +371,8 @@ export class SSD1306 extends I2cDevice {
 				controller: this.controller,
 				width: this._width,
 				height: this._height,
+				...(this.columnOffset !== 0 && { columnOffset: this.columnOffset }),
+				...(this.pageOffset !== 0 && { pageOffset: this.pageOffset }),
 				init: options?.init,
 				segments,
 			},

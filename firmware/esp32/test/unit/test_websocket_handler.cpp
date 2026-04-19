@@ -173,6 +173,17 @@ TEST_F(WebSocketHandlerTest, DisplayUpdateInvalidController) {
     EXPECT_TRUE(handle_websocket_message(msg));
 }
 
+// 0.42" SSD1306 boards (e.g. ESP32-C3 0.42 OLED) use a 72x40 window offset to column 30.
+// The parser must accept columnOffset / pageOffset without rejecting the message.
+TEST_F(WebSocketHandlerTest, DisplayUpdate072x40WithOffset) {
+    const char *msg = "{\"type\":\"display_update\","
+                      "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"controller\":\"ssd1306\","
+                      "\"width\":72,\"height\":40,\"columnOffset\":30,\"pageOffset\":0,"
+                      "\"init\":true,"
+                      "\"segments\":[{\"offset\":0,\"data\":\"AAAA\"}]}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+}
+
 TEST_F(WebSocketHandlerTest, UnknownCommandType) {
     const char *msg = "{\"type\":\"unknown_command\",\"payload\":{}}";
     EXPECT_TRUE(handle_websocket_message(msg));

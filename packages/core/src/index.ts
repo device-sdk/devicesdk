@@ -108,6 +108,11 @@ export type DisplayUpdateCommand = Command<
 		controller: DisplayController;
 		width: number;
 		height: number;
+		// Columns 0..width-1 in the framebuffer map to columnOffset..columnOffset+width-1 in
+		// controller RAM. Needed for glass sizes where the visible window is not at column 0
+		// (e.g. the 0.42" 72x40 SSD1306 boards, which sit at column offset 30).
+		columnOffset?: number;
+		pageOffset?: number;
 		init?: boolean;
 		segments: DisplaySegment[];
 	}

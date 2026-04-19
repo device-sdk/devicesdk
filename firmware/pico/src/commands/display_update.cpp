@@ -185,14 +185,16 @@ static bool init_sh1106(uint8_t bus, uint8_t address, uint8_t width, uint8_t hei
 }
 
 static bool write_framebuffer_ssd1306(uint8_t bus, uint8_t address, uint8_t width, uint8_t height,
+                                       uint8_t col_offset, uint8_t page_offset,
                                        const std::vector<uint8_t>& buffer) {
     uint8_t pages = height / 8;
 
-    // Set column address range
-    if (!send_command3(bus, address, SSD1306_CMD_SET_COL_ADDR, 0x00, width - 1)) return false;
+    // Set column address range — offsets are non-zero for panels whose glass doesn't
+    // start at RAM column 0 (e.g. 0.42" 72x40 SSD1306 boards live at col_offset=30).
+    if (!send_command3(bus, address, SSD1306_CMD_SET_COL_ADDR, col_offset, col_offset + width - 1)) return false;
 
     // Set page address range
-    if (!send_command3(bus, address, SSD1306_CMD_SET_PAGE_ADDR, 0x00, pages - 1)) return false;
+    if (!send_command3(bus, address, SSD1306_CMD_SET_PAGE_ADDR, page_offset, page_offset + pages - 1)) return false;
 
     // Write data in chunks
     // Smaller chunks (32 bytes) are more reliable with background WiFi interrupts
@@ -227,25 +229,29 @@ static bool write_framebuffer_ssd1306(uint8_t bus, uint8_t address, uint8_t widt
 }
 
 static bool write_framebuffer_sh1106(uint8_t bus, uint8_t address, uint8_t width, uint8_t height,
+                                      uint8_t col_offset, uint8_t page_offset,
                                       const std::vector<uint8_t>& buffer) {
     uint8_t pages = height / 8;
 
-    // SH1106 requires page-by-page writing with column offset of 2
+    // SH1106's glass has a 2-column RAM offset by default; preserve that when caller passes 0.
+    if (col_offset == 0) col_offset = 2;
+
+    // SH1106 requires page-by-page writing
     for (uint8_t page = 0; page < pages; page++) {
-        // Set page address
-        if (!send_command(bus, address, 0xB0 + page)) return false;
+        // Set page address (offset into RAM)
+        if (!send_command(bus, address, 0xB0 + page + page_offset)) return false;
 
-        // Set lower column address (with offset 2 for 128px displays)
-        if (!send_command(bus, address, 0x02)) return false;
+        // Set lower column address (low nibble of col_offset)
+        if (!send_command(bus, address, col_offset & 0x0F)) return false;
 
-        // Set higher column address
-        if (!send_command(bus, address, 0x10)) return false;
+        // Set higher column address (high nibble of col_offset)
+        if (!send_command(bus, address, 0x10 | ((col_offset >> 4) & 0x0F))) return false;
 
         // Write page data
-        size_t page_offset = page * width;
+        size_t fb_page_offset = page * width;
         std::vector<uint8_t> page_data(width + 1);
         page_data[0] = CONTROL_BYTE_DATA;
-        memcpy(&page_data[1], &buffer[page_offset], width);
+        memcpy(&page_data[1], &buffer[fb_page_offset], width);
 
         if (!hal_i2c_write(bus, address, page_data.data(), page_data.size())) {
             return false;
@@ -300,13 +306,26 @@ void handle_display_update(const picojson::object& payload) {
         return;
     }
 
-    // Validate dimensions
-    if (width != 128 || (height != 32 && height != 64)) {
-        i2c_cmd_send_error("Invalid dimensions (supported: 128x32 or 128x64)");
+    // Validate dimensions — accept any width ≤ 128 and height that's a multiple of 8.
+    // Covers 128x64, 128x32, and the 0.42" 72x40 panels used on some ESP32-C3 boards.
+    if (width == 0 || width > 128 || height == 0 || height > 64 || (height % 8) != 0) {
+        i2c_cmd_send_error("Invalid dimensions (width must be 1-128, height must be a multiple of 8 up to 64)");
         return;
     }
 
     size_t framebuffer_size = (size_t)width * height / 8;
+
+    // Parse optional offsets (defaults to 0 — standard for 128-wide panels)
+    uint8_t col_offset = 0;
+    uint8_t page_offset = 0;
+    auto col_off_it = payload.find("columnOffset");
+    if (col_off_it != payload.end() && col_off_it->second.is<double>()) {
+        col_offset = (uint8_t)col_off_it->second.get<double>();
+    }
+    auto page_off_it = payload.find("pageOffset");
+    if (page_off_it != payload.end() && page_off_it->second.is<double>()) {
+        page_offset = (uint8_t)page_off_it->second.get<double>();
+    }
 
     // Resize local framebuffer if needed (preserves existing content for incremental updates)
     if (s_framebuffer.size() != framebuffer_size) {
@@ -379,9 +398,9 @@ void handle_display_update(const picojson::object& payload) {
     // Write framebuffer
     bool write_success;
     if (is_ssd1306) {
-        write_success = write_framebuffer_ssd1306(bus, address, width, height, s_framebuffer);
+        write_success = write_framebuffer_ssd1306(bus, address, width, height, col_offset, page_offset, s_framebuffer);
     } else {
-        write_success = write_framebuffer_sh1106(bus, address, width, height, s_framebuffer);
+        write_success = write_framebuffer_sh1106(bus, address, width, height, col_offset, page_offset, s_framebuffer);
     }
 
     if (!write_success) {

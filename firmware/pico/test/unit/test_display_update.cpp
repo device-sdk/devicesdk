@@ -167,15 +167,48 @@ TEST_F(DisplayUpdateTest, InvalidController) {
 }
 
 TEST_F(DisplayUpdateTest, InvalidDimensions) {
-    picojson::array segments = makeFullBufferSegments(128, 64);  // Buffer for 128x64
+    // Height 33 is not a multiple of 8 — rejected.
+    picojson::array segments;
+    segments.push_back(makeSegment(0, createZeroBuffer(128, 32)));
 
-    // Try invalid dimensions
-    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 64, 64, segments);
+    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 128, 33, segments);
 
     handle_display_update(payload);
 
     ASSERT_EQ(errors.size(), 1);
     EXPECT_TRUE(errors[0].find("Invalid dimensions") != std::string::npos);
+}
+
+TEST_F(DisplayUpdateTest, OverwideRejected) {
+    // Width > 128 is rejected (controller RAM is 128-wide).
+    picojson::array segments;
+    segments.push_back(makeSegment(0, createZeroBuffer(128, 64)));
+
+    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 200, 64, segments);
+
+    handle_display_update(payload);
+
+    ASSERT_EQ(errors.size(), 1);
+    EXPECT_TRUE(errors[0].find("Invalid dimensions") != std::string::npos);
+}
+
+// 0.42" SSD1306 boards (common on ESP32-C3) expose a 72x40 window at column offset 30.
+TEST_F(DisplayUpdateTest, ValidSSD1306_72x40_WithOffset) {
+    picojson::array segments = makeFullBufferSegments(72, 40);
+
+    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 72, 40, segments);
+    payload["columnOffset"] = picojson::value((double)30);
+    payload["pageOffset"] = picojson::value((double)0);
+
+    handle_display_update(payload);
+
+    ASSERT_EQ(errors.size(), 0);
+    ASSERT_EQ(responses.size(), 1);
+
+    const picojson::object& ack = responses[0].second.get<picojson::object>();
+    EXPECT_EQ(ack.at("width").get<double>(), 72);
+    EXPECT_EQ(ack.at("height").get<double>(), 40);
+    EXPECT_EQ(ack.at("status").get<std::string>(), "success");
 }
 
 TEST_F(DisplayUpdateTest, SegmentOverflow) {

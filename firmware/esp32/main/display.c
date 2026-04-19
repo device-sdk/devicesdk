@@ -84,10 +84,11 @@ bool display_init_sh1106(uint8_t bus, uint8_t addr, uint8_t width, uint8_t heigh
 }
 
 bool display_write_fb_ssd1306(uint8_t bus, uint8_t addr, uint8_t width, uint8_t height,
+                               uint8_t col_offset, uint8_t page_offset,
                                const uint8_t *buffer, size_t buf_len) {
     uint8_t pages = height / 8;
-    if (!send_cmd3(bus, addr, SSD1306_CMD_SET_COL_ADDR, 0x00, width - 1)) return false;
-    if (!send_cmd3(bus, addr, SSD1306_CMD_SET_PAGE_ADDR, 0x00, pages - 1)) return false;
+    if (!send_cmd3(bus, addr, SSD1306_CMD_SET_COL_ADDR, col_offset, col_offset + width - 1)) return false;
+    if (!send_cmd3(bus, addr, SSD1306_CMD_SET_PAGE_ADDR, page_offset, page_offset + pages - 1)) return false;
 
     // Write in 32-byte chunks
     size_t chunk_size = 32;
@@ -110,19 +111,22 @@ bool display_write_fb_ssd1306(uint8_t bus, uint8_t addr, uint8_t width, uint8_t 
 }
 
 bool display_write_fb_sh1106(uint8_t bus, uint8_t addr, uint8_t width, uint8_t height,
+                              uint8_t col_offset, uint8_t page_offset,
                               const uint8_t *buffer, size_t buf_len) {
     (void)buf_len;
     uint8_t pages = height / 8;
     uint8_t page_data[129];  // 1 control byte + 128 data max
+    // SH1106's glass has a 2-column RAM offset by default; preserve that when caller passes 0.
+    if (col_offset == 0) col_offset = 2;
 
     for (uint8_t page = 0; page < pages; page++) {
-        if (!send_cmd(bus, addr, 0xB0 + page)) return false;
-        if (!send_cmd(bus, addr, 0x02)) return false;  // Column offset 2
-        if (!send_cmd(bus, addr, 0x10)) return false;
+        if (!send_cmd(bus, addr, 0xB0 + page + page_offset)) return false;
+        if (!send_cmd(bus, addr, col_offset & 0x0F)) return false;            // low nibble
+        if (!send_cmd(bus, addr, 0x10 | ((col_offset >> 4) & 0x0F))) return false;  // high nibble
 
-        size_t page_offset = page * width;
+        size_t fb_page_offset = page * width;
         page_data[0] = CONTROL_BYTE_DATA;
-        memcpy(&page_data[1], &buffer[page_offset], width);
+        memcpy(&page_data[1], &buffer[fb_page_offset], width);
 
         if (!iotkit_hal_i2c_write(bus, addr, page_data, width + 1)) {
             return false;

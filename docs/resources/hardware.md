@@ -76,6 +76,35 @@ social_image: /og-images/docs/resources/hardware.png
 - **UART**: 2 controllers
 - **Addressable LEDs**: Onboard WS2812 on GPIO 8 (DevKitM-1). C3 has an RMT peripheral, so `led_strip` uses the RMT backend — unlike C61, which runs the same code path on the SPI backend.
 
+#### 0.42″ OLED variant
+
+A common C3 board style (sold as "ESP32-C3 0.42 OLED", ESP32-C3-FN4 module) carries a built-in 72×40 SSD1306 OLED on the onboard I2C bus:
+
+- **Address**: `0x3C`
+- **SDA**: GPIO 5, **SCL**: GPIO 6 *(verify against your board's silkscreen — some variants swap these)*
+- **Controller RAM is 128-wide**; the glass sits at **column offset 30**. Pass `columnOffset: 30` when constructing the display driver — otherwise your pixels render into the non-visible RAM region.
+
+```typescript
+import { SSD1306 } from '@devicesdk/core/i2c';
+
+const display = new SSD1306({
+  bus: 0,
+  address: "0x3C",
+  width: 72,
+  height: 40,
+  columnOffset: 30,
+});
+
+async onDeviceConnect() {
+  await this.env.DEVICE.sendCommand({
+    type: 'i2c_configure',
+    payload: { bus: 0, sda_pin: 5, scl_pin: 6, frequency: 400000 }
+  });
+  display.clear().drawText(0, 0, "Hello, C3!");
+  await this.env.DEVICE.sendCommand(display.toDisplayCommand({ init: true }));
+}
+```
+
 ## Hardware Requirements
 
 ### Minimum Requirements

@@ -54,9 +54,23 @@ const display = new SSD1306({
   address: '0x3C',     // I2C address (default: '0x3C')
   width: 128,          // Display width in pixels (default: 128)
   height: 64,          // Display height in pixels (default: 64)
-  controller: 'ssd1306' // Controller type: 'ssd1306' | 'sh1106'
+  controller: 'ssd1306', // Controller type: 'ssd1306' | 'sh1106'
+  columnOffset: 0,     // RAM column offset (default: 0; use 30 for 0.42" 72x40 panels)
+  pageOffset: 0,       // RAM page offset (default: 0)
 });
 ```
+
+### Offset panels
+
+Some glasses (notably the 0.42" 72×40 panels that ship built in on many ESP32-C3 dev boards) place their visible window at a non-zero offset within the controller's 128×64 RAM. Without the offset, drawing lands off-screen. Example:
+
+```typescript
+const display = new SSD1306({
+  address: '0x3C', width: 72, height: 40, columnOffset: 30,
+});
+```
+
+For SH1106 panels, the default `columnOffset` is 2 even if you pass `0` — this matches the SH1106's well-known built-in offset. Pass a different value to override.
 
 ## Drawing Methods
 

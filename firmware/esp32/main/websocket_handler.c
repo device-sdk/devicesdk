@@ -645,6 +645,8 @@ bool handle_websocket_message(const char *message) {
         cJSON *height_obj = cJSON_GetObjectItem(payload, "height");
         cJSON *segments_obj = cJSON_GetObjectItem(payload, "segments");
         cJSON *init_obj = cJSON_GetObjectItem(payload, "init");
+        cJSON *col_off_obj = cJSON_GetObjectItem(payload, "columnOffset");
+        cJSON *page_off_obj = cJSON_GetObjectItem(payload, "pageOffset");
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) ||
             !cJSON_IsString(controller_obj) || !cJSON_IsNumber(width_obj) ||
@@ -667,6 +669,8 @@ bool handle_websocket_message(const char *message) {
         const char *controller = controller_obj->valuestring;
         uint8_t width = (uint8_t)width_obj->valuedouble;
         uint8_t height = (uint8_t)height_obj->valuedouble;
+        uint8_t col_offset = cJSON_IsNumber(col_off_obj) ? (uint8_t)col_off_obj->valuedouble : 0;
+        uint8_t page_offset = cJSON_IsNumber(page_off_obj) ? (uint8_t)page_off_obj->valuedouble : 0;
 
         bool is_ssd1306 = (strcmp(controller, "ssd1306") == 0);
         bool is_sh1106 = (strcmp(controller, "sh1106") == 0);
@@ -716,6 +720,8 @@ bool handle_websocket_message(const char *message) {
         cmd.payload.display.width = width;
         cmd.payload.display.height = height;
         cmd.payload.display.controller = is_ssd1306 ? 0 : 1;
+        cmd.payload.display.col_offset = col_offset;
+        cmd.payload.display.page_offset = page_offset;
         cmd.payload.display.init = cJSON_IsTrue(init_obj);
         queue_command(&cmd);
     }

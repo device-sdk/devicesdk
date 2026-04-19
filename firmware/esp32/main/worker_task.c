@@ -500,6 +500,8 @@ static void handle_display_update(const worker_command_t *cmd, worker_response_t
     uint8_t addr = cmd->payload.display.address;
     uint8_t width = cmd->payload.display.width;
     uint8_t height = cmd->payload.display.height;
+    uint8_t col_offset = cmd->payload.display.col_offset;
+    uint8_t page_offset = cmd->payload.display.page_offset;
     bool is_ssd1306 = (cmd->payload.display.controller == 0);
     bool do_init = cmd->payload.display.init;
 
@@ -557,8 +559,8 @@ static void handle_display_update(const worker_command_t *cmd, worker_response_t
 
     // Write framebuffer
     bool write_ok = is_ssd1306
-        ? display_write_fb_ssd1306(bus, addr, width, height, s_framebuffer, s_framebuffer_size)
-        : display_write_fb_sh1106(bus, addr, width, height, s_framebuffer, s_framebuffer_size);
+        ? display_write_fb_ssd1306(bus, addr, width, height, col_offset, page_offset, s_framebuffer, s_framebuffer_size)
+        : display_write_fb_sh1106(bus, addr, width, height, col_offset, page_offset, s_framebuffer, s_framebuffer_size);
 
     if (!write_ok) {
         set_error(resp, "Failed to write framebuffer");

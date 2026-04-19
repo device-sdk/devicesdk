@@ -76,13 +76,12 @@ export const usePinStateStore = defineStore("pinState", () => {
 		const s = ensure(gpio);
 		s.mode = "digital_input";
 		s.monitoring = monitoring;
-		// When monitoring is enabled, rest the pin at the pull level.
-		// Pull-up → pin idles HIGH; pull-down → pin idles LOW.
+		// Seed the rest state directly (pull-up → HIGH, pull-down → LOW). Real
+		// hardware doesn't emit an edge event when a pull resistor is engaged,
+		// so we must bypass digitalChangeHandlers here — otherwise the firmware
+		// would receive a phantom gpio_state_changed on the first configure call.
 		if (monitoring.enabled && monitoring.pull !== "none") {
-			const restingState = monitoring.pull === "up" ? "high" : "low";
-			if (s.digitalState !== restingState) {
-				setDigital(gpio, restingState);
-			}
+			s.digitalState = monitoring.pull === "up" ? "high" : "low";
 		}
 	}
 

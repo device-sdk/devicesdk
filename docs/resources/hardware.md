@@ -85,23 +85,26 @@ A common C3 board style (sold as "ESP32-C3 0.42 OLED", ESP32-C3-FN4 module) carr
 - **Controller RAM is 128-wide**; the glass sits at **column offset 30**. Pass `columnOffset: 30` when constructing the display driver — otherwise your pixels render into the non-visible RAM region.
 
 ```typescript
+import { DeviceEntrypoint } from '@devicesdk/core';
 import { SSD1306 } from '@devicesdk/core/i2c';
 
-const display = new SSD1306({
-  bus: 0,
-  address: "0x3C",
-  width: 72,
-  height: 40,
-  columnOffset: 30,
-});
-
-async onDeviceConnect() {
-  await this.env.DEVICE.sendCommand({
-    type: 'i2c_configure',
-    payload: { bus: 0, sda_pin: 5, scl_pin: 6, frequency: 400000 }
+export default class MyC3OledDevice extends DeviceEntrypoint {
+  private display = new SSD1306({
+    bus: 0,
+    address: "0x3C",
+    width: 72,
+    height: 40,
+    columnOffset: 30,
   });
-  display.clear().drawText(0, 0, "Hello, C3!");
-  await this.env.DEVICE.sendCommand(display.toDisplayCommand({ init: true }));
+
+  async onDeviceConnect() {
+    await this.env.DEVICE.sendCommand({
+      type: 'i2c_configure',
+      payload: { bus: 0, sda_pin: 5, scl_pin: 6, frequency: 400000 }
+    });
+    this.display.clear().drawText(0, 0, "Hello, C3!");
+    await this.env.DEVICE.sendCommand(this.display.toDisplayCommand({ init: true }));
+  }
 }
 ```
 

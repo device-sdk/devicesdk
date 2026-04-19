@@ -1,6 +1,7 @@
 ---
 "@devicesdk/cli": minor
 "@devicesdk/api": patch
+"@devicesdk/website": patch
 ---
 
 Add ESP32-C3 as a supported device type.

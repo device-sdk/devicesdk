@@ -95,6 +95,21 @@ function createEsp32c61Config() {
 	};
 }
 
+function createEsp32c3Config() {
+	return {
+		projectId: "test-project",
+		devices: {
+			"esp-c3-1": {
+				main: "./devices/espC3.ts",
+				deviceType: "esp32c3",
+				name: "ESP32-C3 One",
+				description: "An ESP32-C3 device",
+				wifi: { ssid: "ssid", password: "pass" },
+			},
+		},
+	};
+}
+
 describe("flash command", () => {
 	const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 		code?: number,
@@ -342,6 +357,32 @@ describe("flash command", () => {
 			await expect(flash("esp-c61-1")).rejects.toThrowError(/exit:6/);
 			expect(exitSpy).toHaveBeenCalledWith(6);
 			expect(apiMocks.downloadDeviceFirmware).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("ESP32-C3 devices", () => {
+		it("routes esp32c3 devices to flashESP32 with correct chip name", async () => {
+			const { loadConfig } = await import("../utils.js");
+			(loadConfig as any).mockResolvedValueOnce(createEsp32c3Config());
+
+			await flash("esp-c3-1");
+
+			expect(flashEsp32Mocks.checkEsptoolInstalled).toHaveBeenCalled();
+			expect(apiMocks.downloadDeviceFirmware).toHaveBeenCalledWith(
+				"test-token",
+				"test-project",
+				"esp-c3-1",
+				expect.objectContaining({ ssid: "ssid", password: "pass" }),
+				"esp32c3",
+				{ host: undefined },
+			);
+			expect(flashEsp32Mocks.flashESP32).toHaveBeenCalledWith(
+				expect.objectContaining({
+					firmwarePath: expect.stringContaining("esp32c3-client.bin"),
+					chipName: "esp32c3",
+				}),
+			);
+			expect(flashPicoMock).not.toHaveBeenCalled();
 		});
 	});
 });

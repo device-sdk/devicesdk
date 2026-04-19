@@ -378,14 +378,20 @@ export async function deleteDevice(
 	);
 }
 
-export type DeviceType = "pico-w" | "pico2-w" | "esp32" | "esp32c61";
+export type DeviceType =
+	| "pico-w"
+	| "pico2-w"
+	| "esp32"
+	| "esp32c61"
+	| "esp32c3";
 
 export function isEsp32DeviceType(deviceType: DeviceType): boolean {
-	return deviceType === "esp32" || deviceType === "esp32c61";
+	return deviceType.startsWith("esp32");
 }
 
 export function getEsp32ChipName(deviceType: DeviceType): string {
 	if (deviceType === "esp32c61") return "esp32c61";
+	if (deviceType === "esp32c3") return "esp32c3";
 	return "esp32";
 }
 

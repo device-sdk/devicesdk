@@ -5,12 +5,18 @@ import { z } from "zod";
 // configs) can continue to `import { HaEntityDeclaration } from "@devicesdk/cli"`.
 export type { HaEntityDeclaration } from "@devicesdk/core";
 
-export type DeviceType = "pico-w" | "pico2-w" | "esp32" | "esp32c61";
+export type DeviceType =
+	| "pico-w"
+	| "pico2-w"
+	| "esp32"
+	| "esp32c61"
+	| "esp32c3";
 const deviceTypeSchema: z.ZodType<DeviceType> = z.enum([
 	"pico-w",
 	"pico2-w",
 	"esp32",
 	"esp32c61",
+	"esp32c3",
 ]);
 
 // Zod schema must stay in the CLI (core has no runtime deps). The type assertion

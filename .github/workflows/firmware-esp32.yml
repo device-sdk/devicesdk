@@ -108,6 +108,13 @@ jobs:
           path: firmware/esp32/dist/${{ matrix.target }}-client.bin
           if-no-files-found: error
 
+      # Self-hosted runner: the espressif/idf container writes files as root.
+      # Hand ownership back to the host runner UID (1000 on the Proxmox LXC)
+      # so the next checkout/clean can remove them without sudo.
+      - name: Restore workspace ownership
+        if: always()
+        run: chown -R 1000:1000 .
+
   upload-to-r2:
     name: Upload firmware to R2
     runs-on: [self-hosted, linux, proxmox]

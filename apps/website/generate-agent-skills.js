@@ -5,6 +5,9 @@ import { join } from "node:path";
 const BASE = "static/.well-known/agent-skills";
 const SITE = process.env.SITE_URL || "https://devicesdk.com";
 
+// Single-line YAML only: each frontmatter line must be `key: value`.
+// Multi-line, quoted-with-newlines, and list values are not supported —
+// keep SKILL.md frontmatter to plain `name:` and `description:` lines.
 function parseFrontmatter(text) {
   const match = text.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return {};

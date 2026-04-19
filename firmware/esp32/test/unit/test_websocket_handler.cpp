@@ -174,14 +174,74 @@ TEST_F(WebSocketHandlerTest, DisplayUpdateInvalidController) {
 }
 
 // 0.42" SSD1306 boards (e.g. ESP32-C3 0.42 OLED) use a 72x40 window offset to column 30.
-// The parser must accept columnOffset / pageOffset without rejecting the message.
+// The parser must accept columnOffset / pageOffset and forward them into the queued command.
 TEST_F(WebSocketHandlerTest, DisplayUpdate072x40WithOffset) {
+    test_reset_last_queued_command();
     const char *msg = "{\"type\":\"display_update\","
                       "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"controller\":\"ssd1306\","
                       "\"width\":72,\"height\":40,\"columnOffset\":30,\"pageOffset\":0,"
                       "\"init\":true,"
                       "\"segments\":[{\"offset\":0,\"data\":\"AAAA\"}]}}";
     EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->type, CMD_DISPLAY_UPDATE);
+    EXPECT_EQ(last->payload.display.width, 72);
+    EXPECT_EQ(last->payload.display.height, 40);
+    EXPECT_EQ(last->payload.display.controller, 0);  // ssd1306
+    EXPECT_EQ(last->payload.display.col_offset, 30);
+    EXPECT_EQ(last->payload.display.page_offset, 0);
+    EXPECT_TRUE(last->payload.display.init);
+}
+
+// Default payload (no columnOffset/pageOffset fields) must queue with zero offsets —
+// ensures the 128x64 common case is unchanged.
+TEST_F(WebSocketHandlerTest, DisplayUpdate128x64DefaultsToZeroOffset) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"display_update\","
+                      "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"controller\":\"ssd1306\","
+                      "\"width\":128,\"height\":64,\"init\":false,"
+                      "\"segments\":[{\"offset\":0,\"data\":\"AAAA\"}]}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->payload.display.col_offset, 0);
+    EXPECT_EQ(last->payload.display.page_offset, 0);
+}
+
+// Width > 128 must be rejected and no command queued.
+TEST_F(WebSocketHandlerTest, DisplayUpdateOversizeWidthRejected) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"display_update\","
+                      "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"controller\":\"ssd1306\","
+                      "\"width\":200,\"height\":64,"
+                      "\"segments\":[{\"offset\":0,\"data\":\"AAAA\"}]}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+    EXPECT_EQ(test_get_last_queued_command(), nullptr);
+}
+
+// Height not a multiple of 8 must be rejected.
+TEST_F(WebSocketHandlerTest, DisplayUpdateHeightNotMultipleOfEightRejected) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"display_update\","
+                      "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"controller\":\"ssd1306\","
+                      "\"width\":128,\"height\":33,"
+                      "\"segments\":[{\"offset\":0,\"data\":\"AAAA\"}]}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+    EXPECT_EQ(test_get_last_queued_command(), nullptr);
+}
+
+// columnOffset + width > 128 must be rejected (would write past controller RAM).
+TEST_F(WebSocketHandlerTest, DisplayUpdateColOffsetPlusWidthExceedsRamRejected) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"display_update\","
+                      "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"controller\":\"ssd1306\","
+                      "\"width\":100,\"height\":32,\"columnOffset\":50,"
+                      "\"segments\":[{\"offset\":0,\"data\":\"AAAA\"}]}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+    EXPECT_EQ(test_get_last_queued_command(), nullptr);
 }
 
 TEST_F(WebSocketHandlerTest, UnknownCommandType) {

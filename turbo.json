@@ -14,6 +14,16 @@
 				"public/**"
 			]
 		},
+		"@devicesdk/api#build": {
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", ".env*", ".dev.vars*"],
+			"outputs": ["openapi.json"]
+		},
+		"@devicesdk/website#build": {
+			"dependsOn": ["^build", "@devicesdk/api#build"],
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"outputs": ["public/**", "static/api/docs/openapi.json"]
+		},
 		"dev": { "cache": false, "persistent": true },
 		"lint": {},
 		"test": { "dependsOn": ["^build"], "cache": false },

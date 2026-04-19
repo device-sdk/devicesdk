@@ -7,11 +7,12 @@
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
-		"schema": "npx chanfana",
+		"openapi": "npx chanfana -o openapi.json --port 8989 --var ENV:local",
+		"build": "pnpm run openapi",
 		"test": "tsc && npx vitest run --config tests/vitest.config.mts",
 		"test:coverage": "tsc && npx vitest run --config tests/vitest.config.mts --coverage",
 		"check-types": "tsc --noEmit",
-		"clean": "rm -rf dist",
+		"clean": "rm -rf dist openapi.json",
 		"db:pull": "npx wrangler d1 export iotkit-users --remote --output .wrangler/d1-remote-dump.sql && rm -rf .wrangler/state/v3/d1 && npx wrangler d1 execute DB --local --file .wrangler/d1-remote-dump.sql && rm .wrangler/d1-remote-dump.sql"
 	},
 	"dependencies": {

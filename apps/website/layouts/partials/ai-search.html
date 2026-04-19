@@ -1,0 +1,16 @@
+{{- /* AI Search hosted instance. Custom-domain CNAME tracked in ROADMAP item #29. */ -}}
+{{- $instance := "https://b055c14c-4193-411f-ace0-f26c753376ee.search.ai.cloudflare.com" -}}
+<script
+  type="module"
+  src="{{ $instance }}/assets/v0.0.36/search-snippet.es.js"
+  integrity="sha384-tCbxswEr96GUJpbehTSqs88zk8IooboBlMfdQJmGvUiNLfq4eDwumEFyuHh7Onw1"
+  crossorigin="anonymous"></script>
+<search-modal-snippet
+  id="devicesdk-search"
+  api-url="{{ $instance }}"
+  placeholder="Search the docs"
+  shortcut="k"
+  use-meta-key="true"
+  show-url="true"
+  show-date="false">
+</search-modal-snippet>

@@ -1,0 +1,85 @@
+{{- /*
+  WebMCP registration — exposes read-only navigation and docs search to
+  AI agents via navigator.modelContext.registerTool().
+  Spec: https://webmachinelearning.github.io/webmcp/
+*/ -}}
+{{- $items := slice -}}
+{{- range (where .Site.RegularPages "Section" "docs") -}}
+  {{- $items = $items | append (dict
+      "title" .Title
+      "url" .RelPermalink
+      "summary" (.Summary | plainify | truncate 240)) -}}
+{{- end -}}
+<script>
+(function () {
+  var DOCS_INDEX = {{ $items | jsonify | safeJS }};
+
+  if (!('modelContext' in navigator) ||
+      typeof navigator.modelContext.registerTool !== 'function') {
+    return;
+  }
+
+  var SECTIONS = {
+    home: '/',
+    product: '/product/',
+    pricing: '/pricing/',
+    solutions: '/solutions/',
+    examples: '/examples/',
+    docs: '/docs/',
+    community: '/community/',
+    about: '/about/',
+    'early-access': '/early-access/'
+  };
+
+  try {
+    navigator.modelContext.registerTool({
+      name: 'navigate_to',
+      description:
+        'Navigate the DeviceSDK marketing site to one of its named sections ' +
+        '(home, product, pricing, solutions, examples, docs, community, about, early-access).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          section: { type: 'string', enum: Object.keys(SECTIONS) }
+        },
+        required: ['section']
+      },
+      execute: async function (input) {
+        var url = SECTIONS[input && input.section];
+        if (!url) return { success: false, error: 'Unknown section: ' + (input && input.section) };
+        window.location.assign(url);
+        return { success: true, url: url };
+      },
+      annotations: { readOnlyHint: false }
+    });
+
+    navigator.modelContext.registerTool({
+      name: 'search_docs',
+      description:
+        'Full-text search across DeviceSDK documentation. Returns up to 10 matching pages ' +
+        'with title, URL, and a short summary.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', minLength: 1 }
+        },
+        required: ['query']
+      },
+      execute: async function (input) {
+        var q = String((input && input.query) || '').toLowerCase().trim();
+        if (!q) return { success: true, results: [] };
+        var results = DOCS_INDEX
+          .filter(function (p) {
+            return p.title.toLowerCase().indexOf(q) !== -1 ||
+                   (p.summary || '').toLowerCase().indexOf(q) !== -1;
+          })
+          .slice(0, 10);
+        return { success: true, results: results };
+      },
+      annotations: { readOnlyHint: true }
+    });
+  } catch (_) {
+    // Silent failure — site remains fully functional without WebMCP.
+  }
+})();
+</script>

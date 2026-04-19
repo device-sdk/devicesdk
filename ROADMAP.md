@@ -38,6 +38,7 @@ Last updated: 2026-04-06
 | 26 | [Device Reboot Button](#26-device-reboot-button) | UI trigger to restart the device (re-run `onDeviceConnect`) without editing a file to trigger chokidar | [ ]    |
 | 27 | [WS2812 LED Strip Visualization](#27-ws2812-led-strip-visualization) | Render a horizontal strip of colored LEDs when firmware calls `pioWs2812Configure` / `pioWs2812Update` | [ ]    |
 | 28 | [Off-Board Pin Activity Indicator](#28-off-board-pin-activity-indicator) | Visual cue on the board when a pin the script uses isn't exposed on the current board visual | [ ]    |
+| 29 | [Custom Domain for AI Search Instance](#29-custom-domain-for-ai-search-instance) | Replace the third-party hosted URL in `ai-search.html` and `mcp/server-card.json` with a `search.devicesdk.com` CNAME (blocked on upstream support) | [ ]    |
 
 ---
 
@@ -574,3 +575,20 @@ When a user's script drives a pin not exposed on the current board visual (e.g. 
 1. Compute `offBoardPinsInUse` from the `pinState` store filtered by pins not in `board.pins`.
 2. Render a one-line chip row above the `Esp32Board` SVG with clickable chips that scroll the Script Pins panel into view and highlight the selected row.
 3. Pulse the chip when a state change happens on that pin (brief flash animation).
+
+---
+
+### 29. Custom Domain for AI Search Instance
+
+**Priority**: Medium (public-facing content guideline)
+**Packages affected**: `apps/website`
+**Files**: `apps/website/layouts/partials/ai-search.html`, `apps/website/static/.well-known/mcp/server-card.json`
+
+The hosted AI Search instance URL (`https://b055c14c-…search.ai.cloudflare.com`) is shipped in the website's `<head>` on every page and in the public MCP server card. This violates the project's public-facing content guideline (no Cloudflare references under `layouts/` or `content/`). The hosted AI Search service does not currently support custom-domain CNAMEs, so we cannot front it with `search.devicesdk.com` today.
+
+**Work required**:
+1. Track upstream support for custom domains on the hosted AI Search product.
+2. Once available, create `search.devicesdk.com` CNAME and verify the MCP endpoint + search snippet assets work through it.
+3. Replace the hard-coded `$instance` in `apps/website/layouts/partials/ai-search.html` with the custom domain.
+4. Update `apps/website/static/.well-known/mcp/server-card.json` `transport.url`.
+5. Recompute the `integrity` hash for the search-snippet asset if the custom domain serves it directly.

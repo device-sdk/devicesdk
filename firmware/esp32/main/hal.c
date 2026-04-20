@@ -507,8 +507,14 @@ void iotkit_hal_watchdog_feed(void) {
 // === SPI ===
 
 bool iotkit_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) {
-    // Use SPI3_HOST (SPI2 may be used by LED strip)
+    // SPI3_HOST is preferred (SPI2 may be used by LED strip on SPI-backend chips),
+    // but the RISC-V C-series only exposes SPI2 — on those we fall back to SPI2.
+    // On C61 this conflicts with an addressable LED; on C3 the LED uses RMT, so SPI2 is free.
+#if SOC_SPI_PERIPH_NUM >= 3
     spi_host_device_t host = SPI3_HOST;
+#else
+    spi_host_device_t host = SPI2_HOST;
+#endif
 
     if (bus > 1) {
         ESP_LOGE(TAG, "Invalid SPI bus: %d (must be 0 or 1)", bus);

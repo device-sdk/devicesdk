@@ -42,17 +42,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install pytest
-        run: pip install pytest
+      # Self-hosted Debian runner: setup-python has no Debian prebuilts, so use
+      # the system Python (3.11+) in a venv to satisfy PEP 668.
+      - name: Install pytest in a venv
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pytest
 
       - name: Run protocol tests
         working-directory: firmware/esp32
-        run: python -m pytest test_websocket_mock.py test_message_handler.py test_integration.py -v
+        run: ../../.venv/bin/python -m pytest test_websocket_mock.py test_message_handler.py test_integration.py -v
 
   build:
     name: Build ESP32 firmware (${{ matrix.target }})

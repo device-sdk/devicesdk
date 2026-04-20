@@ -196,6 +196,5 @@ SPI read from bus 0: [0x12, 0x34, 0x56, 0x78]
 
 ## Next Steps
 
-- [Hardware Compatibility](/docs/resources/hardware/) -- full feature availability table
+- [Hardware Compatibility](/docs/hardware/) -- full feature availability table
 - [Using UART](/docs/guides/using-uart/) -- serial communication with GPS, Bluetooth, and other modules
-- [Using I2C](/docs/resources/hardware/#i2c) -- slower bus for sensors with simpler wiring

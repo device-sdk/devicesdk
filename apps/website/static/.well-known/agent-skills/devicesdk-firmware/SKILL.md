@@ -28,5 +28,5 @@ python -m esptool --chip esp32c3 -b 460800 \
 Wi-Fi SSID, password, and the device API token are embedded into the firmware image at flash time.
 
 ## See also
-- Hardware compatibility matrix: <https://devicesdk.com/docs/resources/hardware>
+- Hardware compatibility matrix: <https://devicesdk.com/docs/hardware>
 - Troubleshooting: <https://devicesdk.com/docs/resources/troubleshooting>

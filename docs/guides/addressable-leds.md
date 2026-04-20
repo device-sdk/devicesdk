@@ -220,6 +220,6 @@ The `ws2812 fill` command sets all LEDs to the same color. The `num_leds` argume
 
 ## Next Steps
 
-- [Hardware Compatibility](/docs/resources/hardware/) -- full feature availability table
+- [Hardware Compatibility](/docs/hardware/) -- full feature availability table
 - [Using SPI](/docs/guides/using-spi/) -- communicate with SPI displays and sensors
 - [Using UART](/docs/guides/using-uart/) -- serial communication with GPS and Bluetooth modules

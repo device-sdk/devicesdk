@@ -251,5 +251,5 @@ Flashing requires physical hardware connection and cannot be automated in CI/CD.
 ## Hardware Guide
 
 Need help with hardware setup? See:
-- [Hardware Compatibility](/docs/resources/hardware/)
+- [Hardware Compatibility](/docs/hardware/)
 - [Your First Device](/docs/first-device/)

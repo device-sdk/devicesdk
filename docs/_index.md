@@ -34,9 +34,14 @@ Understand how DeviceSDK works:
 - [**Script Versioning**](/docs/concepts/versioning/) - Deployment and rollback
 - [**Emit State**](/docs/concepts/emit-state/) - Publish structured state from device scripts
 
+## Hardware
+
+- [**Hardware Compatibility**](/docs/hardware/) - Overview and per-board support matrix
+- [**Raspberry Pi Pico W**](/docs/hardware/pico-w/) and [**Pico 2W**](/docs/hardware/pico-2w/)
+- [**ESP32**](/docs/hardware/esp32/), [**ESP32-C3**](/docs/hardware/esp32-c3/), [**ESP32-C61**](/docs/hardware/esp32-c61/)
+
 ## Resources
 
-- [**Hardware Compatibility**](/docs/resources/hardware/) - Supported devices
 - [**Troubleshooting**](/docs/resources/troubleshooting/) - Common issues and solutions
 - [**FAQ**](/docs/resources/faq/) - Frequently asked questions
 - [**Glossary**](/docs/resources/glossary/) - Key terms and definitions

@@ -150,21 +150,17 @@ ADC-capable pins on Pico W:
 
 Standard GPIO pin numbers are used directly. The onboard LED pin varies by board:
 
-| Board | Onboard LED Pin |
-|-------|----------------|
-| ESP32 (classic) | GPIO 2 |
-| ESP32-C61 | GPIO 5 |
-| ESP32-C3 (DevKitM-1) | GPIO 8 (WS2812) |
+| Board | Onboard LED Pin | Type |
+|-------|----------------|------|
+| ESP32 (classic) | GPIO 2 | Plain GPIO |
+| ESP32-C61 | GPIO 5 | WS2812 (addressable) |
+| ESP32-C3 (DevKitM-1) | GPIO 8 | WS2812 (addressable) |
+
+Only plain-GPIO LEDs can be toggled with `setGpioState`. On the C-series DevKits the onboard LED is an addressable WS2812 — `setGpioState` won't light it; the firmware's addressable-LED path drives that pin (see `CONFIG_IOTKIT_LED_IS_ADDRESSABLE`). To verify hardware on C-series boards, wire a plain LED to any other free GPIO.
 
 ```typescript
-// ESP32 onboard LED (GPIO 2)
+// ESP32 classic onboard LED (GPIO 2, plain GPIO)
 await this.env.DEVICE.setGpioState(2, 'high');
-
-// ESP32-C61 onboard LED (GPIO 5)
-await this.env.DEVICE.setGpioState(5, 'high');
-
-// ESP32-C3 DevKitM-1 onboard WS2812 (GPIO 8)
-await this.env.DEVICE.setGpioState(8, 'high');
 ```
 
 ## Platform Feature Availability
@@ -434,14 +430,13 @@ Flashing is typically **one-time per device**. After the first flash, updates ar
 
 Flash this code to verify hardware. Use the correct LED pin for your board:
 - **Pico W / Pico 2W**: pin `25`
-- **ESP32**: pin `2`
-- **ESP32-C61**: pin `5`
-- **ESP32-C3 (DevKitM-1)**: pin `8` (WS2812)
+- **ESP32 (classic)**: pin `2`
+- **ESP32-C61 / ESP32-C3**: onboard LED is WS2812 (addressable) — `setGpioState` won't drive it. Wire a plain LED to any free GPIO and use that pin here instead.
 
 ```typescript
 import { DeviceEntrypoint } from '@devicesdk/core';
 
-const LED_PIN = 25; // Pico W — use 2 for ESP32, 5 for ESP32-C61, 8 for ESP32-C3
+const LED_PIN = 25; // Pico W — use 2 for ESP32 classic, or any GPIO wired to a plain LED on C-series
 
 export default class TestDevice extends DeviceEntrypoint {
   async onDeviceConnect() {

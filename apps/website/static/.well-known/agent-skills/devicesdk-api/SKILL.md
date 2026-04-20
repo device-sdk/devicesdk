@@ -1,6 +1,6 @@
 ---
 name: devicesdk-api
-description: Use the DeviceSDK REST API to manage projects, devices, scripts, environment variables, and API tokens. All endpoints require Bearer authentication (session cookie or an API token with the prefix dsdk_). Responses use the envelope { success, result | error }. The full interactive OpenAPI reference is published at https://devicesdk.com/api/docs.
+description: Use the DeviceSDK REST API to manage projects, devices, scripts, environment variables, and API tokens. All endpoints require Bearer authentication (session cookie or an API token with the prefix dsdk_). Responses use the envelope { success, result | error }. The full interactive OpenAPI reference is published at https://devicesdk.com/docs/api.
 ---
 
 ## Authentication
@@ -26,5 +26,5 @@ or on error:
 ```
 
 ## See also
-- Full schema: <https://devicesdk.com/api/docs>
+- Full schema: <https://devicesdk.com/docs/api>
 - CLI equivalents: `devicesdk-cli` skill.

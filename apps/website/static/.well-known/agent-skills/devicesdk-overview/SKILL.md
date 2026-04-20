@@ -13,7 +13,7 @@ description: DeviceSDK is a managed IoT platform. Users write TypeScript device 
 - Marketing site: <https://devicesdk.com>
 - Dashboard: <https://dash.devicesdk.com>
 - REST API: <https://api.devicesdk.com> (Bearer auth)
-- Interactive OpenAPI reference: <https://devicesdk.com/api/docs>
+- Interactive OpenAPI reference: <https://devicesdk.com/docs/api>
 - CLI: `npm i -g @devicesdk/cli` → `devicesdk --help`
 - Documentation: <https://devicesdk.com/docs>
 

@@ -227,6 +227,6 @@ UART port 1 read 4 bytes: [0x4F, 0x4B, 0x0D, 0x0A]
 
 ## Next Steps
 
-- [Hardware Compatibility](/docs/resources/hardware/) -- full feature availability table
+- [Hardware Compatibility](/docs/hardware/) -- full feature availability table
 - [Using SPI](/docs/guides/using-spi/) -- faster bus for displays and SD cards
 - [Addressable LEDs](/docs/guides/addressable-leds/) -- drive WS2812/NeoPixel LED strips

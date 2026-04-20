@@ -1,7 +1,7 @@
 baseURL = 'https://devicesdk.com/'
 languageCode = 'en-us'
 title = 'DeviceSDK - Build IoT Applications with TypeScript'
-enableRobotsTXT = true
+enableRobotsTXT = false
 disableKinds = ["taxonomy", "term"]
 
 [[module.mounts]]

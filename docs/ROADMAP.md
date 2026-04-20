@@ -1,5 +1,9 @@
 ---
 social_image: /og-images/docs/ROADMAP.png
+build:
+  render: never
+  list: never
+  publishResources: false
 ---
 # Hardware Roadmap
 

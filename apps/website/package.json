@@ -8,7 +8,7 @@
   "private": true,
   "scripts": {
     "build-tailwind": "npx @tailwindcss/cli -i ./src/input.css -o ./static/styles.css",
-    "build": "rm -rf public && mkdir -p static/api/docs && (test -f ../api/openapi.json || (echo 'ERROR: ../api/openapi.json missing. Run \"pnpm --filter @devicesdk/api build\" first, or use \"pnpm build\" from the monorepo root.' >&2 && exit 1)) && cp ../api/openapi.json static/api/docs/openapi.json && pnpm run build-tailwind && node generate-og.js && node generate-agent-skills.js && hugo",
+    "build": "rm -rf public && mkdir -p static/docs/api && (test -f ../api/openapi.json || (echo 'ERROR: ../api/openapi.json missing. Run \"pnpm --filter @devicesdk/api build\" first, or use \"pnpm build\" from the monorepo root.' >&2 && exit 1)) && cp ../api/openapi.json static/docs/api/openapi.json && pnpm run build-tailwind && node generate-og.js && node generate-agent-skills.js && hugo",
     "dev": "hugo server -D",
     "deploy": "npx wrangler deploy",
     "clean": "rm -rf public resources/_gen"

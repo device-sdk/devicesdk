@@ -72,6 +72,22 @@ describe("DeviceSDKConfigSchema", () => {
 		expect(result.success).toBe(true);
 	});
 
+	it("should validate config with esp32c3 device type", () => {
+		const config = {
+			projectId: "my-project",
+			devices: {
+				"esp-c3-sensor": {
+					entrypoint: "EspC3Device",
+					main: "./devices/espC3.ts",
+					deviceType: "esp32c3",
+					wifi: { ssid: "ssid", password: "pass" },
+				},
+			},
+		};
+		const result = DeviceSDKConfigSchema.safeParse(config);
+		expect(result.success).toBe(true);
+	});
+
 	it("should fail validation for a config with missing projectId", () => {
 		const config = {
 			devices: {

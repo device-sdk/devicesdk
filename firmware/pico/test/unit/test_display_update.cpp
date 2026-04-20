@@ -167,15 +167,117 @@ TEST_F(DisplayUpdateTest, InvalidController) {
 }
 
 TEST_F(DisplayUpdateTest, InvalidDimensions) {
-    picojson::array segments = makeFullBufferSegments(128, 64);  // Buffer for 128x64
+    // Height 33 is not a multiple of 8 — rejected.
+    picojson::array segments;
+    segments.push_back(makeSegment(0, createZeroBuffer(128, 32)));
 
-    // Try invalid dimensions
-    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 64, 64, segments);
+    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 128, 33, segments);
 
     handle_display_update(payload);
 
     ASSERT_EQ(errors.size(), 1);
     EXPECT_TRUE(errors[0].find("Invalid dimensions") != std::string::npos);
+}
+
+TEST_F(DisplayUpdateTest, OverwideRejected) {
+    // Width > 128 is rejected (controller RAM is 128-wide).
+    picojson::array segments;
+    segments.push_back(makeSegment(0, createZeroBuffer(128, 64)));
+
+    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 200, 64, segments);
+
+    handle_display_update(payload);
+
+    ASSERT_EQ(errors.size(), 1);
+    EXPECT_TRUE(errors[0].find("Invalid dimensions") != std::string::npos);
+}
+
+// Helper: find a 4-byte i2c write matching [CONTROL_BYTE_CMD, cmd, arg1, arg2].
+// Returns true on match.
+static bool has_send_cmd3(const std::vector<HalMockState::I2CWriteCall>& calls,
+                          uint8_t cmd, uint8_t arg1, uint8_t arg2) {
+    for (const auto& c : calls) {
+        if (c.data.size() == 4 && c.data[0] == 0x00 /* CONTROL_BYTE_CMD */ &&
+            c.data[1] == cmd && c.data[2] == arg1 && c.data[3] == arg2) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// 0.42" SSD1306 boards (common on ESP32-C3) expose a 72x40 window at column offset 30.
+// The driver must send SET_COL_ADDR with (30, 30+72-1=101) and SET_PAGE_ADDR with (0, 4).
+TEST_F(DisplayUpdateTest, ValidSSD1306_72x40_WithOffset) {
+    picojson::array segments = makeFullBufferSegments(72, 40);
+
+    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 72, 40, segments);
+    payload["columnOffset"] = picojson::value((double)30);
+    payload["pageOffset"] = picojson::value((double)0);
+
+    handle_display_update(payload);
+
+    ASSERT_EQ(errors.size(), 0);
+    ASSERT_EQ(responses.size(), 1);
+
+    const picojson::object& ack = responses[0].second.get<picojson::object>();
+    EXPECT_EQ(ack.at("width").get<double>(), 72);
+    EXPECT_EQ(ack.at("height").get<double>(), 40);
+    EXPECT_EQ(ack.at("status").get<std::string>(), "success");
+
+    // SSD1306_CMD_SET_COL_ADDR = 0x21, SSD1306_CMD_SET_PAGE_ADDR = 0x22
+    EXPECT_TRUE(has_send_cmd3(g_hal_mock.i2c_write_calls, 0x21, 30, 101));
+    EXPECT_TRUE(has_send_cmd3(g_hal_mock.i2c_write_calls, 0x22, 0, 4));
+}
+
+// Regression guard: default 128x64 payload (no offsets) must emit col/page commands
+// with arg1=0 — ensures we did not accidentally change behavior for existing panels.
+TEST_F(DisplayUpdateTest, ValidSSD1306_128x64_ZeroOffset) {
+    picojson::array segments = makeFullBufferSegments(128, 64);
+    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 128, 64, segments);
+
+    handle_display_update(payload);
+
+    ASSERT_EQ(errors.size(), 0);
+    // SET_COL_ADDR(0, 127) and SET_PAGE_ADDR(0, 7)
+    EXPECT_TRUE(has_send_cmd3(g_hal_mock.i2c_write_calls, 0x21, 0, 127));
+    EXPECT_TRUE(has_send_cmd3(g_hal_mock.i2c_write_calls, 0x22, 0, 7));
+}
+
+// SH1106's built-in column offset is 2; when caller passes 0 (or omits the field) the
+// driver must emit 0x02 as the low-nibble column command. This preserves existing
+// SH1106 integrations pixel-for-pixel.
+TEST_F(DisplayUpdateTest, SH1106_ZeroOffsetPreservesTwoColumnDefault) {
+    picojson::array segments = makeFullBufferSegments(128, 64);
+    picojson::object payload = makePayload(0, "0x3C", "sh1106", 128, 64, segments);
+
+    handle_display_update(payload);
+
+    ASSERT_EQ(errors.size(), 0);
+    // Each page sets low nibble 0x02 and high nibble 0x10 — look for those 2-byte writes.
+    bool saw_low_02 = false;
+    bool saw_high_10 = false;
+    for (const auto& c : g_hal_mock.i2c_write_calls) {
+        if (c.data.size() == 2 && c.data[0] == 0x00) {
+            if (c.data[1] == 0x02) saw_low_02 = true;
+            if (c.data[1] == 0x10) saw_high_10 = true;
+        }
+    }
+    EXPECT_TRUE(saw_low_02);
+    EXPECT_TRUE(saw_high_10);
+}
+
+// columnOffset + width > 128 must be rejected (would address past controller RAM).
+TEST_F(DisplayUpdateTest, ColOffsetPlusWidthOverRamRejected) {
+    picojson::array segments = makeFullBufferSegments(100, 32);
+    picojson::object payload = makePayload(0, "0x3C", "ssd1306", 100, 32, segments);
+    payload["columnOffset"] = picojson::value((double)50);
+
+    handle_display_update(payload);
+
+    ASSERT_EQ(errors.size(), 1);
+    EXPECT_TRUE(errors[0].find("columnOffset") != std::string::npos ||
+                errors[0].find("column") != std::string::npos ||
+                errors[0].find("exceeds") != std::string::npos);
 }
 
 TEST_F(DisplayUpdateTest, SegmentOverflow) {

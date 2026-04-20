@@ -39,7 +39,13 @@ export class DownloadFirmware extends BaseRoute {
 							ssid: z.string().max(32).optional(),
 							pass: z.string().max(63).optional(),
 							host: z.string().optional().default("api.devicesdk.com"),
-							device_type: z.enum(["pico-w", "pico2-w", "esp32", "esp32c61"]),
+							device_type: z.enum([
+								"pico-w",
+								"pico2-w",
+								"esp32",
+								"esp32c61",
+								"esp32c3",
+							]),
 						}),
 					},
 				},
@@ -145,7 +151,7 @@ export class DownloadFirmware extends BaseRoute {
 		// Determine firmware key and filename based on device type
 		let firmwareKey: string;
 		let filename: string;
-		if (deviceType === "esp32" || deviceType === "esp32c61") {
+		if (deviceType.startsWith("esp32")) {
 			firmwareKey = `${deviceType}-client.bin`;
 			filename = `${deviceType}-client.bin`;
 		} else {

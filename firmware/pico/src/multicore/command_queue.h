@@ -181,6 +181,8 @@ typedef struct {
     uint8_t width;
     uint8_t height;
     uint8_t controller;  // 0 = ssd1306, 1 = sh1106
+    uint8_t col_offset;  // RAM column offset (non-zero for e.g. 0.42" 72x40 SSD1306)
+    uint8_t page_offset; // RAM page offset (usually 0)
     bool init;
 } display_update_payload_t;
 

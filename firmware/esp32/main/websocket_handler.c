@@ -26,9 +26,26 @@ static const char *TAG = "WSHandler";
 static void *s_cmd_queue = NULL;
 static uint32_t s_sequence_counter = 0;
 
+#ifdef UNIT_TEST
+static worker_command_t s_test_last_cmd;
+static bool s_test_last_cmd_valid = false;
+
+void test_reset_last_queued_command(void) {
+    memset(&s_test_last_cmd, 0, sizeof(s_test_last_cmd));
+    s_test_last_cmd_valid = false;
+}
+
+const worker_command_t *test_get_last_queued_command(void) {
+    return s_test_last_cmd_valid ? &s_test_last_cmd : NULL;
+}
+#endif
+
 void websocket_handler_init(void *cmd_queue_handle) {
     s_cmd_queue = cmd_queue_handle;
     s_sequence_counter = 0;
+#ifdef UNIT_TEST
+    test_reset_last_queued_command();
+#endif
 }
 
 static bool queue_command(worker_command_t *cmd) {
@@ -42,6 +59,8 @@ static bool queue_command(worker_command_t *cmd) {
     }
 #else
     (void)s_cmd_queue;
+    memcpy(&s_test_last_cmd, cmd, sizeof(s_test_last_cmd));
+    s_test_last_cmd_valid = true;
 #endif
     return true;
 }
@@ -645,6 +664,8 @@ bool handle_websocket_message(const char *message) {
         cJSON *height_obj = cJSON_GetObjectItem(payload, "height");
         cJSON *segments_obj = cJSON_GetObjectItem(payload, "segments");
         cJSON *init_obj = cJSON_GetObjectItem(payload, "init");
+        cJSON *col_off_obj = cJSON_GetObjectItem(payload, "columnOffset");
+        cJSON *page_off_obj = cJSON_GetObjectItem(payload, "pageOffset");
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) ||
             !cJSON_IsString(controller_obj) || !cJSON_IsNumber(width_obj) ||
@@ -654,12 +675,23 @@ bool handle_websocket_message(const char *message) {
             LOG_E(TAG, "Invalid bus number");
             goto done;
         }
-        if (width_obj->valuedouble < 0 || width_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid width");
+        if (width_obj->valuedouble <= 0 || width_obj->valuedouble > 128) {
+            LOG_E(TAG, "Invalid width (must be 1-128)");
             goto done;
         }
-        if (height_obj->valuedouble < 0 || height_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid height");
+        if (height_obj->valuedouble <= 0 || height_obj->valuedouble > 64 ||
+            ((uint32_t)height_obj->valuedouble % 8) != 0) {
+            LOG_E(TAG, "Invalid height (must be 1-64 and a multiple of 8)");
+            goto done;
+        }
+        if (cJSON_IsNumber(col_off_obj) &&
+            (col_off_obj->valuedouble < 0 || col_off_obj->valuedouble > 127)) {
+            LOG_E(TAG, "Invalid columnOffset (must be 0-127)");
+            goto done;
+        }
+        if (cJSON_IsNumber(page_off_obj) &&
+            (page_off_obj->valuedouble < 0 || page_off_obj->valuedouble > 7)) {
+            LOG_E(TAG, "Invalid pageOffset (must be 0-7)");
             goto done;
         }
         uint8_t bus = (uint8_t)bus_obj->valuedouble;
@@ -667,6 +699,17 @@ bool handle_websocket_message(const char *message) {
         const char *controller = controller_obj->valuestring;
         uint8_t width = (uint8_t)width_obj->valuedouble;
         uint8_t height = (uint8_t)height_obj->valuedouble;
+        uint8_t col_offset = cJSON_IsNumber(col_off_obj) ? (uint8_t)col_off_obj->valuedouble : 0;
+        uint8_t page_offset = cJSON_IsNumber(page_off_obj) ? (uint8_t)page_off_obj->valuedouble : 0;
+
+        if ((uint32_t)col_offset + width > 128) {
+            LOG_E(TAG, "columnOffset + width exceeds 128");
+            goto done;
+        }
+        if ((uint32_t)page_offset + (height / 8) > 8) {
+            LOG_E(TAG, "pageOffset + height/8 exceeds 8");
+            goto done;
+        }
 
         bool is_ssd1306 = (strcmp(controller, "ssd1306") == 0);
         bool is_sh1106 = (strcmp(controller, "sh1106") == 0);
@@ -716,6 +759,8 @@ bool handle_websocket_message(const char *message) {
         cmd.payload.display.width = width;
         cmd.payload.display.height = height;
         cmd.payload.display.controller = is_ssd1306 ? 0 : 1;
+        cmd.payload.display.col_offset = col_offset;
+        cmd.payload.display.page_offset = page_offset;
         cmd.payload.display.init = cJSON_IsTrue(init_obj);
         queue_command(&cmd);
     }

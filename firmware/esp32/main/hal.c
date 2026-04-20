@@ -45,7 +45,11 @@ uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint
 #include "freertos/task.h"
 #ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
 #include "led_strip.h"
+#if SOC_RMT_SUPPORTED
+#include "led_strip_rmt.h"
+#else
 #include "led_strip_spi.h"
+#endif
 #endif
 
 static const char *TAG = "HAL";
@@ -145,12 +149,20 @@ void iotkit_hal_init(void) {
         .strip_gpio_num = ONBOARD_LED_PIN,
         .max_leds = 1,
     };
+#if SOC_RMT_SUPPORTED
+    led_strip_rmt_config_t rmt_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .resolution_hz = 10 * 1000 * 1000,
+    };
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip_handle));
+#else
     led_strip_spi_config_t spi_config = {
         .clk_src = SPI_CLK_SRC_DEFAULT,
         .spi_bus = SPI2_HOST,
         .flags.with_dma = true,
     };
     ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip_handle));
+#endif
     led_strip_clear(led_strip_handle);
     ESP_LOGI(TAG, "Addressable LED initialized on GPIO %d", ONBOARD_LED_PIN);
 #endif
@@ -495,8 +507,14 @@ void iotkit_hal_watchdog_feed(void) {
 // === SPI ===
 
 bool iotkit_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) {
-    // Use SPI3_HOST (SPI2 may be used by LED strip)
+    // SPI3_HOST is preferred (SPI2 may be used by LED strip on SPI-backend chips),
+    // but the RISC-V C-series only exposes SPI2 — on those we fall back to SPI2.
+    // On C61 this conflicts with an addressable LED; on C3 the LED uses RMT, so SPI2 is free.
+#if SOC_SPI_PERIPH_NUM >= 3
     spi_host_device_t host = SPI3_HOST;
+#else
+    spi_host_device_t host = SPI2_HOST;
+#endif
 
     if (bus > 1) {
         ESP_LOGE(TAG, "Invalid SPI bus: %d (must be 0 or 1)", bus);

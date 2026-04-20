@@ -10,9 +10,12 @@ menu "IoTKit Configuration"
     config IOTKIT_LED_IS_ADDRESSABLE
         bool "LED is addressable (WS2812/NeoPixel)"
         default y if IDF_TARGET_ESP32C61
+        default y if IDF_TARGET_ESP32C3
         default n
         help
             Enable if the onboard LED is an addressable RGB LED (WS2812).
-            ESP32-C61-DevKitC-1 has a WS2812 on GPIO 8.
+            Per-board defaults (override via CONFIG_IOTKIT_LED_PIN in the matching
+            sdkconfig.defaults.<target> file): ESP32-C61-DevKitC-1 uses GPIO 5;
+            ESP32-C3-DevKitM-1 uses GPIO 8.
 
 endmenu

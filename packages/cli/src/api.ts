@@ -378,12 +378,8 @@ export async function deleteDevice(
 	);
 }
 
-export type DeviceType =
-	| "pico-w"
-	| "pico2-w"
-	| "esp32"
-	| "esp32c61"
-	| "esp32c3";
+import type { DeviceType } from "./config.js";
+export type { DeviceType };
 
 export function isEsp32DeviceType(deviceType: DeviceType): boolean {
 	return deviceType.startsWith("esp32");

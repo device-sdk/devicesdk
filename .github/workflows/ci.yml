@@ -42,6 +42,7 @@ jobs:
 
   test:
     name: Test
+    needs: [lint, typecheck]
     runs-on: [self-hosted, linux, proxmox]
     steps:
       - uses: actions/checkout@v4

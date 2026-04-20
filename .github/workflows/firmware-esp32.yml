@@ -8,6 +8,10 @@ on:
     branches: [main]
     paths: [firmware/esp32/**]
 
+concurrency:
+  group: firmware-esp32-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   unit-tests:
     name: Host unit tests
@@ -55,13 +59,14 @@ jobs:
 
   build:
     name: Build ESP32 firmware (${{ matrix.target }})
+    needs: [unit-tests, python-tests]
     runs-on: [self-hosted, linux, proxmox]
     permissions:
       contents: read
     container:
       image: espressif/idf:v5.5.1
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - target: esp32

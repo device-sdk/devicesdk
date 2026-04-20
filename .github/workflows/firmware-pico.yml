@@ -8,6 +8,10 @@ on:
     branches: [main]
     paths: [firmware/pico/**]
 
+concurrency:
+  group: firmware-pico-${{ github.ref }}
+  cancel-in-progress: true
+
 defaults:
   run:
     working-directory: firmware/pico

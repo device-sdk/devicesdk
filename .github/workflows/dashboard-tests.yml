@@ -26,6 +26,7 @@ jobs:
 
   e2e-tests:
     name: E2E Tests
+    needs: component-tests
     runs-on: [self-hosted, linux, proxmox]
     timeout-minutes: 15
     steps:

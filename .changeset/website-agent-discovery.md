@@ -12,3 +12,5 @@ Add agent-discovery metadata on the marketing site:
 Implemented via a static `apps/website/static/_headers` file (honored by Cloudflare Workers Assets) and a static linkset JSON at `apps/website/static/.well-known/api-catalog`.
 
 Also collapse `robots.txt` to a single wildcard `User-agent: *` group with a `Content-Signal: ai-train=yes, search=yes, ai-input=yes` line, replacing the per-bot enumeration. Stance is unchanged — fully open to every crawler, AI included.
+
+Stop rendering `/docs/roadmap/` on the public site. The `docs/ROADMAP.md` source file stays in the repo for internal reference but is excluded from the build via Hugo's `build.render: never` frontmatter.

@@ -2,6 +2,8 @@
 "@devicesdk/website": patch
 ---
 
+Move the interactive API reference from `/api/docs` to `/docs/api` (Swagger UI + `openapi.json`). The old URL is no longer served.
+
 Add agent-discovery metadata on the marketing site:
 
 - `Link` response headers on `/` (RFC 8288) pointing to `api-catalog`, `service-desc` (OpenAPI schema), and `service-doc` (Swagger UI).

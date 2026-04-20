@@ -7,6 +7,9 @@
       ],
       "service-doc": [
         { "href": "https://devicesdk.com/docs/api", "type": "text/html" }
+      ],
+      "oauth-protected-resource": [
+        { "href": "https://devicesdk.com/.well-known/oauth-protected-resource", "type": "application/json" }
       ]
     }
   ]

@@ -11,7 +11,7 @@ concurrency:
 jobs:
   changes:
     name: Detect changes
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     outputs:
       api: ${{ steps.filter.outputs.api }}
       dashboard: ${{ steps.filter.outputs.dashboard }}
@@ -33,7 +33,7 @@ jobs:
 
   deploy-api:
     name: Deploy API
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     needs: changes
     if: needs.changes.outputs.api == 'true'
     steps:
@@ -56,7 +56,7 @@ jobs:
 
   deploy-dashboard:
     name: Deploy Dashboard
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     needs: changes
     if: needs.changes.outputs.dashboard == 'true'
     steps:
@@ -75,7 +75,11 @@ jobs:
 
   deploy-website:
     name: Deploy Website
-    runs-on: ubuntu-latest
+    # Website build uses `playwright install chromium --with-deps`, which
+    # apt-gets system libs. Runs cleanly on the persistent runner where those
+    # deps are already cached; on ephemeral containers every run would
+    # re-fetch ~150 MB of packages.
+    runs-on: [self-hosted, linux, proxmox]
     needs: changes
     if: needs.changes.outputs.website == 'true' || needs.changes.outputs.api == 'true'
     steps:

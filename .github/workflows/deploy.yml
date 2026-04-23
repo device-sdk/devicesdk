@@ -8,6 +8,11 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  # Opt JS actions (checkout, cache, setup-node…) onto Node 24 now.
+  # GitHub will default-force this on 2026-06-02.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   changes:
     name: Detect changes

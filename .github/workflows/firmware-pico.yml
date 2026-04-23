@@ -12,6 +12,11 @@ concurrency:
   group: firmware-pico-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Opt JS actions (checkout, cache, setup-node…) onto Node 24 now.
+  # GitHub will default-force this on 2026-06-02.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 defaults:
   run:
     working-directory: firmware/pico

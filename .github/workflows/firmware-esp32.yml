@@ -7,6 +7,7 @@ on:
   pull_request:
     branches: [main]
     paths: [firmware/esp32/**]
+  workflow_dispatch:
 
 concurrency:
   group: firmware-esp32-${{ github.ref }}
@@ -123,7 +124,7 @@ jobs:
     name: Upload firmware to R2
     runs-on: [self-hosted, linux, proxmox]
     needs: build
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
         target: [esp32, esp32c61, esp32c3]

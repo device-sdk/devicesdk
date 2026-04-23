@@ -22,12 +22,15 @@ jobs:
     runs-on: [self-hosted, linux, proxmox]
     permissions:
       contents: read
-    env:
-      PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve PICO_SDK_PATH
+        # `runner.*` context is not available in job-level `env:`; export it
+        # via $GITHUB_ENV here so later steps can use ${{ env.PICO_SDK_PATH }}.
+        run: echo "PICO_SDK_PATH=$RUNNER_TEMP/pico-sdk" >> "$GITHUB_ENV"
 
       # Build deps (cmake, gcc-arm-none-eabi, libnewlib-arm-none-eabi,
       # build-essential, ninja-build) are pre-installed on the runner.

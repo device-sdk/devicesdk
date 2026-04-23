@@ -75,7 +75,11 @@ jobs:
 
   deploy-website:
     name: Deploy Website
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    # Website build uses `playwright install chromium --with-deps`, which
+    # apt-gets system libs. Runs cleanly on the persistent runner where those
+    # deps are already cached; on ephemeral containers every run would
+    # re-fetch ~150 MB of packages.
+    runs-on: [self-hosted, linux, proxmox]
     needs: changes
     if: needs.changes.outputs.website == 'true' || needs.changes.outputs.api == 'true'
     steps:

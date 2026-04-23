@@ -137,3 +137,7 @@ jobs:
         run: npx wrangler r2 object put devicesdk-firmwares/${{ matrix.target }}-client.bin --file=firmware/${{ matrix.target }}-client.bin --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Account-owned API tokens cannot call /memberships; supplying the
+          # account id directly lets wrangler skip that lookup and go straight
+          # to R2.
+          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df

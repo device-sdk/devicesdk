@@ -185,7 +185,7 @@ export class DownloadFirmware extends BaseRoute {
 			replacePossiblySplitAscii(bytes, OLD_PROJECT_ID, projectBytes, "Project");
 			replacePossiblySplitAscii(bytes, OLD_DEVICE_ID, deviceBytes, "Device");
 			// Recalculate ESP-IDF image checksum after patching credentials
-			if (deviceType === "esp32" || deviceType === "esp32c61") {
+			if (deviceType.startsWith("esp32")) {
 				await recalculateEsp32Checksum(bytes);
 			}
 

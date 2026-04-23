@@ -54,10 +54,14 @@ jobs:
         run: cd apps/api && npx wrangler d1 migrations apply DB --remote --env production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Account-owned API tokens cannot call /memberships; supplying the
+          # account id directly lets wrangler skip that lookup.
+          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df
       - name: Deploy API Worker
         run: cd apps/api && npx wrangler deploy --env production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df
 
   deploy-dashboard:
     name: Deploy Dashboard
@@ -77,6 +81,7 @@ jobs:
         run: cd apps/dashboard && npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df
 
   deploy-website:
     name: Deploy Website
@@ -101,10 +106,15 @@ jobs:
           extended: true
       - run: pnpm install --frozen-lockfile
       - name: Install Playwright browsers
-        run: pnpm --filter @devicesdk/website exec playwright install chromium --with-deps
+        # `--with-deps` would try to `sudo apt-get install` system libs, which
+        # fails on the self-hosted runner (no passwordless sudo). The persistent
+        # proxmox runner has those libs pre-installed on the host, so downloading
+        # the chromium binary alone is sufficient.
+        run: pnpm --filter @devicesdk/website exec playwright install chromium
       - name: Build Website
         run: pnpm build --filter @devicesdk/website
       - name: Deploy Website
         run: cd apps/website && npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df

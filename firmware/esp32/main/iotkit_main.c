@@ -468,6 +468,12 @@ static void websocket_task(void *pvParameters) {
         // Incoming server frames can exceed the 1024-byte default
         // (display_update framebuffers, script env blobs, etc.).
         .buffer_size = 2048,
+        // The ESP ws client dispatches events inside its internal task;
+        // our event handler parses cJSON, logs the message, and queues a
+        // worker_command_t. Measured peak ~8.9 KB on C3 for trivial
+        // commands — the 4 KB default overflows hard, 8 KB still fell
+        // short by ~700 B. Keep headroom for larger frames.
+        .task_stack = 16384,
     };
 
     ws_client = esp_websocket_client_init(&websocket_cfg);

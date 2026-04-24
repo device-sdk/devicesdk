@@ -465,6 +465,9 @@ static void websocket_task(void *pvParameters) {
         .headers = auth_header,
         .transport = WEBSOCKET_TRANSPORT_OVER_SSL,
         .crt_bundle_attach = esp_crt_bundle_attach,
+        // Incoming server frames can exceed the 1024-byte default
+        // (display_update framebuffers, script env blobs, etc.).
+        .buffer_size = 2048,
     };
 
     ws_client = esp_websocket_client_init(&websocket_cfg);

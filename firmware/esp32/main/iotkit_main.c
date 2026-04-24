@@ -548,8 +548,10 @@ void app_main(void) {
 
     wifi_init_sta();
 
-    // Start worker task
-    xTaskCreate(worker_task_entry, "worker", 8192, NULL, 4, NULL);
+    // Start worker task — 16 KB needed: handle_display_update puts a
+    // 1 KB MAX_DISPLAY_BUFFER_SIZE fb_data[] + 192 B segments[] on stack
+    // before recursing into the SSD1306/SH1106 driver + I2C writes.
+    xTaskCreate(worker_task_entry, "worker", 16384, NULL, 4, NULL);
 
     // Start WebSocket task (higher priority)
     xTaskCreate(websocket_task, "websocket", 8192, NULL, 5, NULL);

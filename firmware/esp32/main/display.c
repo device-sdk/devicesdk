@@ -50,7 +50,11 @@ bool display_init_ssd1306(uint8_t bus, uint8_t addr, uint8_t width, uint8_t heig
     if (!send_cmd2(bus, addr, SSD1306_CMD_SET_MEMORY_MODE, 0x00)) return false;
     if (!send_cmd(bus, addr, SSD1306_CMD_SEG_REMAP)) return false;
     if (!send_cmd(bus, addr, SSD1306_CMD_COM_SCAN_DEC)) return false;
-    uint8_t com_pins = (height == 64) ? 0x12 : 0x02;
+    // 0x12 = alternating COM pin config (needed for 64-row panels and for
+    // the 0.42" 72×40 panel which interleaves even/odd COMs across top/bottom
+    // halves). 0x02 (sequential) on those displays produces visible stripe
+    // artifacts. The 128×32 panels are the ones that actually need 0x02.
+    uint8_t com_pins = (height == 32) ? 0x02 : 0x12;
     if (!send_cmd2(bus, addr, SSD1306_CMD_SET_COM_PINS, com_pins)) return false;
     if (!send_cmd2(bus, addr, SSD1306_CMD_SET_CONTRAST, 0xCF)) return false;
     if (!send_cmd2(bus, addr, SSD1306_CMD_SET_PRECHARGE, 0xF1)) return false;

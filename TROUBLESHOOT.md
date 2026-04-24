@@ -186,3 +186,13 @@ do {
 **Root Cause**: The worker task (`firmware/esp32/main/iotkit_main.c`'s `xTaskCreate(worker_task_entry, "worker", 8192, …)`) calls `handle_display_update` in `worker_task.c:497`, which puts a 1 KB `uint8_t fb_data[MAX_DISPLAY_BUFFER_SIZE]` and a 192 B `display_segment_t segments[MAX_DISPLAY_SEGMENTS]` on the stack before calling into `display_init_ssd1306` + `display_write_fb_ssd1306` which do more chunked I2C writes with another local `uint8_t chunk[33]`. Peak stack usage blew past 8 KB.
 **Solution**: Bumped the worker task from 8192 → 16384 in `xTaskCreate` (iotkit_main.c).
 **Rule**: Any worker task that may handle `display_update`, large I2C batch writes, or future large binary payloads should be sized ≥16 KB. Consider moving `fb_data` and `segments` to `static` / heap to recover stack budget if it ever gets tight again.
+
+### ESP32-C3 0.42″ 72×40 OLED renders interleaved horizontal stripes instead of the framebuffer
+**Date**: 2026-04-24
+**Question/Problem**: After `display_init_ssd1306` + a full-framebuffer write, the panel shows stripes in one half of the display and a solid band of "bleed-through" in the other half, even when the framebuffer is all-`0xFF`. A diagnostic write where only page 0 is `0xFF` lights a band in the *wrong* region (a fraction of the bottom half) instead of the top 8 rows.
+**Root Cause**: The 0.42" 72×40 OLED (sold as "ESP32-C3-FN4 with 0.42 OLED", common AliExpress board) wires the SSD1306's 40 active COM pins with **alternating / interleaved mapping**, so COM0/2/4/… drive one set of rows and COM1/3/5/… drive the other. The init code had `uint8_t com_pins = (height == 64) ? 0x12 : 0x02;` — sequential (`0x02`) for anything non-64-row — which is right for 128×32 panels but wrong for 128×64 *and* for these 72×40 panels.
+**Solution**: Invert the default: use `0x12` (alternating, no COM remap) unless the height is specifically 32. Change in `firmware/esp32/main/display.c:53`:
+```c
+uint8_t com_pins = (height == 32) ? 0x02 : 0x12;
+```
+**Rule**: For any new SSD1306-family panel that isn't the canonical 128×32, expect alternating COM pins. The clue that you have the wrong config is diagnostic patterns that show up as every-other-row stripes, not as rectangles.

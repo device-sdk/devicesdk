@@ -50,6 +50,16 @@ function earliestFireTime(schedules: CronStorage): number {
 // the connection timestamp without requiring the client to reconnect.
 export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
 
+// Queue of user-worker events to dispatch on the next alarm firing.
+// Hibernation-API webSocketMessage handlers cannot reliably invoke the Worker
+// Loader (the getTarget() RPC hangs), so onDeviceConnect / onMessage get
+// deferred to a fresh alarm() invocation where Worker Loader works.
+export const PENDING_USER_EVENTS_KEY = "__internal:pending_user_events";
+
+type PendingUserEvent =
+	| { kind: "connect" }
+	| { kind: "message"; message: DeviceResponse };
+
 // Prefix reserved for internal DO storage keys; blocked from user-facing kv API
 const INTERNAL_KEY_PREFIX = "__internal:";
 
@@ -480,19 +490,11 @@ export class BaseDevice extends DurableObject<Env> {
 
 			// Handle device connect message
 			if (message.type === "device_connected") {
-				// console.log("Device connect message received, calling onDeviceConnect");
-				const userWorker = await this.getOrCreateUserWorker();
-				try {
-					await userWorker.onDeviceConnect();
-				} catch (error) {
-					console.error("Error in user worker onDeviceConnect:", error);
-				}
-				// Initialize cron schedules from the user script after connect
-				try {
-					await this.initializeCrons(userWorker);
-				} catch (error) {
-					console.error("Error initializing cron schedules:", error);
-				}
+				// Defer onDeviceConnect + cron initialization to the next alarm
+				// firing so it runs in a fresh invocation context. Invoking
+				// Worker Loader's getTarget() from inside a Hibernation-API
+				// webSocketMessage handler hangs indefinitely in production.
+				await this.enqueueUserWorkerEvent({ kind: "connect" });
 				return;
 			}
 
@@ -516,18 +518,10 @@ export class BaseDevice extends DurableObject<Env> {
 					pendingCommand.resolve(message);
 				}
 			} else {
-				// Forward unsolicited messages to the user worker
-				// console.log(
-				// 	`Forwarding unsolicited message to user worker: ${message.type}`,
-				// );
-
-				const userWorker = await this.getOrCreateUserWorker();
-
-				try {
-					await userWorker.onMessage(message);
-				} catch (error) {
-					console.error("Error in user worker onMessage:", error);
-				}
+				// Forward unsolicited messages to the user worker via alarm
+				// queue — see enqueueUserWorkerEvent for why we can't invoke
+				// the Worker Loader directly from here.
+				await this.enqueueUserWorkerEvent({ kind: "message", message });
 			}
 		} catch (_error) {
 			console.error("Failed to parse message from device:", {
@@ -677,6 +671,78 @@ export class BaseDevice extends DurableObject<Env> {
 		return false;
 	}
 
+	/**
+	 * Append a user-worker event to the persisted queue and arm the DO alarm
+	 * to fire as soon as possible. Events are drained inside alarm() where
+	 * the Worker Loader can be invoked reliably (unlike Hibernation-API
+	 * webSocketMessage handlers, which hang on getTarget()).
+	 */
+	private async enqueueUserWorkerEvent(event: PendingUserEvent) {
+		const existing =
+			(await this.ctx.storage.get<PendingUserEvent[]>(
+				PENDING_USER_EVENTS_KEY,
+			)) ?? [];
+		existing.push(event);
+		await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, existing);
+
+		const soon = Date.now() + 10;
+		const currentAlarm = await this.ctx.storage.getAlarm();
+		if (currentAlarm === null || currentAlarm > soon) {
+			await this.ctx.storage.setAlarm(soon);
+		}
+	}
+
+	/**
+	 * Drain any queued user-worker events. Called from alarm() before cron
+	 * processing so onDeviceConnect / onMessage run in a fresh invocation.
+	 */
+	private async drainPendingUserWorkerEvents(): Promise<void> {
+		const pending = await this.ctx.storage.get<PendingUserEvent[]>(
+			PENDING_USER_EVENTS_KEY,
+		);
+		if (!pending || pending.length === 0) return;
+
+		// Clear up-front so a subsequent enqueue during processing doesn't get
+		// swallowed if we persist an emptied array at the end.
+		await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
+
+		let userWorker: IUserDeviceWorker;
+		try {
+			userWorker = await this.getOrCreateUserWorker();
+		} catch (err) {
+			// Re-queue events so we retry on the next alarm / reconnect.
+			console.error("Worker unavailable while draining user events:", err);
+			await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, pending);
+			return;
+		}
+
+		let connectProcessed = false;
+		for (const event of pending) {
+			try {
+				if (event.kind === "connect") {
+					await userWorker.onDeviceConnect();
+					connectProcessed = true;
+				} else {
+					await userWorker.onMessage(event.message);
+				}
+			} catch (error) {
+				console.error(
+					`Error in user worker ${event.kind === "connect" ? "onDeviceConnect" : "onMessage"} (via alarm):`,
+					error,
+				);
+			}
+		}
+
+		// Initialize cron schedules once per batch if a connect was processed.
+		if (connectProcessed) {
+			try {
+				await this.initializeCrons(userWorker);
+			} catch (error) {
+				console.error("Error initializing cron schedules:", error);
+			}
+		}
+	}
+
 	private async handleConnectionLost(reason: string) {
 		// Reject all pending commands because we can no longer receive responses.
 		for (const [_id, command] of this.pendingCommands.entries()) {
@@ -777,6 +843,24 @@ export class BaseDevice extends DurableObject<Env> {
 	 * Durable Object context or LOADER binding.
 	 */
 	async alarm(): Promise<void> {
+		// Drain any queued onDeviceConnect / onMessage events first — they
+		// were deferred here from webSocketMessage because the Worker Loader
+		// can't be invoked from a Hibernation-API event handler.
+		await this.drainPendingUserWorkerEvents();
+
+		// If more events arrived while we were draining, or if one re-queued
+		// because the worker was unavailable, ensure the alarm fires again.
+		const stillPending = await this.ctx.storage.get<PendingUserEvent[]>(
+			PENDING_USER_EVENTS_KEY,
+		);
+		if (stillPending && stillPending.length > 0) {
+			const currentAlarm = await this.ctx.storage.getAlarm();
+			const soon = Date.now() + 50;
+			if (currentAlarm === null || currentAlarm > soon) {
+				await this.ctx.storage.setAlarm(soon);
+			}
+		}
+
 		const schedules = await this.ctx.storage.get<CronStorage>(CRON_STORAGE_KEY);
 
 		if (!schedules || Object.keys(schedules).length === 0) {

@@ -125,6 +125,10 @@ export class DeviceConnect extends BaseRoute {
 		url.searchParams.set("userId", user.id);
 		url.searchParams.set("projectId", project.id);
 		url.searchParams.set("deviceId", device.id);
+		// Slugs are used as the R2 key prefix by uploadScript/getScript/etc.;
+		// the DO needs them to locate the script in R2.
+		url.searchParams.set("projectSlug", projectId);
+		url.searchParams.set("deviceSlug", deviceId);
 		url.searchParams.set("versionId", versionId);
 		url.searchParams.set("entrypointName", version.entrypoint);
 		url.searchParams.set("plan", user.plan ?? "free");

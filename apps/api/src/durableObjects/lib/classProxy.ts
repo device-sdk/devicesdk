@@ -89,10 +89,10 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     	onMessage: (...args) => target.onMessage(...args),
     	onDeviceConnect: (...args) => target.onDeviceConnect(...args),
     	onDeviceDisconnect: (...args) => target.onDeviceDisconnect(...args),
-    	onAlarm: (...args) => target.onAlarm(...args),
+    	onAlarm: (...args) => target.onAlarm?.(...args),
     	getCrons: async () => target.crons ?? {},
     	onCron: (...args) => target.onCron?.(...args),
-    	callMethod: (name, args, callDepth) => {
+    	callMethod: async (name, args, callDepth) => {
     	  if (BLOCKED_METHODS.has(name)) throw new Error('Cannot call "' + name + '" remotely');
     	  const userProto = Object.getPrototypeOf(target);
     	  if (!userProto || !Object.prototype.hasOwnProperty.call(userProto, name)) {

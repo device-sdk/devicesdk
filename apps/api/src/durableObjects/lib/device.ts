@@ -57,8 +57,17 @@ export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
 export const PENDING_USER_EVENTS_KEY = "__internal:pending_user_events";
 
 type PendingUserEvent =
-	| { kind: "connect" }
-	| { kind: "message"; message: DeviceResponse };
+	| { kind: "connect"; attempts?: number }
+	| { kind: "message"; message: DeviceResponse; attempts?: number };
+
+// Transient errors re-queue with backoff; persistent errors drop immediately.
+const MAX_USER_EVENT_ATTEMPTS = 6;
+const TRANSIENT_ERROR_PATTERNS = [
+	"Too many concurrent dynamic workers",
+	"ConnectionError",
+	"ECONNREFUSED",
+	"internal error",
+];
 
 // Prefix reserved for internal DO storage keys; blocked from user-facing kv API
 const INTERNAL_KEY_PREFIX = "__internal:";
@@ -349,6 +358,12 @@ export class BaseDevice extends DurableObject<Env> {
 
 				return {
 					compatibilityDate: "2025-11-25",
+					// "experimental" is required for ServiceStub serialization
+					// across the Worker Loader boundary — without it, the first
+					// `this.env.DEVICE.sendCommand(...)` from user code throws
+					// `DataCloneError: ServiceStub serialization requires the
+					// 'experimental' compat flag.`
+					compatibilityFlags: ["experimental"],
 					mainModule: "main.js",
 					modules: {
 						"device.js": userCode,
@@ -746,15 +761,45 @@ export class BaseDevice extends DurableObject<Env> {
 		try {
 			userWorker = await this.getOrCreateUserWorker();
 		} catch (err) {
-			// Drop queued events on worker-unavailable. Re-queueing causes an
-			// infinite alarm loop when the failure is persistent (SyntaxError
-			// in the script, script missing from R2, etc.); those conditions
-			// only clear with a new deploy, which triggers device_connected
-			// again and re-populates the queue organically.
-			console.error(
-				"Worker unavailable while draining user events; dropping batch:",
-				err,
+			const message = (err as Error)?.message ?? "";
+			const isTransient = TRANSIENT_ERROR_PATTERNS.some((p) =>
+				message.includes(p),
 			);
+			if (isTransient) {
+				// Re-queue with exponential backoff so we retry once the
+				// rate-limiter / transient condition clears. Cap attempts to
+				// avoid eventually piling up.
+				const retryable = pending
+					.map((e) => ({ ...e, attempts: (e.attempts ?? 0) + 1 }))
+					.filter((e) => e.attempts < MAX_USER_EVENT_ATTEMPTS);
+				if (retryable.length > 0) {
+					const maxAttempts = Math.max(
+						...retryable.map((e) => e.attempts ?? 0),
+					);
+					const backoffMs = Math.min(30_000, 500 * 2 ** maxAttempts);
+					await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, retryable);
+					const currentAlarm = await this.ctx.storage.getAlarm();
+					const nextFire = Date.now() + backoffMs;
+					if (currentAlarm === null || currentAlarm > nextFire) {
+						await this.ctx.storage.setAlarm(nextFire);
+					}
+					console.warn(
+						`Worker init transient failure; re-queued ${retryable.length} event(s) with ${backoffMs}ms backoff:`,
+						message,
+					);
+				} else {
+					console.error(
+						"Worker init transient failure; max attempts reached, dropping batch:",
+						message,
+					);
+				}
+			} else {
+				// Persistent error (SyntaxError, script missing, etc.) — drop.
+				console.error(
+					"Worker unavailable while draining user events; dropping batch:",
+					err,
+				);
+			}
 			return null;
 		}
 

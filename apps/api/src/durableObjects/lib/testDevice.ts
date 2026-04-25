@@ -10,10 +10,20 @@
  */
 
 import type { CronStorage } from "./cronDispatch";
-import { BaseDevice, CRON_STORAGE_KEY } from "./device";
+import {
+	BaseDevice,
+	CRON_STORAGE_KEY,
+	PENDING_USER_EVENTS_KEY,
+	type PendingUserEvent,
+} from "./device";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
 
 export class TestDevice extends BaseDevice {
+	// Test-only injection point: when set, getOrCreateUserWorker throws an
+	// error with this message instead of going through the real LOADER path.
+	// Used to drive drainPendingUserWorkerEvents through its transient/persistent
+	// classification branches without depending on a real CF rate limit.
+	private _testWorkerInitError?: string;
 	/**
 	 * Returns the scheduled DO alarm timestamp (ms), or null if none is set.
 	 */
@@ -101,5 +111,105 @@ export class TestDevice extends BaseDevice {
 			getCrons: async () => crons,
 		};
 		await this.initializeCrons(mockWorker);
+	}
+
+	/**
+	 * Reads the pending user-worker event queue. Returns an empty array when
+	 * the key is unset.
+	 */
+	async getPendingUserEvents(): Promise<PendingUserEvent[]> {
+		return (
+			(await this.ctx.storage.get<PendingUserEvent[]>(
+				PENDING_USER_EVENTS_KEY,
+			)) ?? []
+		);
+	}
+
+	/**
+	 * Seeds the pending user-worker event queue. Pass null to clear it.
+	 */
+	async seedPendingUserEvents(
+		events: PendingUserEvent[] | null,
+	): Promise<void> {
+		if (events === null) {
+			await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
+		} else {
+			await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, events);
+		}
+	}
+
+	/**
+	 * Calls the protected enqueueUserWorkerEvent and returns the post-enqueue
+	 * snapshot in the same DO RPC. Inspecting state across two RPCs would race
+	 * the ~10 ms alarm that enqueue arms — by the second call the alarm has
+	 * fired and the drain has cleared the queue.
+	 *
+	 * The alarm and pending queue are cleared before returning so the alarm
+	 * cannot fire during vitest-pool-workers' isolated-storage cleanup.
+	 */
+	async testEnqueueAndSnapshot(event: PendingUserEvent): Promise<{
+		pending: PendingUserEvent[];
+		alarmTime: number | null;
+	}> {
+		await this.enqueueUserWorkerEvent(event);
+		const pending = await this.getPendingUserEvents();
+		const alarmTime = await this.ctx.storage.getAlarm();
+		await this.ctx.storage.deleteAlarm();
+		await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
+		return { pending, alarmTime };
+	}
+
+	/**
+	 * Pre-arms a far-future alarm, then runs enqueueUserWorkerEvent and
+	 * snapshots the resulting alarm time within the same RPC. Used to verify
+	 * that enqueue does not push an already-sooner alarm out — across two
+	 * RPCs, the enqueue's own ~10 ms alarm would fire and clear the state.
+	 */
+	async testEnqueueDoesNotPushAlarmOut(
+		preArmedAlarmAt: number,
+		event: PendingUserEvent,
+	): Promise<{ before: number | null; after: number | null }> {
+		await this.ctx.storage.setAlarm(preArmedAlarmAt);
+		const before = await this.ctx.storage.getAlarm();
+		await this.enqueueUserWorkerEvent(event);
+		const after = await this.ctx.storage.getAlarm();
+		await this.ctx.storage.deleteAlarm();
+		await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
+		return { before, after };
+	}
+
+	/**
+	 * Calls the protected drainPendingUserWorkerEvents and returns the
+	 * resulting state. Tests use this with `setTestWorkerInitError` to drive
+	 * the transient / persistent classification branches deterministically.
+	 */
+	async testDrainPendingUserWorkerEvents(): Promise<{
+		workerResolved: boolean;
+		remaining: PendingUserEvent[];
+	}> {
+		const worker = await this.drainPendingUserWorkerEvents();
+		const remaining = await this.getPendingUserEvents();
+		return { workerResolved: worker !== null, remaining };
+	}
+
+	/**
+	 * Configures the next call to getOrCreateUserWorker to throw an error with
+	 * the given message (mimicking what would happen if the real CF Worker
+	 * Loader threw, e.g. "Too many concurrent dynamic workers"). Pass null to
+	 * disable.
+	 */
+	async setTestWorkerInitError(message: string | null): Promise<void> {
+		this._testWorkerInitError = message ?? undefined;
+	}
+
+	protected override async getOrCreateUserWorker(): Promise<IUserDeviceWorker> {
+		if (this._testWorkerInitError !== undefined) {
+			// Match the production wrapper's shape so transient-pattern
+			// matching is exercised end-to-end.
+			throw new Error(
+				`Failed to initialize user worker: ${this._testWorkerInitError}`,
+			);
+		}
+		return super.getOrCreateUserWorker();
 	}
 }

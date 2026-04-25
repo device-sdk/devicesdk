@@ -56,17 +56,18 @@ export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
 // deferred to a fresh alarm() invocation where Worker Loader works.
 export const PENDING_USER_EVENTS_KEY = "__internal:pending_user_events";
 
-type PendingUserEvent =
+export type PendingUserEvent =
 	| { kind: "connect"; attempts?: number }
 	| { kind: "message"; message: DeviceResponse; attempts?: number };
 
 // Transient errors re-queue with backoff; persistent errors drop immediately.
+// Patterns are matched as substrings against the thrown error's `.message`,
+// which (after the wrapper in getOrCreateUserWorker) includes the underlying
+// loader/runtime error text.
 const MAX_USER_EVENT_ATTEMPTS = 6;
 const TRANSIENT_ERROR_PATTERNS = [
 	"Too many concurrent dynamic workers",
-	"ConnectionError",
 	"ECONNREFUSED",
-	"internal error",
 ];
 
 // Prefix reserved for internal DO storage keys; blocked from user-facing kv API
@@ -296,7 +297,7 @@ export class BaseDevice extends DurableObject<Env> {
 	/**
 	 * Gets or creates the user worker, restoring it after hibernation if needed
 	 */
-	private async getOrCreateUserWorker(): Promise<IUserDeviceWorker> {
+	protected async getOrCreateUserWorker(): Promise<IUserDeviceWorker> {
 		const deviceMeta = await this.getDeviceMeta();
 		if (!deviceMeta) {
 			throw new Error(
@@ -401,7 +402,12 @@ export class BaseDevice extends DurableObject<Env> {
 					stack: (error as Error).stack,
 				},
 			});
-			throw new Error("Failed to initialize user worker");
+			// Preserve the inner message so callers can classify the failure
+			// (e.g. drainPendingUserWorkerEvents distinguishes transient vs
+			// persistent errors via TRANSIENT_ERROR_PATTERNS).
+			throw new Error(
+				`Failed to initialize user worker: ${(error as Error).message}`,
+			);
 		}
 	}
 
@@ -719,7 +725,7 @@ export class BaseDevice extends DurableObject<Env> {
 	 * the Worker Loader can be invoked reliably (unlike Hibernation-API
 	 * webSocketMessage handlers, which hang on getTarget()).
 	 */
-	private async enqueueUserWorkerEvent(event: PendingUserEvent) {
+	protected async enqueueUserWorkerEvent(event: PendingUserEvent) {
 		const existing =
 			(await this.ctx.storage.get<PendingUserEvent[]>(
 				PENDING_USER_EVENTS_KEY,
@@ -741,7 +747,7 @@ export class BaseDevice extends DurableObject<Env> {
 	 * legacy-onAlarm dispatch without triggering another LOADER.get() (which
 	 * trips the "Too many concurrent dynamic workers" limit).
 	 */
-	private async drainPendingUserWorkerEvents(): Promise<IUserDeviceWorker | null> {
+	protected async drainPendingUserWorkerEvents(): Promise<IUserDeviceWorker | null> {
 		const pending = await this.ctx.storage.get<PendingUserEvent[]>(
 			PENDING_USER_EVENTS_KEY,
 		);

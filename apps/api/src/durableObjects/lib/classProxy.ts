@@ -85,11 +85,10 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
 
     const BLOCKED_METHODS = new Set([${blockedMethodsLiteral}]);
 
-    return {
+    const result = {
     	onMessage: (...args) => target.onMessage(...args),
     	onDeviceConnect: (...args) => target.onDeviceConnect(...args),
     	onDeviceDisconnect: (...args) => target.onDeviceDisconnect(...args),
-    	onAlarm: (...args) => target.onAlarm?.(...args),
     	getCrons: async () => target.crons ?? {},
     	onCron: (...args) => target.onCron?.(...args),
     	callMethod: async (name, args, callDepth) => {
@@ -122,7 +121,14 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
     	  });
     	  return await scopedTarget[name](...args);
     	},
+    };
+    // Only expose onAlarm when the user script actually defines it, so the
+    // BaseDevice alarm handler can short-circuit instead of paying an RPC
+    // round-trip to a no-op wrapper on every alarm tick.
+    if (typeof target.onAlarm === 'function') {
+      result.onAlarm = (...args) => target.onAlarm(...args);
     }
+    return result;
   }
 }`;
 }

@@ -357,13 +357,7 @@ export class BaseDevice extends DurableObject<Env> {
 				);
 
 				return {
-					compatibilityDate: "2025-11-25",
-					// "experimental" is required for ServiceStub serialization
-					// across the Worker Loader boundary — without it, the first
-					// `this.env.DEVICE.sendCommand(...)` from user code throws
-					// `DataCloneError: ServiceStub serialization requires the
-					// 'experimental' compat flag.`
-					compatibilityFlags: ["experimental"],
+					compatibilityDate: "2026-04-24",
 					mainModule: "main.js",
 					modules: {
 						"device.js": userCode,

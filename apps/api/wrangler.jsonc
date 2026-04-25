@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"compatibility_date": "2025-11-25",
+	"compatibility_date": "2026-04-24",
 	"main": "src/index.ts",
 	"name": "devicesdk-api-staging",
 	"account_id": "888e736867edd3b81b49b17c9067d5df",

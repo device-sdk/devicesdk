@@ -2,7 +2,7 @@
 
 Internal planning backlog for the DeviceSDK monorepo. Generated from a full codebase audit of all 12 packages, every TODO/FIXME, CI/CD config, test coverage, and feature completeness gaps.
 
-Last updated: 2026-04-06
+Last updated: 2026-04-24
 
 ---
 
@@ -39,6 +39,7 @@ Last updated: 2026-04-06
 | 27 | [WS2812 LED Strip Visualization](#27-ws2812-led-strip-visualization) | Render a horizontal strip of colored LEDs when firmware calls `pioWs2812Configure` / `pioWs2812Update` | [ ]    |
 | 28 | [Off-Board Pin Activity Indicator](#28-off-board-pin-activity-indicator) | Visual cue on the board when a pin the script uses isn't exposed on the current board visual | [ ]    |
 | 29 | [Custom Domain for AI Search Instance](#29-custom-domain-for-ai-search-instance) | Replace the third-party hosted URL in `ai-search.html` and `mcp/server-card.json` with a `search.devicesdk.com` CNAME (blocked on upstream support) | [ ]    |
+| 30 | [Dynamic Worker ServiceStub Serialization Blocker](#30-dynamic-worker-servicestub-serialization-blocker) | User-script `env.DEVICE.sendCommand()` throws `DataCloneError: ServiceStub serialization requires the 'experimental' compat flag` under Worker Loader. Cloudflare rejects the `experimental` flag in production deploys, so the whole user-script dispatch pipeline is dead until we refactor or the flag graduates. | [ ]    |
 
 ---
 
@@ -592,3 +593,86 @@ The hosted AI Search instance URL (`https://b055c14c-…search.ai.cloudflare.com
 3. Replace the hard-coded `$instance` in `apps/website/layouts/partials/ai-search.html` with the custom domain.
 4. Update `apps/website/static/.well-known/mcp/server-card.json` `transport.url`.
 5. Recompute the `integrity` hash for the search-snippet asset if the custom domain serves it directly.
+
+---
+
+### 30. Dynamic Worker ServiceStub Serialization Blocker
+
+**Priority**: Critical — user scripts are currently non-functional in production.
+**Packages affected**: `apps/api`
+**Files**: `apps/api/src/durableObjects/lib/device.ts`, `apps/api/src/durableObjects/lib/classProxy.ts`, `apps/api/src/durableObjects/lib/deviceSender.ts`
+
+#### Symptom
+
+With the user script deployed, the device connects, `webSocketMessage` receives `{"type":"device_connected"}`, the alarm drain (see PR #85) correctly invokes `onDeviceConnect()` inside the dynamically loaded user worker, but the first line that calls `await this.env.DEVICE.sendCommand(...)` throws in the child worker:
+
+```
+DataCloneError: ServiceStub serialization requires the 'experimental' compat flag.
+```
+
+Captured on real hardware at `/v1/projects/door-sensor/devices/door/logs` from an instrumented DoorSensor script on 2026-04-24. No command ever reaches the firmware's WebSocket.
+
+#### Why this happens
+
+The Worker Loader–child worker receives `env.DEVICE` as a **WorkerEntrypoint stub** created inside the parent DO with `(this.ctx as any).exports.DeviceSender({ props: { deviceId, projectId } })` (device.ts:317). When the child calls any method on that stub (`.sendCommand`, `.getPinState`, `.configureGpioInputMonitoring`, etc.), Workers' RPC runtime has to serialize the stub descriptor across the child↔parent isolate boundary. That path currently requires the **`experimental`** compatibility flag.
+
+Attempting the obvious workaround of setting `compatibilityFlags: ["experimental"]` on the dynamic-worker config fails at deploy time:
+
+```
+Error: The compatibility flag experimental is experimental
+and cannot yet be used in Workers deployed to Cloudflare.
+```
+
+i.e. the flag is itself flagged as experimental and is rejected by the Workers control plane on production deploys. The parent API worker (`apps/api/wrangler.jsonc`) only ships `nodejs_compat` and `nodejs_compat_populate_process_env` for the same reason.
+
+Net effect: **no user script has ever successfully driven hardware in production.** Until this session the bug was masked by (a) the Hibernation-API `webSocketMessage` handler deadlocking any `LOADER.get().getTarget()` call, and (b) an R2-key mismatch that prevented `getOrCreateUserWorker` from finding scripts at all. Both of those were fixed in PR #85; fixing them exposed this underlying issue.
+
+#### What has already been tried and ruled out
+
+1. **Add `compatibilityFlags: ["experimental"]` to the Worker Loader config.** Blocked — control-plane rejects on deploy.
+2. **Pass a plain object of functions instead of a stub.** Functions themselves are not structured-cloneable; same DataCloneError class.
+3. **Call DO methods directly from user code (`env.DEVICE.get(name).sendCommand(...)`).** Would bypass DeviceSender entirely, but requires exposing the full DO namespace binding to the child, which has its own serialization constraints and also leaks internal methods (`kvPut`, `kvGet`, etc. that `classProxy.ts` currently allowlists against).
+
+#### Options (in order of effort)
+
+1. **Wait for `experimental` to graduate.** Cloudflare's stated path for ServiceStub serialization. Zero code change. Unknown timeline; track releases at <https://developers.cloudflare.com/workers/platform/compatibility-flags/>.
+2. **Proxy via HTTP fetch instead of RPC.** Replace `env.DEVICE.sendCommand(cmd)` with `env.DEVICE.fetch("/sendCommand", {method:"POST", body: JSON.stringify(cmd)})` — `Fetcher` bindings don't go through the ServiceStub path. Requires: (a) rewriting `DeviceSender` as a `fetch()` handler that dispatches by URL; (b) updating the `classProxy.ts` `safeDevice` proxy to call `fetch` under the hood but keep the method-call surface user-facing; (c) serialization for complex return types like `getPinState` (wrap in `{status, body}` JSON). Medium effort, touches all 20+ ALLOWED_DEVICE_METHODS.
+3. **Move user-facing helpers into the parent DO and expose via a flat RPC method.** Add a single `dispatchUserAction(method, args)` method on `BaseDevice` that switches on the method name internally and calls the real DO logic. Child code calls `env.DEVICE.dispatchUserAction("sendCommand", [cmd])`. This makes the stub signature flat enough that its serialization footprint stays inside what's already supported. Low-medium effort, single pass, but loses per-method type safety.
+4. **Ship the user script into the same worker as the API (not dynamic).** Removes the Worker Loader boundary entirely, but kills multi-tenant isolation — a security regression, not acceptable.
+
+Recommended next action: **option 3**. It's the smallest diff that keeps the existing user API shape and avoids needing upstream Cloudflare changes. Option 2 is the "cleaner" long-term shape but touches every `DeviceSender` method.
+
+#### Reproduction
+
+After PR #85 is merged and deployed:
+
+1. Deploy any user script with `await env.DEVICE.sendCommand(...)` inside `onDeviceConnect`:
+   ```ts
+   export class Foo extends DeviceEntrypoint {
+     async onDeviceConnect() {
+       await this.env.DEVICE.sendCommand({
+         type: "set_gpio_state",
+         payload: { pin: 8, state: "high" }
+       });
+     }
+   }
+   ```
+2. Connect a real device (or force a WS reconnect).
+3. `GET /v1/projects/:p/devices/:d/logs` will show:
+   ```
+   DataCloneError: ServiceStub serialization requires the 'experimental' compat flag.
+     at async Foo.onDeviceConnect (device.js:...)
+   ```
+
+#### Why the whole session spent chasing this
+
+The bug presents differently depending on which of its pre-conditions is currently in the way:
+- Before PR #85's R2-key fix → `Script not found in R2`
+- Before PR #85's alarm dispatch → `webSocketMessage` handler hangs, no logs anywhere
+- Before PR #85's `async callMethod` → `SyntaxError: Unexpected reserved word` the first time V8 lazy-parses the proxy's return object
+- Before stable `workerId` → `Too many concurrent dynamic workers` from alarm-loop worker churn
+- Only after all of the above are cleared → the real `DataCloneError` surfaces in persisted `/logs`
+
+Each prior condition hid the next, and none of the intermediate errors were visible in `wrangler tail` (Hibernation-API webSocket events don't render in the tail stream the same way RPC invocations do). The only way to see the final error was the user-side `persistLog` → D1 → `/v1/projects/:p/devices/:d/logs` path.
+
+Keep this fix high on the backlog — everything downstream (dashboard live status, HA integration, script templates, cron schedules firing against real hardware) assumes user scripts can actually drive devices.

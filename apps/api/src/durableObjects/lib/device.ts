@@ -50,6 +50,26 @@ function earliestFireTime(schedules: CronStorage): number {
 // the connection timestamp without requiring the client to reconnect.
 export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
 
+// Queue of user-worker events to dispatch on the next alarm firing.
+// Hibernation-API webSocketMessage handlers cannot reliably invoke the Worker
+// Loader (the getTarget() RPC hangs), so onDeviceConnect / onMessage get
+// deferred to a fresh alarm() invocation where Worker Loader works.
+export const PENDING_USER_EVENTS_KEY = "__internal:pending_user_events";
+
+export type PendingUserEvent =
+	| { kind: "connect"; attempts?: number }
+	| { kind: "message"; message: DeviceResponse; attempts?: number };
+
+// Transient errors re-queue with backoff; persistent errors drop immediately.
+// Patterns are matched as substrings against the thrown error's `.message`,
+// which (after the wrapper in getOrCreateUserWorker) includes the underlying
+// loader/runtime error text.
+const MAX_USER_EVENT_ATTEMPTS = 6;
+const TRANSIENT_ERROR_PATTERNS = [
+	"Too many concurrent dynamic workers",
+	"ECONNREFUSED",
+];
+
 // Prefix reserved for internal DO storage keys; blocked from user-facing kv API
 const INTERNAL_KEY_PREFIX = "__internal:";
 
@@ -88,6 +108,13 @@ export class BaseDevice extends DurableObject<Env> {
 		projectId: string;
 		versionId: string;
 		deviceId: string;
+		// Slugs are what uploadScript/getScript/deployVersion use as the R2
+		// key prefix, so getOrCreateUserWorker has to use slugs too — the
+		// `projectId`/`deviceId` fields above are UUIDs and do NOT match any
+		// R2 object key. Optional on the type so older stored deviceMeta
+		// (pre-upgrade) still parses; filled in on every reconnect.
+		projectSlug?: string;
+		deviceSlug?: string;
 		entrypointName: string;
 		plan: UserPlan;
 	};
@@ -164,6 +191,8 @@ export class BaseDevice extends DurableObject<Env> {
 		const projectId = url.searchParams.get("projectId");
 		const versionId = url.searchParams.get("versionId");
 		const deviceId = url.searchParams.get("deviceId");
+		const projectSlug = url.searchParams.get("projectSlug") ?? undefined;
+		const deviceSlug = url.searchParams.get("deviceSlug") ?? undefined;
 		const entrypointName = url.searchParams.get("entrypointName");
 		const plan = (url.searchParams.get("plan") ?? "free") as UserPlan;
 
@@ -211,6 +240,8 @@ export class BaseDevice extends DurableObject<Env> {
 			projectId,
 			versionId,
 			deviceId,
+			projectSlug,
+			deviceSlug,
 			entrypointName,
 			plan,
 		};
@@ -266,7 +297,7 @@ export class BaseDevice extends DurableObject<Env> {
 	/**
 	 * Gets or creates the user worker, restoring it after hibernation if needed
 	 */
-	private async getOrCreateUserWorker(): Promise<IUserDeviceWorker> {
+	protected async getOrCreateUserWorker(): Promise<IUserDeviceWorker> {
 		const deviceMeta = await this.getDeviceMeta();
 		if (!deviceMeta) {
 			throw new Error(
@@ -274,9 +305,31 @@ export class BaseDevice extends DurableObject<Env> {
 			);
 		}
 
-		const { userId, projectId, versionId, deviceId, entrypointName } =
-			deviceMeta;
-		const workerId = `${projectId}:${deviceId}:${versionId}:${crypto.randomUUID()}`;
+		const {
+			userId,
+			projectId,
+			versionId,
+			deviceId,
+			projectSlug,
+			deviceSlug,
+			entrypointName,
+		} = deviceMeta;
+		// Stable workerId so repeated LOADER.get() calls return the same
+		// dynamic worker instead of spawning a new one on every alarm tick
+		// (which blows "Too many concurrent dynamic workers" very quickly).
+		// Changing versionId naturally invalidates the cache, because a new
+		// script deploy sets a fresh versionId → new workerId.
+		const workerId = `${projectId}:${deviceId}:${versionId}`;
+
+		// uploadScript / getScript / deployVersion all address R2 with
+		// /{userId}/{projectSlug}/{deviceSlug}/{versionId}.js. The DO receives
+		// UUIDs for projectId/deviceId from deviceConnect, which do not match
+		// any R2 key. Prefer the slugs stored on deviceMeta; fall back to the
+		// UUIDs only for older stored deviceMeta records written before the
+		// slug fields were added (which will fail to find a script — but that
+		// matches the prior silently-broken behavior, so nothing regresses).
+		const r2ProjectKey = projectSlug ?? projectId;
+		const r2DeviceKey = deviceSlug ?? deviceId;
 
 		try {
 			// TODO: There is a known bug (EW-9769) when a dynamic worker is created in a DO in one request
@@ -285,8 +338,7 @@ export class BaseDevice extends DurableObject<Env> {
 			// go back to caching the worker instance.
 			// Get the dynamic worker using the loader
 			const worker = this.env.LOADER.get(workerId, async () => {
-				// Fetch user code from R2 using new path structure: /{userId}/{projectId}/{deviceId}/{versionId}.js
-				const scriptKey = `${userId}/${projectId}/${deviceId}/${versionId}.js`;
+				const scriptKey = `${userId}/${r2ProjectKey}/${r2DeviceKey}/${versionId}.js`;
 				const scriptObject = await this.env.SCRIPTS.get(scriptKey);
 
 				if (!scriptObject) {
@@ -306,7 +358,7 @@ export class BaseDevice extends DurableObject<Env> {
 				);
 
 				return {
-					compatibilityDate: "2025-11-25",
+					compatibilityDate: "2026-04-24",
 					mainModule: "main.js",
 					modules: {
 						"device.js": userCode,
@@ -347,9 +399,15 @@ export class BaseDevice extends DurableObject<Env> {
 				error: {
 					name: (error as Error).name,
 					message: (error as Error).message,
+					stack: (error as Error).stack,
 				},
 			});
-			throw new Error("Failed to initialize user worker");
+			// Preserve the inner message so callers can classify the failure
+			// (e.g. drainPendingUserWorkerEvents distinguishes transient vs
+			// persistent errors via TRANSIENT_ERROR_PATTERNS).
+			throw new Error(
+				`Failed to initialize user worker: ${(error as Error).message}`,
+			);
 		}
 	}
 
@@ -480,19 +538,11 @@ export class BaseDevice extends DurableObject<Env> {
 
 			// Handle device connect message
 			if (message.type === "device_connected") {
-				// console.log("Device connect message received, calling onDeviceConnect");
-				const userWorker = await this.getOrCreateUserWorker();
-				try {
-					await userWorker.onDeviceConnect();
-				} catch (error) {
-					console.error("Error in user worker onDeviceConnect:", error);
-				}
-				// Initialize cron schedules from the user script after connect
-				try {
-					await this.initializeCrons(userWorker);
-				} catch (error) {
-					console.error("Error initializing cron schedules:", error);
-				}
+				// Defer onDeviceConnect + cron initialization to the next alarm
+				// firing so it runs in a fresh invocation context. Invoking
+				// Worker Loader's getTarget() from inside a Hibernation-API
+				// webSocketMessage handler hangs indefinitely in production.
+				await this.enqueueUserWorkerEvent({ kind: "connect" });
 				return;
 			}
 
@@ -516,18 +566,10 @@ export class BaseDevice extends DurableObject<Env> {
 					pendingCommand.resolve(message);
 				}
 			} else {
-				// Forward unsolicited messages to the user worker
-				// console.log(
-				// 	`Forwarding unsolicited message to user worker: ${message.type}`,
-				// );
-
-				const userWorker = await this.getOrCreateUserWorker();
-
-				try {
-					await userWorker.onMessage(message);
-				} catch (error) {
-					console.error("Error in user worker onMessage:", error);
-				}
+				// Forward unsolicited messages to the user worker via alarm
+				// queue — see enqueueUserWorkerEvent for why we can't invoke
+				// the Worker Loader directly from here.
+				await this.enqueueUserWorkerEvent({ kind: "message", message });
 			}
 		} catch (_error) {
 			console.error("Failed to parse message from device:", {
@@ -677,6 +719,119 @@ export class BaseDevice extends DurableObject<Env> {
 		return false;
 	}
 
+	/**
+	 * Append a user-worker event to the persisted queue and arm the DO alarm
+	 * to fire as soon as possible. Events are drained inside alarm() where
+	 * the Worker Loader can be invoked reliably (unlike Hibernation-API
+	 * webSocketMessage handlers, which hang on getTarget()).
+	 */
+	protected async enqueueUserWorkerEvent(event: PendingUserEvent) {
+		const existing =
+			(await this.ctx.storage.get<PendingUserEvent[]>(
+				PENDING_USER_EVENTS_KEY,
+			)) ?? [];
+		existing.push(event);
+		await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, existing);
+
+		const soon = Date.now() + 10;
+		const currentAlarm = await this.ctx.storage.getAlarm();
+		if (currentAlarm === null || currentAlarm > soon) {
+			await this.ctx.storage.setAlarm(soon);
+		}
+	}
+
+	/**
+	 * Drain any queued user-worker events. Called from alarm() before cron
+	 * processing so onDeviceConnect / onMessage run in a fresh invocation.
+	 * Returns the user worker it created so alarm() can reuse it for cron /
+	 * legacy-onAlarm dispatch without triggering another LOADER.get() (which
+	 * trips the "Too many concurrent dynamic workers" limit).
+	 */
+	protected async drainPendingUserWorkerEvents(): Promise<IUserDeviceWorker | null> {
+		const pending = await this.ctx.storage.get<PendingUserEvent[]>(
+			PENDING_USER_EVENTS_KEY,
+		);
+		if (!pending || pending.length === 0) return null;
+
+		// Clear up-front so a subsequent enqueue during processing doesn't get
+		// swallowed if we persist an emptied array at the end.
+		await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
+
+		let userWorker: IUserDeviceWorker;
+		try {
+			userWorker = await this.getOrCreateUserWorker();
+		} catch (err) {
+			const message = (err as Error)?.message ?? "";
+			const isTransient = TRANSIENT_ERROR_PATTERNS.some((p) =>
+				message.includes(p),
+			);
+			if (isTransient) {
+				// Re-queue with exponential backoff so we retry once the
+				// rate-limiter / transient condition clears. Cap attempts to
+				// avoid eventually piling up.
+				const retryable = pending
+					.map((e) => ({ ...e, attempts: (e.attempts ?? 0) + 1 }))
+					.filter((e) => e.attempts < MAX_USER_EVENT_ATTEMPTS);
+				if (retryable.length > 0) {
+					const maxAttempts = Math.max(
+						...retryable.map((e) => e.attempts ?? 0),
+					);
+					const backoffMs = Math.min(30_000, 500 * 2 ** maxAttempts);
+					await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, retryable);
+					const currentAlarm = await this.ctx.storage.getAlarm();
+					const nextFire = Date.now() + backoffMs;
+					if (currentAlarm === null || currentAlarm > nextFire) {
+						await this.ctx.storage.setAlarm(nextFire);
+					}
+					console.warn(
+						`Worker init transient failure; re-queued ${retryable.length} event(s) with ${backoffMs}ms backoff:`,
+						message,
+					);
+				} else {
+					console.error(
+						"Worker init transient failure; max attempts reached, dropping batch:",
+						message,
+					);
+				}
+			} else {
+				// Persistent error (SyntaxError, script missing, etc.) — drop.
+				console.error(
+					"Worker unavailable while draining user events; dropping batch:",
+					err,
+				);
+			}
+			return null;
+		}
+
+		let connectProcessed = false;
+		for (const event of pending) {
+			try {
+				if (event.kind === "connect") {
+					await userWorker.onDeviceConnect();
+					connectProcessed = true;
+				} else {
+					await userWorker.onMessage(event.message);
+				}
+			} catch (error) {
+				console.error(
+					`Error in user worker ${event.kind === "connect" ? "onDeviceConnect" : "onMessage"} (via alarm):`,
+					error,
+				);
+			}
+		}
+
+		// Initialize cron schedules once per batch if a connect was processed.
+		if (connectProcessed) {
+			try {
+				await this.initializeCrons(userWorker);
+			} catch (error) {
+				console.error("Error initializing cron schedules:", error);
+			}
+		}
+
+		return userWorker;
+	}
+
 	private async handleConnectionLost(reason: string) {
 		// Reject all pending commands because we can no longer receive responses.
 		for (const [_id, command] of this.pendingCommands.entries()) {
@@ -777,16 +932,40 @@ export class BaseDevice extends DurableObject<Env> {
 	 * Durable Object context or LOADER binding.
 	 */
 	async alarm(): Promise<void> {
+		// Drain any queued onDeviceConnect / onMessage events first — they
+		// were deferred here from webSocketMessage because the Worker Loader
+		// can't be invoked from a Hibernation-API event handler.
+		// Reuse the returned worker below to avoid a second LOADER.get() call
+		// in this same alarm tick.
+		const drainedWorker = await this.drainPendingUserWorkerEvents();
+
+		// If more events arrived while we were draining, ensure the alarm
+		// fires again to pick them up.
+		const stillPending = await this.ctx.storage.get<PendingUserEvent[]>(
+			PENDING_USER_EVENTS_KEY,
+		);
+		if (stillPending && stillPending.length > 0) {
+			const currentAlarm = await this.ctx.storage.getAlarm();
+			const soon = Date.now() + 50;
+			if (currentAlarm === null || currentAlarm > soon) {
+				await this.ctx.storage.setAlarm(soon);
+			}
+		}
+
 		const schedules = await this.ctx.storage.get<CronStorage>(CRON_STORAGE_KEY);
 
 		if (!schedules || Object.keys(schedules).length === 0) {
-			// No cron schedules — fall back to legacy onAlarm if defined
-			let legacyWorker: IUserDeviceWorker | null = null;
-			try {
-				legacyWorker = await this.getOrCreateUserWorker();
-			} catch (err) {
-				console.error("Worker unavailable during alarm (legacy path):", err);
-				return;
+			// No cron schedules. Only fetch a worker if we didn't already
+			// get one from drain; and only if we actually need to dispatch
+			// onAlarm (which depends on the user script defining it).
+			let legacyWorker = drainedWorker;
+			if (!legacyWorker) {
+				try {
+					legacyWorker = await this.getOrCreateUserWorker();
+				} catch (err) {
+					console.error("Worker unavailable during alarm (legacy path):", err);
+					return;
+				}
 			}
 			if (legacyWorker?.onAlarm) {
 				try {
@@ -803,18 +982,20 @@ export class BaseDevice extends DurableObject<Env> {
 		// Guard: if the worker is unavailable, reschedule without advancing so cron
 		// firings are not silently lost. The alarm will retry when the next
 		// nextFireAt arrives (or after 60 s minimum).
-		let userWorker: IUserDeviceWorker | null;
-		try {
-			userWorker = await this.getOrCreateUserWorker();
-		} catch (err) {
-			console.error(
-				"Worker unavailable during alarm — rescheduling without advancing cron schedule:",
-				err,
-			);
-			await this.ctx.storage.setAlarm(
-				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
-			);
-			return;
+		let userWorker: IUserDeviceWorker | null = drainedWorker;
+		if (!userWorker) {
+			try {
+				userWorker = await this.getOrCreateUserWorker();
+			} catch (err) {
+				console.error(
+					"Worker unavailable during alarm — rescheduling without advancing cron schedule:",
+					err,
+				);
+				await this.ctx.storage.setAlarm(
+					Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
+				);
+				return;
+			}
 		}
 
 		// Guard: getOrCreateUserWorker could theoretically return null (e.g. if the

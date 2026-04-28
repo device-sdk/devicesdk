@@ -49,9 +49,14 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
         'pioWs2812Configure', 'pioWs2812Update', 'persistLog', 'emitState',
         'kvGet', 'kvPut', 'kvDelete', 'kvList'
     ]);
+    // Do NOT call .bind() on RPC stub methods. The runtime treats publicEnv.DEVICE
+    // as an RPC handle, so target[prop].bind(target) is interpreted as a remote
+    // method call named "bind" with the stub as an argument, which throws
+    // DataCloneError: ServiceStub serialization requires the 'experimental' compat flag.
+    // See ROADMAP entry #30 / TROUBLESHOOT.md for the full story.
     const safeDevice = new Proxy(publicEnv.DEVICE, {
         get(target, prop) {
-            if (typeof prop === 'string' && ALLOWED_DEVICE_METHODS.has(prop)) return target[prop].bind(target);
+            if (typeof prop === 'string' && ALLOWED_DEVICE_METHODS.has(prop)) return target[prop];
             if (prop === 'kv') return target.kv;
             return undefined;
         }

@@ -1,5 +1,23 @@
 # Troubleshooting Log
 
+### `DataCloneError: ServiceStub serialization requires the 'experimental' compat flag` from a Worker Loader child
+**Date**: 2026-04-28
+**Question/Problem**: Inside a Worker Loader-spawned child worker, calling a method on a parent-side `WorkerEntrypoint` binding throws `DataCloneError: ServiceStub serialization requires the 'experimental' compat flag.` The `experimental` compatibility flag is rejected by the Workers control plane on production deploys, so it cannot be enabled.
+**Root Cause**: Calling `.bind()` on what looks like a method of an RPC binding. `env.SOMETHING` is an RPC stub, not a JS object, so `env.SOMETHING.method` is also a stub representing that property — not a real `Function`. Calling `.bind()` on the property is interpreted by the runtime as a **remote method invocation** named `"bind"` with the stub itself passed as the first argument. The argument can't be cloned across the isolate boundary without the experimental flag, so the call throws.
+**Solution**: Don't call `.bind()` on RPC stub methods. Just use the property reference directly:
+```js
+// BAD — interpreted as a remote call to a method named "bind"
+const fn = env.API.method.bind(env.API);
+
+// GOOD — direct property access works as a callable
+const fn = env.API.method;
+
+// ALSO GOOD — if you absolutely need bind, force the JS-level operation
+const fn = Function.prototype.bind.call(env.API.method, env.API);
+```
+In this codebase the offending site was `apps/api/src/durableObjects/lib/classProxy.ts:54` (`safeDevice` Proxy returning `target[prop].bind(target)`). Confirmed by Cloudflare runtime team.
+**How to confirm**: minimum repro lives at `~/projects/servicestub-repro/` and at `https://servicestub-repro.huckye.workers.dev/`. The response shows all three forms side-by-side: direct + `Function.prototype.bind.call` succeed, `.bind()` fails.
+
 ### Local dev Google OAuth login completes but user remains unauthenticated
 **Date**: 2026-02-07
 **Question/Problem**: When running the API (wrangler dev, port 8787) and dashboard (Quasar dev, port 9000) locally, Google OAuth login completes visually but `GET /v1/user/me` returns 401. Only one `GET /v1/auth/google` request appears in API logs instead of two (initial + callback).

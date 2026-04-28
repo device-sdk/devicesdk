@@ -39,7 +39,7 @@ Last updated: 2026-04-24
 | 27 | [WS2812 LED Strip Visualization](#27-ws2812-led-strip-visualization) | Render a horizontal strip of colored LEDs when firmware calls `pioWs2812Configure` / `pioWs2812Update` | [ ]    |
 | 28 | [Off-Board Pin Activity Indicator](#28-off-board-pin-activity-indicator) | Visual cue on the board when a pin the script uses isn't exposed on the current board visual | [ ]    |
 | 29 | [Custom Domain for AI Search Instance](#29-custom-domain-for-ai-search-instance) | Replace the third-party hosted URL in `ai-search.html` and `mcp/server-card.json` with a `search.devicesdk.com` CNAME (blocked on upstream support) | [ ]    |
-| 30 | [Dynamic Worker ServiceStub Serialization Blocker](#30-dynamic-worker-servicestub-serialization-blocker) | User-script `env.DEVICE.sendCommand()` throws `DataCloneError: ServiceStub serialization requires the 'experimental' compat flag` under Worker Loader. Cloudflare rejects the `experimental` flag in production deploys, so the whole user-script dispatch pipeline is dead until we refactor or the flag graduates. | [ ]    |
+| 30 | [Dynamic Worker ServiceStub Serialization Blocker](#30-dynamic-worker-servicestub-serialization-blocker) | ~~User-script `env.DEVICE.sendCommand()` throws `DataCloneError: ServiceStub serialization requires the 'experimental' compat flag` under Worker Loader.~~ **Resolved** — root cause was `.bind()` on an RPC stub method in `classProxy.ts`, which the runtime interpreted as a remote method call. Fix: drop the `.bind(target)` and return the stub method reference directly. | [x]    |
 
 ---
 
@@ -598,9 +598,12 @@ The hosted AI Search instance URL (`https://b055c14c-…search.ai.cloudflare.com
 
 ### 30. Dynamic Worker ServiceStub Serialization Blocker
 
-**Priority**: Critical — user scripts are currently non-functional in production.
+**Status**: ✅ Resolved 2026-04-28.
+**Resolution**: One-line fix in `classProxy.ts`. The `safeDevice` Proxy was returning `target[prop].bind(target)` — but `publicEnv.DEVICE` is an RPC stub, not a JS object, so the runtime treated `.bind` as a remote method named `"bind"` and tried to ServiceStub-serialize the stub argument. Returning `target[prop]` directly (without `.bind`) fixes it. Confirmed by Cloudflare runtime team and verified end-to-end against the production minimum repro at `https://servicestub-repro.huckye.workers.dev/`.
+
+**Original priority**: Critical — user scripts were non-functional in production.
 **Packages affected**: `apps/api`
-**Files**: `apps/api/src/durableObjects/lib/device.ts`, `apps/api/src/durableObjects/lib/classProxy.ts`, `apps/api/src/durableObjects/lib/deviceSender.ts`
+**Files**: `apps/api/src/durableObjects/lib/classProxy.ts:54`
 
 #### Symptom
 

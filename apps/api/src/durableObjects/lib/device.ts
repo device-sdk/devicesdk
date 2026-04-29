@@ -7,6 +7,7 @@ import type {
 import { z } from "zod";
 import {
 	LOG_CLEANUP_INTERVAL,
+	LOG_CLEANUP_MIN_INTERVAL_MS,
 	LOG_MAX_STORED,
 	LOG_MESSAGE_MAX_LENGTH,
 	LOG_RETENTION_MS,
@@ -101,6 +102,15 @@ export class BaseDevice extends DurableObject<Env> {
 	private _messageCountToday = 0;
 	private _messageCountDate = ""; // "YYYY-MM-DD" UTC
 	private _messageLimitNotified = false; // Avoid sending duplicate rate_limit messages
+
+	// In-memory tristate: null = unknown (post-hibernation), true/false = cached
+	// answer for "are there any cron schedules?". Lets alarm() skip the
+	// CRON_STORAGE_KEY read once we've confirmed there are none.
+	private _hasCrons: boolean | null = null;
+
+	// In-memory throttle for the device_logs cleanup query, which can scan up
+	// to LOG_MAX_STORED rows per fire. Reset on DO eviction.
+	private _lastLogCleanupAt = 0;
 
 	// Cached user worker stub, keyed by workerId (project:device:version).
 	// A new script deploy bumps versionId → workerId → cache miss → rebuild.
@@ -540,19 +550,40 @@ export class BaseDevice extends DurableObject<Env> {
 			return;
 		}
 
+		// Parse before checkMessageLimit so we can early-exit on `ping` keepalive
+		// frames without touching DO storage. A ping previously cost ~7 row reads
+		// (restoreMessageCount + getDeviceMeta + enqueueUserWorkerEvent + the
+		// alarm-fire that follows); short-circuiting drops that to 0.
+		let parsed: ReturnType<typeof DeviceMessageSchema.safeParse>;
+		try {
+			const raw = JSON.parse(data);
+			parsed = DeviceMessageSchema.safeParse(raw);
+		} catch (_error) {
+			console.error("Failed to parse message from device:", {
+				data: data,
+				error: {
+					name: (_error as Error).name,
+					message: (_error as Error).message,
+					stack: (_error as Error).stack,
+				},
+			});
+			return;
+		}
+		if (!parsed.success) {
+			console.error("Invalid device message:", parsed.error.message);
+			return;
+		}
+		// Keepalive — never count toward daily limit, never wake user worker.
+		// Checked against the loose-typed schema (type: z.string()) before the
+		// cast to DeviceResponse, which doesn't include "ping" as a variant.
+		if (parsed.data.type === "ping") return;
+		const message = parsed.data as DeviceResponse;
+
 		// Check daily message limit
 		const limitExceeded = await this.checkMessageLimit(_ws);
 		if (limitExceeded) return;
 
 		try {
-			const raw = JSON.parse(data);
-			const parsed = DeviceMessageSchema.safeParse(raw);
-			if (!parsed.success) {
-				console.error("Invalid device message:", parsed.error.message);
-				return;
-			}
-			const message = parsed.data as DeviceResponse;
-
 			// Handle device connect message
 			if (message.type === "device_connected") {
 				// Defer onDeviceConnect + cron initialization to the next alarm
@@ -589,7 +620,7 @@ export class BaseDevice extends DurableObject<Env> {
 				await this.enqueueUserWorkerEvent({ kind: "message", message });
 			}
 		} catch (_error) {
-			console.error("Failed to parse message from device:", {
+			console.error("Failed to dispatch device message:", {
 				data: data,
 				error: {
 					name: (_error as Error).name,
@@ -898,6 +929,7 @@ export class BaseDevice extends DurableObject<Env> {
 			// No crons defined — clear any previously stored schedule and cancel any pending alarm
 			await this.ctx.storage.delete(CRON_STORAGE_KEY);
 			await this.ctx.storage.deleteAlarm();
+			this._hasCrons = false;
 			return;
 		}
 
@@ -932,10 +964,12 @@ export class BaseDevice extends DurableObject<Env> {
 			// don't keep firing with now-invalid expressions.
 			await this.ctx.storage.delete(CRON_STORAGE_KEY);
 			await this.ctx.storage.deleteAlarm();
+			this._hasCrons = false;
 			return;
 		}
 
 		await this.ctx.storage.put(CRON_STORAGE_KEY, storage);
+		this._hasCrons = true;
 
 		await this.ctx.storage.setAlarm(earliestFireTime(storage));
 	}
@@ -954,22 +988,36 @@ export class BaseDevice extends DurableObject<Env> {
 		// can't be invoked from a Hibernation-API event handler.
 		// Reuse the returned worker below to avoid a second LOADER.get() call
 		// in this same alarm tick.
+		// Any new event enqueued during drain will arm its own alarm via
+		// enqueueUserWorkerEvent (see device.ts setAlarm there), so we don't
+		// need to re-read PENDING_USER_EVENTS_KEY here just to detect that.
 		const drainedWorker = await this.drainPendingUserWorkerEvents();
 
-		// If more events arrived while we were draining, ensure the alarm
-		// fires again to pick them up.
-		const stillPending = await this.ctx.storage.get<PendingUserEvent[]>(
-			PENDING_USER_EVENTS_KEY,
-		);
-		if (stillPending && stillPending.length > 0) {
-			const currentAlarm = await this.ctx.storage.getAlarm();
-			const soon = Date.now() + 50;
-			if (currentAlarm === null || currentAlarm > soon) {
-				await this.ctx.storage.setAlarm(soon);
+		// Skip the cron-storage read entirely on devices we already know have
+		// no crons — most devices fall here. _hasCrons is null after wake from
+		// hibernation, so the first alarm post-wake still pays for one read.
+		if (this._hasCrons === false) {
+			let legacyWorker = drainedWorker;
+			if (!legacyWorker) {
+				try {
+					legacyWorker = await this.getOrCreateUserWorker();
+				} catch (err) {
+					console.error("Worker unavailable during alarm (legacy path):", err);
+					return;
+				}
 			}
+			if (legacyWorker?.onAlarm) {
+				try {
+					await legacyWorker.onAlarm();
+				} catch (error) {
+					console.error("Error in user worker onAlarm:", error);
+				}
+			}
+			return;
 		}
 
 		const schedules = await this.ctx.storage.get<CronStorage>(CRON_STORAGE_KEY);
+		this._hasCrons = !!(schedules && Object.keys(schedules).length > 0);
 
 		if (!schedules || Object.keys(schedules).length === 0) {
 			// No cron schedules. Only fetch a worker if we didn't already
@@ -1090,11 +1138,13 @@ export class BaseDevice extends DurableObject<Env> {
 		if (Object.keys(updated).length > 0) {
 			await this.ctx.storage.put(CRON_STORAGE_KEY, updated);
 			await this.ctx.storage.setAlarm(earliestFireTime(updated));
+			this._hasCrons = true;
 		} else {
 			// All crons were removed — clear stored schedule and cancel the
 			// now-orphaned alarm so it doesn't fire a ghost wake-up.
 			await this.ctx.storage.delete(CRON_STORAGE_KEY);
 			await this.ctx.storage.deleteAlarm();
+			this._hasCrons = false;
 		}
 	}
 
@@ -1182,10 +1232,17 @@ export class BaseDevice extends DurableObject<Env> {
 			created_at: now,
 		});
 		this.logWriteCount++;
-		if (this.logWriteCount % LOG_CLEANUP_INTERVAL === 0) {
+		// Throttle cleanup by both write count and wall clock — the overflow
+		// DELETE scans up to LOG_MAX_STORED rows, so running it every 10 writes
+		// burned DO rows-read on chatty scripts. Both gates must pass.
+		if (
+			this.logWriteCount % LOG_CLEANUP_INTERVAL === 0 &&
+			now - this._lastLogCleanupAt > LOG_CLEANUP_MIN_INTERVAL_MS
+		) {
+			this._lastLogCleanupAt = now;
 			this.ctx.storage.sql.exec(
 				"DELETE FROM device_logs WHERE created_at < ?",
-				Date.now() - LOG_RETENTION_MS,
+				now - LOG_RETENTION_MS,
 			);
 			this.ctx.storage.sql.exec(
 				`DELETE FROM device_logs WHERE id NOT IN (

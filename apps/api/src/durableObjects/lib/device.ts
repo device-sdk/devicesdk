@@ -102,6 +102,14 @@ export class BaseDevice extends DurableObject<Env> {
 	private _messageCountDate = ""; // "YYYY-MM-DD" UTC
 	private _messageLimitNotified = false; // Avoid sending duplicate rate_limit messages
 
+	// Cached user worker stub, keyed by workerId (project:device:version).
+	// A new script deploy bumps versionId → workerId → cache miss → rebuild.
+	// DO eviction discards this naturally; the next call rebuilds.
+	private cachedUserWorker: {
+		workerId: string;
+		worker: IUserDeviceWorker;
+	} | null = null;
+
 	// Device metadata from connection
 	private deviceMeta?: {
 		userId: string;
@@ -321,6 +329,15 @@ export class BaseDevice extends DurableObject<Env> {
 		// script deploy sets a fresh versionId → new workerId.
 		const workerId = `${projectId}:${deviceId}:${versionId}`;
 
+		// Reuse the resolved stub for the lifetime of this DO instance. Even
+		// with a stable workerId, each LOADER.get() + getEntrypoint().getTarget()
+		// call counts toward the runtime's "Too many concurrent dynamic workers"
+		// limit, so dispatching N events per minute (alarm drains, RPC, cron)
+		// without caching trips the limit and stalls onDeviceConnect/onMessage.
+		if (this.cachedUserWorker?.workerId === workerId) {
+			return this.cachedUserWorker.worker;
+		}
+
 		// uploadScript / getScript / deployVersion all address R2 with
 		// /{userId}/{projectSlug}/{deviceSlug}/{versionId}.js. The DO receives
 		// UUIDs for projectId/deviceId from deviceConnect, which do not match
@@ -332,11 +349,9 @@ export class BaseDevice extends DurableObject<Env> {
 		const r2DeviceKey = deviceSlug ?? deviceId;
 
 		try {
-			// TODO: There is a known bug (EW-9769) when a dynamic worker is created in a DO in one request
-			// and then used in a different request. The workaround is to call LOADER.get() again immediately
-			// before use instead of reusing the cached worker. This will be fixed soon, after which we can
-			// go back to caching the worker instance.
-			// Get the dynamic worker using the loader
+			// EW-9769 (cross-request stub invalidation) is fixed in the runtime,
+			// so a single LOADER.get() per DO lifetime is enough; the resolved
+			// stub is stored in this.cachedUserWorker above.
 			const worker = this.env.LOADER.get(workerId, async () => {
 				const scriptKey = `${userId}/${r2ProjectKey}/${r2DeviceKey}/${versionId}.js`;
 				const scriptObject = await this.env.SCRIPTS.get(scriptKey);
@@ -393,7 +408,9 @@ export class BaseDevice extends DurableObject<Env> {
 			// IMPORTANT: getTarget() returns a Promise because it's an RPC call
 			const target = await entrypointClass.getTarget();
 
-			return target as unknown as IUserDeviceWorker;
+			const resolved = target as unknown as IUserDeviceWorker;
+			this.cachedUserWorker = { workerId, worker: resolved };
+			return resolved;
 		} catch (error) {
 			console.error("Failed to get/create user worker:", {
 				error: {

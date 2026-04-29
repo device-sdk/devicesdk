@@ -1,5 +1,12 @@
 # Troubleshooting Log
 
+### `onDeviceConnect` silently never runs; device pings keep flowing; OLED stays in default-off (looks black)
+**Date**: 2026-04-29
+**Question/Problem**: After the alarm-based dispatch fix (PR #85), a device could reconnect, send `device_connected`, and pings would round-trip — but `onDeviceConnect` never executed. No `[Dx] enter` / `i2c_configure` / `display_update` logs appeared. The OLED stayed dark because `init: true` was never sent, and the SSD1306 power-on default is `DISPLAY_OFF`. `wrangler tail` showed the alarm dispatcher repeatedly failing with `Error: Too many concurrent dynamic workers` at `_BaseDevice.getOrCreateUserWorker`, then the connect event being requeued through the 1→2→4→8→16 s backoff and finally dropped at `MAX_USER_EVENT_ATTEMPTS`.
+**Root Cause**: `getOrCreateUserWorker` called `this.env.LOADER.get(workerId, factory).getEntrypoint("ProxyEntrypoint").getTarget()` on every dispatch — every alarm tick, every inter-device RPC, every cron firing, every `onDeviceDisconnect`. Even with a stable `workerId`, each call counted as a new live instance reference against the runtime's "concurrent dynamic workers" budget. The pre-existing `// TODO: EW-9769 …` comment had explicitly disabled stub caching as a workaround for a now-fixed runtime bug, leaving the call rate uncapped.
+**Solution**: Cache the resolved stub in a private `cachedUserWorker: { workerId, worker }` field on the DO and return early when `workerId` matches. `versionId` is part of `workerId`, so a script redeploy invalidates the cache automatically; DO eviction discards it naturally. See `apps/api/src/durableObjects/lib/device.ts:88` (field) and `getOrCreateUserWorker` (cache check + populate).
+**Rule**: When `LOADER.get()` is invoked from a hot path inside a Durable Object, cache the resolved entrypoint stub on the DO instance. Stable `workerId` is necessary but not sufficient — repeated `LOADER.get` + `getTarget` calls still trip the rate limit.
+
 ### `DataCloneError: ServiceStub serialization requires the 'experimental' compat flag` from a Worker Loader child
 **Date**: 2026-04-28
 **Question/Problem**: Inside a Worker Loader-spawned child worker, calling a method on a parent-side `WorkerEntrypoint` binding throws `DataCloneError: ServiceStub serialization requires the 'experimental' compat flag.` The `experimental` compatibility flag is rejected by the Workers control plane on production deploys, so it cannot be enabled.

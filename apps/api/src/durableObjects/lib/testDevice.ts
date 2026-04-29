@@ -212,4 +212,32 @@ export class TestDevice extends BaseDevice {
 		}
 		return super.getOrCreateUserWorker();
 	}
+
+	/**
+	 * Drives webSocketMessage with a synthetic "device"-tagged WebSocket so
+	 * tests can exercise the dispatch path without standing up a real WS
+	 * upgrade (which miniflare doesn't fully support). Returns the post-call
+	 * snapshot in the same RPC so the ASAP alarm can't race the inspection.
+	 *
+	 * Side effects (alarm + pending queue) are cleaned up before returning
+	 * so vitest-pool-workers' isolated-storage cleanup can run cleanly.
+	 */
+	async testHandleDeviceMessage(data: string): Promise<{
+		pending: PendingUserEvent[];
+		alarmTime: number | null;
+	}> {
+		const [, server] = Object.values(new WebSocketPair());
+		this.ctx.acceptWebSocket(server, ["device"]);
+		await this.webSocketMessage(server, data);
+		const pending = await this.getPendingUserEvents();
+		const alarmTime = await this.ctx.storage.getAlarm();
+		await this.ctx.storage.deleteAlarm();
+		await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
+		try {
+			server.close(1000, "test cleanup");
+		} catch {
+			/* already closed */
+		}
+		return { pending, alarmTime };
+	}
 }

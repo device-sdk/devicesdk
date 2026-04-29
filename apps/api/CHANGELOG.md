@@ -1,5 +1,14 @@
 # @devicesdk/api
 
+## 0.2.7
+
+### Patch Changes
+
+- 1d0fc62: Fix `DataCloneError: ServiceStub serialization requires the 'experimental' compat flag` thrown by user scripts on every `env.DEVICE.<method>(...)` call. The `safeDevice` Proxy in `classProxy.ts` was returning `target[prop].bind(target)`, but `publicEnv.DEVICE` is an RPC stub — the runtime interpreted `.bind` as a remote method call rather than `Function.prototype.bind`. Returning the property reference directly avoids the serialization path. User scripts can now drive devices end-to-end.
+- 63100ef: Defer user-worker `onDeviceConnect` and unsolicited `onMessage` invocations to a Durable Object alarm instead of running them inside the Hibernation-API `webSocketMessage` handler. Invoking the Worker Loader (`getTarget()`) from the hibernation handler hangs in production — scripts never ran on device connect, the OLED never rendered, `gpio_state_changed` events were dropped, and no error ever surfaced. Events are now persisted to a `__internal:pending_user_events` queue and drained from `alarm()`, which runs in a fresh invocation context where Worker Loader works as expected.
+- 3d81d40: Cut Durable Object `rows_read` overhead on the device WebSocket hot path. Each idle keepalive ping previously cost ~7 storage row reads — `restoreMessageCount` (2) + `getDeviceMeta` (1) + `enqueueUserWorkerEvent` (1) + the immediately-following alarm fire (3) — burning the daily quota on the free tier with one connected device. This change short-circuits the `webSocketMessage` handler when `message.type === "ping"` so keepalives no longer touch storage, removes a redundant `PENDING_USER_EVENTS_KEY` re-read inside `alarm()` (any new event enqueued during drain already arms its own alarm), caches a `_hasCrons` tristate so devices without cron schedules skip the `CRON_STORAGE_KEY` read on every alarm, and throttles the `device_logs` overflow-cleanup query (which scans up to `LOG_MAX_STORED` rows) from "every 10 writes" to "every 100 writes AND no more than once per 6 hours".
+- 0ce8958: Cache the user-worker stub on the Device Durable Object instance so that repeated `LOADER.get()` + `getEntrypoint().getTarget()` calls don't trip the runtime's "Too many concurrent dynamic workers" limit. Without caching, every alarm drain, inter-device RPC, and cron dispatch resolved a fresh stub for the same `workerId`; under normal traffic this caused `getOrCreateUserWorker` to fail with `Too many concurrent dynamic workers`, the alarm queue to retry through 1→2→4→8→16 s backoff, and `onDeviceConnect` / `onMessage` to be silently dropped after `MAX_USER_EVENT_ATTEMPTS`. The cache is keyed by `${projectId}:${deviceId}:${versionId}`, so a script redeploy invalidates it automatically; DO eviction discards it naturally.
+
 ## 0.2.6
 
 ### Patch Changes

@@ -134,6 +134,11 @@ app.use("*", async (c, next) => {
 app.get(
 	"/v1/auth/google",
 	async (c, next) => {
+		if (!c.env.GOOGLE_ID || !c.env.GOOGLE_SECRET) {
+			throw new Error(
+				"Google OAuth not configured: GOOGLE_ID and GOOGLE_SECRET must be set",
+			);
+		}
 		let authMiddleware: MiddlewareHandler;
 		if (c.env.ENV === "local") {
 			authMiddleware = googleAuth({

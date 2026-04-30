@@ -110,7 +110,8 @@ export type DisplayUpdateCommand = Command<
 		height: number;
 		// Columns 0..width-1 in the framebuffer map to columnOffset..columnOffset+width-1 in
 		// controller RAM. Needed for glass sizes where the visible window is not at column 0
-		// (e.g. the 0.42" 72x40 SSD1306 boards, which sit at column offset 30).
+		// (e.g. the 0.42" 72x40 SSD1306 boards, which sit at column offset 28 on most FN4
+		// boards — 30 and 32 also exist).
 		columnOffset?: number;
 		pageOffset?: number;
 		init?: boolean;

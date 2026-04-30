@@ -5,11 +5,12 @@ export default defineConfig({
   devices: {
     "device": {
       // main: "./src/devices/device.ts",
-      main: "./src/devices/button.ts",
+      // main: "./src/devices/button.ts",
+      main: "./src/devices/door-sensor.ts",
       entrypoint: "MyDevice",
       name: "Main Device",
       //deviceType: 'pico2-w',
-      deviceType: 'esp32c61',
+      deviceType: 'esp32c3',
       wifi: {
         ssid: 'Nau',
         password: '12345679'

@@ -11,7 +11,9 @@ export interface SSD1306Options extends I2cDeviceOptions {
 	height?: number;
 	controller?: DisplayController;
 	// For glasses whose visible window is offset from RAM column/page 0 — e.g. the
-	// 0.42" 72x40 panels, which use columnOffset: 30. Defaults to 0 (standard 128x64).
+	// 0.42" 72x40 panels, which use columnOffset: 28 on most FN4 boards (and 30/32 on
+	// other variants — verify with your board, see docs/hardware/esp32-c3.md).
+	// Defaults to 0 (standard 128x64).
 	columnOffset?: number;
 	pageOffset?: number;
 }

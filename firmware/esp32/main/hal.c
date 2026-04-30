@@ -13,6 +13,7 @@ void iotkit_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) { (void)pin;
 void iotkit_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) { (void)pin; (void)frequency; (void)duty_cycle; }
 bool iotkit_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uint32_t frequency) { (void)bus; (void)sda_pin; (void)scl_pin; (void)frequency; return true; }
 i2c_scan_result_t iotkit_hal_i2c_scan(uint8_t bus) { (void)bus; i2c_scan_result_t r = {0}; return r; }
+bool iotkit_hal_i2c_probe(uint8_t bus, uint8_t address) { (void)bus; (void)address; return false; }
 bool iotkit_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len) { (void)bus; (void)address; (void)data; (void)len; return true; }
 int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t len, int reg) { (void)bus; (void)address; (void)buffer; (void)len; (void)reg; return 0; }
 float iotkit_hal_get_temperature(void) { return 25.0f; }
@@ -390,6 +391,11 @@ i2c_scan_result_t iotkit_hal_i2c_scan(uint8_t bus) {
     }
     ESP_LOGI(TAG, "I2C scan complete, found %d devices", result.count);
     return result;
+}
+
+bool iotkit_hal_i2c_probe(uint8_t bus, uint8_t address) {
+    if (bus > 1 || !i2c_bus_handles[bus]) return false;
+    return i2c_master_probe(i2c_bus_handles[bus], address, 50) == ESP_OK;
 }
 
 bool iotkit_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len) {

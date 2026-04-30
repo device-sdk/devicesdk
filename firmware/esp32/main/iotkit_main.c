@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
@@ -16,6 +17,7 @@
 
 #include "hal.h"
 #include "config.h"
+#include "display.h"
 #include "websocket_handler.h"
 #include "command_queue.h"
 #include "response_queue.h"
@@ -374,6 +376,7 @@ static void wifi_init_sta(void) {
 
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "connected to ap SSID:%s", wifi_ssid);
+        display_boot_text("WiFi");
         iotkit_hal_blink_led(2);
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s", wifi_ssid);
@@ -388,6 +391,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
         case WEBSOCKET_EVENT_CONNECTED:
             ESP_LOGI(TAG, "WEBSOCKET_EVENT_CONNECTED");
             ws_connected = true;
+            display_boot_text("Server");
             iotkit_hal_blink_led(3);
             {
                 const char *msg = "{\"type\":\"device_connected\"}";
@@ -457,14 +461,17 @@ static void websocket_task(void *pvParameters) {
 
     char uri[512];
     char auth_header[256];
-    snprintf(uri, sizeof(uri), "wss://%s%s", api_host, ws_path);
+    // Local dev: api_host is `<lan-ip>:<port>` → plain WS. Production hostnames
+    // never include a port → TLS.
+    const bool use_tls = (strchr(api_host, ':') == NULL);
+    snprintf(uri, sizeof(uri), "%s://%s%s", use_tls ? "wss" : "ws", api_host, ws_path);
     snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s\r\n", api_token);
 
     esp_websocket_client_config_t websocket_cfg = {
         .uri = uri,
         .headers = auth_header,
-        .transport = WEBSOCKET_TRANSPORT_OVER_SSL,
-        .crt_bundle_attach = esp_crt_bundle_attach,
+        .transport = use_tls ? WEBSOCKET_TRANSPORT_OVER_SSL : WEBSOCKET_TRANSPORT_OVER_TCP,
+        .crt_bundle_attach = use_tls ? esp_crt_bundle_attach : NULL,
         // Incoming server frames can exceed the 1024-byte default
         // (display_update framebuffers, script env blobs, etc.).
         .buffer_size = 2048,
@@ -530,6 +537,10 @@ void app_main(void) {
     ESP_ERROR_CHECK(ret);
 
     iotkit_hal_init();
+    // Probe + init the on-board OLED (FN4 / 0.42" boards). NACK on boards
+    // without one (DevKitM-1) → boot text becomes a no-op for the rest of boot.
+    display_boot_init();
+    display_boot_text("Booting");
     iotkit_hal_blink_led(1);
 
     // Initialize inter-task queues

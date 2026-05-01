@@ -1,6 +1,7 @@
 ---
-title: "Cloudflare WAF: edge rate limiting"
-description: "Manual procedure for the API zone's edge rate-limit rule."
+title: 'Cloudflare WAF: edge rate limiting'
+description: Manual procedure for the API zone's edge rate-limit rule.
+social_image: /og-images/docs/operations/cloudflare-waf.png
 ---
 
 # Edge rate limiting (Cloudflare WAF)

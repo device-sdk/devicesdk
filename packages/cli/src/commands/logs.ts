@@ -194,10 +194,7 @@ function openSession(state: SessionState): void {
 		}
 
 		const delay = state.reconnectDelay;
-		state.reconnectDelay = Math.min(
-			state.reconnectDelay * 2,
-			RECONNECT_MAX_MS,
-		);
+		state.reconnectDelay = Math.min(state.reconnectDelay * 2, RECONNECT_MAX_MS);
 		setTimeout(() => openSession(state), delay);
 	};
 

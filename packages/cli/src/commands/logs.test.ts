@@ -209,7 +209,10 @@ describe("logs command (WS)", () => {
 				}),
 			),
 		);
-		ws.emit("message", Buffer.from(JSON.stringify({ event: "history_complete" })));
+		ws.emit(
+			"message",
+			Buffer.from(JSON.stringify({ event: "history_complete" })),
+		);
 
 		const err = (await captured) as Error;
 		expect(err).toBeInstanceOf(Error);
@@ -226,7 +229,10 @@ describe("logs command (WS)", () => {
 		await new Promise((r) => setTimeout(r, 0));
 		const ws = wsInstances[0];
 		ws.emit("open");
-		ws.emit("message", Buffer.from(JSON.stringify({ event: "history_complete" })));
+		ws.emit(
+			"message",
+			Buffer.from(JSON.stringify({ event: "history_complete" })),
+		);
 
 		const err = (await captured) as Error;
 		expect(err.message).toMatch(/exit:0/);

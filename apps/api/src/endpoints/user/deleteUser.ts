@@ -1,5 +1,6 @@
 import { contentJson } from "chanfana";
 import { z } from "zod";
+import { invalidateAuthForCurrentRequest } from "../../foundation/authCache";
 import { BaseRoute } from "../../foundation/baseRoute";
 import { DELETION_GRACE_PERIOD_MS } from "../../foundation/consts";
 import type { AppContext } from "../../types";
@@ -51,6 +52,12 @@ export class DeleteUser extends BaseRoute {
 		await c.env.DB.prepare("DELETE FROM user_sessions WHERE user_id = ?")
 			.bind(user.id)
 			.run();
+
+		// Invalidate the auth cache for the current request's token so the
+		// next request (in this colo) returns 403 instead of authenticating
+		// from a stale cache. Cross-colo invalidation eats the 60 s TTL — the
+		// 7-day grace period dwarfs that, so it's an acceptable trade-off.
+		await invalidateAuthForCurrentRequest(c);
 
 		return c.json({
 			success: true,

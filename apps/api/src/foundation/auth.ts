@@ -4,6 +4,12 @@ import type { Next } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import type { AppContext, tableUser, tableUserSessions } from "../types";
 import {
+	type CachedAuthUser,
+	getCachedUser,
+	invalidateAuthToken,
+	setCachedUser,
+} from "./authCache";
+import {
 	DELETION_GRACE_PERIOD_MS,
 	SESSION_COOKIE_NAME,
 	SESSION_DURATION_MS,
@@ -122,6 +128,21 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		);
 	}
 
+	// Try the auth cache (caches.default → KV) before D1. Suspension /
+	// deletion gates still run because the cached value carries those fields.
+	// `last_used_at` updates only on cache miss (effectively at most once per
+	// TTL per token), which is acceptable accuracy for a usage timestamp.
+	const cached = await getCachedUser(c, token);
+	if (cached) {
+		const suspendedResponse = checkSuspension(cached);
+		if (suspendedResponse) return suspendedResponse;
+		const deletionResponse = checkDeletionPending(cached);
+		if (deletionResponse) return deletionResponse;
+		c.set("user", cached as tableUser);
+		await next();
+		return;
+	}
+
 	// Check if it's a CLI token (dsdk_ prefix)
 	if (token.startsWith("dsdk_") && !token.startsWith("dsdk_refresh_")) {
 		const tokenHash = await hashToken(token);
@@ -172,18 +193,22 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		const cliDeletionResponse = checkDeletionPending(cliToken);
 		if (cliDeletionResponse) return cliDeletionResponse;
 
-		c.set("user", {
+		const cliUser: CachedAuthUser = {
 			id: cliToken.user_id,
 			name: cliToken.name,
 			email: cliToken.email,
 			picture: cliToken.picture,
 			verified_email: cliToken.verified_email,
 			plan: cliToken.plan,
+			suspended_at: cliToken.suspended_at,
+			deletion_requested_at: cliToken.deletion_requested_at,
 			// CLI tokens are issued to users who have already onboarded; default to 1
 			// so the wizard never appears in CLI-authenticated contexts.
 			onboarding_completed: cliToken.onboarding_completed ?? 1,
 			created_at: cliToken.user_created_at,
-		});
+		};
+		c.set("user", cliUser as tableUser);
+		c.executionCtx.waitUntil(setCachedUser(c, token, cliUser));
 		await next();
 		return;
 	}
@@ -269,6 +294,9 @@ export async function authenticateUser(c: AppContext, next: Next) {
 			if (legacyDeletion) return legacyDeletion;
 
 			c.set("user", legacyTokenUser.results);
+			c.executionCtx.waitUntil(
+				setCachedUser(c, token, legacyTokenUser.results),
+			);
 			await next();
 			return;
 		}
@@ -280,6 +308,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		if (tokenDeletion) return tokenDeletion;
 
 		c.set("user", tokenUser.results);
+		c.executionCtx.waitUntil(setCachedUser(c, token, tokenUser.results));
 		await next();
 		return;
 	}
@@ -291,6 +320,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 	if (sessionDeletion) return sessionDeletion;
 
 	c.set("user", session.results);
+	c.executionCtx.waitUntil(setCachedUser(c, token, session.results));
 
 	await next();
 }
@@ -403,6 +433,10 @@ export async function handleLogout(c: AppContext) {
 				},
 			})
 			.execute();
+		// Drop the auth cache entry in the local colo so the next request goes
+		// to D1 (and 401s, since we just deleted the session). Cross-colo
+		// logout takes up to one cache TTL.
+		await invalidateAuthToken(c, token);
 	}
 
 	if (c.env.ENV === "local") {

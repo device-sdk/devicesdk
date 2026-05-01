@@ -1,5 +1,6 @@
 import { contentJson } from "chanfana";
 import { z } from "zod";
+import { invalidateAuthForCurrentRequest } from "../../foundation/authCache";
 import { BaseRoute } from "../../foundation/baseRoute";
 import type { AppContext } from "../../types";
 
@@ -28,6 +29,9 @@ export class CompleteOnboarding extends BaseRoute {
 		)
 			.bind(user.id)
 			.run();
+
+		// Drop the auth cache so the next /v1/user/me read reflects the flip.
+		await invalidateAuthForCurrentRequest(c);
 
 		return c.json({ success: true });
 	}

@@ -130,8 +130,17 @@ function openSession(state: SessionState): void {
 				exitCode: EXIT.GENERIC,
 				reason: `Watcher upgrade failed: ${status} ${res.statusMessage ?? ""}${headerHint}\n  Run \`devicesdk login\` to re-authenticate.`,
 			});
+		} else if (status === 429) {
+			// Rate-limited at the edge or by the cross-route block list. Retrying
+			// from the same client just deepens the burn that triggered the block
+			// in the first place — terminate and let the operator decide when
+			// to come back. Honour `Retry-After` in the surfaced message.
+			finish(state, {
+				exitCode: EXIT.GENERIC,
+				reason: `Rate limited: ${status} ${res.statusMessage ?? ""}${headerHint}\n  Wait for the period above to elapse before retrying.`,
+			});
 		} else {
-			// Non-auth failure — let close fire and reconnect path handle it.
+			// Non-auth, non-rate-limit failure — let close fire and reconnect path handle it.
 			console.error(
 				`✗ Watcher upgrade failed: ${status} ${res.statusMessage ?? ""}${headerHint}`,
 			);

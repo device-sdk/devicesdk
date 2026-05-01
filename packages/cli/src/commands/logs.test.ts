@@ -297,4 +297,57 @@ describe("logs command (WS)", () => {
 		const err = (await captured) as Error;
 		expect(err.message).toMatch(/exit:0/);
 	});
+
+	it("tail: 429 upgrade rejection terminates immediately without reconnecting", async () => {
+		const captured = logs("proj", "dev", { tail: true, lines: 10 }).catch(
+			(e: Error) => e,
+		);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(wsInstances).toHaveLength(1);
+		const ws = wsInstances[0];
+
+		ws.emit(
+			"unexpected-response",
+			{},
+			{
+				statusCode: 429,
+				statusMessage: "Too Many Requests",
+				headers: { "retry-after": "60" },
+			},
+		);
+
+		const err = (await captured) as Error;
+		expect(err).toBeInstanceOf(Error);
+		expect(err.message).toMatch(/exit:1/);
+		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toMatch(
+			/Rate limited:.*429.*Retry-After: 60/s,
+		);
+		// Crucially, no reconnect attempt was made — retrying from the same
+		// client is what the 429 is asking us NOT to do.
+		expect(wsInstances).toHaveLength(1);
+	});
+
+	it("non-tail: 429 upgrade rejection terminates immediately", async () => {
+		const captured = logs("proj", "dev", { tail: false, lines: 50 }).catch(
+			(e: Error) => e,
+		);
+		await new Promise((r) => setTimeout(r, 0));
+		const ws = wsInstances[0];
+
+		ws.emit(
+			"unexpected-response",
+			{},
+			{
+				statusCode: 429,
+				statusMessage: "Too Many Requests",
+				headers: { "retry-after": "30" },
+			},
+		);
+
+		const err = (await captured) as Error;
+		expect(err.message).toMatch(/exit:1/);
+		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toContain(
+			"Rate limited",
+		);
+	});
 });

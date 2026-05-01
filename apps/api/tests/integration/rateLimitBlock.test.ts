@@ -104,4 +104,29 @@ describe("Rate-limit breach promotes to cross-route block", () => {
 			.first<{ cnt: number }>();
 		expect(after?.cnt).toBe(beforeCount); // No new D1 row inserted.
 	});
+
+	it("does not run on non-/logs routes (middleware is path-scoped)", async () => {
+		// Pre-fill the per-user rate-limit table to over-budget. If the
+		// middleware were still mounted globally, the next authenticated
+		// request to ANY route would 429. Scoped to /logs only, a request
+		// to /v1/user must succeed — and crucially, no block-list entry
+		// gets written either, because the middleware never runs.
+		const { maxRequests, windowMs } = TIER_LIMITS.free.apiRateLimit;
+		await seedRateLimits(maxRequests, windowMs);
+
+		const beforeBlock = await env.CACHE.get(BLOCK_KEY);
+		expect(beforeBlock).toBeNull();
+
+		const resp = await SELF.fetch("http://localhost/v1/user", {
+			headers: { Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}` },
+		});
+
+		// /v1/user/me is the user-router root — anything non-429 is fine here;
+		// what we're proving is the rate limiter didn't fire.
+		expect(resp.status).not.toBe(429);
+
+		// And no block was written, since the rate limiter never ran.
+		const afterBlock = await env.CACHE.get(BLOCK_KEY);
+		expect(afterBlock).toBeNull();
+	});
 });

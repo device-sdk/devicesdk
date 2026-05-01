@@ -65,7 +65,7 @@ describe.sequential("Logs endpoint", () => {
 			expect(json.error).toContain("watcher WebSocket");
 		});
 
-		it("still returns 404 for non-existent project (callers can distinguish wrong URL from deprecation)", async () => {
+		it("returns 410 even for non-existent project IDs (no D1 lookup performed)", async () => {
 			const resp = await SELF.fetch(
 				"http://localhost/v1/projects/non-existent/devices/log-device/logs",
 				{
@@ -76,31 +76,10 @@ describe.sequential("Logs endpoint", () => {
 				},
 			);
 
-			expect(resp.status).toBe(404);
-			const json = (await resp.json()) as {
-				success: boolean;
-				error: string;
-			};
-			expect(json.success).toBe(false);
-		});
-
-		it("still returns 404 for non-existent device", async () => {
-			const resp = await SELF.fetch(
-				"http://localhost/v1/projects/smart-home/devices/non-existent/logs",
-				{
-					method: "GET",
-					headers: {
-						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
-					},
-				},
-			);
-
-			expect(resp.status).toBe(404);
-			const json = (await resp.json()) as {
-				success: boolean;
-				error: string;
-			};
-			expect(json.success).toBe(false);
+			// The endpoint is deprecated; clients should migrate. The
+			// 404-vs-410 distinction was dropped to avoid spending D1 reads
+			// on a route that exists only to point at the watcher WS.
+			expect(resp.status).toBe(410);
 		});
 
 		it("still returns 401 without auth (auth runs before the 410)", async () => {

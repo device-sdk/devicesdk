@@ -13,9 +13,9 @@ Logs-quota runaway fix + layered rate-limit defense:
 - **@devicesdk/api**: when the per-user rate limit fires, also write a 1-hour cross-route block to `CACHE` so subsequent requests 429 immediately. Per-user rate limit is now scoped to `/logs` only (other routes are protected by tier limits inside their handlers and the WAF rule below).
 - **@devicesdk/cli (breaking)**: `devicesdk logs` and `devicesdk logs --tail` now use the watcher WebSocket exclusively. Both modes accept `--lines` and `--level`; the polling loop is gone. `--tail` reconnects with exponential backoff (1 s → 30 s) and bails with a non-zero exit code after 5 consecutive failures.
 - **@devicesdk/dashboard**: device logs panel migrates to WS-only. `useDeviceStream` accepts `{ backfillLimit, backfillLevel }` and exposes a `historyLoaded` ref; the panel shows a "Loading recent logs…" spinner until `history_complete` fires. The "Live" toggle and "Load More" button are removed — backfill + live are one stream.
-- **@devicesdk/website**: documents the manual Cloudflare WAF rate-limit rule under `docs/operations/cloudflare-waf.md` and the new auth-cache / block-list architecture in CLAUDE.md.
+- **@devicesdk/website**: documents the manual Cloudflare WAF rate-limit rule under `docs/internal/operations/cloudflare-waf.md` and the new auth-cache / block-list architecture in CLAUDE.md.
 
 **Manual deploy steps** (also in the PR description):
 
 1. KV namespace IDs are already in `apps/api/wrangler.jsonc` (created in this branch).
-2. Apply the WAF rule per `docs/operations/cloudflare-waf.md`.
+2. Apply the WAF rule per `docs/internal/operations/cloudflare-waf.md`.

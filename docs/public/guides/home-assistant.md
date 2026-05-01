@@ -1,6 +1,9 @@
 ---
 title: Home Assistant Integration
-description: Expose DeviceSDK devices as native entities in Home Assistant — sensors, switches, and lights that work with automations, dashboards, and voice assistants.
+description: >-
+  Expose DeviceSDK devices as native entities in Home Assistant — sensors,
+  switches, and lights that work with automations, dashboards, and voice
+  assistants.
 social_image: /og-images/docs/guides/home-assistant.png
 ---
 

@@ -1,6 +1,8 @@
 ---
 title: Emit State
-description: Publish structured state values from a device script so the dashboard, Home Assistant, and other watchers see them as entity updates.
+description: >-
+  Publish structured state values from a device script so the dashboard, Home
+  Assistant, and other watchers see them as entity updates.
 social_image: /og-images/docs/concepts/emit-state.png
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: Using SPI
-description: Communicate with SPI peripherals like displays, SD cards, and sensors
+description: 'Communicate with SPI peripherals like displays, SD cards, and sensors'
 social_image: /og-images/docs/guides/using-spi.png
 ---
 

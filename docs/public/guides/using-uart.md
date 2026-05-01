@@ -1,6 +1,8 @@
 ---
 title: Using UART
-description: Serial communication with GPS modules, Bluetooth adapters, and other peripherals
+description: >-
+  Serial communication with GPS modules, Bluetooth adapters, and other
+  peripherals
 social_image: /og-images/docs/guides/using-uart.png
 ---
 

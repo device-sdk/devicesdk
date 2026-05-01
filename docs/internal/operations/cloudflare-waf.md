@@ -1,10 +1,10 @@
 ---
-title: 'Cloudflare WAF: edge rate limiting'
-description: Manual procedure for the API zone's edge rate-limit rule.
-social_image: /og-images/docs/operations/cloudflare-waf.png
+social_image: /og-images/docs/internal/operations/cloudflare-waf.png
 ---
-
 # Edge rate limiting (Cloudflare WAF)
+
+> **Internal runbook.** Lives under `docs/internal/` and is **not** published to
+> the public docs site. Cloudflare references are allowed here.
 
 This is the **first layer of defense** against abusive request patterns on the
 DeviceSDK API. Rules apply at the Cloudflare edge — blocked requests never

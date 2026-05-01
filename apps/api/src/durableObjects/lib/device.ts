@@ -1315,7 +1315,7 @@ export class BaseDevice extends DurableObject<Env> {
 	 * silent device costs zero reads.
 	 *
 	 * **Defense in depth \u2014 even if a client tried to revive `/logs`:**
-	 *   1. Cloudflare WAF rate-limit on `/v1/*` (see `docs/operations/cloudflare-waf.md`).
+	 *   1. Cloudflare WAF rate-limit on `/v1/*` (see `docs/internal/operations/cloudflare-waf.md`).
 	 *   2. `userBlockListMiddleware` (see `foundation/userBlockList.ts`) \u2014
 	 *      tripping the per-route rate limit writes a 1 h block to KV that
 	 *      short-circuits subsequent requests at L1 cache (`caches.default`).

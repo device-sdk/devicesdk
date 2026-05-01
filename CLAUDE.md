@@ -175,9 +175,9 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 
 ## Public-Facing Content Guidelines
 
-- **Never mention Cloudflare, Cloudflare Workers, or any Cloudflare product names** (D1, R2, Durable Objects, KV as "Cloudflare KV", Wrangler, Cloudflare Pages) in any public-facing content — this includes the website (`apps/website/layouts/`, `apps/website/content/`), documentation (`docs/`), and any user-visible strings.
+- **Never mention Cloudflare, Cloudflare Workers, or any Cloudflare product names** (D1, R2, Durable Objects, KV as "Cloudflare KV", Wrangler, Cloudflare Pages) in any public-facing content — this includes the website (`apps/website/layouts/`, `apps/website/content/`), public documentation (`docs/public/`), and any user-visible strings.
 - DeviceSDK is a **managed platform**. Use generic infrastructure terms instead: "globally distributed runtime", "serverless runtime", "edge infrastructure", "managed platform".
-- Internal code, configs, and developer-only files (e.g., `wrangler.jsonc`, API source code, CLAUDE.md itself) may reference Cloudflare as needed.
+- Internal code, configs, and developer-only files (e.g., `wrangler.jsonc`, API source code, CLAUDE.md itself, **`docs/internal/`**) may reference Cloudflare as needed. The Hugo build mounts `docs/public/` only; nothing under `docs/internal/` is ever shipped to the public docs site.
 
 ## Anti-Redundancy Rules
 
@@ -194,7 +194,7 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 | Auth caching (TieredCache) | `apps/api/src/foundation/authCache.ts` |
 | Tiered cache (caches.default + KV) | `apps/api/src/foundation/tieredCache.ts` |
 | Cross-route block list middleware | `apps/api/src/foundation/userBlockList.ts` |
-| Edge rate-limit rule (Cloudflare WAF) | `docs/operations/cloudflare-waf.md` |
+| Edge rate-limit rule (Cloudflare WAF) | `docs/internal/operations/cloudflare-waf.md` |
 | Session constants | `apps/api/src/foundation/consts.ts` |
 | Script validation | `apps/api/src/foundation/scriptValidator.ts` |
 | Device reboot trigger | `apps/api/src/foundation/deviceReboot.ts` |

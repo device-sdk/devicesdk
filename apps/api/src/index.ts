@@ -194,7 +194,7 @@ app.use("*", async (c, next) => {
 // 4. Per-user rate limiting (plan-aware) — scoped to /logs only.
 // `/logs` is the only endpoint with a high-volume polling history (a stuck
 // CLI --tail loop blew the daily DO rows-read quota in May 2026 — see
-// docs/operations/cloudflare-waf.md and the comment block on `getLogs` in
+// docs/internal/operations/cloudflare-waf.md and the comment block on `getLogs` in
 // device.ts). Other routes are sufficiently protected by:
 //   - the WAF rate-limit on /v1/* at the edge (60 r/s per IP),
 //   - per-resource caps in TIER_LIMITS enforced inside handlers,

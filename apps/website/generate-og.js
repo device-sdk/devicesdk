@@ -95,7 +95,11 @@ function htmlTemplate({ title }) {
   </html>`;
 }
 
-const DOCS_DIR = path.join(__dirname, '..', '..', 'docs');
+// Only mirror what Hugo publishes. The repo also has docs/internal/ for
+// runbooks that intentionally stay out of the public site (and may reference
+// Cloudflare etc.) — generating OG images for those would leak titles into
+// /static/og-images/ even though the markdown itself never ships.
+const DOCS_DIR = path.join(__dirname, '..', '..', 'docs', 'public');
 
 async function main() {
   const contentFiles = await glob('**/*.md', { cwd: CONTENT_DIR, nodir: true });

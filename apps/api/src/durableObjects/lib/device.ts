@@ -169,7 +169,20 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * Handles a watcher WebSocket upgrade (e.g. dashboard, Home Assistant).
+	 * Handles a watcher WebSocket upgrade (e.g. dashboard, Home Assistant, CLI
+	 * `devicesdk logs --tail`).
+	 *
+	 * Query parameters:
+	 *   `backfillLimit` (1..100) — if set, replay the last N device_logs rows
+	 *      as `{ event: "log", data: {...}, replay: true }` frames before live
+	 *      events start arriving, then send `{ event: "history_complete" }`.
+	 *   `backfillLevel` (one of VALID_LOG_LEVELS) — optional filter for the
+	 *      replay frames only; live events are unfiltered.
+	 *
+	 * No backfill is sent unless `backfillLimit` is explicitly provided so
+	 * existing watchers (current dashboard, prior to migration) continue to
+	 * work unchanged.
+	 *
 	 * The accepted socket is tagged "watcher" so it hibernates like the
 	 * firmware connection and is never mistaken for the device session.
 	 */
@@ -189,6 +202,37 @@ export class BaseDevice extends DurableObject<Env> {
 			server.send(JSON.stringify({ event: "status", data: status }));
 		} catch (error) {
 			console.error("Failed to send initial status to watcher:", error);
+		}
+
+		// Optional log history backfill. Single SQL scan per connect — never
+		// per poll — so cost is bounded by reconnect rate, not by client
+		// activity.
+		const url = new URL(request.url);
+		const rawLimit = url.searchParams.get("backfillLimit");
+		if (rawLimit !== null) {
+			const parsed = Number.parseInt(rawLimit, 10);
+			const limit = Number.isFinite(parsed)
+				? Math.min(Math.max(parsed, 1), 100)
+				: 0;
+			if (limit > 0) {
+				const rawLevel = url.searchParams.get("backfillLevel");
+				const level =
+					rawLevel && VALID_LOG_LEVELS.includes(rawLevel as LogLevel)
+						? rawLevel
+						: undefined;
+				try {
+					const { logs } = this.fetchRecentLogs({ limit, level });
+					// Send oldest first so the client can append in display order.
+					for (let i = logs.length - 1; i >= 0; i--) {
+						server.send(
+							JSON.stringify({ event: "log", data: logs[i], replay: true }),
+						);
+					}
+				} catch (error) {
+					console.error("Watcher backfill failed:", error);
+				}
+				server.send(JSON.stringify({ event: "history_complete" }));
+			}
 		}
 
 		return new Response(null, { status: 101, webSocket: client });
@@ -1318,6 +1362,51 @@ export class BaseDevice extends DurableObject<Env> {
 		const nextCursor = hasMore ? `${lastLog.created_at}:${lastLog.id}` : null;
 
 		return { logs, next_cursor: nextCursor };
+	}
+
+	/**
+	 * Fetches the most recent N log rows (newest first), optionally filtered
+	 * by level. No cursor \u2014 used by the watcher WS backfill where the client
+	 * just wants "the last N events I might have missed."
+	 *
+	 * Synchronous because `storage.sql.exec(...).toArray()` is sync; the
+	 * surrounding async wrapper exists only because callers may await it.
+	 */
+	private fetchRecentLogs(opts: { limit: number; level?: string }): {
+		logs: Array<{
+			id: string;
+			level: string;
+			message: string;
+			created_at: number;
+		}>;
+	} {
+		this.ensureLogsTable();
+		const limit = Math.min(Math.max(opts.limit, 1), 100);
+		const rows = opts.level
+			? this.ctx.storage.sql
+					.exec(
+						`SELECT id, level, message, created_at FROM device_logs
+					 WHERE level = ?
+					 ORDER BY created_at DESC, id DESC LIMIT ?`,
+						opts.level,
+						limit,
+					)
+					.toArray()
+			: this.ctx.storage.sql
+					.exec(
+						`SELECT id, level, message, created_at FROM device_logs
+					 ORDER BY created_at DESC, id DESC LIMIT ?`,
+						limit,
+					)
+					.toArray();
+		return {
+			logs: rows as Array<{
+				id: string;
+				level: string;
+				message: string;
+				created_at: number;
+			}>,
+		};
 	}
 
 	/**

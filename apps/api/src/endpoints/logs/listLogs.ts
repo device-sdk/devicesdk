@@ -1,15 +1,30 @@
-import * as Sentry from "@sentry/cloudflare";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
-import { getDeviceStub } from "../../foundation/durableObjectStub";
 import type { AppContext, tableDevices, tableProjects } from "../../types";
 
+/**
+ * GET /v1/projects/:projectId/devices/:deviceId/logs
+ *
+ * **Deprecated** as of May 2026 — always returns 410 Gone with a `Link` header
+ * pointing at the watcher WebSocket. The polling pattern this endpoint enabled
+ * burned the daily DO rows-read quota; see the comment block on
+ * `BaseDevice.getLogs` in `durableObjects/lib/device.ts` for the full incident
+ * write-up.
+ *
+ * Migrated callers (dashboard logs panel, CLI `logs`/`logs --tail`) connect to
+ * `/v1/projects/:projectId/devices/:deviceId/watch?backfillLimit=N` instead and
+ * receive history + live events on a single hibernating WebSocket.
+ *
+ * The 404 path for missing project/device is preserved so consumers can still
+ * distinguish "wrong URL" from "endpoint deprecated."
+ */
 export class ListLogs extends BaseRoute {
 	public schema = {
 		tags: ["Logs"],
-		summary: "List device logs",
+		summary: "Deprecated — use the watcher WebSocket",
 		operationId: "logs-list",
+		deprecated: true,
 		request: {
 			params: z.object({
 				projectId: z.string().min(1).max(36),
@@ -22,27 +37,18 @@ export class ListLogs extends BaseRoute {
 			}),
 		},
 		responses: {
-			"200": {
-				description: "Returns device logs",
-				...contentJson(
-					z.object({
-						success: z.boolean(),
-						result: z.object({
-							logs: z.array(
-								z.object({
-									id: z.string(),
-									level: z.string(),
-									message: z.string(),
-									created_at: z.number(),
-								}),
-							),
-							next_cursor: z.string().nullable(),
-						}),
-					}),
-				),
-			},
 			"404": {
 				description: "Project or device not found",
+			},
+			"410": {
+				description: "Endpoint deprecated — use the watcher WebSocket",
+				...contentJson(
+					z.object({
+						success: z.literal(false),
+						error: z.string(),
+						code: z.literal("LOGS_DEPRECATED"),
+					}),
+				),
 			},
 		},
 	};
@@ -52,7 +58,6 @@ export class ListLogs extends BaseRoute {
 		const qb = c.get("qb");
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { projectId, deviceId } = data.params;
-		const { cursor, limit, level } = data.query;
 
 		const project = await qb
 			.fetchOne<tableProjects>({
@@ -84,19 +89,15 @@ export class ListLogs extends BaseRoute {
 			return c.json({ success: false, error: "Device not found" }, 404);
 		}
 
-		const stub = getDeviceStub(c.env, project.id, device.id);
-
-		let result: Awaited<ReturnType<typeof stub.getLogs>>;
-		try {
-			result = await stub.getLogs({ cursor, limit, level });
-		} catch (err) {
-			Sentry.captureException(err);
-			return c.json(
-				{ success: false, error: "Device service temporarily unavailable" },
-				503,
-			);
-		}
-
-		return c.json({ success: true, result });
+		const watchPath = `/v1/projects/${projectId}/devices/${deviceId}/watch`;
+		return c.json(
+			{
+				success: false,
+				error: `Endpoint deprecated. Use the watcher WebSocket at ${watchPath}?backfillLimit=N`,
+				code: "LOGS_DEPRECATED",
+			},
+			410,
+			{ Link: `<${watchPath}>; rel="alternate"` },
+		);
 	}
 }

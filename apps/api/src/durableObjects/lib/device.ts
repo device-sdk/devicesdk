@@ -1298,9 +1298,37 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * Retrieves logs from DO SQLite storage with cursor-based pagination.
+	 * @deprecated Retired May 2026. Always throws `LOGS_DEPRECATED`.
+	 *
+	 * **Why this is gone.** This RPC backed the HTTP `GET /v1/projects/.../logs`
+	 * endpoint, which the CLI's `devicesdk logs --tail` polled every 2 s with a
+	 * cursor-based fetch. A stale CLI process polled for 2 days, ran a
+	 * `LIMIT 51` SQL scan against `device_logs` 43 200 times/day, and burned
+	 * the production free-tier 1 M DO rows-read quota in ~5 h. Once the daily
+	 * quota was exhausted every `/logs` request 503'd for the remainder of the
+	 * UTC day. The polling loop never backed off.
+	 *
+	 * **What replaces it.** Watcher WebSocket \u2014 `handleWatcherUpgrade` (above)
+	 * accepts `?backfillLimit=N&backfillLevel=warn` and emits replay frames
+	 * before live broadcasts. One SQL scan per *connection* instead of per
+	 * poll. Live events arrive via `broadcastToWatchers("log", ...)` so a
+	 * silent device costs zero reads.
+	 *
+	 * **Defense in depth \u2014 even if a client tried to revive `/logs`:**
+	 *   1. Cloudflare WAF rate-limit on `/v1/*` (see `docs/operations/cloudflare-waf.md`).
+	 *   2. `userBlockListMiddleware` (see `foundation/userBlockList.ts`) \u2014
+	 *      tripping the per-route rate limit writes a 1 h block to KV that
+	 *      short-circuits subsequent requests at L1 cache (`caches.default`).
+	 *   3. Per-user rate limit on `/logs` (`userRateLimitMiddleware`,
+	 *      mounted in `index.ts`).
+	 *   4. This throw \u2014 even if the rate limiter is misconfigured, the DO RPC
+	 *      itself refuses to scan storage.
+	 *
+	 * Keeping the method (rather than removing it) preserves the
+	 * type-checked RPC surface of `BaseDevice` and gives a clear error to any
+	 * accidental caller.
 	 */
-	async getLogs(options: {
+	async getLogs(_options: {
 		cursor?: string;
 		limit?: number;
 		level?: string;
@@ -1313,55 +1341,9 @@ export class BaseDevice extends DurableObject<Env> {
 		}>;
 		next_cursor: string | null;
 	}> {
-		this.ensureLogsTable();
-		const limit = Math.min(options.limit ?? 50, 100);
-
-		let cursorTs = Date.now() + 1;
-		let cursorId = "\uffff"; // Sorts after any UUID
-		if (options.cursor) {
-			const sepIdx = options.cursor.indexOf(":");
-			if (sepIdx !== -1) {
-				cursorTs = Number(options.cursor.slice(0, sepIdx));
-				cursorId = options.cursor.slice(sepIdx + 1);
-			}
-		}
-
-		const rows = options.level
-			? this.ctx.storage.sql
-					.exec(
-						`SELECT id, level, message, created_at FROM device_logs
-					 WHERE (created_at < ? OR (created_at = ? AND id < ?)) AND level = ?
-					 ORDER BY created_at DESC, id DESC LIMIT ?`,
-						cursorTs,
-						cursorTs,
-						cursorId,
-						options.level,
-						limit + 1,
-					)
-					.toArray()
-			: this.ctx.storage.sql
-					.exec(
-						`SELECT id, level, message, created_at FROM device_logs
-					 WHERE (created_at < ? OR (created_at = ? AND id < ?))
-					 ORDER BY created_at DESC, id DESC LIMIT ?`,
-						cursorTs,
-						cursorTs,
-						cursorId,
-						limit + 1,
-					)
-					.toArray();
-
-		const hasMore = rows.length > limit;
-		const logs = rows.slice(0, limit) as Array<{
-			id: string;
-			level: string;
-			message: string;
-			created_at: number;
-		}>;
-		const lastLog = logs[logs.length - 1];
-		const nextCursor = hasMore ? `${lastLog.created_at}:${lastLog.id}` : null;
-
-		return { logs, next_cursor: nextCursor };
+		throw new Error(
+			"LOGS_DEPRECATED: stub.getLogs() was retired in May 2026 after a runaway --tail loop polled it for 2 days and burned the daily DO rows-read quota. Use the watcher WebSocket \u2014 handleWatcherUpgrade() supports `?backfillLimit=N&backfillLevel=warn` and broadcasts live entries via broadcastToWatchers('log', ...).",
+		);
 	}
 
 	/**

@@ -32,6 +32,7 @@ import {
 	rateLimitMiddleware,
 	userRateLimitMiddleware,
 } from "./foundation/rateLimit";
+import { userBlockListMiddleware } from "./foundation/userBlockList";
 import { handleScheduled } from "./scheduled";
 import type { Env, Variables } from "./types";
 
@@ -173,6 +174,11 @@ app.post("/cli/auth", cliAuthUser, handleApproval);
 // 2. Authentication middleware
 app.use("*", authenticateUser);
 
+// 3. Cross-route block list — short-circuits 429 before any D1/DO work for
+// users who have tripped a rate limit elsewhere. Reads from a tiered cache
+// (caches.default → KV) so the hot path costs ~0 on cache hit.
+app.use("*", userBlockListMiddleware());
+
 // Set Sentry user context for all authenticated requests.
 // sendDefaultPii is false, so we only attach the opaque user ID (not email)
 // to keep PII out of Sentry while still being able to correlate errors to accounts.
@@ -185,7 +191,7 @@ app.use("*", async (c, next) => {
 	await next();
 });
 
-// 3. Per-user rate limiting (plan-aware)
+// 4. Per-user rate limiting (plan-aware)
 app.use("*", userRateLimitMiddleware());
 
 // 4. Endpoints that require Auth

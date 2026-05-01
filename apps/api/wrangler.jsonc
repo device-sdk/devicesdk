@@ -54,6 +54,13 @@
 			"database_id": "a3aaa7bf-a757-4015-9b67-fc8a2abe3d39"
 		}
 	],
+	"kv_namespaces": [
+		{
+			"binding": "CACHE",
+			"id": "38faf49d50574298aef8b4527c5d80aa",
+			"preview_id": "9594a8e8ec4343e2b5d6ba8edb33e3b3"
+		}
+	],
 	"durable_objects": {
 		"bindings": [
 			{
@@ -103,6 +110,12 @@
 					"database_name": "iotkit-users",
 					"database_id": "a3aaa7bf-a757-4015-9b67-fc8a2abe3d39",
 					"remote": true
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "CACHE",
+					"id": "294a6b5316af4d83b0e731fcd8f6751e"
 				}
 			],
 			"durable_objects": {

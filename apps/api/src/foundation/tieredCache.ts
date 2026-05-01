@@ -23,7 +23,7 @@ export class TieredCache {
 	constructor(
 		private readonly kv: KVNamespace,
 		private readonly namespace: string,
-		private readonly ctx: ExecutionContext,
+		private readonly ctx: { waitUntil(promise: Promise<unknown>): void },
 	) {}
 
 	/**
@@ -63,12 +63,15 @@ export class TieredCache {
 	 * L2 deletion by more than a minute.
 	 */
 	async set<V>(key: string, value: V, opts: { ttlSec: number }): Promise<void> {
+		// KV's minimum expirationTtl is 60 s (anything lower throws).
+		const ttlSec = Math.max(opts.ttlSec, 60);
+
 		await this.kv.put(this.kvKey(key), JSON.stringify(value), {
-			expirationTtl: opts.ttlSec,
+			expirationTtl: ttlSec,
 		});
 
 		this.ctx.waitUntil(
-			this.writeL1(this.cacheRequest(key), value, Math.min(opts.ttlSec, 60)),
+			this.writeL1(this.cacheRequest(key), value, Math.min(ttlSec, 60)),
 		);
 	}
 

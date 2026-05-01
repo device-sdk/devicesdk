@@ -51,12 +51,14 @@
 		"open": "^10.1.0",
 		"ora": "^8.0.1",
 		"workerd": "^1.20250831.0",
+		"ws": "^8.18.0",
 		"zod": "catalog:zod4"
 	},
 	"devDependencies": {
 		"@devicesdk/simulation": "workspace:*",
 		"@repo/typescript-config": "workspace:*",
 		"@types/node": "catalog:",
+		"@types/ws": "^8.5.12",
 		"ts-node": "^10.9.2",
 		"tsx": "catalog:",
 		"typescript": "catalog:",

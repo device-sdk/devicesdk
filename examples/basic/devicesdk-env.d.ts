@@ -2,7 +2,7 @@
 // Provides type-safe inter-device RPC types for this project.
 // Re-run `devicesdk build` to regenerate after config changes.
 
-import type { MyDevice } from "./src/devices/button";
+import type { MyDevice } from "./src/devices/door-sensor";
 import type { GetEnv } from "@devicesdk/core";
 
 export type ProjectDevices = {

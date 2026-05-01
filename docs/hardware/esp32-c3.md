@@ -38,7 +38,9 @@ A common C3 board style (sold as "ESP32-C3 0.42 OLED", ESP32-C3-FN4 module) carr
 
 - **Address**: `0x3C`
 - **SDA**: GPIO 5, **SCL**: GPIO 6 *(verify against your board's silkscreen — some variants swap these)*
-- **Controller RAM is 128-wide**; the glass sits at **column offset 30**. Pass `columnOffset: 30` when constructing the display driver — otherwise your pixels render into the non-visible RAM region.
+- **Controller RAM is 128-wide**; the glass sits at **column offset 28** on most FN4 boards. Pass `columnOffset: 28` when constructing the display driver — otherwise your pixels render into the non-visible RAM region or you'll see a 2–4 px noise stripe along the leftmost edge from stale RAM.
+
+If you see a thin vertical noise stripe on the left after the screen is otherwise rendering correctly, your panel's window starts a couple of columns to the left of where you told the SDK. Try `columnOffset: 28` (most common), then `30`, then `32` — pick the value that keeps the stripe out of view *and* keeps your content centered. You can sanity-check by drawing a known mark at framebuffer x=0 (e.g. `display.drawVLine(0, 0, height)`) and confirming it lands exactly on the leftmost lit pixel of the glass.
 
 ```typescript
 import { DeviceEntrypoint } from '@devicesdk/core';
@@ -50,7 +52,7 @@ export default class MyC3OledDevice extends DeviceEntrypoint {
     address: "0x3C",
     width: 72,
     height: 40,
-    columnOffset: 30,
+    columnOffset: 28,
   });
 
   async onDeviceConnect() {

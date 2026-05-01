@@ -48,6 +48,7 @@ void iotkit_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle);
 // I2C
 bool iotkit_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uint32_t frequency);
 i2c_scan_result_t iotkit_hal_i2c_scan(uint8_t bus);
+bool iotkit_hal_i2c_probe(uint8_t bus, uint8_t address);
 bool iotkit_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len);
 int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t len, int reg);
 

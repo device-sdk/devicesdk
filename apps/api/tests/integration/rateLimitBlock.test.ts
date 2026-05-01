@@ -1,0 +1,101 @@
+import { env, SELF } from "cloudflare:test";
+import { afterEach, describe, expect, it } from "vitest";
+import { TIER_LIMITS } from "../../src/foundation/consts";
+import { TEST_FREE_SESSION_TOKEN, TEST_FREE_USER_ID } from "../setup-test-data";
+
+const BLOCK_KEY = `block:user:${TEST_FREE_USER_ID}`;
+
+async function clearState(): Promise<void> {
+	await env.CACHE.delete(BLOCK_KEY);
+	await env.DB.prepare("DELETE FROM rate_limits WHERE key = ?")
+		.bind(`user:${TEST_FREE_USER_ID}`)
+		.run();
+}
+
+async function seedRateLimits(rows: number, windowMs: number): Promise<void> {
+	const now = Date.now();
+	const stmts: D1PreparedStatement[] = [];
+	for (let i = 0; i < rows; i++) {
+		stmts.push(
+			env.DB.prepare(
+				"INSERT INTO rate_limits (key, created_at, expires_at) VALUES (?, ?, ?)",
+			).bind(
+				`user:${TEST_FREE_USER_ID}`,
+				now - i * 100,
+				now + windowMs - i * 100,
+			),
+		);
+	}
+	await env.DB.batch(stmts);
+}
+
+describe("Rate-limit breach promotes to cross-route block", () => {
+	afterEach(clearState);
+
+	it("writes a 1-hour block to CACHE when the per-user limit is exceeded", async () => {
+		const { maxRequests, windowMs } = TIER_LIMITS.free.apiRateLimit;
+
+		// Pre-fill the rate_limits table so the next request is over budget.
+		await seedRateLimits(maxRequests, windowMs);
+
+		const before = await env.CACHE.get(BLOCK_KEY);
+		expect(before).toBeNull();
+
+		const resp = await SELF.fetch("http://localhost/v1/projects", {
+			headers: { Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}` },
+		});
+
+		expect(resp.status).toBe(429);
+
+		// The block-list write happens via waitUntil — poll briefly so the
+		// background work has a chance to finish writing to KV.
+		let after: { reason: string; until: number; path: string } | null = null;
+		for (let i = 0; i < 20 && !after; i++) {
+			await new Promise((r) => setTimeout(r, 25));
+			after = await env.CACHE.get<{
+				reason: string;
+				until: number;
+				path: string;
+			}>(BLOCK_KEY, "json");
+		}
+		expect(after).not.toBeNull();
+		expect(after?.reason).toBe("rate-limit");
+		expect(after?.until).toBeGreaterThan(Date.now() + 3500_000); // ~1 h ahead
+		expect(after?.until).toBeLessThan(Date.now() + 3700_000);
+	});
+
+	it("subsequent request from the same user is short-circuited by the block list (no D1 write)", async () => {
+		const { maxRequests, windowMs } = TIER_LIMITS.free.apiRateLimit;
+		await seedRateLimits(maxRequests, windowMs);
+
+		// Trip the limit once to populate CACHE.
+		const first = await SELF.fetch("http://localhost/v1/projects", {
+			headers: { Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}` },
+		});
+		expect(first.status).toBe(429);
+
+		// Count rate_limits rows after the breach.
+		const before = await env.DB.prepare(
+			"SELECT COUNT(*) as cnt FROM rate_limits WHERE key = ?",
+		)
+			.bind(`user:${TEST_FREE_USER_ID}`)
+			.first<{ cnt: number }>();
+		const beforeCount = before?.cnt ?? 0;
+
+		// Hit a different route — block list should fire before the per-user
+		// rate limiter records a new row.
+		const second = await SELF.fetch("http://localhost/v1/user", {
+			headers: { Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}` },
+		});
+		expect(second.status).toBe(429);
+		const retryAfter = Number(second.headers.get("Retry-After"));
+		expect(retryAfter).toBeGreaterThan(0);
+
+		const after = await env.DB.prepare(
+			"SELECT COUNT(*) as cnt FROM rate_limits WHERE key = ?",
+		)
+			.bind(`user:${TEST_FREE_USER_ID}`)
+			.first<{ cnt: number }>();
+		expect(after?.cnt).toBe(beforeCount); // No new D1 row inserted.
+	});
+});

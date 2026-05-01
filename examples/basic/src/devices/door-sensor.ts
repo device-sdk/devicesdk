@@ -7,7 +7,7 @@ import { SSD1306 } from "@devicesdk/core/i2c";
 //   NC alarm convention: wire closed at rest, opens when the door opens).
 //   If your sensor reads the other way, set INVERT_DOOR = true.
 //
-//   On-board 0.42" 72×40 SSD1306 on I²C bus 0: SDA=5, SCL=6, addr 0x3C, col offset 30.
+//   On-board 0.42" 72×40 SSD1306 on I²C bus 0: SDA=5, SCL=6, addr 0x3C, col offset 28.
 
 const DOOR_PIN = 4;
 const INVERT_DOOR = false;

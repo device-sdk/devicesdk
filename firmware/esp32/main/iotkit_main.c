@@ -462,7 +462,11 @@ static void websocket_task(void *pvParameters) {
     char uri[512];
     char auth_header[256];
     // Local dev: api_host is `<lan-ip>:<port>` → plain WS. Production hostnames
-    // never include a port → TLS.
+    // never include a port → TLS. Assumes DNS-form hostnames; an IPv6 literal
+    // (e.g. `[::1]:8787` or `2001:db8::1`) would also match the colon check
+    // and silently downgrade to plain WS — config.h is hand-edited and IPv6
+    // is not a supported transport here, so this is a documented assumption
+    // rather than a defensive parse.
     const bool use_tls = (strchr(api_host, ':') == NULL);
     snprintf(uri, sizeof(uri), "%s://%s%s", use_tls ? "wss" : "ws", api_host, ws_path);
     snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s\r\n", api_token);

@@ -32,6 +32,12 @@ async function seedRateLimits(rows: number, windowMs: number): Promise<void> {
 describe("Rate-limit breach promotes to cross-route block", () => {
 	afterEach(clearState);
 
+	// Per-user rate limit is scoped to /logs only; using a /logs URL ensures
+	// the middleware actually runs. The 429 fires before the route handler so
+	// the project/device IDs don't need to exist in D1.
+	const RATE_LIMITED_URL =
+		"http://localhost/v1/projects/missing/devices/missing/logs";
+
 	it("writes a 1-hour block to CACHE when the per-user limit is exceeded", async () => {
 		const { maxRequests, windowMs } = TIER_LIMITS.free.apiRateLimit;
 
@@ -41,7 +47,7 @@ describe("Rate-limit breach promotes to cross-route block", () => {
 		const before = await env.CACHE.get(BLOCK_KEY);
 		expect(before).toBeNull();
 
-		const resp = await SELF.fetch("http://localhost/v1/projects", {
+		const resp = await SELF.fetch(RATE_LIMITED_URL, {
 			headers: { Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}` },
 		});
 
@@ -68,8 +74,8 @@ describe("Rate-limit breach promotes to cross-route block", () => {
 		const { maxRequests, windowMs } = TIER_LIMITS.free.apiRateLimit;
 		await seedRateLimits(maxRequests, windowMs);
 
-		// Trip the limit once to populate CACHE.
-		const first = await SELF.fetch("http://localhost/v1/projects", {
+		// Trip the limit once on /logs to populate CACHE.
+		const first = await SELF.fetch(RATE_LIMITED_URL, {
 			headers: { Authorization: `Bearer ${TEST_FREE_SESSION_TOKEN}` },
 		});
 		expect(first.status).toBe(429);

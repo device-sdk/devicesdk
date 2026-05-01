@@ -191,10 +191,20 @@ app.use("*", async (c, next) => {
 	await next();
 });
 
-// 4. Per-user rate limiting (plan-aware)
-app.use("*", userRateLimitMiddleware());
+// 4. Per-user rate limiting (plan-aware) — scoped to /logs only.
+// `/logs` is the only endpoint with a high-volume polling history (a stuck
+// CLI --tail loop blew the daily DO rows-read quota in May 2026 — see
+// docs/operations/cloudflare-waf.md and the comment block on `getLogs` in
+// device.ts). Other routes are sufficiently protected by:
+//   - the WAF rate-limit on /v1/* at the edge (60 r/s per IP),
+//   - per-resource caps in TIER_LIMITS enforced inside handlers,
+//   - the block-list middleware above which sticks once any limit fires.
+app.use(
+	"/v1/projects/:projectId/devices/:deviceId/logs",
+	userRateLimitMiddleware(),
+);
 
-// 4. Endpoints that require Auth
+// 5. Endpoints that require Auth
 app.route("/v1/cli/auth", cliAuthRouterPostAuth);
 app.post("/v1/auth/logout", handleLogout);
 app.route("/v1/user", userRouter);

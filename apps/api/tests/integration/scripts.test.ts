@@ -44,7 +44,15 @@ describe.sequential("Scripts endpoint", () => {
 			.then((d) => d.results);
 	});
 
-	beforeEach(async () => {});
+	beforeEach(async () => {
+		// Per-test cleanup: device_scripts and any ad-hoc devices created inside
+		// it() blocks. The main `device-scripts-1` device from beforeAll stays.
+		// (Pool-workers 0.13+ removed isolatedStorage so writes now persist.)
+		await env.DB.prepare("DELETE FROM device_scripts").run();
+		await env.DB.prepare(
+			"DELETE FROM devices WHERE id NOT IN ('device-scripts-1', 'device-fw-test', 'device-fw-token-test')",
+		).run();
+	});
 
 	describe("PUT /v1/projects/:projectId/devices/:deviceId/script", () => {
 		it("should upload a new script version", async () => {
@@ -203,9 +211,9 @@ describe.sequential("Scripts endpoint", () => {
 	});
 
 	describe("GET /v1/projects/:projectId/devices/:deviceId/script", () => {
-		beforeAll(async () => {
-			// Upload a script in beforeAll so the R2 write persists across all
-			// tests in this block (isolatedStorage rolls back it() writes).
+		beforeEach(async () => {
+			// Upload a fresh script before each test in this block. The outer
+			// beforeEach wipes device_scripts, so we must re-seed per test.
 			await SELF.fetch(
 				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
 				{
@@ -632,8 +640,9 @@ describe.sequential("Scripts endpoint", () => {
 	describe("GET /v1/projects/:projectId/devices/:deviceId/script/versions/:versionId", () => {
 		let versionId: string;
 
-		beforeAll(async () => {
-			// Upload a fresh script version to get a versionId that has both a DB record and an R2 file
+		beforeEach(async () => {
+			// Upload a fresh script version per test (outer beforeEach wipes
+			// device_scripts, so the version_id and R2 record need re-seeding).
 			const resp = await SELF.fetch(
 				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
 				{
@@ -735,8 +744,9 @@ describe.sequential("Scripts endpoint", () => {
 	describe("POST /v1/projects/:projectId/devices/:deviceId/script/versions/:versionId/deploy", () => {
 		let versionId: string;
 
-		beforeAll(async () => {
-			// Upload a fresh script version to get a versionId with both a DB record and an R2 file
+		beforeEach(async () => {
+			// Upload a fresh script version per test (outer beforeEach wipes
+			// device_scripts, so the version_id and R2 record need re-seeding).
 			const resp = await SELF.fetch(
 				`http://localhost/v1/projects/${TEST_PROJECT_ID}/devices/${device.device_slug}/script`,
 				{

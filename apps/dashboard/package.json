@@ -45,7 +45,7 @@
     "prettier": "^3.3.3",
     "typescript": "catalog:",
     "vite-plugin-checker": "^0.11.0",
-    "vitest": "^4.0.18",
+    "vitest": "catalog:",
     "vue-eslint-parser": "^10.2.0",
     "vue-tsc": "^3.0.7",
     "wrangler": "catalog:"

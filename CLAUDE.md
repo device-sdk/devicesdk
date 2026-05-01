@@ -92,7 +92,9 @@ examples/*
 
 ### API Testing
 
-Tests use `@cloudflare/vitest-pool-workers` which runs tests inside a real Cloudflare Workers runtime. The API **requires `vitest` as an explicit devDependency** (not just the peer from the pool-workers package) to avoid version conflicts in the monorepo.
+Tests use `@cloudflare/vitest-pool-workers` (≥ 0.15) on `vitest@4`. Pool-workers ships as a Vite plugin (`cloudflareTest`) rather than a `defineWorkersConfig` wrapper, and the legacy `isolatedStorage: true` option is gone — bindings persist between `it()` blocks within a file, so suites that mutate D1/KV/Cache must clean up after themselves (see `beforeEach` cleanups in `devices.test.ts`, `scripts.test.ts`, `tokens.test.ts`).
+
+`TieredCache` writes go to both KV and `caches.default`, so test cleanups that delete from KV must also delete the matching `caches.default` Request — see `blockList.test.ts` and `rateLimitBlock.test.ts` for the pattern (URL must match `TieredCache.cacheRequest`'s `encodeURIComponent` layout).
 
 ```typescript
 import { SELF, env } from "cloudflare:test";
@@ -104,8 +106,8 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 ```
 
 - `tests/apply-migrations.ts` — applies D1 migrations before tests
-- `tests/setup-test-data.ts` — seeds users, projects, sessions
-- `tests/vitest.config.mts` — configures pool-workers with wrangler bindings
+- `tests/setup-test-data.ts` — seeds users, projects, sessions (runs once per file via `beforeAll`)
+- `tests/vitest.config.mts` — `defineConfig` from `vitest/config` with `cloudflareTest()` plugin holding wrangler/miniflare bindings
 - **Coverage**: Istanbul provider configured; run `pnpm --filter @devicesdk/api test:coverage` for HTML/JSON reports in `apps/api/coverage/`. CI uploads coverage artifacts on every run.
 
 ### CLI Architecture (packages/cli)

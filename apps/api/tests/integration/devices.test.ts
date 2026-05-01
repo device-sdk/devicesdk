@@ -26,7 +26,16 @@ describe.sequential("Devices endpoint", () => {
 			.then((p) => p.results)) as tableProjects;
 	});
 
-	beforeEach(async () => {});
+	beforeEach(async () => {
+		// Per-test cleanup so device-creating tests don't trip the
+		// (project_id, device_slug) UNIQUE constraint on re-insert. The two
+		// firmware devices below are seeded by the firmware describe's beforeAll
+		// and must persist for that block's tests. (Pool-workers 0.13+ removed
+		// isolatedStorage, so writes now persist across it() blocks.)
+		await env.DB.prepare(
+			"DELETE FROM devices WHERE id NOT IN ('device-fw-test', 'device-fw-token-test')",
+		).run();
+	});
 
 	describe("POST /v1/projects/:projectId/devices", () => {
 		it("should create a new device", async () => {

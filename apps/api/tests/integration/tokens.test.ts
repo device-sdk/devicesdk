@@ -10,7 +10,11 @@ describe.sequential("Tokens endpoint", () => {
 		qb = new D1QB(env.DB);
 	});
 
-	beforeEach(async () => {});
+	beforeEach(async () => {
+		// Per-test isolation: clear tokens created by previous it() blocks.
+		// (Pool-workers 0.13+ removed isolatedStorage, so writes now persist.)
+		await env.DB.prepare("DELETE FROM tokens").run();
+	});
 
 	it("should create a new API token", async () => {
 		const resp = await SELF.fetch("http://localhost/v1/tokens", {

@@ -6,6 +6,14 @@ const BLOCK_KEY = `block:user:${TEST_USER_ID}`;
 
 async function clearBlock(): Promise<void> {
 	await env.CACHE.delete(BLOCK_KEY);
+	// TieredCache backs the middleware with caches.default as L1; purge it too
+	// so a stale entry from a previous test doesn't survive the KV delete. URL
+	// must match TieredCache.cacheRequest's encodeURIComponent path layout.
+	await caches.default.delete(
+		new Request(
+			`https://cache.internal/block/${encodeURIComponent(`user:${TEST_USER_ID}`)}`,
+		),
+	);
 }
 
 describe("Cross-route block list (userBlockListMiddleware)", () => {

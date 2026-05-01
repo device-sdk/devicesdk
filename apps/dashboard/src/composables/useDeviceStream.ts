@@ -1,19 +1,41 @@
 import { ref, onUnmounted } from 'vue';
 import { logService, type DeviceLog, type DeviceStatus } from '@/services/api.service';
 
+export interface UseDeviceStreamOptions {
+  /**
+   * Request up to N recent log entries on connect as `{ event: "log", replay: true }`
+   * frames before live events start arriving. Followed by a single
+   * `{ event: "history_complete" }` marker that flips the returned
+   * `historyLoaded` ref to `true`. Omitted → no backfill.
+   */
+  backfillLimit?: number;
+  /** Optional log level filter applied to the backfill replay only. */
+  backfillLevel?: string;
+}
+
 /**
- * Composable for streaming real-time device logs and status via the generic
- * watch WebSocket. Auto-reconnects on disconnection with exponential backoff.
+ * Composable for streaming device logs and status via the watcher WebSocket.
  *
- * Each frame arrives as JSON of the form `{ event, data }`:
- *   - event "status" → connection state changes
- *   - event "log"    → log entries
- *   - event "state"  → structured entity state updates (reserved for future UI)
+ * Auto-reconnects on disconnection with exponential backoff. When
+ * `backfillLimit` is provided, replay frames (history) and live events are
+ * delivered on the same socket — the dashboard's logs panel uses this to
+ * avoid the HTTP `/logs` endpoint, which was deprecated in May 2026.
+ *
+ * Frame format: `{ event, data, replay? }`
+ *   - event "status"           → connection state changes
+ *   - event "log"              → log entry (replay=true for backfilled rows)
+ *   - event "state"            → structured entity state updates
+ *   - event "history_complete" → backfill replay finished; live mode begins
  */
-export function useDeviceStream(projectId: string, deviceId: string) {
+export function useDeviceStream(
+  projectId: string,
+  deviceId: string,
+  options: UseDeviceStreamOptions = {},
+) {
   const streamedLogs = ref<DeviceLog[]>([]);
   const deviceStatus = ref<DeviceStatus>({ connected: false, connectedSince: null });
   const streaming = ref(false);
+  const historyLoaded = ref(false);
 
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -27,18 +49,24 @@ export function useDeviceStream(projectId: string, deviceId: string) {
       ws = null;
     }
 
-    const url = logService.getWatchUrl(projectId, deviceId);
+    const url = logService.getWatchUrl(projectId, deviceId, options);
+    // history_complete fires once per connection; reset on every reconnect so
+    // consumers can show a "loading" indicator each time.
+    historyLoaded.value = options.backfillLimit == null;
     ws = new WebSocket(url);
     streaming.value = true;
 
     ws.onopen = () => {
-      // Reset backoff once the upgrade succeeds
       reconnectDelay = 1000;
     };
 
     ws.onmessage = (event) => {
       try {
-        const frame = JSON.parse(event.data as string) as { event: string; data: unknown };
+        const frame = JSON.parse(event.data as string) as {
+          event: string;
+          data?: unknown;
+          replay?: boolean;
+        };
         if (frame.event === 'log') {
           const d = frame.data;
           if (
@@ -50,6 +78,9 @@ export function useDeviceStream(projectId: string, deviceId: string) {
             'created_at' in d && typeof (d as Record<string, unknown>).created_at === 'number'
           ) {
             const log = d as DeviceLog;
+            // Replay frames arrive oldest-first; live frames arrive newest at
+            // top. Newest-at-top is the display convention, so always prepend
+            // and let the cap (500) shape the visible window.
             streamedLogs.value = [log, ...streamedLogs.value.slice(0, 499)];
           }
         } else if (frame.event === 'status') {
@@ -61,6 +92,8 @@ export function useDeviceStream(projectId: string, deviceId: string) {
           ) {
             deviceStatus.value = d as DeviceStatus;
           }
+        } else if (frame.event === 'history_complete') {
+          historyLoaded.value = true;
         }
         // event === 'state' is reserved for future UI features
       } catch {
@@ -107,6 +140,7 @@ export function useDeviceStream(projectId: string, deviceId: string) {
     streamedLogs,
     deviceStatus,
     streaming,
+    historyLoaded,
     connect,
     disconnect,
     clearLogs,

@@ -1,22 +1,40 @@
+import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DeviceSDKApiError } from "../api.js";
-import logs, { formatLogLine, POLL_INTERVAL_MS } from "./logs.js";
+import { getWatchUrl } from "../api.js";
+import logs, { formatLogLine } from "./logs.js";
 
 vi.mock("../credentials.js", () => ({
 	requireAuth: vi.fn().mockResolvedValue("test-token"),
 }));
 
-const apiMocks = {
-	getLogs: vi.fn(),
-};
+// Capture every WebSocket the command opens so tests can drive frames
+// through them. Each test resets the array via `beforeEach`.
+class FakeWebSocket extends EventEmitter {
+	url: string;
+	options: unknown;
+	closed = false;
+	constructor(url: string, options?: unknown) {
+		super();
+		this.url = url;
+		this.options = options;
+	}
+	close(): void {
+		if (this.closed) return;
+		this.closed = true;
+		// Surface to the command on next tick so listeners are attached.
+		setTimeout(() => this.emit("close"), 0);
+	}
+}
 
-vi.mock("../api.js", async (importOriginal) => {
-	const original = await importOriginal<typeof import("../api.js")>();
-	return {
-		...original,
-		getLogs: (...args: any[]) => apiMocks.getLogs(...args),
-	};
-});
+const wsInstances: FakeWebSocket[] = [];
+
+vi.mock("ws", () => ({
+	default: vi.fn().mockImplementation((url: string, options?: unknown) => {
+		const ws = new FakeWebSocket(url, options);
+		wsInstances.push(ws);
+		return ws;
+	}),
+}));
 
 function makeEntry(
 	overrides: Partial<{
@@ -58,40 +76,34 @@ describe("formatLogLine", () => {
 	});
 
 	it("pads level to 5 characters", () => {
-		const logEntry = formatLogLine(makeEntry({ level: "log" }));
-		const warnEntry = formatLogLine(makeEntry({ level: "warn" }));
-		expect(logEntry).toContain("[LOG  ]");
-		expect(warnEntry).toContain("[WARN ]");
+		expect(formatLogLine(makeEntry({ level: "log" }))).toContain("[LOG  ]");
+		expect(formatLogLine(makeEntry({ level: "warn" }))).toContain("[WARN ]");
 	});
 
 	it("applies cyan color for log level", () => {
-		const line = formatLogLine(makeEntry({ level: "log" }));
-		expect(line).toContain("\x1b[36m");
+		expect(formatLogLine(makeEntry({ level: "log" }))).toContain("\x1b[36m");
 	});
 
 	it("applies cyan color for info level", () => {
-		const line = formatLogLine(makeEntry({ level: "info" }));
-		expect(line).toContain("\x1b[36m");
+		expect(formatLogLine(makeEntry({ level: "info" }))).toContain("\x1b[36m");
 	});
 
 	it("applies yellow color for warn level", () => {
-		const line = formatLogLine(makeEntry({ level: "warn" }));
-		expect(line).toContain("\x1b[33m");
+		expect(formatLogLine(makeEntry({ level: "warn" }))).toContain("\x1b[33m");
 	});
 
 	it("applies red color for error level", () => {
-		const line = formatLogLine(makeEntry({ level: "error" }));
-		expect(line).toContain("\x1b[31m");
+		expect(formatLogLine(makeEntry({ level: "error" }))).toContain("\x1b[31m");
 	});
 
 	it("applies gray color for debug level", () => {
-		const line = formatLogLine(makeEntry({ level: "debug" }));
-		expect(line).toContain("\x1b[90m");
+		expect(formatLogLine(makeEntry({ level: "debug" }))).toContain("\x1b[90m");
 	});
 
 	it("applies no color for unknown level", () => {
-		const line = formatLogLine(makeEntry({ level: "unknown" }));
-		expect(line).not.toContain("\x1b[");
+		expect(formatLogLine(makeEntry({ level: "unknown" }))).not.toContain(
+			"\x1b[",
+		);
 	});
 
 	it("suppresses color codes when stdout is not a TTY", () => {
@@ -102,248 +114,240 @@ describe("formatLogLine", () => {
 		const line = formatLogLine(makeEntry({ level: "error" }));
 		expect(line).not.toContain("\x1b[");
 		expect(line).toContain("ERROR");
-		expect(line).toContain("hello");
 	});
 });
 
-describe("logs command", () => {
+describe("getWatchUrl", () => {
+	const originalApiUrl = process.env.DEVICESDK_API_URL;
+
+	afterEach(() => {
+		if (originalApiUrl === undefined) {
+			delete process.env.DEVICESDK_API_URL;
+		} else {
+			process.env.DEVICESDK_API_URL = originalApiUrl;
+		}
+	});
+
+	it("derives wss:// from https:// API host (production default)", () => {
+		delete process.env.DEVICESDK_API_URL;
+		const url = getWatchUrl("proj", "dev");
+		expect(url).toMatch(/^wss:\/\/api\.devicesdk\.com\//);
+		expect(url).toContain("/v1/projects/proj/devices/dev/watch");
+	});
+
+	it("derives ws:// from http:// API host (local dev)", () => {
+		process.env.DEVICESDK_API_URL = "http://localhost:8787";
+		const url = getWatchUrl("proj", "dev");
+		expect(url).toMatch(/^ws:\/\/localhost:8787\//);
+	});
+
+	it("appends backfillLimit and backfillLevel as query params", () => {
+		delete process.env.DEVICESDK_API_URL;
+		const url = getWatchUrl("proj", "dev", {
+			backfillLimit: 25,
+			backfillLevel: "warn",
+		});
+		expect(url).toContain("backfillLimit=25");
+		expect(url).toContain("backfillLevel=warn");
+	});
+});
+
+describe("logs command (WS)", () => {
 	const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 		code?: number,
 	) => {
 		throw new Error(`exit:${code ?? 0}`);
-	}) as any);
+	}) as unknown as typeof process.exit);
 
 	const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 	const consoleErrorSpy = vi
 		.spyOn(console, "error")
 		.mockImplementation(() => {});
-	const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		vi.useFakeTimers();
+		wsInstances.length = 0;
 	});
 
 	afterEach(() => {
-		vi.useRealTimers();
-		vi.clearAllMocks();
-		// Remove any SIGINT listeners registered during tests
 		process.removeAllListeners("SIGINT");
 	});
 
-	describe("default (non-tail) mode", () => {
-		it("calls getLogs with the right limit and level, prints each line", async () => {
-			apiMocks.getLogs.mockResolvedValue({
-				logs: [makeEntry({ message: "msg1" }), makeEntry({ message: "msg2" })],
-				next_cursor: null,
-			});
+	it("non-tail: opens a single watcher WS, prints backfill on history_complete, exits 0", async () => {
+		const captured = logs("proj", "dev", { tail: false, lines: 50 }).catch(
+			(e: Error) => e,
+		);
+		// Let the command kick off and the FakeWebSocket be created.
+		await new Promise((r) => setTimeout(r, 0));
+		expect(wsInstances).toHaveLength(1);
+		const ws = wsInstances[0];
 
-			await logs("my-project", "my-device", {
-				tail: false,
-				lines: 50,
-			});
+		expect(ws.url).toContain("/v1/projects/proj/devices/dev/watch");
+		expect(ws.url).toContain("backfillLimit=50");
+		// Authorization header is attached via the `ws` library options.
+		const opts = ws.options as { headers?: { Authorization?: string } };
+		expect(opts?.headers?.Authorization).toBe("Bearer test-token");
 
-			expect(apiMocks.getLogs).toHaveBeenCalledWith(
-				"test-token",
-				"my-project",
-				"my-device",
-				{ limit: 50, level: undefined },
-			);
-			expect(consoleSpy).toHaveBeenCalledTimes(2);
-		});
+		ws.emit("open");
+		ws.emit(
+			"message",
+			Buffer.from(
+				JSON.stringify({
+					event: "log",
+					data: makeEntry({ id: "1", message: "first" }),
+					replay: true,
+				}),
+			),
+		);
+		ws.emit(
+			"message",
+			Buffer.from(
+				JSON.stringify({
+					event: "log",
+					data: makeEntry({ id: "2", message: "second" }),
+					replay: true,
+				}),
+			),
+		);
+		ws.emit(
+			"message",
+			Buffer.from(JSON.stringify({ event: "history_complete" })),
+		);
 
-		it("passes --lines option as limit", async () => {
-			apiMocks.getLogs.mockResolvedValue({ logs: [], next_cursor: null });
-
-			await logs("proj", "dev", { tail: false, lines: 10 });
-
-			expect(apiMocks.getLogs).toHaveBeenCalledWith(
-				"test-token",
-				"proj",
-				"dev",
-				{ limit: 10, level: undefined },
-			);
-		});
-
-		it("passes --level option", async () => {
-			apiMocks.getLogs.mockResolvedValue({ logs: [], next_cursor: null });
-
-			await logs("proj", "dev", { tail: false, lines: 50, level: "warn" });
-
-			expect(apiMocks.getLogs).toHaveBeenCalledWith(
-				"test-token",
-				"proj",
-				"dev",
-				{ limit: 50, level: "warn" },
-			);
-		});
-
-		it("prints 'No logs found.' when empty", async () => {
-			apiMocks.getLogs.mockResolvedValue({ logs: [], next_cursor: null });
-
-			await logs("proj", "dev", { tail: false, lines: 50 });
-
-			expect(consoleSpy).toHaveBeenCalledWith("No logs found.");
-		});
-
-		it("prints error and exits with code 1 on 404", async () => {
-			apiMocks.getLogs.mockRejectedValue(
-				new DeviceSDKApiError("Not found", 404),
-			);
-
-			await expect(
-				logs("proj", "dev", { tail: false, lines: 50 }),
-			).rejects.toThrowError(/exit:1/);
-			expect(exitSpy).toHaveBeenCalledWith(1);
-			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining("not found"),
-			);
-		});
+		const err = (await captured) as Error;
+		expect(err).toBeInstanceOf(Error);
+		expect(err.message).toMatch(/exit:0/);
+		expect(exitSpy).toHaveBeenCalledWith(0);
+		expect(consoleSpy.mock.calls.flat().join("\n")).toContain("first");
+		expect(consoleSpy.mock.calls.flat().join("\n")).toContain("second");
 	});
 
-	describe("tail mode", () => {
-		it("fetches initial batch with limit and level, then polls with cursor", async () => {
-			apiMocks.getLogs
-				.mockResolvedValueOnce({
-					logs: [makeEntry({ message: "initial" })],
-					next_cursor: "cursor-1",
-				})
-				.mockResolvedValueOnce({
-					logs: [makeEntry({ id: "xyz", message: "new entry" })],
-					next_cursor: "cursor-2",
-				});
+	it("non-tail: prints 'No logs found.' when backfill is empty", async () => {
+		const captured = logs("proj", "dev", { tail: false, lines: 50 }).catch(
+			(e: Error) => e,
+		);
+		await new Promise((r) => setTimeout(r, 0));
+		const ws = wsInstances[0];
+		ws.emit("open");
+		ws.emit(
+			"message",
+			Buffer.from(JSON.stringify({ event: "history_complete" })),
+		);
 
-			const promise = logs("proj", "dev", { tail: true, lines: 50 });
+		const err = (await captured) as Error;
+		expect(err.message).toMatch(/exit:0/);
+		expect(consoleSpy).toHaveBeenCalledWith("No logs found.");
+	});
 
-			// Let the initial fetch resolve
+	it("non-tail: bails non-zero if the connection closes before history_complete", async () => {
+		const captured = logs("proj", "dev", { tail: false, lines: 50 }).catch(
+			(e: Error) => e,
+		);
+		await new Promise((r) => setTimeout(r, 0));
+		const ws = wsInstances[0];
+		ws.emit("open");
+		ws.emit("close");
+
+		const err = (await captured) as Error;
+		expect(err.message).toMatch(/exit:1/);
+		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toContain(
+			"Connection closed",
+		);
+	});
+
+	it("tail: bails non-zero after MAX_RECONNECT_ATTEMPTS consecutive closes", async () => {
+		vi.useFakeTimers();
+		// Capture the eventual rejection synchronously so it's never unhandled.
+		const captured = logs("proj", "dev", { tail: true, lines: 10 }).catch(
+			(e: Error) => e,
+		);
+
+		// Drive the close→reconnect loop. Each close schedules a setTimeout for
+		// the next openSession; we advance past it and emit close again.
+		for (let i = 0; i < 6; i++) {
 			await vi.advanceTimersByTimeAsync(0);
+			const ws = wsInstances[wsInstances.length - 1];
+			expect(ws).toBeDefined();
+			ws.emit("close");
+			// 1s, 2s, 4s, 8s, 16s — cumulative; advance generously.
+			await vi.advanceTimersByTimeAsync(35_000);
+		}
 
-			// Advance timers to trigger first poll
-			await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+		const err = await captured;
+		expect(err).toBeInstanceOf(Error);
+		expect((err as Error).message).toMatch(/exit:1/);
+		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toContain(
+			"Failed to reconnect",
+		);
+		vi.useRealTimers();
+	});
 
-			// Emit SIGINT to stop the loop — handler throws via exitSpy mock
-			try {
-				process.emit("SIGINT");
-			} catch {
-				// expected: exitSpy throws Error("exit:0")
-			}
+	it("tail: SIGINT exits cleanly with code 0", async () => {
+		const captured = logs("proj", "dev", { tail: true, lines: 10 }).catch(
+			(e: Error) => e,
+		);
+		await new Promise((r) => setTimeout(r, 0));
 
-			// Drain any remaining microtasks
-			await vi.advanceTimersByTimeAsync(0);
+		try {
+			process.emit("SIGINT");
+		} catch {
+			/* exitSpy throws */
+		}
 
-			expect(exitSpy).toHaveBeenCalledWith(0);
-			expect(apiMocks.getLogs).toHaveBeenNthCalledWith(
-				1,
-				"test-token",
-				"proj",
-				"dev",
-				{ limit: 50, level: undefined },
-			);
-			expect(apiMocks.getLogs).toHaveBeenNthCalledWith(
-				2,
-				"test-token",
-				"proj",
-				"dev",
-				{ cursor: "cursor-1" },
-			);
-		});
+		const err = (await captured) as Error;
+		expect(err.message).toMatch(/exit:0/);
+	});
 
-		it("shows 'Waiting for logs...' when initial batch is empty", async () => {
-			apiMocks.getLogs.mockResolvedValue({
-				logs: [],
-				next_cursor: null,
-			});
+	it("tail: 429 upgrade rejection terminates immediately without reconnecting", async () => {
+		const captured = logs("proj", "dev", { tail: true, lines: 10 }).catch(
+			(e: Error) => e,
+		);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(wsInstances).toHaveLength(1);
+		const ws = wsInstances[0];
 
-			logs("proj", "dev", { tail: true, lines: 50 });
+		ws.emit(
+			"unexpected-response",
+			{},
+			{
+				statusCode: 429,
+				statusMessage: "Too Many Requests",
+				headers: { "retry-after": "60" },
+			},
+		);
 
-			await vi.advanceTimersByTimeAsync(0);
+		const err = (await captured) as Error;
+		expect(err).toBeInstanceOf(Error);
+		expect(err.message).toMatch(/exit:1/);
+		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toMatch(
+			/Rate limited:.*429.*Retry-After: 60/s,
+		);
+		// Crucially, no reconnect attempt was made — retrying from the same
+		// client is what the 429 is asking us NOT to do.
+		expect(wsInstances).toHaveLength(1);
+	});
 
-			try {
-				process.emit("SIGINT");
-			} catch {
-				// expected: exitSpy throws Error("exit:0")
-			}
+	it("non-tail: 429 upgrade rejection terminates immediately", async () => {
+		const captured = logs("proj", "dev", { tail: false, lines: 50 }).catch(
+			(e: Error) => e,
+		);
+		await new Promise((r) => setTimeout(r, 0));
+		const ws = wsInstances[0];
 
-			expect(exitSpy).toHaveBeenCalledWith(0);
-			expect(consoleSpy).toHaveBeenCalledWith("Waiting for logs...");
-		});
+		ws.emit(
+			"unexpected-response",
+			{},
+			{
+				statusCode: 429,
+				statusMessage: "Too Many Requests",
+				headers: { "retry-after": "30" },
+			},
+		);
 
-		it("exits with code 1 on 404 in initial fetch", async () => {
-			apiMocks.getLogs.mockRejectedValue(
-				new DeviceSDKApiError("Not found", 404),
-			);
-
-			await expect(
-				logs("proj", "dev", { tail: true, lines: 50 }),
-			).rejects.toThrowError(/exit:1/);
-			expect(exitSpy).toHaveBeenCalledWith(1);
-		});
-
-		it("prints warning and continues on network error in poll cycle", async () => {
-			apiMocks.getLogs
-				.mockResolvedValueOnce({
-					logs: [],
-					next_cursor: null,
-				})
-				.mockRejectedValueOnce(new Error("network error"))
-				.mockResolvedValue({ logs: [], next_cursor: null });
-
-			logs("proj", "dev", { tail: true, lines: 50 });
-
-			await vi.advanceTimersByTimeAsync(0);
-
-			// First poll — network error
-			await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
-
-			expect(consoleWarnSpy).toHaveBeenCalledWith(
-				expect.stringContaining("Failed to fetch logs"),
-			);
-
-			// Second poll — succeeds
-			await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
-
-			try {
-				process.emit("SIGINT");
-			} catch {
-				// expected: exitSpy throws Error("exit:0")
-			}
-
-			expect(exitSpy).toHaveBeenCalledWith(0);
-			// Should have made 3 calls total: initial + 2 polls
-			expect(apiMocks.getLogs).toHaveBeenCalledTimes(3);
-		});
-
-		it("does not print duplicate entries when next_cursor is null after initial fetch", async () => {
-			const entry = makeEntry({ id: "entry-1", message: "initial log" });
-			apiMocks.getLogs
-				.mockResolvedValueOnce({
-					logs: [entry],
-					next_cursor: null,
-				})
-				.mockResolvedValue({
-					logs: [entry],
-					next_cursor: null,
-				});
-
-			logs("proj", "dev", { tail: true, lines: 50 });
-
-			// Initial fetch
-			await vi.advanceTimersByTimeAsync(0);
-
-			// First poll — returns same entry
-			await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
-
-			try {
-				process.emit("SIGINT");
-			} catch {
-				// expected
-			}
-
-			// Entry should only be printed once despite being returned twice
-			const logCalls = consoleSpy.mock.calls.filter((call) =>
-				String(call[0]).includes("initial log"),
-			);
-			expect(logCalls).toHaveLength(1);
-		});
+		const err = (await captured) as Error;
+		expect(err.message).toMatch(/exit:1/);
+		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toContain(
+			"Rate limited",
+		);
 	});
 });

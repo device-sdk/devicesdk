@@ -240,4 +240,84 @@ export class TestDevice extends BaseDevice {
 		}
 		return { pending, alarmTime };
 	}
+
+	/**
+	 * Seeds the device_logs SQLite table with synthetic rows so the watcher
+	 * backfill path has something to replay. Pattern: chronological IDs and
+	 * timestamps offset by `i` ms so order is deterministic.
+	 */
+	async testSeedLogs(
+		entries: Array<{ id: string; level: string; message: string }>,
+	): Promise<void> {
+		// ensureLogsTable is private; persistLog is the public seam — but it
+		// also fires broadcasts/cleanup we don't want here. Direct SQL is
+		// fine inside test-only code.
+		this.ctx.storage.sql.exec(`
+			CREATE TABLE IF NOT EXISTS device_logs (
+				id TEXT PRIMARY KEY,
+				level TEXT NOT NULL,
+				message TEXT NOT NULL,
+				created_at INTEGER NOT NULL
+			)
+		`);
+		const base = Date.now() - entries.length * 100;
+		for (let i = 0; i < entries.length; i++) {
+			const e = entries[i];
+			this.ctx.storage.sql.exec(
+				"INSERT INTO device_logs (id, level, message, created_at) VALUES (?, ?, ?, ?)",
+				e.id,
+				e.level,
+				e.message,
+				base + i * 100,
+			);
+		}
+	}
+
+	/**
+	 * Drives `handleWatcherUpgrade` with the given query string and returns
+	 * the frames delivered to the client side of the resulting WebSocketPair.
+	 *
+	 * miniflare's WebSocketPair delivers `server.send()` synchronously to the
+	 * client side, so capturing frames in the same RPC is safe and avoids
+	 * timing/race issues.
+	 */
+	async testHandleWatcherUpgrade(query: string): Promise<{
+		frames: Array<{ event: string; data?: unknown; replay?: boolean }>;
+	}> {
+		const url = `https://device-do/watch-websocket${query}`;
+		const req = new Request(url, {
+			method: "GET",
+			headers: { Upgrade: "websocket" },
+		});
+		const resp = await this.handleWatcherUpgrade(req);
+		if (resp.status !== 101) {
+			throw new Error(`Expected 101 upgrade, got ${resp.status}`);
+		}
+		const wsResp = resp as Response & { webSocket?: WebSocket };
+		const client = wsResp.webSocket;
+		if (!client) {
+			throw new Error("Upgrade response missing webSocket field");
+		}
+		client.accept();
+
+		const frames: Array<{ event: string; data?: unknown; replay?: boolean }> =
+			[];
+		client.addEventListener("message", (e) => {
+			try {
+				frames.push(JSON.parse(e.data as string));
+			} catch {
+				/* ignore malformed */
+			}
+		});
+
+		// Yield once so the queued frames flush.
+		await new Promise<void>((r) => setTimeout(r, 0));
+
+		try {
+			client.close(1000, "test cleanup");
+		} catch {
+			/* already closed */
+		}
+		return { frames };
+	}
 }

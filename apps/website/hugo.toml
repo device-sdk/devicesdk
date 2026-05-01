@@ -9,7 +9,7 @@ disableKinds = ["taxonomy", "term"]
   target = "content"
 
 [[module.mounts]]
-  source = "../../docs"
+  source = "../../docs/public"
   target = "content/docs"
 [outputs]
   home = ["HTML"]

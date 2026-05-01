@@ -1,6 +1,14 @@
 import type { Context, Next } from "hono";
 import type { AppContext } from "../types";
 import { TIER_LIMITS, type UserPlan } from "./consts";
+import { TieredCache } from "./tieredCache";
+
+/**
+ * How long a cross-route block sticks once the per-user rate limit trips.
+ * Short enough to recover from a temporarily buggy client; long enough that
+ * a genuine runaway is throttled out for the rest of the working session.
+ */
+const BLOCK_DURATION_MS = 60 * 60 * 1000;
 
 export function rateLimitMiddleware(maxRequests: number, windowMs: number) {
 	return async (
@@ -93,6 +101,23 @@ export function userRateLimitMiddleware() {
 
 			const retryAfterMs = oldest ? oldest.oldest + windowMs - now : windowMs;
 			const retryAfterSec = Math.ceil(Math.max(retryAfterMs, 1000) / 1000);
+
+			// Promote the breach to a cross-route block in the tiered cache so
+			// subsequent requests from this user 429 immediately at the
+			// userBlockListMiddleware layer — no further D1 reads, no DO wakes.
+			// Fire-and-forget; cache.set never throws on its own callers' path
+			// because the middleware will fail open if the binding is missing.
+			if (c.env.CACHE) {
+				const cache = new TieredCache(c.env.CACHE, "block", c.executionCtx);
+				const until = now + BLOCK_DURATION_MS;
+				c.executionCtx.waitUntil(
+					cache.set(
+						`user:${user.id}`,
+						{ reason: "rate-limit", path: c.req.path, until },
+						{ ttlSec: Math.ceil(BLOCK_DURATION_MS / 1000) },
+					),
+				);
+			}
 
 			return c.json(
 				{

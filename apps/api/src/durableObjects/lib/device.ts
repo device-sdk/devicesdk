@@ -169,7 +169,20 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * Handles a watcher WebSocket upgrade (e.g. dashboard, Home Assistant).
+	 * Handles a watcher WebSocket upgrade (e.g. dashboard, Home Assistant, CLI
+	 * `devicesdk logs --tail`).
+	 *
+	 * Query parameters:
+	 *   `backfillLimit` (1..100) — if set, replay the last N device_logs rows
+	 *      as `{ event: "log", data: {...}, replay: true }` frames before live
+	 *      events start arriving, then send `{ event: "history_complete" }`.
+	 *   `backfillLevel` (one of VALID_LOG_LEVELS) — optional filter for the
+	 *      replay frames only; live events are unfiltered.
+	 *
+	 * No backfill is sent unless `backfillLimit` is explicitly provided so
+	 * existing watchers (current dashboard, prior to migration) continue to
+	 * work unchanged.
+	 *
 	 * The accepted socket is tagged "watcher" so it hibernates like the
 	 * firmware connection and is never mistaken for the device session.
 	 */
@@ -189,6 +202,37 @@ export class BaseDevice extends DurableObject<Env> {
 			server.send(JSON.stringify({ event: "status", data: status }));
 		} catch (error) {
 			console.error("Failed to send initial status to watcher:", error);
+		}
+
+		// Optional log history backfill. Single SQL scan per connect — never
+		// per poll — so cost is bounded by reconnect rate, not by client
+		// activity.
+		const url = new URL(request.url);
+		const rawLimit = url.searchParams.get("backfillLimit");
+		if (rawLimit !== null) {
+			const parsed = Number.parseInt(rawLimit, 10);
+			const limit = Number.isFinite(parsed)
+				? Math.min(Math.max(parsed, 1), 100)
+				: 0;
+			if (limit > 0) {
+				const rawLevel = url.searchParams.get("backfillLevel");
+				const level =
+					rawLevel && VALID_LOG_LEVELS.includes(rawLevel as LogLevel)
+						? rawLevel
+						: undefined;
+				try {
+					const { logs } = this.fetchRecentLogs({ limit, level });
+					// Send oldest first so the client can append in display order.
+					for (let i = logs.length - 1; i >= 0; i--) {
+						server.send(
+							JSON.stringify({ event: "log", data: logs[i], replay: true }),
+						);
+					}
+				} catch (error) {
+					console.error("Watcher backfill failed:", error);
+				}
+				server.send(JSON.stringify({ event: "history_complete" }));
+			}
 		}
 
 		return new Response(null, { status: 101, webSocket: client });
@@ -1254,9 +1298,37 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * Retrieves logs from DO SQLite storage with cursor-based pagination.
+	 * @deprecated Retired May 2026. Always throws `LOGS_DEPRECATED`.
+	 *
+	 * **Why this is gone.** This RPC backed the HTTP `GET /v1/projects/.../logs`
+	 * endpoint, which the CLI's `devicesdk logs --tail` polled every 2 s with a
+	 * cursor-based fetch. A stale CLI process polled for 2 days, ran a
+	 * `LIMIT 51` SQL scan against `device_logs` 43 200 times/day, and burned
+	 * the production free-tier 1 M DO rows-read quota in ~5 h. Once the daily
+	 * quota was exhausted every `/logs` request 503'd for the remainder of the
+	 * UTC day. The polling loop never backed off.
+	 *
+	 * **What replaces it.** Watcher WebSocket \u2014 `handleWatcherUpgrade` (above)
+	 * accepts `?backfillLimit=N&backfillLevel=warn` and emits replay frames
+	 * before live broadcasts. One SQL scan per *connection* instead of per
+	 * poll. Live events arrive via `broadcastToWatchers("log", ...)` so a
+	 * silent device costs zero reads.
+	 *
+	 * **Defense in depth \u2014 even if a client tried to revive `/logs`:**
+	 *   1. Cloudflare WAF rate-limit on `/v1/*` (see `docs/internal/operations/cloudflare-waf.md`).
+	 *   2. `userBlockListMiddleware` (see `foundation/userBlockList.ts`) \u2014
+	 *      tripping the per-route rate limit writes a 1 h block to KV that
+	 *      short-circuits subsequent requests at L1 cache (`caches.default`).
+	 *   3. Per-user rate limit on `/logs` (`userRateLimitMiddleware`,
+	 *      mounted in `index.ts`).
+	 *   4. This throw \u2014 even if the rate limiter is misconfigured, the DO RPC
+	 *      itself refuses to scan storage.
+	 *
+	 * Keeping the method (rather than removing it) preserves the
+	 * type-checked RPC surface of `BaseDevice` and gives a clear error to any
+	 * accidental caller.
 	 */
-	async getLogs(options: {
+	async getLogs(_options: {
 		cursor?: string;
 		limit?: number;
 		level?: string;
@@ -1269,55 +1341,54 @@ export class BaseDevice extends DurableObject<Env> {
 		}>;
 		next_cursor: string | null;
 	}> {
-		this.ensureLogsTable();
-		const limit = Math.min(options.limit ?? 50, 100);
+		throw new Error(
+			"LOGS_DEPRECATED: stub.getLogs() was retired in May 2026 after a runaway --tail loop polled it for 2 days and burned the daily DO rows-read quota. Use the watcher WebSocket \u2014 handleWatcherUpgrade() supports `?backfillLimit=N&backfillLevel=warn` and broadcasts live entries via broadcastToWatchers('log', ...).",
+		);
+	}
 
-		let cursorTs = Date.now() + 1;
-		let cursorId = "\uffff"; // Sorts after any UUID
-		if (options.cursor) {
-			const sepIdx = options.cursor.indexOf(":");
-			if (sepIdx !== -1) {
-				cursorTs = Number(options.cursor.slice(0, sepIdx));
-				cursorId = options.cursor.slice(sepIdx + 1);
-			}
-		}
-
-		const rows = options.level
-			? this.ctx.storage.sql
-					.exec(
-						`SELECT id, level, message, created_at FROM device_logs
-					 WHERE (created_at < ? OR (created_at = ? AND id < ?)) AND level = ?
-					 ORDER BY created_at DESC, id DESC LIMIT ?`,
-						cursorTs,
-						cursorTs,
-						cursorId,
-						options.level,
-						limit + 1,
-					)
-					.toArray()
-			: this.ctx.storage.sql
-					.exec(
-						`SELECT id, level, message, created_at FROM device_logs
-					 WHERE (created_at < ? OR (created_at = ? AND id < ?))
-					 ORDER BY created_at DESC, id DESC LIMIT ?`,
-						cursorTs,
-						cursorTs,
-						cursorId,
-						limit + 1,
-					)
-					.toArray();
-
-		const hasMore = rows.length > limit;
-		const logs = rows.slice(0, limit) as Array<{
+	/**
+	 * Fetches the most recent N log rows (newest first), optionally filtered
+	 * by level. No cursor \u2014 used by the watcher WS backfill where the client
+	 * just wants "the last N events I might have missed."
+	 *
+	 * Synchronous because `storage.sql.exec(...).toArray()` is sync; the
+	 * surrounding async wrapper exists only because callers may await it.
+	 */
+	private fetchRecentLogs(opts: { limit: number; level?: string }): {
+		logs: Array<{
 			id: string;
 			level: string;
 			message: string;
 			created_at: number;
 		}>;
-		const lastLog = logs[logs.length - 1];
-		const nextCursor = hasMore ? `${lastLog.created_at}:${lastLog.id}` : null;
-
-		return { logs, next_cursor: nextCursor };
+	} {
+		this.ensureLogsTable();
+		const limit = Math.min(Math.max(opts.limit, 1), 100);
+		const rows = opts.level
+			? this.ctx.storage.sql
+					.exec(
+						`SELECT id, level, message, created_at FROM device_logs
+					 WHERE level = ?
+					 ORDER BY created_at DESC, id DESC LIMIT ?`,
+						opts.level,
+						limit,
+					)
+					.toArray()
+			: this.ctx.storage.sql
+					.exec(
+						`SELECT id, level, message, created_at FROM device_logs
+					 ORDER BY created_at DESC, id DESC LIMIT ?`,
+						limit,
+					)
+					.toArray();
+		return {
+			logs: rows as Array<{
+				id: string;
+				level: string;
+				message: string;
+				created_at: number;
+			}>,
+		};
 	}
 
 	/**

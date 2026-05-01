@@ -39,8 +39,8 @@ describe.sequential("Logs endpoint", () => {
 			.execute();
 	});
 
-	describe("GET /v1/projects/:projectId/devices/:deviceId/logs", () => {
-		it("should return empty logs for a device with no logs", async () => {
+	describe("GET /v1/projects/:projectId/devices/:deviceId/logs (deprecated → 410)", () => {
+		it("returns 410 with Link header pointing at the watcher WS for an existing project+device", async () => {
 			const resp = await SELF.fetch(
 				"http://localhost/v1/projects/smart-home/devices/log-device/logs",
 				{
@@ -51,25 +51,21 @@ describe.sequential("Logs endpoint", () => {
 				},
 			);
 
-			expect(resp.status).toBe(200);
+			expect(resp.status).toBe(410);
+			expect(resp.headers.get("Link")).toContain(
+				'/v1/projects/smart-home/devices/log-device/watch>; rel="alternate"',
+			);
 			const json = (await resp.json()) as {
 				success: boolean;
-				result: {
-					logs: Array<{
-						id: string;
-						level: string;
-						message: string;
-						created_at: number;
-					}>;
-					next_cursor: string | null;
-				};
+				error: string;
+				code: string;
 			};
-			expect(json.success).toBe(true);
-			expect(json.result.logs).toEqual([]);
-			expect(json.result.next_cursor).toBeNull();
+			expect(json.success).toBe(false);
+			expect(json.code).toBe("LOGS_DEPRECATED");
+			expect(json.error).toContain("watcher WebSocket");
 		});
 
-		it("should return 404 for non-existent project", async () => {
+		it("returns 410 even for non-existent project IDs (no D1 lookup performed)", async () => {
 			const resp = await SELF.fetch(
 				"http://localhost/v1/projects/non-existent/devices/log-device/logs",
 				{
@@ -80,34 +76,13 @@ describe.sequential("Logs endpoint", () => {
 				},
 			);
 
-			expect(resp.status).toBe(404);
-			const json = (await resp.json()) as {
-				success: boolean;
-				error: string;
-			};
-			expect(json.success).toBe(false);
+			// The endpoint is deprecated; clients should migrate. The
+			// 404-vs-410 distinction was dropped to avoid spending D1 reads
+			// on a route that exists only to point at the watcher WS.
+			expect(resp.status).toBe(410);
 		});
 
-		it("should return 404 for non-existent device", async () => {
-			const resp = await SELF.fetch(
-				"http://localhost/v1/projects/smart-home/devices/non-existent/logs",
-				{
-					method: "GET",
-					headers: {
-						Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
-					},
-				},
-			);
-
-			expect(resp.status).toBe(404);
-			const json = (await resp.json()) as {
-				success: boolean;
-				error: string;
-			};
-			expect(json.success).toBe(false);
-		});
-
-		it("should return 401 without auth", async () => {
+		it("still returns 401 without auth (auth runs before the 410)", async () => {
 			const resp = await SELF.fetch(
 				"http://localhost/v1/projects/smart-home/devices/log-device/logs",
 				{
@@ -118,7 +93,7 @@ describe.sequential("Logs endpoint", () => {
 			expect(resp.status).toBe(401);
 		});
 
-		it("should accept query parameters", async () => {
+		it("query parameters do not change the deprecation response", async () => {
 			const resp = await SELF.fetch(
 				"http://localhost/v1/projects/smart-home/devices/log-device/logs?limit=10&level=error",
 				{
@@ -129,21 +104,7 @@ describe.sequential("Logs endpoint", () => {
 				},
 			);
 
-			expect(resp.status).toBe(200);
-			const json = (await resp.json()) as {
-				success: boolean;
-				result: {
-					logs: Array<{
-						id: string;
-						level: string;
-						message: string;
-						created_at: number;
-					}>;
-					next_cursor: string | null;
-				};
-			};
-			expect(json.success).toBe(true);
-			expect(json.result.logs).toEqual([]);
+			expect(resp.status).toBe(410);
 		});
 	});
 

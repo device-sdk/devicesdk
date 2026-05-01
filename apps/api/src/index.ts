@@ -32,6 +32,7 @@ import {
 	rateLimitMiddleware,
 	userRateLimitMiddleware,
 } from "./foundation/rateLimit";
+import { userBlockListMiddleware } from "./foundation/userBlockList";
 import { handleScheduled } from "./scheduled";
 import type { Env, Variables } from "./types";
 
@@ -173,6 +174,11 @@ app.post("/cli/auth", cliAuthUser, handleApproval);
 // 2. Authentication middleware
 app.use("*", authenticateUser);
 
+// 3. Cross-route block list — short-circuits 429 before any D1/DO work for
+// users who have tripped a rate limit elsewhere. Reads from a tiered cache
+// (caches.default → KV) so the hot path costs ~0 on cache hit.
+app.use("*", userBlockListMiddleware());
+
 // Set Sentry user context for all authenticated requests.
 // sendDefaultPii is false, so we only attach the opaque user ID (not email)
 // to keep PII out of Sentry while still being able to correlate errors to accounts.
@@ -185,10 +191,20 @@ app.use("*", async (c, next) => {
 	await next();
 });
 
-// 3. Per-user rate limiting (plan-aware)
-app.use("*", userRateLimitMiddleware());
+// 4. Per-user rate limiting (plan-aware) — scoped to /logs only.
+// `/logs` is the only endpoint with a high-volume polling history (a stuck
+// CLI --tail loop blew the daily DO rows-read quota in May 2026 — see
+// docs/internal/operations/cloudflare-waf.md and the comment block on `getLogs` in
+// device.ts). Other routes are sufficiently protected by:
+//   - the WAF rate-limit on /v1/* at the edge (60 r/s per IP),
+//   - per-resource caps in TIER_LIMITS enforced inside handlers,
+//   - the block-list middleware above which sticks once any limit fires.
+app.use(
+	"/v1/projects/:projectId/devices/:deviceId/logs",
+	userRateLimitMiddleware(),
+);
 
-// 4. Endpoints that require Auth
+// 5. Endpoints that require Auth
 app.route("/v1/cli/auth", cliAuthRouterPostAuth);
 app.post("/v1/auth/logout", handleLogout);
 app.route("/v1/user", userRouter);

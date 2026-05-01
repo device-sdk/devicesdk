@@ -1,4 +1,4 @@
-import { API_HOST, WS_API_HOST } from '@/config/apiHost';
+import { WS_API_HOST } from '@/config/apiHost';
 import { api } from '@/lib/api';
 
 // ============================================================================
@@ -393,46 +393,37 @@ export interface DeviceLog {
   created_at: number;
 }
 
-export interface LogsResponse {
-  logs: DeviceLog[];
-  next_cursor: string | null;
-}
-
 export interface DeviceStatus {
   connected: boolean;
   connectedSince: number | null;
 }
 
 export const logService = {
-  async getLogs(
-    projectId: string,
-    deviceId: string,
-    options?: { cursor?: string | undefined; limit?: number | undefined; level?: string | undefined },
-  ): Promise<LogsResponse> {
-    const params = new URLSearchParams();
-    if (options?.cursor != null) params.set('cursor', options.cursor);
-    if (options?.limit != null) params.set('limit', String(options.limit));
-    if (options?.level) params.set('level', options.level);
-    const qs = params.toString();
-    const url = `/v1/projects/${projectId}/devices/${deviceId}/logs${qs ? `?${qs}` : ''}`;
-    const data = await api.call<ApiResponse<LogsResponse>>(url);
-    if (!data || !data.success) {
-      throw new Error('Failed to fetch logs');
-    }
-    return data.result;
-  },
-
-  getStreamUrl(projectId: string, deviceId: string): string {
-    return `${API_HOST}/v1/projects/${projectId}/devices/${deviceId}/logs/stream`;
-  },
-
   /**
    * Returns the WebSocket URL for the generic watch endpoint. Receives JSON
-   * frames of the form `{ event: "status" | "log" | "state", data: ... }`.
+   * frames of the form `{ event: "status" | "log" | "state" | "history_complete", data: ... }`.
    * The browser sends the session cookie automatically on the upgrade.
+   *
+   * Pass `backfillLimit` to receive up to N recent log entries on connect as
+   * `{ event: "log", data, replay: true }` frames followed by a single
+   * `{ event: "history_complete" }` marker. Subsequent live events arrive on
+   * the same socket. This replaces the deprecated HTTP `/logs` endpoint.
    */
-  getWatchUrl(projectId: string, deviceId: string): string {
-    return `${WS_API_HOST}/v1/projects/${projectId}/devices/${deviceId}/watch`;
+  getWatchUrl(
+    projectId: string,
+    deviceId: string,
+    options?: { backfillLimit?: number; backfillLevel?: string },
+  ): string {
+    const base = `${WS_API_HOST}/v1/projects/${projectId}/devices/${deviceId}/watch`;
+    const params = new URLSearchParams();
+    if (options?.backfillLimit != null) {
+      params.set('backfillLimit', String(options.backfillLimit));
+    }
+    if (options?.backfillLevel) {
+      params.set('backfillLevel', options.backfillLevel);
+    }
+    const qs = params.toString();
+    return qs ? `${base}?${qs}` : base;
   },
 };
 

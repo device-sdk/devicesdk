@@ -29,7 +29,7 @@ catalogs:
       version: 3.2.4
     wrangler:
       specifier: ^4.85.0
-      version: 4.84.1
+      version: 4.85.0
   tailwind4:
     tailwindcss:
       specifier: ^4.1.18
@@ -312,6 +312,9 @@ importers:
       workerd:
         specifier: ^1.20250831.0
         version: 1.20260205.0
+      ws:
+        specifier: ^8.18.0
+        version: 8.18.0
       zod:
         specifier: catalog:zod4
         version: 4.3.6
@@ -325,6 +328,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 22.19.9
+      '@types/ws':
+        specifier: ^8.5.12
+        version: 8.18.1
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@22.19.9)(typescript@5.9.3)
@@ -2277,6 +2283,9 @@ packages:
 
   '@types/serve-static@1.15.10':
     resolution: {integrity: sha512-tRs1dB+g8Itk72rlSI2ZrW6vZg0YrLI81iQSTkMmOqnqCaNr/8Ek4VwWcN5vZgCYWbg/JJSGBlUaYGAOP73qBw==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@typescript-eslint/eslint-plugin@8.54.0':
     resolution: {integrity: sha512-hAAP5io/7csFStuOmR782YmTthKBJ9ND3WVL60hcOjvtGFb+HJxH4O5huAcmcZ9v9G8P+JETiZ/G1B8MALnWZQ==}
@@ -7002,6 +7011,10 @@ snapshots:
       '@types/http-errors': 2.0.5
       '@types/node': 22.19.9
       '@types/send': 0.17.6
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.19.9
 
   '@typescript-eslint/eslint-plugin@8.54.0(@typescript-eslint/parser@8.54.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:

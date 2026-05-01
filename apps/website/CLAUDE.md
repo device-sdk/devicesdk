@@ -22,7 +22,9 @@ Pages that DO use markdown bodies (for comparison): `content/privacy/_index.md` 
 
 ## Public-facing content rule (inherits from root CLAUDE.md)
 
-Never reference Cloudflare, Workers, D1, R2, Durable Objects, KV, Wrangler, or Pages in any file under `content/` or `layouts/`. Use the generic terms listed in the root `CLAUDE.md` (`managed edge runtime`, `edge infrastructure`, `globally distributed runtime`, `managed platform`).
+Never reference Cloudflare, Workers, D1, R2, Durable Objects, KV, Wrangler, or Pages in any file under `content/`, `layouts/`, or `docs/public/` (mounted into the Hugo content tree at build time — see `[[module.mounts]]` in `hugo.toml`). Use the generic terms listed in the root `CLAUDE.md` (`managed edge runtime`, `edge infrastructure`, `globally distributed runtime`, `managed platform`).
+
+Internal runbooks live under `docs/internal/` and are **not** mounted into the Hugo build, so they may reference Cloudflare freely.
 
 ## OG Image Generation
 

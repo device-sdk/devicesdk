@@ -37,6 +37,7 @@ declare namespace Cloudflare {
 		DB: D1Database;
 		FIRMWARES: R2Bucket;
 		SCRIPTS: R2Bucket;
+		CACHE: KVNamespace;
 		GOOGLE_ID: string;
 		GOOGLE_SECRET: string;
 		SALT_TOKEN: string;

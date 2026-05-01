@@ -221,3 +221,9 @@ do {
 uint8_t com_pins = (height == 32) ? 0x02 : 0x12;
 ```
 **Rule**: For any new SSD1306-family panel that isn't the canonical 128×32, expect alternating COM pins. The clue that you have the wrong config is diagnostic patterns that show up as every-other-row stripes, not as rectangles.
+
+### `devicesdk logs --tail` exits / fails behind a corporate proxy
+**Date**: 2026-05-01
+**Question/Problem**: Since May 2026 the CLI `logs` and `logs --tail` commands open a WebSocket to `/v1/projects/.../devices/.../watch` instead of polling the deprecated `/logs` HTTP endpoint. Some corporate proxies strip the `Upgrade: websocket` header or block 101 responses, leaving the CLI unable to connect.
+**Root Cause**: The deprecation removed the HTTP polling fallback. The watcher endpoint is the only path that delivers logs.
+**Solution**: Open the dashboard (`https://dash.devicesdk.com/projects/<slug>/devices/<slug>`) — the logs panel uses the same WebSocket and works in any browser the user can already reach. If neither WS nor the dashboard is reachable, raise the issue with the network operator (the watcher socket is required for the runtime UI). Do **not** reintroduce a polling fallback — the burn pattern that triggered the migration would recur.

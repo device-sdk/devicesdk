@@ -28,12 +28,19 @@ class FakeWebSocket extends EventEmitter {
 
 const wsInstances: FakeWebSocket[] = [];
 
+// `vi.fn()` in vitest 4 rejects arrow-function implementations when invoked
+// with `new`. The command does `new WebSocket(...)`, so the implementation
+// has to be a real `function` declaration (constructable, with its own
+// prototype). Biome only rewrites function *expressions* into arrows, not
+// declarations, so the reference below is safe.
+function trackedWebSocket(url: string, options?: unknown) {
+	const ws = new FakeWebSocket(url, options);
+	wsInstances.push(ws);
+	return ws;
+}
+
 vi.mock("ws", () => ({
-	default: vi.fn().mockImplementation((url: string, options?: unknown) => {
-		const ws = new FakeWebSocket(url, options);
-		wsInstances.push(ws);
-		return ws;
-	}),
+	default: vi.fn(trackedWebSocket),
 }));
 
 function makeEntry(

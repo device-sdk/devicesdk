@@ -11,6 +11,9 @@ out/
 .quasar/
 build/
 
+# Test coverage reports
+coverage/
+
 # Cloudflare
 .wrangler/
 .dev.vars

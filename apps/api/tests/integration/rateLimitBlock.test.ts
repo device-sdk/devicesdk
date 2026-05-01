@@ -7,6 +7,16 @@ const BLOCK_KEY = `block:user:${TEST_FREE_USER_ID}`;
 
 async function clearState(): Promise<void> {
 	await env.CACHE.delete(BLOCK_KEY);
+	// TieredCache backs the block-list middleware with caches.default as L1.
+	// The KV delete above clears L2; we also purge the per-colo L1 entry so a
+	// stale block from the previous test doesn't trip the next one. URL must
+	// match TieredCache.cacheRequest: namespace "block", key "user:<id>" both
+	// `encodeURIComponent`-ed.
+	await caches.default.delete(
+		new Request(
+			`https://cache.internal/block/${encodeURIComponent(`user:${TEST_FREE_USER_ID}`)}`,
+		),
+	);
 	await env.DB.prepare("DELETE FROM rate_limits WHERE key = ?")
 		.bind(`user:${TEST_FREE_USER_ID}`)
 		.run();

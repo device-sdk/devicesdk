@@ -1,7 +1,7 @@
 ---
-title: DeviceSDK - Build IoT Applications with TypeScript
+title: DeviceSDK — Deploy TypeScript to ESP32 & Raspberry Pi Pico
 description: >-
-  Build, deploy, and manage IoT devices with TypeScript. From prototype to
-  production in minutes.
+  Managed platform for shipping TypeScript firmware to ESP32 and Pi Pico. Write,
+  deploy, and stream telemetry over WebSocket in minutes.
 social_image: /og-images/index.png
 ---

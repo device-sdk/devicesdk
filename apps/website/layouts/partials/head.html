@@ -3,15 +3,18 @@
 <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ .Site.Params.description }}{{ end }}">
 <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} | DeviceSDK{{ end }}</title>
 
-{{/* Open Graph / Twitter cards: only set image if social_image is defined */}}
+<link rel="canonical" href="{{ .Permalink }}">
+
 {{- $base := (strings.TrimRight "/" .Site.BaseURL) -}}
 {{- $og := .Params.social_image -}}
 {{- $absOG := "" -}}
 {{- if $og }}{{- $absOG = printf "%s%s" $base $og -}}{{ end -}}
+{{- $ogType := "article" -}}
+{{- if or .IsHome (eq .Kind "section") }}{{ $ogType = "website" }}{{ end -}}
 
 <meta property="og:title" content="{{ .Title }}">
 {{ with .Params.description }}<meta property="og:description" content="{{ . }}">{{ end }}
-<meta property="og:type" content="article">
+<meta property="og:type" content="{{ $ogType }}">
 <meta property="og:url" content="{{ .Permalink }}">
 {{ if $og }}<meta property="og:image" content="{{ $absOG }}">{{ end }}
 
@@ -19,6 +22,33 @@
 <meta name="twitter:title" content="{{ .Title }}">
 {{ with .Params.description }}<meta name="twitter:description" content="{{ . }}">{{ end }}
 {{ if $og }}<meta name="twitter:image" content="{{ $absOG }}">{{ end }}
+
+{{- if .IsHome }}
+{{- $org := dict
+  "@context" "https://schema.org"
+  "@type" "Organization"
+  "name" "DeviceSDK"
+  "url" (printf "%s/" $base)
+  "logo" (printf "%s/logo.svg" $base)
+  "description" .Site.Params.description
+  "sameAs" (slice .Site.Params.githubUrl .Site.Params.twitterUrl .Site.Params.discordUrl)
+}}
+<script type="application/ld+json">{{ $org | jsonify (dict "indent" "  ") | safeJS }}</script>
+{{- end }}
+
+{{- if and (eq .Section "docs") (gt (len .Ancestors) 1) }}
+{{- $items := slice (dict "@type" "ListItem" "position" 1 "name" "Home" "item" (printf "%s/" $base)) }}
+{{- $pos := 1 }}
+{{- range .Ancestors.Reverse }}{{ if not .IsHome }}{{ $pos = add $pos 1 }}{{ $items = $items | append (dict "@type" "ListItem" "position" $pos "name" .Title "item" .Permalink) }}{{ end }}{{ end }}
+{{- $pos = add $pos 1 }}
+{{- $items = $items | append (dict "@type" "ListItem" "position" $pos "name" .Title "item" .Permalink) }}
+{{- $bc := dict
+  "@context" "https://schema.org"
+  "@type" "BreadcrumbList"
+  "itemListElement" $items
+}}
+<script type="application/ld+json">{{ $bc | jsonify (dict "indent" "  ") | safeJS }}</script>
+{{- end }}
 
 <link href="/styles.css" rel="stylesheet">
 

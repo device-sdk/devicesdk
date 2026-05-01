@@ -29,3 +29,15 @@ Internal runbooks live under `docs/internal/` and are **not** mounted into the H
 ## OG Image Generation
 
 The site uses Playwright to render social-preview images during build. `pnpm build` requires `pnpm exec playwright install` to have run at least once. CI caches the Playwright browsers between runs.
+
+## URL changes require a redirect
+
+Whenever you rename, move, or delete a content file under `content/` or `docs/public/` (which mounts at `/docs/`), you **MUST** add a 301 entry to `apps/website/static/_redirects` mapping the old URL to the new one (or to the closest still-existing parent for deletions).
+
+This applies even for "small" reorganizations. Google retains old URLs for months and continues serving them from the index — a missing redirect costs impressions and trips canonical/404 warnings in Search Console. We've already paid for this once: `/docs/resources/hardware/` was moved to `/docs/hardware/` without a redirect, leading to ~36 wasted impressions per quarter and a "duplicate without canonical" warning.
+
+**Format:** `<old-path> <new-path> 301`, one per line. Wildcards work: `/docs/old-section/:slug /docs/new-section/:slug 301`. Place the more specific entries before the general ones.
+
+**Verify after deploy:** `curl -I https://devicesdk.com/<old-path>` should return `HTTP/2 301` with the new `location:` header.
+
+Also applies to: changes to `permalink`/`url` in front-matter, changes to `[permalinks]` in `hugo.toml`, and changes to `[[module.mounts]]` `target` values that shift where content lands in the URL tree.

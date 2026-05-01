@@ -20,25 +20,21 @@
       >
         {{ deviceStatus.connected ? 'Online' : 'Offline' }}
       </q-chip>
-      <q-toggle v-model="liveStream" label="Live" />
-      <q-btn v-if="liveStream" flat icon="delete_sweep" @click="clearLogs">
-        <q-tooltip>Clear live logs</q-tooltip>
-      </q-btn>
-      <q-btn flat icon="refresh" :loading="loading" @click="fetchLogs()">
-        <q-tooltip>Refresh</q-tooltip>
+      <q-btn flat icon="delete_sweep" @click="clearLogs">
+        <q-tooltip>Clear logs</q-tooltip>
       </q-btn>
     </div>
 
-    <div v-if="loading && displayLogs.length === 0" class="text-center q-pa-xl">
+    <div v-if="!historyLoaded" class="text-center q-pa-xl">
       <q-spinner-dots color="primary" size="40px" />
+      <div class="text-caption text-grey-6 q-mt-sm">Loading recent logs…</div>
     </div>
 
-    <div v-else-if="displayLogs.length === 0" class="text-center q-pa-xl">
+    <div v-else-if="filteredLogs.length === 0" class="text-center q-pa-xl">
       <q-icon name="article" size="64px" color="grey-4" class="q-mb-md" />
       <div class="text-h6 text-grey-6 q-mb-sm">No logs yet</div>
       <p class="text-body2 text-grey-5">
-        Logs from console.log, console.warn, etc. in your device script will appear here.
-        <span v-if="!liveStream">Enable <b>Live</b> to stream logs in real time.</span>
+        Logs from console.log, console.warn, etc. in your device script will appear here in real time.
       </p>
     </div>
 
@@ -62,23 +58,12 @@
         </span>
         <span class="font-mono log-message">{{ formatMessage(log.message) }}</span>
       </div>
-
-      <div v-if="!liveStream && nextCursor" class="text-center q-pa-md">
-        <q-btn
-          outline
-          color="primary"
-          label="Load More"
-          :loading="loadingMore"
-          @click="loadMore"
-        />
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { logService, type DeviceLog } from '@/services/api.service';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useDeviceStream } from '@/composables/useDeviceStream';
 
 const props = defineProps<{
@@ -86,24 +71,25 @@ const props = defineProps<{
   deviceId: string;
 }>();
 
-// REST-based log fetching (history)
-const logs = ref<DeviceLog[]>([]);
-const nextCursor = ref<string | null>(null);
-const loading = ref(false);
-const loadingMore = ref(false);
 const levelFilter = ref<string | null>(null);
 
-// Live streaming
-const liveStream = ref(false);
-const { streamedLogs, deviceStatus, connect, disconnect, clearLogs: clearStreamLogs } = useDeviceStream(props.projectId, props.deviceId);
-
-// Display either streamed logs (live mode) or REST logs (history mode)
-const displayLogs = computed(() => liveStream.value ? streamedLogs.value : logs.value);
+// Logs are now WS-only. The watcher WebSocket sends up to `backfillLimit`
+// recent entries on connect (replay frames) followed by `history_complete`,
+// then live events. The legacy HTTP `/logs` endpoint returns 410 — see
+// apps/api/src/durableObjects/lib/device.ts `getLogs` for the full incident
+// write-up.
+const {
+  streamedLogs,
+  deviceStatus,
+  historyLoaded,
+  connect,
+  disconnect,
+  clearLogs: clearStreamLogs,
+} = useDeviceStream(props.projectId, props.deviceId, { backfillLimit: 100 });
 
 const filteredLogs = computed(() => {
-  const source = displayLogs.value;
-  if (!levelFilter.value) return source;
-  return source.filter((log) => log.level === levelFilter.value);
+  if (!levelFilter.value) return streamedLogs.value;
+  return streamedLogs.value.filter((log) => log.level === levelFilter.value);
 });
 
 const levelOptions = [
@@ -147,64 +133,12 @@ const formatMessage = (message: string): string => {
   }
 };
 
-const fetchLogs = async () => {
-  loading.value = true;
-  logs.value = [];
-  nextCursor.value = null;
-  try {
-    const result = await logService.getLogs(props.projectId, props.deviceId, {
-      limit: 50,
-      level: levelFilter.value ?? undefined,
-    });
-    logs.value = result.logs;
-    nextCursor.value = result.next_cursor;
-  } catch (err) {
-    console.error('Failed to fetch logs:', err);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const loadMore = async () => {
-  if (!nextCursor.value) return;
-  loadingMore.value = true;
-  try {
-    const result = await logService.getLogs(props.projectId, props.deviceId, {
-      cursor: nextCursor.value,
-      limit: 50,
-      level: levelFilter.value ?? undefined,
-    });
-    logs.value = [...logs.value, ...result.logs];
-    nextCursor.value = result.next_cursor;
-  } catch (err) {
-    console.error('Failed to load more logs:', err);
-  } finally {
-    loadingMore.value = false;
-  }
-};
-
 const clearLogs = () => {
   clearStreamLogs();
 };
 
-watch(levelFilter, () => {
-  if (!liveStream.value) {
-    void fetchLogs();
-  }
-});
-
-watch(liveStream, (enabled) => {
-  if (enabled) {
-    connect();
-  } else {
-    disconnect();
-    // Refresh REST logs when switching back to history mode
-    void fetchLogs();
-  }
-});
-
 onMounted(() => {
-  void fetchLogs();
+  connect();
 });
 
 onUnmounted(() => {

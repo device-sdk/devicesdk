@@ -1,8 +1,18 @@
 baseURL = 'https://devicesdk.com/'
 languageCode = 'en-us'
-title = 'DeviceSDK - Build IoT Applications with TypeScript'
+title = 'DeviceSDK — Deploy TypeScript to ESP32 & Raspberry Pi Pico'
 enableRobotsTXT = false
+enableGitInfo = true
 disableKinds = ["taxonomy", "term"]
+
+[sitemap]
+  changefreq = "weekly"
+  filename = "sitemap.xml"
+  priority = 0.5
+
+[frontmatter]
+  date = ["date", ":git", "lastmod", "publishDate"]
+  lastmod = ["lastmod", ":git", "date", "publishDate"]
 
 [[module.mounts]]
   source = "content"
@@ -15,7 +25,7 @@ disableKinds = ["taxonomy", "term"]
   home = ["HTML"]
 
 [params]
-  description = "Build, deploy, and manage IoT devices with TypeScript. From prototype to production in minutes."
+  description = "Managed platform for shipping TypeScript firmware to ESP32 and Pi Pico. Write, deploy, and stream telemetry over WebSocket in minutes."
   dashboardUrl = "/early-access/"
   docsUrl = "https://devicesdk.com/docs"
   githubUrl = "https://github.com/device-sdk"

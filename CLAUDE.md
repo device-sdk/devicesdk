@@ -191,6 +191,10 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 |---------|-------------------|
 | Shared types and device abstractions | `packages/core` |
 | Auth middleware, session handling, OAuth | `apps/api/src/foundation/auth.ts` |
+| Auth caching (TieredCache) | `apps/api/src/foundation/authCache.ts` |
+| Tiered cache (caches.default + KV) | `apps/api/src/foundation/tieredCache.ts` |
+| Cross-route block list middleware | `apps/api/src/foundation/userBlockList.ts` |
+| Edge rate-limit rule (Cloudflare WAF) | `docs/operations/cloudflare-waf.md` |
 | Session constants | `apps/api/src/foundation/consts.ts` |
 | Script validation | `apps/api/src/foundation/scriptValidator.ts` |
 | Device reboot trigger | `apps/api/src/foundation/deviceReboot.ts` |

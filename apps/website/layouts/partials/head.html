@@ -12,6 +12,8 @@
 {{- $ogType := "article" -}}
 {{- if or .IsHome (eq .Kind "section") }}{{ $ogType = "website" }}{{ end -}}
 
+<meta property="og:site_name" content="DeviceSDK">
+<meta property="og:locale" content="en_US">
 <meta property="og:title" content="{{ .Title }}">
 {{ with .Params.description }}<meta property="og:description" content="{{ . }}">{{ end }}
 <meta property="og:type" content="{{ $ogType }}">
@@ -19,25 +21,45 @@
 {{ if $og }}<meta property="og:image" content="{{ $absOG }}">{{ end }}
 
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@devicesdk">
 <meta name="twitter:title" content="{{ .Title }}">
 {{ with .Params.description }}<meta name="twitter:description" content="{{ . }}">{{ end }}
 {{ if $og }}<meta name="twitter:image" content="{{ $absOG }}">{{ end }}
 
-{{- if .IsHome }}
-{{- $org := dict
-  "@context" "https://schema.org"
+{{- $homeUrl := printf "%s/" $base }}
+{{- $logoUrl := printf "%s/logo.svg" $base }}
+{{- $orgRef := dict
   "@type" "Organization"
   "name" "DeviceSDK"
-  "url" (printf "%s/" $base)
-  "logo" (printf "%s/logo.svg" $base)
+  "url" $homeUrl
+  "logo" $logoUrl
+}}
+
+{{- if .IsHome }}
+{{- $org := dict
+  "@type" "Organization"
+  "name" "DeviceSDK"
+  "url" $homeUrl
+  "logo" $logoUrl
   "description" .Site.Params.description
   "sameAs" (slice .Site.Params.githubUrl .Site.Params.twitterUrl .Site.Params.discordUrl)
 }}
-<script type="application/ld+json">{{ $org | jsonify (dict "indent" "  ") | safeJS }}</script>
+{{- $website := dict
+  "@type" "WebSite"
+  "name" "DeviceSDK"
+  "url" $homeUrl
+  "description" .Site.Params.description
+  "publisher" $orgRef
+}}
+{{- $graph := dict
+  "@context" "https://schema.org"
+  "@graph" (slice $org $website)
+}}
+<script type="application/ld+json">{{ $graph | jsonify (dict "indent" "  ") | safeJS }}</script>
 {{- end }}
 
 {{- if and (eq .Section "docs") (gt (len .Ancestors) 1) }}
-{{- $items := slice (dict "@type" "ListItem" "position" 1 "name" "Home" "item" (printf "%s/" $base)) }}
+{{- $items := slice (dict "@type" "ListItem" "position" 1 "name" "Home" "item" $homeUrl) }}
 {{- $pos := 1 }}
 {{- range .Ancestors.Reverse }}{{ if not .IsHome }}{{ $pos = add $pos 1 }}{{ $items = $items | append (dict "@type" "ListItem" "position" $pos "name" .Title "item" .Permalink) }}{{ end }}{{ end }}
 {{- $pos = add $pos 1 }}
@@ -48,6 +70,23 @@
   "itemListElement" $items
 }}
 <script type="application/ld+json">{{ $bc | jsonify (dict "indent" "  ") | safeJS }}</script>
+{{- end }}
+
+{{- if and (eq .Section "docs") (eq .Kind "page") }}
+{{- $rfc := "2006-01-02T15:04:05Z07:00" }}
+{{- $article := dict
+  "@context" "https://schema.org"
+  "@type" "TechArticle"
+  "headline" .Title
+  "description" (or .Description .Site.Params.description)
+  "url" .Permalink
+  "datePublished" (.Date.Format $rfc)
+  "dateModified" (.Lastmod.Format $rfc)
+  "author" $orgRef
+  "publisher" $orgRef
+}}
+{{- if $absOG }}{{ $article = merge $article (dict "image" $absOG) }}{{ end }}
+<script type="application/ld+json">{{ $article | jsonify (dict "indent" "  ") | safeJS }}</script>
 {{- end }}
 
 <link href="/styles.css" rel="stylesheet">

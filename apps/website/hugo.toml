@@ -10,6 +10,10 @@ disableKinds = ["taxonomy", "term"]
   filename = "sitemap.xml"
   priority = 0.5
 
+[frontmatter]
+  date = ["date", ":git", "lastmod", "publishDate"]
+  lastmod = ["lastmod", ":git", "date", "publishDate"]
+
 [[module.mounts]]
   source = "content"
   target = "content"

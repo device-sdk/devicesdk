@@ -1,5 +1,12 @@
 # @devicesdk/example-temperature
 
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies [c19ce77]
+  - @devicesdk/cli@0.3.1
+
 ## 0.1.5
 
 ### Patch Changes

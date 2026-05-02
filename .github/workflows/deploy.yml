@@ -49,6 +49,14 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      - name: Restore Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-
+            turbo-${{ github.job }}-
       - run: pnpm build --filter @devicesdk/api
       - name: Apply D1 migrations
         run: cd apps/api && npx wrangler d1 migrations apply DB --remote --env production
@@ -76,6 +84,14 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      - name: Restore Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-
+            turbo-${{ github.job }}-
       - run: pnpm build --filter @devicesdk/dashboard
       - name: Deploy Dashboard
         run: cd apps/dashboard && npx wrangler deploy
@@ -101,6 +117,14 @@ jobs:
           hugo-version: 'latest'
           extended: true
       - run: pnpm install --frozen-lockfile
+      - name: Restore Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-
+            turbo-${{ github.job }}-
       - name: Install Playwright browsers
         # `--with-deps` would try to `sudo apt-get install` system libs, which
         # fails on the self-hosted runner (no passwordless sudo). The persistent

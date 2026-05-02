@@ -16,7 +16,7 @@ env:
 jobs:
   component-tests:
     name: Component Tests
-    runs-on: [self-hosted, linux, proxmox]
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -32,7 +32,7 @@ jobs:
   e2e-tests:
     name: E2E Tests
     needs: component-tests
-    runs-on: [self-hosted, linux, proxmox]
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +42,14 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      - name: Restore Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-
+            turbo-${{ github.job }}-
       - name: Build dependencies
         run: pnpm build --filter @devicesdk/core
       - name: Install Playwright browsers

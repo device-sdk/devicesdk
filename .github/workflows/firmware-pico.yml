@@ -25,7 +25,7 @@ defaults:
 jobs:
   build:
     name: Build Pico firmware
-    runs-on: [self-hosted, linux, proxmox]
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     permissions:
       contents: read
 
@@ -80,7 +80,7 @@ jobs:
 
   upload-to-r2:
     name: Upload firmware to R2
-    runs-on: [self-hosted, linux, proxmox]
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     needs: build
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:

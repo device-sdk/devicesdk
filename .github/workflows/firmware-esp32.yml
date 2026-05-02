@@ -21,7 +21,7 @@ env:
 jobs:
   unit-tests:
     name: Host unit tests
-    runs-on: [self-hosted, linux, proxmox]
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     permissions:
       contents: read
 
@@ -44,7 +44,7 @@ jobs:
 
   python-tests:
     name: Python protocol tests
-    runs-on: [self-hosted, linux, proxmox]
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     permissions:
       contents: read
 
@@ -66,11 +66,11 @@ jobs:
   build:
     name: Build ESP32 firmware (${{ matrix.target }})
     needs: [unit-tests, python-tests]
-    runs-on: [self-hosted, linux, proxmox]
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     permissions:
       contents: read
-    container:
-      image: espressif/idf:v5.5.1
+    env:
+      IDF_VERSION: v5.5.1
     strategy:
       fail-fast: true
       matrix:
@@ -86,6 +86,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve ESP-IDF paths
+        # `runner.*` context is not available in job-level `env:`; export via
+        # $GITHUB_ENV so later steps and the cache `path:` can use them.
+        run: |
+          echo "IDF_PATH=$RUNNER_TEMP/esp-idf" >> "$GITHUB_ENV"
+          echo "IDF_TOOLS_PATH=$RUNNER_TEMP/.espressif" >> "$GITHUB_ENV"
+
+      - name: Restore esp-idf clone cache
+        id: restore-idf-src
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.IDF_PATH }}
+          key: esp-idf-src-${{ env.IDF_VERSION }}
+
+      - name: Clone esp-idf
+        if: steps.restore-idf-src.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$IDF_VERSION" --recursive \
+            https://github.com/espressif/esp-idf.git "$IDF_PATH"
+
+      - name: Save esp-idf clone cache
+        if: steps.restore-idf-src.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.IDF_PATH }}
+          key: esp-idf-src-${{ env.IDF_VERSION }}
+
+      - name: Restore esp-idf tools cache
+        id: restore-idf-tools
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.IDF_TOOLS_PATH }}
+          key: esp-idf-tools-${{ env.IDF_VERSION }}-esp32-esp32c3-esp32c61
+
+      - name: Install esp-idf toolchains
+        if: steps.restore-idf-tools.outputs.cache-hit != 'true'
+        run: "$IDF_PATH/install.sh esp32,esp32c3,esp32c61"
+
+      - name: Save esp-idf tools cache
+        if: steps.restore-idf-tools.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.IDF_TOOLS_PATH }}
+          key: esp-idf-tools-${{ env.IDF_VERSION }}-esp32-esp32c3-esp32c61
+
       - name: Restore managed components cache
         uses: actions/cache@v4
         with:
@@ -95,14 +140,14 @@ jobs:
       - name: Build firmware
         working-directory: firmware/esp32
         run: |
-          . $IDF_PATH/export.sh
+          . "$IDF_PATH/export.sh"
           idf.py set-target ${{ matrix.target }}
           idf.py build
 
       - name: Merge binary
         working-directory: firmware/esp32
         run: |
-          . $IDF_PATH/export.sh
+          . "$IDF_PATH/export.sh"
           mkdir -p dist
           esptool.py --chip ${{ matrix.target }} merge_bin \
             --flash_mode dio --flash_freq 40m --flash_size 4MB \
@@ -118,16 +163,9 @@ jobs:
           path: firmware/esp32/dist/${{ matrix.target }}-client.bin
           if-no-files-found: error
 
-      # Self-hosted runner: the espressif/idf container writes files as root.
-      # Hand ownership back to the host runner UID (1000 on the Proxmox LXC)
-      # so the next checkout/clean can remove them without sudo.
-      - name: Restore workspace ownership
-        if: always()
-        run: chown -R 1000:1000 .
-
   upload-to-r2:
     name: Upload firmware to R2
-    runs-on: [self-hosted, linux, proxmox]
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
     needs: build
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:

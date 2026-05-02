@@ -1,5 +1,37 @@
 # @devicesdk/website
 
+## 0.0.4
+
+### Patch Changes
+
+- fd6e829: ESP32-C3 0.42″ OLED ergonomics + local-dev fixes:
+  - **firmware/esp32**: paint boot status (`Booting` → `WiFi` → `Server`) on the on-board OLED for FN4 / "0.42 OLED" boards. The firmware probes `0x3C` at boot via `i2c_master_probe`; boards without an OLED (DevKitM-1) get a fast NACK and silently skip. Replaces the WS2812-only feedback that was invisible on FN4 boards (no LED wired to GPIO 8).
+  - **firmware/esp32**: detect plain-HTTP local API hosts (`<lan-ip>:<port>`) and dial `ws://` instead of `wss://`, so flashing against `localhost:8787` works without a TLS cert.
+  - **@devicesdk/api**: throw an explicit error from the `/v1/auth/google` route when `GOOGLE_ID`/`GOOGLE_SECRET` are missing — Sentry captures the misconfiguration cleanly instead of returning a generic chanfana validation error.
+  - **@devicesdk/core**: update `columnOffset` comments to point at `28` (most common on FN4 0.42″ boards) and note `30`/`32` variants exist.
+  - **@devicesdk/website**: document `columnOffset: 28` for the 0.42″ 72×40 panel and add a troubleshooting note for the leftmost vertical-stripe artifact (panel-offset mismatch / stale RAM).
+
+- c19ce77: Logs-quota runaway fix + layered rate-limit defense:
+  - **@devicesdk/api (breaking)**: deprecate `GET /v1/projects/:projectId/devices/:deviceId/logs` — the endpoint now returns `410 Gone` with `Link: …/watch>; rel="alternate"` and `code: "LOGS_DEPRECATED"`. The corresponding DO RPC `BaseDevice.getLogs` throws on call. A stale CLI `--tail` polling loop in May 2026 burned the daily Durable Object rows-read free-tier quota in ~5 hours each day; the polling pattern is now structurally impossible.
+  - **@devicesdk/api**: watcher WebSocket (`/watch`) gains `?backfillLimit=N&backfillLevel=warn` query parameters. On connect the server emits up to N replay frames (`{ event: "log", data, replay: true }`, oldest-first) followed by a single `{ event: "history_complete" }` marker, then live broadcasts as before. One SQL scan per connection instead of per HTTP poll.
+  - **@devicesdk/api**: add `TieredCache` (`caches.default` L1 → KV L2 with back-fill) and a single `CACHE` KV namespace. Two consumers: `userBlockListMiddleware` (mounted post-auth — 429s blocked users at the edge of the worker without touching D1 or the DO) and `authCache.ts` (caches `authenticateUser` lookups for 60 s, dropping ~95% of D1 reads per request on active tokens). Logout / onboarding completion / account-deletion request all invalidate the entry.
+  - **@devicesdk/api**: when the per-user rate limit fires, also write a 1-hour cross-route block to `CACHE` so subsequent requests 429 immediately. Per-user rate limit is now scoped to `/logs` only (other routes are protected by tier limits inside their handlers and the WAF rule below).
+  - **@devicesdk/cli (breaking)**: `devicesdk logs` and `devicesdk logs --tail` now use the watcher WebSocket exclusively. Both modes accept `--lines` and `--level`; the polling loop is gone. `--tail` reconnects with exponential backoff (1 s → 30 s) and bails with a non-zero exit code after 5 consecutive failures.
+  - **@devicesdk/dashboard**: device logs panel migrates to WS-only. `useDeviceStream` accepts `{ backfillLimit, backfillLevel }` and exposes a `historyLoaded` ref; the panel shows a "Loading recent logs…" spinner until `history_complete` fires. The "Live" toggle and "Load More" button are removed — backfill + live are one stream.
+  - **@devicesdk/website**: documents the manual Cloudflare WAF rate-limit rule under `docs/internal/operations/cloudflare-waf.md` and the new auth-cache / block-list architecture in CLAUDE.md.
+
+  **Manual deploy steps** (also in the PR description):
+  1. KV namespace IDs are already in `apps/api/wrangler.jsonc` (created in this branch).
+  2. Apply the WAF rule per `docs/internal/operations/cloudflare-waf.md`.
+
+- 17ad113: SEO baseline fixes for devicesdk.com, driven by a Search Console audit showing only 13/21 known URLs indexed and a brand-only impression profile (95 imp/qtr on "device sdk" with 2.1% CTR at avg position 7.4):
+  - **head.html**: emit `<link rel="canonical">` on every page, branch `og:type` between `website` (home + section landings) and `article` (docs + legal). Add `og:site_name`, `og:locale`, and `twitter:site` for SERP/social attribution. Combine Organization + WebSite JSON-LD under `@graph` on the home page; add BreadcrumbList JSON-LD on `/docs/*` pages with depth ≥ 2; add TechArticle JSON-LD on `/docs/*` single pages with `datePublished`/`dateModified` pulled from git so docs qualify for the visual Article rich snippet.
+  - **hugo.toml**: enable `enableGitInfo` and add a `[sitemap]` block so the generated sitemap carries `<lastmod>` derived from git commit dates (45 lastmod entries vs. 0 before). Add `[frontmatter]` resolution chain so `.Date` and `.Lastmod` fall back to `:git` when no front-matter dates are set. Retitle the home and replace the site-wide description so the SERP snippet leads with the verb and the hardware names searchers care about ("Deploy TypeScript to ESP32 & Raspberry Pi Pico").
+  - **`static/_redirects`** (new): 301 the stale `/docs/resources/hardware/*` URLs to `/docs/hardware/*` (Google was wasting ~36 imp/qtr on the old path), the deleted `/docs/guides/control-from-browser/`, and `/docs` → `/docs/`.
+  - **CLAUDE.md + new `.claude/skills/website-url-changes/SKILL.md`**: codify a "URL change → 301 redirect" rule so future content moves don't re-create the same SEO debt. The skill auto-triggers on any rename/move/delete under `apps/website/content/` or `docs/public/`, or any `permalink`/`url`/`[permalinks]`/`[[module.mounts]]` edit that shifts URLs.
+
+  Sitemap re-submission in Search Console (HTTP → HTTPS), validation of "Duplicate without canonical" and "Not found (404)" rows, and a "Request indexing" of the home page are manual GSC follow-ups not covered here.
+
 ## 0.0.3
 
 ### Patch Changes

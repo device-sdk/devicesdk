@@ -231,6 +231,10 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 - **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in any prior PR's changeset entry (or `.changeset/README.md` for the format reference). Use `patch` for bug fixes, `minor` for new features. Reference every workspace package the change touches — this covers both the npm-published packages (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`) **and the private apps that maintain their own changelog** (`@devicesdk/website`, `@devicesdk/dashboard`, `@devicesdk/simulation`). Firmware, examples, and shared configs are not versioned and do not need changeset entries.
 - **Never set a `major` bump in a changeset without explicit user consent.** When a change is genuinely breaking, surface that explicitly and ask before writing the changeset. Do **not** soften the change with back-compat aliases unless the user asks — declining a major bump is not a request for back-compat, it just means ship without the major-bump ceremony.
 
+## CI Runner Image
+
+CI jobs labelled `[self-hosted, linux, proxmox-ephemeral]` run on a Proxmox VM image the user maintains out-of-band. If a workflow needs a system package that isn't present (e.g. `libusb-1.0-0` for ESP-IDF's `openocd-esp32` post-install verify), **ask the user to add it to the base build image** — do **not** patch the workflow with a userspace `apt-get download` / `LD_LIBRARY_PATH` workaround unless the user explicitly opts for that. The runner has no passwordless sudo, so workflow-side `sudo apt-get install` won't work either. When you do need to ask, name the specific package and which workflow step requires it. The build job in `firmware-esp32.yml` keeps a comment near `runs-on:` listing currently-required system libs — update it whenever a new prereq is added to the image.
+
 ## Coding Standards
 
 - **Strict types**: Do not use `any` in implementation code. Use `unknown` and narrow with type guards when needed.

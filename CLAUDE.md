@@ -228,7 +228,8 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 
 - **Never commit directly to `main`**. Always create a new branch for your changes.
 - **Before every commit**, run `pnpm lint` to fix lint issues. Do not commit if linting fails.
-- **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in any prior PR's changeset entry (or `.changeset/README.md` for the format reference). Use `patch` for bug fixes, `minor` for new features, `major` for breaking changes. Reference every workspace package the change touches — this covers both the npm-published packages (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`) **and the private apps that maintain their own changelog** (`@devicesdk/website`, `@devicesdk/dashboard`, `@devicesdk/simulation`). Firmware, examples, and shared configs are not versioned and do not need changeset entries.
+- **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in any prior PR's changeset entry (or `.changeset/README.md` for the format reference). Use `patch` for bug fixes, `minor` for new features. Reference every workspace package the change touches — this covers both the npm-published packages (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`) **and the private apps that maintain their own changelog** (`@devicesdk/website`, `@devicesdk/dashboard`, `@devicesdk/simulation`). Firmware, examples, and shared configs are not versioned and do not need changeset entries.
+- **Never set a `major` bump in a changeset without explicit user consent.** If a change is genuinely breaking, propose a backwards-compatible alternative first (e.g. accept both old and new field names with a deprecation warning). If a major bump is unavoidable, stop and ask the user before writing the changeset.
 
 ## Coding Standards
 

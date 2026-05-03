@@ -187,6 +187,26 @@ describe("DeviceSDKConfigSchema", () => {
 		}
 	});
 
+	it("should fail validation when wifi credentials are still scaffold placeholders", () => {
+		const config = {
+			projectId: "my-project",
+			devices: {
+				sensor: {
+					className: "SensorDevice",
+					main: "./devices/sensor.ts",
+					deviceType: "pico-w",
+					wifi: { ssid: "YOUR_WIFI_SSID", password: "YOUR_WIFI_PASSWORD" },
+				},
+			},
+		};
+		const result = DeviceSDKConfigSchema.safeParse(config);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			const messages = result.error.issues.map((i) => i.message).join(" | ");
+			expect(messages).toContain("scaffold placeholder");
+		}
+	});
+
 	it("should fail validation with a migration hint when the legacy 'entrypoint' key is present", () => {
 		const config = {
 			projectId: "my-project",

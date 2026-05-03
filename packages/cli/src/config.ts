@@ -77,8 +77,20 @@ export const DeviceConfigSchema = z.object({
 	name: z.string().optional(),
 	description: z.string().optional(),
 	wifi: z.object({
-		ssid: z.string().min(1, "wifi.ssid is required"),
-		password: z.string().min(1, "wifi.password is required"),
+		ssid: z
+			.string()
+			.min(1, "wifi.ssid is required")
+			.refine(
+				(s) => !s.startsWith("YOUR_"),
+				"wifi.ssid is still a scaffold placeholder (YOUR_…); set it to your network's SSID",
+			),
+		password: z
+			.string()
+			.min(1, "wifi.password is required")
+			.refine(
+				(s) => !s.startsWith("YOUR_"),
+				"wifi.password is still a scaffold placeholder (YOUR_…); set it to your network's password",
+			),
 	}),
 	ha: z
 		.object({

@@ -111,18 +111,21 @@ async function buildDevice(
 	// A `export default class` won't resolve that named import and produces a confusing
 	// "No matching export" error at deploy time. Catch the misuse here with a fix-up hint.
 	const outputs = result.metafile?.outputs ?? {};
-	const outputKey = Object.keys(outputs).find((k) => outputs[k].entryPoint);
-	if (outputKey) {
-		const exportsList = outputs[outputKey].exports;
-		if (!exportsList.includes(className)) {
-			const relEntry = path.relative(process.cwd(), entrypoint) || entrypoint;
-			const hint = exportsList.includes("default")
-				? `Found a default export. Change "export default class ${className}" to "export class ${className}" in ${relEntry}.`
-				: `Add a named export in ${relEntry}: "export class ${className} extends DeviceEntrypoint { ... }".`;
-			throw new Error(
-				`Class "${className}" must be exported as a named export. ${hint}`,
-			);
-		}
+	const entry = Object.entries(outputs).find(([, o]) => o.entryPoint)?.[1];
+	if (!entry) {
+		throw new Error(
+			`Internal error: esbuild metafile has no entryPoint output for ${entrypoint}. ` +
+				"This indicates an esbuild API change; please report it.",
+		);
+	}
+	if (!entry.exports.includes(className)) {
+		const relEntry = path.relative(process.cwd(), entrypoint) || entrypoint;
+		const hint = entry.exports.includes("default")
+			? `Found a default export. Change "export default class ${className}" to "export class ${className}" in ${relEntry}.`
+			: `Add a named export in ${relEntry}: "export class ${className} extends DeviceEntrypoint { ... }".`;
+		throw new Error(
+			`Class "${className}" must be exported as a named export. ${hint}`,
+		);
 	}
 
 	const stats = await fs.stat(outfile);

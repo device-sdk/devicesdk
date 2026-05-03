@@ -160,8 +160,21 @@ export class DownloadFirmware extends BaseRoute {
 		}
 
 		const object = await c.env.FIRMWARES.get(firmwareKey);
-		if (!object)
-			return c.json({ success: false, error: "Firmware not found" }, 404);
+		if (!object) {
+			// The Zod enum accepts a device_type but the firmware artifact may not
+			// have been published yet (e.g. esp32c3 is gated behind a build pipeline).
+			// Distinguish this from "device record missing" with a structured code so
+			// the CLI can surface a tailored "build from source" hint.
+			return c.json(
+				{
+					success: false,
+					error: `Firmware for device_type "${deviceType}" is not currently published.`,
+					code: "FIRMWARE_NOT_PUBLISHED",
+					device_type: deviceType,
+				},
+				404,
+			);
+		}
 
 		const arrayBuffer = await object.arrayBuffer();
 		const bytes = new Uint8Array(arrayBuffer);

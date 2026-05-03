@@ -33,61 +33,98 @@ function detectPackageManager(): "pnpm" | "yarn" | "npm" | "bun" {
 	return "npm";
 }
 
-const TEMPLATES = {
-	basic: {
-		devices: {
-			device: {
-				entrypoint: "./src/devices/device.ts",
-				name: "Main Device",
-			},
-		},
-		deviceCode: `import { DeviceEntrypoint } from "@devicesdk/core";
+interface ScaffoldDevice {
+	main: string;
+	className: string;
+	name?: string;
+	description?: string;
+}
 
-export default class Device extends DeviceEntrypoint {
+const DEVICE_CODE = `import { DeviceEntrypoint } from "@devicesdk/core";
+
+export class Device extends DeviceEntrypoint {
   async onMessage(message: any) {
     console.log("Received message:", message);
     return { status: "ok" };
   }
 }
-`,
+`;
+
+const SENSOR_CODE = `import { DeviceEntrypoint } from "@devicesdk/core";
+
+export class Sensor extends DeviceEntrypoint {
+  async onMessage(message: any) {
+    console.log("Received message:", message);
+    return { status: "ok" };
+  }
+}
+`;
+
+const CONTROLLER_CODE = `import { DeviceEntrypoint } from "@devicesdk/core";
+
+export class Controller extends DeviceEntrypoint {
+  async onMessage(message: any) {
+    console.log("Received message:", message);
+    return { status: "ok" };
+  }
+}
+`;
+
+const TEMPLATES: Record<
+	string,
+	{
+		devices: Record<string, ScaffoldDevice>;
+		deviceFiles: Record<string, string>;
+	}
+> = {
+	basic: {
+		devices: {
+			device: {
+				main: "./src/devices/device.ts",
+				className: "Device",
+				name: "Main Device",
+			},
+		},
+		deviceFiles: {
+			"./src/devices/device.ts": DEVICE_CODE,
+		},
 	},
 	"multi-device": {
 		devices: {
 			"sensor-1": {
-				entrypoint: "./src/devices/sensor.ts",
+				main: "./src/devices/sensor.ts",
+				className: "Sensor",
 				name: "Temperature Sensor",
 			},
 			controller: {
-				entrypoint: "./src/devices/controller.ts",
+				main: "./src/devices/controller.ts",
+				className: "Controller",
 				name: "Main Controller",
 			},
 		},
-		deviceCode: `import { DeviceEntrypoint } from "@devicesdk/core";
-
-export default class Device extends DeviceEntrypoint {
-  async onMessage(message: any) {
-    console.log("Received message:", message);
-    return { status: "ok" };
-  }
-}
-`,
+		deviceFiles: {
+			"./src/devices/sensor.ts": SENSOR_CODE,
+			"./src/devices/controller.ts": CONTROLLER_CODE,
+		},
 	},
 	empty: {
 		devices: {},
-		deviceCode: null,
+		deviceFiles: {},
 	},
 };
 
 function generateConfigFile(
 	projectId: string,
-	devices: Record<
-		string,
-		{ entrypoint: string; name?: string; description?: string }
-	>,
+	devices: Record<string, ScaffoldDevice>,
 ): string {
 	const devicesStr = Object.entries(devices)
 		.map(([key, value]) => {
-			const props = [`      entrypoint: "${value.entrypoint}"`];
+			const props = [
+				`      main: "${value.main}"`,
+				`      className: "${value.className}"`,
+				`      deviceType: "pico-w"`,
+				`      wifi: {\n        ssid: "YOUR_WIFI_SSID",\n        password: "YOUR_WIFI_PASSWORD",\n      }`,
+			];
 			if (value.name) props.push(`      name: "${value.name}"`);
 			if (value.description)
 				props.push(`      description: "${value.description}"`);
@@ -97,6 +134,8 @@ function generateConfigFile(
 
 	return `import { defineConfig } from "@devicesdk/cli";
 
+// Fill in real Wi-Fi credentials before running \`devicesdk flash\`.
+// Change \`deviceType\` to match your hardware: pico-w, pico2-w, esp32, esp32c61, esp32c3.
 export default defineConfig({
   projectId: "${projectId}",
   devices: {
@@ -144,7 +183,6 @@ function generateTsConfig(): string {
 				esModuleInterop: true,
 				skipLibCheck: true,
 				outDir: "./dist",
-				rootDir: "./src",
 			},
 			include: ["src/**/*", "devicesdk.ts"],
 			exclude: ["node_modules"],
@@ -251,21 +289,16 @@ export default async function init(
 		}
 
 		// Generate device files
-		if (template.deviceCode && Object.keys(template.devices).length > 0) {
-			const srcDir = path.join(projectDir, "src", "devices");
-			await fs.mkdir(srcDir, { recursive: true });
+		for (const [relativePath, code] of Object.entries(template.deviceFiles)) {
+			const devicePath = path.join(projectDir, relativePath);
+			const deviceDir = path.dirname(devicePath);
+			await fs.mkdir(deviceDir, { recursive: true });
 
-			for (const [, device] of Object.entries(template.devices)) {
-				const devicePath = path.join(projectDir, device.entrypoint);
-				const deviceDir = path.dirname(devicePath);
-				await fs.mkdir(deviceDir, { recursive: true });
-
-				try {
-					await fs.access(devicePath);
-				} catch {
-					await fs.writeFile(devicePath, template.deviceCode);
-					console.log(`✓ Generated ${device.entrypoint}`);
-				}
+			try {
+				await fs.access(devicePath);
+			} catch {
+				await fs.writeFile(devicePath, code);
+				console.log(`✓ Generated ${relativePath}`);
 			}
 		}
 

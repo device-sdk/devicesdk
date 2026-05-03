@@ -53,7 +53,7 @@ function createMultiDeviceConfig() {
 				main: "./devices/actuator.ts",
 				name: "Actuator One",
 				description: "An actuator device",
-				entrypoint: "ActuatorOneDevice",
+				className: "ActuatorOneDevice",
 			},
 		},
 	};

@@ -8,7 +8,9 @@ export default defineConfig({
   projectId: "test-project",
   devices: {
     "temperature-sensor": {
-      entrypoint: "./devices/temperatureSensor.ts",
+      main: "./devices/temperatureSensor.ts",
+      className: "TemperatureSensorDevice",
+      deviceType: "pico-w",
       name: "Temperature Sensor",
       wifi: { ssid: "test-ssid", password: "test-pass" },
     },

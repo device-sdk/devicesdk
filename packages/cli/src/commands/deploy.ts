@@ -111,6 +111,7 @@ export default async function deploy(
 				const { size, outfile } = await buildDevice(
 					deviceId,
 					mainFile,
+					device.className,
 					buildDir,
 					{},
 				);
@@ -119,7 +120,7 @@ export default async function deploy(
 					deviceId,
 					script,
 					size,
-					entrypointName: device.entrypoint,
+					entrypointName: device.className,
 					haEntities: device.ha?.entities,
 				});
 				console.log(`✓ Built ${deviceId} (${formatSize(size)})`);

@@ -66,14 +66,14 @@ static void process_worker_responses() {
                     break;
                 }
                 case CMD_GPIO_GET_DIGITAL: {
-                    response["type"] = picojson::value("pin_state");
+                    response["type"] = picojson::value("pin_state_update");
                     payload["pin"] = picojson::value((double)resp.data.gpio.pin);
                     payload["mode"] = picojson::value("digital");
                     payload["value"] = picojson::value(resp.data.gpio.digital_value ? "high" : "low");
                     break;
                 }
                 case CMD_GPIO_GET_ANALOG: {
-                    response["type"] = picojson::value("pin_state");
+                    response["type"] = picojson::value("pin_state_update");
                     payload["pin"] = picojson::value((double)resp.data.gpio.pin);
                     payload["mode"] = picojson::value("analog");
                     payload["value"] = picojson::value((double)resp.data.gpio.analog_value);

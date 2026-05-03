@@ -487,7 +487,11 @@ export default class TemperatureMonitor extends DeviceEntrypoint {
   }
 
   async onMessage(message: DeviceResponse) {
-    if (message.type === 'pin_state_update' && message.payload.pin === TEMP_PIN) {
+    if (
+      message.type === 'pin_state_update' &&
+      message.payload.mode === 'analog' &&
+      message.payload.pin === TEMP_PIN
+    ) {
       const raw = message.payload.value;
 
       // Convert raw ADC (0–4095 on Pico, 12-bit) → voltage → °C

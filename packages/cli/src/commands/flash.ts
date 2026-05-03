@@ -199,6 +199,20 @@ export default async function flash(
 			);
 		}
 	} catch (error) {
+		if (
+			error instanceof DeviceSDKApiError &&
+			error.code === "FIRMWARE_NOT_PUBLISHED"
+		) {
+			const dt = (error.responseBody as { device_type?: string } | undefined)
+				?.device_type;
+			console.error(
+				`\n✗ Firmware for ${dt ?? "this device_type"} is not yet published.`,
+			);
+			console.error(
+				"\n  To build from source, see TROUBLESHOOT.md → 'Build ESP32 from source'.",
+			);
+			process.exit(EXIT.DEPLOY_ERROR);
+		}
 		console.error("✗ Error: Flash failed\n");
 		if (error instanceof Error) {
 			console.error(`  ${error.message}`);

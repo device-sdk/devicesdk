@@ -426,7 +426,12 @@ export async function downloadDeviceFirmware(
 		try {
 			responseText = await response.text();
 			responseBody = responseText ? JSON.parse(responseText) : undefined;
-			message = responseBody?.error?.message || message;
+			// API returns either `error: "string"` (canonical) or `error: { message }`.
+			if (typeof responseBody?.error === "string") {
+				message = responseBody.error;
+			} else if (responseBody?.error?.message) {
+				message = responseBody.error.message;
+			}
 		} catch {
 			// ignore parse failure
 		}
@@ -444,10 +449,12 @@ Response body (${response.status}):`);
 		if (response.status === 401) {
 			message += "\nPlease run `npx devicesdk login` to re-authenticate.";
 		}
+		// Structured `code` may be top-level (canonical) or nested in `error.code`.
+		const code = responseBody?.code ?? responseBody?.error?.code;
 		throw new DeviceSDKApiError(
 			message,
 			response.status,
-			responseBody?.error?.code,
+			code,
 			responseBody ?? responseText,
 		);
 	}

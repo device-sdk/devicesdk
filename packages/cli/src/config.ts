@@ -53,44 +53,39 @@ const HaEntityDeclarationSchema: z.ZodType<HaEntityDeclaration> = z.object({
 	num_leds: z.number().int().positive().max(1024).optional(),
 });
 
-export const DeviceConfigSchema = z
-	.object({
-		entrypoint: z
-			.string()
-			.min(1, "'entrypoint' is required")
-			.regex(
-				/^[A-Za-z_$][A-Za-z0-9_$]*$/,
-				"'entrypoint' must be a valid TypeScript class name (letters, digits, _, $)",
-			),
-		main: z.string().optional(),
-		deviceType: deviceTypeSchema,
-		name: z.string().optional(),
-		description: z.string().optional(),
-		wifi: z.object({
-			ssid: z.string().min(1, "wifi.ssid is required"),
-			password: z.string().min(1, "wifi.password is required"),
-		}),
-		ha: z
-			.object({
-				entities: z.array(HaEntityDeclarationSchema),
-			})
-			.optional(),
-	})
-	.transform((data) => {
-		// Ensure main is always populated for downstream consumers
-		return {
-			...data,
-			main: data.main ?? data.entrypoint,
-		} as {
-			main: string;
-			entrypoint: string;
-			deviceType: DeviceType;
-			name?: string;
-			description?: string;
-			wifi: { ssid: string; password: string };
-			ha?: { entities: HaEntityDeclaration[] };
-		};
-	});
+export const DeviceConfigSchema = z.object({
+	className: z
+		.string()
+		.min(1, "'className' is required")
+		.regex(
+			/^[A-Za-z_$][A-Za-z0-9_$]*$/,
+			"'className' must be a valid TypeScript class name (letters, digits, _, $)",
+		),
+	// Catches the legacy field name from older devicesdk.ts files. `z.never()`
+	// rejects any provided value; `.optional()` lets `undefined` pass — so the
+	// only failure mode is "user still has the old `entrypoint` key".
+	entrypoint: z
+		.never({
+			error:
+				"'entrypoint' was renamed to 'className' in @devicesdk/cli — rename it in devicesdk.ts.",
+		})
+		.optional(),
+	main: z
+		.string()
+		.min(1, "'main' is required (path to the device source file)"),
+	deviceType: deviceTypeSchema,
+	name: z.string().optional(),
+	description: z.string().optional(),
+	wifi: z.object({
+		ssid: z.string().min(1, "wifi.ssid is required"),
+		password: z.string().min(1, "wifi.password is required"),
+	}),
+	ha: z
+		.object({
+			entities: z.array(HaEntityDeclarationSchema),
+		})
+		.optional(),
+});
 
 export const DeviceSDKConfigSchema = z.object({
 	projectId: z

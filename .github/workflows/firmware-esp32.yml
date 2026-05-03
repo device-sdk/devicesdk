@@ -66,6 +66,9 @@ jobs:
   build:
     name: Build ESP32 firmware (${{ matrix.target }})
     needs: [unit-tests, python-tests]
+    # proxmox-ephemeral image is expected to have system libs that ESP-IDF's
+    # install.sh probes during post-install verify — currently libusb-1.0-0
+    # for openocd-esp32. Bake new prereqs into the image rather than the job.
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     permissions:
       contents: read
@@ -120,27 +123,8 @@ jobs:
           path: ${{ env.IDF_TOOLS_PATH }}
           key: esp-idf-tools-${{ env.IDF_VERSION }}-esp32-esp32c3-esp32c61
 
-      # ESP-IDF's install.sh always installs openocd-esp32 and runs
-      # `openocd --version` as a post-install verify. openocd needs
-      # libusb-1.0.so.0, which isn't on the bare ephemeral runner (it was
-      # baked into the espressif/idf Docker image we used to run in). Stage
-      # libusb in user space via `apt-get download` (works without sudo) and
-      # expose it via LD_LIBRARY_PATH only for the install step.
-      - name: Stage libusb-1.0 in user space (no-sudo workaround)
-        if: steps.restore-idf-tools.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          USERLIB="$RUNNER_TEMP/userlibs"
-          mkdir -p "$USERLIB"
-          cd "$USERLIB"
-          apt-get download libusb-1.0-0
-          dpkg-deb -x libusb-1.0-0_*.deb .
-          test -e usr/lib/x86_64-linux-gnu/libusb-1.0.so.0
-
       - name: Install esp-idf toolchains
         if: steps.restore-idf-tools.outputs.cache-hit != 'true'
-        env:
-          LD_LIBRARY_PATH: ${{ runner.temp }}/userlibs/usr/lib/x86_64-linux-gnu
         run: "$IDF_PATH/install.sh esp32,esp32c3,esp32c61"
 
       - name: Save esp-idf tools cache

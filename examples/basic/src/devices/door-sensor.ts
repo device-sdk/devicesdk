@@ -53,14 +53,11 @@ export class MyDevice extends DeviceEntrypoint {
 
 		// Firmware GPIO polling only emits on edges (worker_task.c:160 swallows
 		// the first reading), so probe once for the initial level.
-		// ESP32 firmware responds with { type: "pin_state", payload: { value: "high"|"low" } } —
-		// older shape than the SDK's pin_state_update type, so parse defensively.
-		const initial = (await this.env.DEVICE.getPinState(
-			DOOR_PIN,
-			"digital",
-		)) as unknown as { payload: { value: string | number } };
+		const initial = await this.env.DEVICE.getPinState(DOOR_PIN, "digital");
 		const high =
-			initial.payload.value === "high" || initial.payload.value === 1;
+			initial.type === "pin_state_update" &&
+			initial.payload.mode === "digital" &&
+			initial.payload.value === "high";
 		const open = isDoorOpen(high);
 		await this.env.DEVICE.kv.put("doorOpen", open);
 		console.info(`Initial door state: ${open ? "OPEN" : "CLOSED"}`);

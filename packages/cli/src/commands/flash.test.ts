@@ -361,6 +361,37 @@ describe("flash command", () => {
 	});
 
 	describe("ESP32-C3 devices", () => {
+		it("prints a tailored 'firmware not yet published' hint on FIRMWARE_NOT_PUBLISHED", async () => {
+			const { loadConfig } = await import("../utils.js");
+			(loadConfig as any).mockResolvedValueOnce(createEsp32c3Config());
+			apiMocks.downloadDeviceFirmware.mockRejectedValueOnce(
+				new DeviceSDKApiError(
+					'Firmware for device_type "esp32c3" is not currently published.',
+					404,
+					"FIRMWARE_NOT_PUBLISHED",
+					{
+						success: false,
+						error:
+							'Firmware for device_type "esp32c3" is not currently published.',
+						code: "FIRMWARE_NOT_PUBLISHED",
+						device_type: "esp32c3",
+					},
+				),
+			);
+			const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+			await expect(flash("esp-c3-1")).rejects.toThrowError(/exit:6/);
+
+			const errors = errSpy.mock.calls.map((c) => String(c[0])).join("\n");
+			expect(errors).toContain("Firmware for esp32c3 is not yet published");
+			expect(errors).toContain("Build ESP32 from source");
+			// The generic "✗ Error: Flash failed" path must NOT fire when the structured
+			// hint is shown.
+			expect(errors).not.toContain("Error: Flash failed");
+
+			errSpy.mockRestore();
+		});
+
 		it("routes esp32c3 devices to flashESP32 with correct chip name", async () => {
 			const { loadConfig } = await import("../utils.js");
 			(loadConfig as any).mockResolvedValueOnce(createEsp32c3Config());

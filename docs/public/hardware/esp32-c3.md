@@ -46,14 +46,9 @@ If you see a thin vertical noise stripe on the left after the screen is otherwis
 import { DeviceEntrypoint } from '@devicesdk/core';
 import { SSD1306 } from '@devicesdk/core/i2c';
 
-export default class MyC3OledDevice extends DeviceEntrypoint {
-  private display = new SSD1306({
-    bus: 0,
-    address: "0x3C",
-    width: 72,
-    height: 40,
-    columnOffset: 28,
-  });
+export class MyC3OledDevice extends DeviceEntrypoint {
+  // Preset bakes in width 72, height 40, columnOffset 28 for the 0.42" glass.
+  private display = SSD1306.esp32c3OledVariant();
 
   async onDeviceConnect() {
     await this.env.DEVICE.sendCommand({
@@ -87,7 +82,7 @@ export default class MyC3OledDevice extends DeviceEntrypoint {
 - **RMT-backed WS2812.** The firmware branches on `SOC_RMT_SUPPORTED` in `firmware/esp32/main/hal.c` and selects the RMT backend for C3. Timing is hardware-accurate; no CPU bit-banging.
 - **Single core.** All tasks share one RISC-V core. Long-running operations in your script can delay WiFi handling — prefer short, awaited calls.
 - **ADC2 blocked on WiFi.** Same rule as classic ESP32 — stick to ADC1 channels.
-- **Pre-built artifact.** The release target is `esp32c3-client.bin` with bootloader offset `0x0` (same layout as the C61).
+- **Pre-built artifact.** The release target is `esp32c3-client.bin` with bootloader offset `0x0` (same layout as the C61). If `devicesdk flash` reports `Firmware for esp32c3 is not yet published`, the artifact has not been promoted yet — build from source in the meantime.
 
 ## Flashing
 

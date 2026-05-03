@@ -95,14 +95,14 @@ static void process_worker_responses(void) {
                     break;
 
                 case CMD_GPIO_GET_DIGITAL:
-                    cJSON_AddStringToObject(response, "type", "pin_state");
+                    cJSON_AddStringToObject(response, "type", "pin_state_update");
                     cJSON_AddNumberToObject(payload_obj, "pin", resp.data.gpio.pin);
                     cJSON_AddStringToObject(payload_obj, "mode", "digital");
                     cJSON_AddStringToObject(payload_obj, "value", resp.data.gpio.digital_value ? "high" : "low");
                     break;
 
                 case CMD_GPIO_GET_ANALOG:
-                    cJSON_AddStringToObject(response, "type", "pin_state");
+                    cJSON_AddStringToObject(response, "type", "pin_state_update");
                     cJSON_AddNumberToObject(payload_obj, "pin", resp.data.gpio.pin);
                     cJSON_AddStringToObject(payload_obj, "mode", "analog");
                     cJSON_AddNumberToObject(payload_obj, "value", resp.data.gpio.analog_value);

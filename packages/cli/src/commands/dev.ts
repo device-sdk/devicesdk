@@ -196,7 +196,7 @@ const dev = async (options: { config?: string; port?: string }) => {
 		for (const [deviceId, device] of Object.entries(config.devices)) {
 			devicesWithClass[deviceId] = {
 				...device,
-				className: device.entrypoint,
+				className: device.className,
 				resolvedEntrypoint: path.resolve(configDir, device.main),
 			};
 		}

@@ -30,7 +30,7 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					"temp-sensor": {
-						entrypoint: "TempSensor",
+						className: "TempSensor",
 						main: "./src/devices/tempSensor.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
@@ -56,7 +56,7 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					sensor: {
-						entrypoint: "MySensor",
+						className: "MySensor",
 						main: "./devices/sensor.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
@@ -78,7 +78,7 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					sensor: {
-						entrypoint: "MySensor",
+						className: "MySensor",
 						main: "devices/sensor.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
@@ -99,7 +99,7 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					sensor: {
-						entrypoint: "MySensor",
+						className: "MySensor",
 						main: "../shared/sensor.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
@@ -121,13 +121,13 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					"device-a": {
-						entrypoint: "MyDevice",
+						className: "MyDevice",
 						main: "./devices/a.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
 					},
 					"device-b": {
-						entrypoint: "MyDevice",
+						className: "MyDevice",
 						main: "./devices/b.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
@@ -155,19 +155,19 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					"dev-1": {
-						entrypoint: "GenericDevice",
+						className: "GenericDevice",
 						main: "./devices/one.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
 					},
 					"dev-2": {
-						entrypoint: "GenericDevice",
+						className: "GenericDevice",
 						main: "./devices/two.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
 					},
 					"dev-3": {
-						entrypoint: "GenericDevice",
+						className: "GenericDevice",
 						main: "./devices/three.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
@@ -198,7 +198,7 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					sensor: {
-						entrypoint: "SensorDevice",
+						className: "SensorDevice",
 						main: "SensorDevice",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
@@ -221,7 +221,7 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					sensor: {
-						entrypoint: "SensorDevice",
+						className: "SensorDevice",
 						main: "./src/SensorDevice.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
@@ -240,7 +240,7 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					device: {
-						entrypoint: "MyDevice",
+						className: "MyDevice",
 						main: "./devices/my.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },
@@ -261,7 +261,7 @@ describe("generateDeviceTypes", () => {
 				projectId: "my-project",
 				devices: {
 					device: {
-						entrypoint: "MyDevice",
+						className: "MyDevice",
 						main: "./devices/my.ts",
 						deviceType: "pico-w",
 						wifi: { ssid: "ssid", password: "pass" },

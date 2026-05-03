@@ -66,6 +66,9 @@ jobs:
   build:
     name: Build ESP32 firmware (${{ matrix.target }})
     needs: [unit-tests, python-tests]
+    # proxmox-ephemeral image is expected to have system libs that ESP-IDF's
+    # install.sh probes during post-install verify — currently libusb-1.0-0
+    # for openocd-esp32. Bake new prereqs into the image rather than the job.
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     permissions:
       contents: read

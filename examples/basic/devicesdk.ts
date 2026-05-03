@@ -7,7 +7,7 @@ export default defineConfig({
       // main: "./src/devices/device.ts",
       // main: "./src/devices/button.ts",
       main: "./src/devices/door-sensor.ts",
-      entrypoint: "MyDevice",
+      className: "MyDevice",
       name: "Main Device",
       //deviceType: 'pico2-w',
       deviceType: 'esp32c3',

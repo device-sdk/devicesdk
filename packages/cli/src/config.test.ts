@@ -11,7 +11,7 @@ describe("DeviceSDKConfigSchema", () => {
 			projectId: "my-project",
 			devices: {
 				"temperature-sensor": {
-					entrypoint: "TemperatureSensorDevice",
+					className: "TemperatureSensorDevice",
 					main: "./devices/temperatureSensor.ts",
 					deviceType: "pico-w",
 					name: "Temperature Sensor",
@@ -29,7 +29,7 @@ describe("DeviceSDKConfigSchema", () => {
 			projectId: "my-project",
 			devices: {
 				sensor: {
-					entrypoint: "SensorDevice",
+					className: "SensorDevice",
 					main: "./devices/sensor.ts",
 					deviceType: "pico2-w",
 					wifi: { ssid: "ssid", password: "pass" },
@@ -45,7 +45,7 @@ describe("DeviceSDKConfigSchema", () => {
 			projectId: "my-project",
 			devices: {
 				"esp-sensor": {
-					entrypoint: "EspDevice",
+					className: "EspDevice",
 					main: "./devices/esp.ts",
 					deviceType: "esp32",
 					wifi: { ssid: "ssid", password: "pass" },
@@ -61,7 +61,7 @@ describe("DeviceSDKConfigSchema", () => {
 			projectId: "my-project",
 			devices: {
 				"esp-c61-sensor": {
-					entrypoint: "EspC61Device",
+					className: "EspC61Device",
 					main: "./devices/espC61.ts",
 					deviceType: "esp32c61",
 					wifi: { ssid: "ssid", password: "pass" },
@@ -77,7 +77,7 @@ describe("DeviceSDKConfigSchema", () => {
 			projectId: "my-project",
 			devices: {
 				"esp-c3-sensor": {
-					entrypoint: "EspC3Device",
+					className: "EspC3Device",
 					main: "./devices/espC3.ts",
 					deviceType: "esp32c3",
 					wifi: { ssid: "ssid", password: "pass" },
@@ -102,7 +102,7 @@ describe("DeviceSDKConfigSchema", () => {
 		expect(result.success).toBe(false);
 	});
 
-	it("should fail validation for a config with missing main or entrypoint", () => {
+	it("should fail validation for a config with missing className or main", () => {
 		const config = {
 			projectId: "my-project",
 			devices: {
@@ -140,7 +140,7 @@ describe("DeviceSDKConfigSchema", () => {
 			projectId: "my-project",
 			devices: {
 				sensor: {
-					entrypoint: "MySensor",
+					className: "MySensor",
 					main: "./devices/sensor.ts",
 					deviceType: "pico-w",
 					wifi: { ssid: "ssid", password: "pass" },
@@ -151,30 +151,28 @@ describe("DeviceSDKConfigSchema", () => {
 		expect(result.devices.sensor.main).toBe("./devices/sensor.ts");
 	});
 
-	it("should default main to entrypoint class name when main is omitted", () => {
+	it("should fail validation when main is omitted", () => {
 		const config = {
 			projectId: "my-project",
 			devices: {
 				sensor: {
-					entrypoint: "SensorDevice",
+					className: "SensorDevice",
 					deviceType: "pico-w",
 					wifi: { ssid: "ssid", password: "pass" },
 				},
 			},
 		};
 		const result = DeviceSDKConfigSchema.safeParse(config);
-		expect(result.success).toBe(true);
-		if (result.success) {
-			expect(result.data.devices.sensor.main).toBe("SensorDevice");
-		}
+		expect(result.success).toBe(false);
 	});
 
-	it("should fail validation when entrypoint is a file path instead of a class name", () => {
+	it("should fail validation when className is a file path instead of an identifier", () => {
 		const config = {
 			projectId: "my-project",
 			devices: {
 				sensor: {
-					entrypoint: "./devices/sensor.ts",
+					className: "./devices/sensor.ts",
+					main: "./devices/sensor.ts",
 					deviceType: "pico-w",
 					wifi: { ssid: "ssid", password: "pass" },
 				},
@@ -184,8 +182,48 @@ describe("DeviceSDKConfigSchema", () => {
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			expect(result.error.issues[0].message).toContain(
-				"'entrypoint' must be a valid TypeScript class name",
+				"'className' must be a valid TypeScript class name",
 			);
+		}
+	});
+
+	it("should fail validation when wifi credentials are still scaffold placeholders", () => {
+		const config = {
+			projectId: "my-project",
+			devices: {
+				sensor: {
+					className: "SensorDevice",
+					main: "./devices/sensor.ts",
+					deviceType: "pico-w",
+					wifi: { ssid: "YOUR_WIFI_SSID", password: "YOUR_WIFI_PASSWORD" },
+				},
+			},
+		};
+		const result = DeviceSDKConfigSchema.safeParse(config);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			const messages = result.error.issues.map((i) => i.message).join(" | ");
+			expect(messages).toContain("scaffold placeholder");
+		}
+	});
+
+	it("should fail validation with a migration hint when the legacy 'entrypoint' key is present", () => {
+		const config = {
+			projectId: "my-project",
+			devices: {
+				sensor: {
+					entrypoint: "SensorDevice",
+					main: "./devices/sensor.ts",
+					deviceType: "pico-w",
+					wifi: { ssid: "ssid", password: "pass" },
+				},
+			},
+		};
+		const result = DeviceSDKConfigSchema.safeParse(config);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			const messages = result.error.issues.map((i) => i.message).join(" | ");
+			expect(messages).toContain("'entrypoint' was renamed to 'className'");
 		}
 	});
 });

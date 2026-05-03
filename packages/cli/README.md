@@ -30,7 +30,9 @@ export default defineConfig({
   projectId: 'my-project',
   devices: {
     'pico-1': {
-      main: './src/device.ts',
+      main: './src/device.ts',     // path to your script
+      className: 'MyDevice',        // named export from `main`
+      deviceType: 'pico-w',
       name: 'My Pico',
       description: 'Demo device',
       wifi: { ssid: 'MyWiFi', password: 'secret' },
@@ -38,7 +40,7 @@ export default defineConfig({
   },
 });
 ```
-- Prefer `main`; `entrypoint` is supported for backward compatibility.
+- `main` is the file path; `className` is the exported class name (must be `export class <name> extends DeviceEntrypoint`, not `export default class`).
 - Use `--config` or `DEVICESDK_CONFIG` to point to a custom config path.
 
 ## Key commands

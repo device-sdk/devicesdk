@@ -49,7 +49,7 @@ export async function generateDeviceTypes(
 			);
 		}
 
-		const className = device.entrypoint;
+		const className = device.className;
 		const count = seenClassNames.get(className) ?? 0;
 		seenClassNames.set(className, count + 1);
 
@@ -87,12 +87,13 @@ export type Env = GetEnv<ProjectDevices>;
 async function buildDevice(
 	deviceId: string,
 	entrypoint: string,
+	className: string,
 	outdir: string,
 	options: { minify?: boolean; sourcemap?: boolean },
 ): Promise<{ size: number; outfile: string }> {
 	const outfile = path.join(outdir, `${deviceId}.js`);
 
-	await esbuild.build({
+	const result = await esbuild.build({
 		entryPoints: [entrypoint],
 		bundle: true,
 		outfile,
@@ -103,7 +104,29 @@ async function buildDevice(
 		external: ["cloudflare:workers"],
 		minify: options.minify || false,
 		sourcemap: options.sourcemap || false,
+		metafile: true,
 	});
+
+	// The Worker runtime imports the device class by name (`import { ${className} } from "..."`).
+	// A `export default class` won't resolve that named import and produces a confusing
+	// "No matching export" error at deploy time. Catch the misuse here with a fix-up hint.
+	const outputs = result.metafile?.outputs ?? {};
+	const entry = Object.entries(outputs).find(([, o]) => o.entryPoint)?.[1];
+	if (!entry) {
+		throw new Error(
+			`Internal error: esbuild metafile has no entryPoint output for ${entrypoint}. ` +
+				"This indicates an esbuild API change; please report it.",
+		);
+	}
+	if (!entry.exports.includes(className)) {
+		const relEntry = path.relative(process.cwd(), entrypoint) || entrypoint;
+		const hint = entry.exports.includes("default")
+			? `Found a default export. Change "export default class ${className}" to "export class ${className}" in ${relEntry}.`
+			: `Add a named export in ${relEntry}: "export class ${className} extends DeviceEntrypoint { ... }".`;
+		throw new Error(
+			`Class "${className}" must be exported as a named export. ${hint}`,
+		);
+	}
 
 	const stats = await fs.stat(outfile);
 	return { size: stats.size, outfile };
@@ -172,10 +195,16 @@ export default async function build(options: BuildOptions = {}): Promise<void> {
 			}
 
 			try {
-				const { size } = await buildDevice(deviceId, mainFile, outdir, {
-					minify: options.minify,
-					sourcemap: options.sourcemap,
-				});
+				const { size } = await buildDevice(
+					deviceId,
+					mainFile,
+					device.className,
+					outdir,
+					{
+						minify: options.minify,
+						sourcemap: options.sourcemap,
+					},
+				);
 
 				if (size > MAX_SCRIPT_SIZE) {
 					console.error(

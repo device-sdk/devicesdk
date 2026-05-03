@@ -50,6 +50,8 @@ add_executable(devicesdk-client
         src/utils/base64.cpp
         src/multicore/shared_buffers.cpp
         src/multicore/core1_worker.cpp
+        src/commands/i2c_command_handler.cpp
+        src/commands/i2c_batch_write.cpp
 )
 
 # Pass credentials to the code

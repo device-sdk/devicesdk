@@ -17,7 +17,7 @@ Extend the `DeviceEntrypoint` class to write device scripts:
 ```typescript
 import { DeviceEntrypoint } from "@devicesdk/core";
 
-export default class MyDevice extends DeviceEntrypoint {
+export class MyDevice extends DeviceEntrypoint {
   // Called when the physical device connects via WebSocket
   async onDeviceConnect() {
     await this.ctx.device.log("Device connected!");

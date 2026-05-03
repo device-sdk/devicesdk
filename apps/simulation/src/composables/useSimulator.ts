@@ -46,20 +46,29 @@ export function useSimulator() {
 			case "get_pin_state": {
 				const { pin, mode } = command.payload;
 				const s = pinState.get(pin);
-				const value =
-					mode === "digital"
-						? s.digitalState === "high"
-							? 1
-							: 0
-						: (s.analog?.raw ?? 0);
+				// PinStateUpdate is a discriminated union by mode: digital → "high"|"low",
+				// analog → number. Build the frame inline per branch so TS can narrow.
+				if (mode === "digital") {
+					const value = s.digitalState === "high" ? "high" : "low";
+					simulator.addLog(
+						`GPIO ${pin} read: ${value} (digital)`,
+						"get_pin_state",
+					);
+					return {
+						id: command.id,
+						type: "pin_state_update",
+						payload: { pin, mode: "digital", value },
+					};
+				}
+				const value = s.analog?.raw ?? 0;
 				simulator.addLog(
-					`GPIO ${pin} read: ${value} (${mode})`,
+					`GPIO ${pin} read: ${value} (analog)`,
 					"get_pin_state",
 				);
 				return {
 					id: command.id,
 					type: "pin_state_update",
-					payload: { pin, mode, value },
+					payload: { pin, mode: "analog", value },
 				};
 			}
 

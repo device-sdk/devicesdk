@@ -270,14 +270,26 @@ export interface DeviceConnected extends BaseResponse {
 	type: "device_connected";
 }
 
-export interface PinStateUpdate extends BaseResponse {
-	type: "pin_state_update";
-	payload: {
-		pin: number;
-		mode: "analog" | "digital";
-		value: number;
-	};
-}
+// Discriminated by `payload.mode` so the value type is precise per mode:
+// digital reads return "high" | "low" (matching the firmware's natural shape),
+// analog reads return a numeric ADC value.
+export type PinStateUpdate =
+	| (BaseResponse & {
+			type: "pin_state_update";
+			payload: {
+				pin: number;
+				mode: "digital";
+				value: "high" | "low";
+			};
+	  })
+	| (BaseResponse & {
+			type: "pin_state_update";
+			payload: {
+				pin: number;
+				mode: "analog";
+				value: number;
+			};
+	  });
 
 export interface I2cScanResult extends BaseResponse {
 	type: "i2c_scan_result";

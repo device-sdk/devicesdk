@@ -315,6 +315,20 @@ describe.sequential("Inter-device RPC", () => {
 			expect(code).toContain("Object.getPrototypeOf(target)");
 			expect(code).toContain("hasOwnProperty");
 		});
+
+		it("should not prepend the legacy [projectId:deviceId] prefix to console output", async () => {
+			const { getProxyEntrypoint } = await import(
+				"../../src/durableObjects/lib/classProxy"
+			);
+			const code = getProxyEntrypoint("TestDevice");
+			// The persisted log path is unchanged …
+			expect(code).toContain("persist('log', args)");
+			// … but the runtime stdout shim no longer constructs or injects the
+			// '[' + __PROJECT_ID + ':' + __DEVICE_ID + ']' prefix.
+			expect(code).not.toContain("__PROJECT_ID + ':' + this.env.__DEVICE_ID");
+			expect(code).not.toMatch(/_log\(prefix,/);
+			expect(code).toMatch(/_log\(\.\.\.args\)/);
+		});
 	});
 
 	describe("classProxy security", () => {

@@ -74,9 +74,33 @@ async function request<T>(
 	}
 
 	if (!response.ok) {
-		if (responseText) {
-			console.error(`
-Response body (${response.status}):`);
+		// Canonical error shape is `{ success: false, error: "string" }`; some
+		// endpoints still emit `{ error: { message, code } }`. Tolerate both.
+		const errorString =
+			typeof data?.error === "string" ? data.error : undefined;
+		const errorMessage = data?.error?.message ?? errorString;
+		const errorCode = data?.code ?? data?.error?.code ?? errorString;
+
+		const isAuthExpired =
+			response.status === 401 &&
+			typeof errorCode === "string" &&
+			(errorCode === "invalid_refresh_token" ||
+				errorCode === "invalid_token" ||
+				errorCode === "unauthorized");
+
+		let message =
+			errorMessage || `Request failed with status ${response.status}`;
+		if (isAuthExpired) {
+			message = "Session expired — run `devicesdk login`.";
+		} else if (response.status === 401) {
+			message += "\nPlease run `devicesdk login` to re-authenticate.";
+		}
+
+		// Verbose mode is the escape hatch for raw response bodies; otherwise
+		// keep the surface area to a single line. Dumping JSON for every 4xx
+		// burns user attention without telling them what to do.
+		if (verboseLogging && responseText) {
+			console.error(`\nResponse body (${response.status}):`);
 			try {
 				console.error(JSON.stringify(data ?? responseText, null, 2));
 			} catch {
@@ -84,15 +108,10 @@ Response body (${response.status}):`);
 			}
 		}
 
-		let message =
-			data?.error?.message || `Request failed with status ${response.status}`;
-		if (response.status === 401) {
-			message += "\nPlease run `npx devicesdk login` to re-authenticate.";
-		}
 		throw new DeviceSDKApiError(
 			message,
 			response.status,
-			data?.error?.code,
+			typeof errorCode === "string" ? errorCode : undefined,
 			data ?? responseText,
 		);
 	}
@@ -436,9 +455,22 @@ export async function downloadDeviceFirmware(
 			// ignore parse failure
 		}
 
-		if (responseBody || responseText) {
-			console.error(`
-Response body (${response.status}):`);
+		// Structured `code` may be top-level (canonical) or nested in `error.code`.
+		const code = responseBody?.code ?? responseBody?.error?.code;
+		const isAuthExpired =
+			response.status === 401 &&
+			(code === "invalid_refresh_token" ||
+				code === "invalid_token" ||
+				code === "unauthorized");
+
+		if (isAuthExpired) {
+			message = "Session expired — run `devicesdk login`.";
+		} else if (response.status === 401) {
+			message += "\nPlease run `devicesdk login` to re-authenticate.";
+		}
+
+		if (verboseLogging && (responseBody || responseText)) {
+			console.error(`\nResponse body (${response.status}):`);
 			try {
 				console.error(JSON.stringify(responseBody ?? responseText, null, 2));
 			} catch {
@@ -446,11 +478,6 @@ Response body (${response.status}):`);
 			}
 		}
 
-		if (response.status === 401) {
-			message += "\nPlease run `npx devicesdk login` to re-authenticate.";
-		}
-		// Structured `code` may be top-level (canonical) or nested in `error.code`.
-		const code = responseBody?.code ?? responseBody?.error?.code;
 		throw new DeviceSDKApiError(
 			message,
 			response.status,

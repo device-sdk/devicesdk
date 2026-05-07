@@ -72,8 +72,19 @@ Send commands to your devices using the typed methods:
 // Turn on an LED
 await this.env.DEVICE.setGpioState(25, "high");
 
-// Read a pin state
-const reading = await this.env.DEVICE.getPinState(26, "analog");
+// Read an analog pin (returns a numeric value)
+const analogReading = await this.env.DEVICE.getPinState(26, "analog");
+if (analogReading.type === "pin_state_update" && analogReading.payload.mode === "analog") {
+  const value = analogReading.payload.value; // number
+  console.info(`Pin 26 analog value: ${value}`);
+}
+
+// Read a digital pin (returns "high" or "low")
+const digitalReading = await this.env.DEVICE.getPinState(20, "digital");
+if (digitalReading.type === "pin_state_update" && digitalReading.payload.mode === "digital") {
+  const state = digitalReading.payload.value; // "high" | "low"
+  console.info(`Pin 20 is ${state}`);
+}
 ```
 
 ## Complete Example: LED Controller

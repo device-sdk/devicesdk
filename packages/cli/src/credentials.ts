@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { refreshToken as apiRefreshToken } from "./api.js";
+import { refreshToken as apiRefreshToken, DeviceSDKApiError } from "./api.js";
 import { EXIT } from "./exitCodes.js";
 
 export interface Credentials {
@@ -10,6 +10,11 @@ export interface Credentials {
 	expiresAt: number;
 	email: string;
 }
+
+// Internal sentinel returned by getToken() when the refresh attempt is
+// rejected by the API (vs. simply not present). Lets requireAuth() print the
+// "Session expired" line instead of the generic "Authentication required".
+const SESSION_EXPIRED = Symbol("SESSION_EXPIRED");
 
 const CREDENTIALS_DIR = path.join(os.homedir(), ".devicesdk");
 const CREDENTIALS_FILE = path.join(CREDENTIALS_DIR, "credentials.json");
@@ -42,7 +47,9 @@ export async function deleteCredentials(): Promise<void> {
 	}
 }
 
-export async function getToken(): Promise<string | null> {
+export async function getToken(): Promise<
+	string | null | typeof SESSION_EXPIRED
+> {
 	// First check environment variable
 	const envToken = process.env.DEVICESDK_TOKEN;
 	if (envToken) {
@@ -72,8 +79,19 @@ export async function getToken(): Promise<string | null> {
 			};
 			await saveCredentials(newCredentials);
 			return newCredentials.accessToken;
-		} catch {
-			// Refresh failed, credentials are invalid
+		} catch (error) {
+			// 4xx from the refresh endpoint means the stored token is no longer
+			// honoured by the server — surface "Session expired" so the CLI can
+			// print one line instead of the generic "Authentication required".
+			if (
+				error instanceof DeviceSDKApiError &&
+				error.statusCode >= 400 &&
+				error.statusCode < 500
+			) {
+				return SESSION_EXPIRED;
+			}
+			// Network errors and other failures: keep the prior behaviour of
+			// treating the credentials as missing.
 			return null;
 		}
 	}
@@ -83,6 +101,10 @@ export async function getToken(): Promise<string | null> {
 
 export async function requireAuth(): Promise<string> {
 	const token = await getToken();
+	if (token === SESSION_EXPIRED) {
+		console.error("✗ Session expired — run `devicesdk login`.");
+		process.exit(EXIT.NOT_AUTHENTICATED);
+	}
 	if (!token) {
 		console.error("✗ Error: Authentication required\n");
 		console.error("  Please run `devicesdk login` to authenticate.");

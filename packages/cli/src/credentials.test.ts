@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DeviceSDKApiError } from "./api.js";
 import type { Credentials } from "./credentials.js";
 import {
 	deleteCredentials,
@@ -152,7 +153,7 @@ describe("credentials", () => {
 			);
 		});
 
-		it("should return null when token is expired and refresh fails", async () => {
+		it("should return null when token is expired and refresh fails (network)", async () => {
 			const creds = makeCredentials({
 				expiresAt: Date.now() - 1000, // expired
 			});
@@ -161,6 +162,27 @@ describe("credentials", () => {
 
 			const result = await getToken();
 			expect(result).toBeNull();
+		});
+
+		it("should return SESSION_EXPIRED sentinel when refresh returns 401", async () => {
+			const creds = makeCredentials({
+				expiresAt: Date.now() - 1000, // expired
+			});
+			readFileSpy.mockResolvedValue(Buffer.from(JSON.stringify(creds)));
+			refreshTokenMock.mockRejectedValue(
+				new DeviceSDKApiError(
+					"Session expired — run `devicesdk login`.",
+					401,
+					"invalid_refresh_token",
+				),
+			);
+
+			const result = await getToken();
+			// Sentinel is internal — it's not null and not a string, which is enough
+			// for requireAuth() to dispatch on it. We exercise the surfaced
+			// behaviour in the requireAuth describe block below.
+			expect(result).not.toBeNull();
+			expect(typeof result).not.toBe("string");
 		});
 	});
 
@@ -189,6 +211,28 @@ describe("credentials", () => {
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				expect.stringContaining("Authentication required"),
 			);
+		});
+
+		it("should print 'Session expired' (no body dump) on refresh-token 401", async () => {
+			const creds = makeCredentials({
+				expiresAt: Date.now() - 1000, // expired
+			});
+			readFileSpy.mockResolvedValue(Buffer.from(JSON.stringify(creds)));
+			refreshTokenMock.mockRejectedValue(
+				new DeviceSDKApiError(
+					"Session expired — run `devicesdk login`.",
+					401,
+					"invalid_refresh_token",
+				),
+			);
+
+			await expect(requireAuth()).rejects.toThrow("process.exit");
+			expect(processExitSpy).toHaveBeenCalledWith(3);
+			const printed = consoleErrorSpy.mock.calls.flat().join("\n");
+			expect(printed).toContain("Session expired");
+			// Must NOT include the prior raw body dump format.
+			expect(printed).not.toContain("Response body");
+			expect(printed).not.toContain("invalid_refresh_token");
 		});
 	});
 });

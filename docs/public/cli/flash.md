@@ -75,11 +75,32 @@ Verify it's installed:
 esptool.py version
 ```
 
-On Linux, your user must be in the `dialout` group to access serial ports:
+### Serial port permissions (Linux)
+
+Your user needs write access to the serial port. The fix depends on your distribution:
 
 ```bash
+# Debian / Ubuntu / Fedora — group is `dialout`
 sudo usermod -a -G dialout $USER
-# Log out and back in for the change to take effect
+
+# Arch Linux — group is `uucp`
+sudo usermod -a -G uucp $USER
+
+# Then log out and back in for the group change to take effect.
+```
+
+If you'd rather not log out, or you want the permission to survive replug without juggling groups, install a udev rule. The snippet below grants access to the most common ESP32 USB-UART chips (CP210x, CH340, FTDI FT232) for any user in the `plugdev` group:
+
+```bash
+sudo tee /etc/udev/rules.d/99-devicesdk-serial.rules > /dev/null <<'EOF'
+# DeviceSDK — ESP32 USB-UART bridges
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", GROUP="plugdev", MODE="0660"
+EOF
+sudo udevadm control --reload-rules && sudo udevadm trigger
+sudo usermod -a -G plugdev $USER
+# Log out and back in once.
 ```
 
 ### How It Works
@@ -167,6 +188,18 @@ Once flashed:
 3. Runs your deployed code
 4. Appears in dashboard as online
 
+### Verify connectivity
+
+The on-board LED blinks a status sequence after reboot (1 = booted, 2 = Wi-Fi connected, 3 = cloud connected). To confirm cloud-side that the device is online — useful when the LED is hard to see, or when you want to know which firmware version is running — run [`devicesdk status`](/docs/cli/status/):
+
+```bash
+devicesdk status
+# DEVICE       STATUS    VERSION   LAST SEEN
+# my-sensor-1  ● online  a1b2c3d4  2s ago
+```
+
+Status reads the live Durable Object connection state, so it flips to `● online` within a second of the device's WebSocket handshake.
+
 ## WiFi Configuration
 
 For Pico W, configure WiFi after flashing:
@@ -208,8 +241,8 @@ devicesdk flash my-device --timeout 120000
 - Ensure `esptool.py` is in your PATH
 
 **"Serial port not accessible (permission denied)"?**
-- Linux: `sudo usermod -a -G dialout $USER`, then log out and back in
-- Verify with `groups` that `dialout` appears
+- See [Serial port permissions (Linux)](#serial-port-permissions-linux) above for the full fix (group on Debian/Ubuntu vs Arch, plus a persistent udev rule)
+- Verify with `groups` that the relevant group (`dialout` or `uucp`) appears for your user
 
 **"No serial data received"?**
 - Your board likely doesn't support auto-reset

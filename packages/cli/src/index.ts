@@ -139,29 +139,36 @@ Examples:
 	.action(deploy);
 
 program
-	.command("logs <project-id> <device-id>")
-	.description("View logs for a deployed device")
+	.command("logs [project-id] [device-id]")
+	.description("View logs for a deployed device (defaults from devicesdk.ts)")
 	.option("-f, --tail", "Continuously tail new log entries")
 	.option("-n, --lines <number>", "Number of log lines to show", "50")
 	.option(
 		"--level <level>",
 		"Filter by log level: log, info, warn, error, debug",
 	)
+	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
 	.addHelpText(
 		"after",
 		`
 Examples:
-  $ devicesdk logs my-project sensor-1
+  $ devicesdk logs                                  # uses devicesdk.ts in current dir or any parent
+  $ devicesdk logs sensor-1                         # multi-device project: pick one
   $ devicesdk logs my-project sensor-1 --tail
   $ devicesdk logs my-project sensor-1 --level error -n 200`,
 	)
-	.action((projectId, deviceId, options) =>
-		logs(projectId, deviceId, {
+	.action((arg1, arg2, options) => {
+		// One positional → treat as device-id (project from config).
+		// Two positionals → [project-id, device-id].
+		const projectId = arg2 !== undefined ? arg1 : undefined;
+		const deviceId = arg2 !== undefined ? arg2 : arg1;
+		return logs(projectId, deviceId, {
 			tail: options.tail ?? false,
 			lines: Number(options.lines),
 			level: options.level,
-		}),
-	);
+			config: options.config,
+		});
+	});
 
 program
 	.command("flash <device-id>")

@@ -1,4 +1,6 @@
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
@@ -6,25 +8,44 @@ import { ZodError, type z } from "zod";
 import { type DeviceSDKConfig, DeviceSDKConfigSchema } from "./config.js";
 import { EXIT } from "./exitCodes.js";
 
+const CONFIG_FILENAME = "devicesdk.ts";
+
+function findConfigUp(startDir: string): string | null {
+	const home = os.homedir();
+	let current = path.resolve(startDir);
+	while (true) {
+		const candidate = path.join(current, CONFIG_FILENAME);
+		if (existsSync(candidate)) {
+			return candidate;
+		}
+		const parent = path.dirname(current);
+		if (parent === current) return null;
+		// Stop walking once we leave the user's home directory tree to avoid
+		// accidentally picking up an unrelated devicesdk.ts higher up.
+		if (current === home) return null;
+		current = parent;
+	}
+}
+
+function resolveConfigPath(configPath?: string): string {
+	const override = configPath || process.env.DEVICESDK_CONFIG;
+	if (override) {
+		let resolved = path.resolve(process.cwd(), override);
+		if (!resolved.endsWith(".ts")) {
+			resolved = path.join(resolved, CONFIG_FILENAME);
+		}
+		return resolved;
+	}
+	const found = findConfigUp(process.cwd());
+	if (found) return found;
+	return path.join(process.cwd(), CONFIG_FILENAME);
+}
+
 export async function loadConfig(
 	configPath?: string,
 ): Promise<DeviceSDKConfig> {
-	const configOption = configPath || process.env.DEVICESDK_CONFIG || ".";
-	let resolvedPath = path.resolve(process.cwd(), configOption);
+	const resolvedPath = resolveConfigPath(configPath);
 
-	try {
-		const stats = await fs.stat(resolvedPath);
-		if (stats.isDirectory()) {
-			resolvedPath = path.join(resolvedPath, "devicesdk.ts");
-		}
-	} catch {
-		// Try adding devicesdk.ts if it's a directory path
-		if (!resolvedPath.endsWith(".ts")) {
-			resolvedPath = path.join(resolvedPath, "devicesdk.ts");
-		}
-	}
-
-	// Check if file exists
 	try {
 		await fs.access(resolvedPath);
 	} catch {
@@ -82,11 +103,5 @@ export async function loadConfig(
 }
 
 export function getConfigDir(configPath?: string): string {
-	const configOption = configPath || process.env.DEVICESDK_CONFIG || ".";
-	const resolvedPath = path.resolve(process.cwd(), configOption);
-
-	if (resolvedPath.endsWith(".ts")) {
-		return path.dirname(resolvedPath);
-	}
-	return resolvedPath;
+	return path.dirname(resolveConfigPath(configPath));
 }

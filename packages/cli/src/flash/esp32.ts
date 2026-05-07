@@ -133,8 +133,11 @@ export async function flashESP32(
 	} catch {
 		throw new Error(
 			`Serial port ${port} is not accessible (permission denied).\n` +
-				"Fix with:  sudo usermod -a -G dialout $USER\n" +
-				"Then log out and back in for the group change to take effect.",
+				"Fix with:  sudo usermod -a -G dialout $USER  (Debian/Ubuntu/Fedora)\n" +
+				"          sudo usermod -a -G uucp $USER     (Arch Linux)\n" +
+				"Then log out and back in for the group change to take effect.\n" +
+				"For a persistent udev-rule alternative, see:\n" +
+				"  https://devicesdk.com/docs/cli/flash/#serial-port-permissions-linux",
 		);
 	}
 

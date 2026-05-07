@@ -7,6 +7,11 @@ vi.mock("../credentials.js", () => ({
 	requireAuth: vi.fn().mockResolvedValue("test-token"),
 }));
 
+const loadConfigMock = vi.fn();
+vi.mock("../utils.js", () => ({
+	loadConfig: (...args: unknown[]) => loadConfigMock(...args),
+}));
+
 // Capture every WebSocket the command opens so tests can drive frames
 // through them. Each test resets the array via `beforeEach`.
 class FakeWebSocket extends EventEmitter {
@@ -332,6 +337,50 @@ describe("logs command (WS)", () => {
 		// Crucially, no reconnect attempt was made — retrying from the same
 		// client is what the 429 is asking us NOT to do.
 		expect(wsInstances).toHaveLength(1);
+	});
+
+	it("defaults projectId and deviceId from devicesdk.ts when both omitted", async () => {
+		loadConfigMock.mockResolvedValue({
+			projectId: "config-proj",
+			devices: { "only-device": {} },
+		});
+
+		const captured = logs(undefined, undefined, {
+			tail: false,
+			lines: 50,
+		}).catch((e: Error) => e);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(wsInstances).toHaveLength(1);
+		expect(wsInstances[0].url).toContain(
+			"/v1/projects/config-proj/devices/only-device/watch",
+		);
+
+		// Tear down so the test exits cleanly.
+		wsInstances[0].emit("open");
+		wsInstances[0].emit(
+			"message",
+			Buffer.from(JSON.stringify({ event: "history_complete" })),
+		);
+		await captured;
+	});
+
+	it("errors when config has multiple devices and no positional is given", async () => {
+		loadConfigMock.mockResolvedValue({
+			projectId: "config-proj",
+			devices: { "device-a": {}, "device-b": {} },
+		});
+
+		const captured = logs(undefined, undefined, {
+			tail: false,
+			lines: 50,
+		}).catch((e: Error) => e);
+
+		const err = (await captured) as Error;
+		expect(err.message).toMatch(/exit:2/);
+		const printed = consoleErrorSpy.mock.calls.flat().join("\n");
+		expect(printed).toContain("Multiple devices");
+		expect(printed).toContain("device-a");
+		expect(printed).toContain("device-b");
 	});
 
 	it("non-tail: 429 upgrade rejection terminates immediately", async () => {

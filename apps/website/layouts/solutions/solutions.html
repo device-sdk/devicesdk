@@ -1,10 +1,11 @@
 {{ define "main" }}
 <!-- Hero -->
-<section class="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-4xl mx-auto text-center">
+<section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div class="hero-mesh subtle" aria-hidden="true"></div>
+    <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
         <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
             Real-world<br/>
-            <span class="text-emerald-500">solutions</span>
+            <span class="gradient-pan">solutions</span>
         </h1>
         <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
             See how DeviceSDK fits real IoT use cases — with honest cost estimates.
@@ -31,7 +32,7 @@
                     <li>Data stored in device KV, visible in dashboard</li>
                     <li>Discord webhook alert if temp exceeds threshold</li>
                 </ul>
-                <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
+                <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg card-lift">
                     <div class="text-xs text-zinc-500 uppercase tracking-wider">Estimated cost</div>
                     <div class="text-lg font-bold text-emerald-400 mt-1">Free</div>
                     <div class="text-xs text-zinc-600">288 msgs/day &mdash; within free tier</div>
@@ -60,7 +61,7 @@
                     <li>GPIO outputs for relay control</li>
                     <li>KV for runtime tracking and maintenance logs</li>
                 </ul>
-                <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
+                <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg card-lift">
                     <div class="text-xs text-zinc-500 uppercase tracking-wider">Estimated cost</div>
                     <div class="text-lg font-bold text-zinc-50 mt-1">~$0.60<span class="text-sm text-zinc-500 font-normal">/month</span></div>
                     <div class="text-xs text-zinc-600">~8,640 msgs/day per machine</div>
@@ -90,7 +91,7 @@
                     <li>OLED display for room temperature</li>
                     <li>KV for state persistence across power outages</li>
                 </ul>
-                <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
+                <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg card-lift">
                     <div class="text-xs text-zinc-500 uppercase tracking-wider">Estimated cost</div>
                     <div class="text-lg font-bold text-emerald-400 mt-1">Free</div>
                     <div class="text-xs text-zinc-600">Event-driven, well under daily limit</div>
@@ -119,7 +120,7 @@
                     <li>Water pump control via GPIO relay</li>
                     <li>Daily summary logged to KV</li>
                 </ul>
-                <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
+                <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg card-lift">
                     <div class="text-xs text-zinc-500 uppercase tracking-wider">Estimated cost</div>
                     <div class="text-lg font-bold text-emerald-400 mt-1">Free</div>
                     <div class="text-xs text-zinc-600">~200 msgs/day per zone</div>
@@ -136,12 +137,12 @@
         <p class="text-zinc-400 max-w-xl mx-auto">
             Your device scripts run on a serverless runtime — you can <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">fetch()</code> any HTTP API directly from your device code.
         </p>
-        <div class="mt-8 flex flex-wrap justify-center gap-3 text-sm text-zinc-500">
-            <span class="px-3 py-1 border border-zinc-800 rounded-full">Discord</span>
-            <span class="px-3 py-1 border border-zinc-800 rounded-full">Slack</span>
-            <span class="px-3 py-1 border border-zinc-800 rounded-full">Email (SendGrid)</span>
-            <span class="px-3 py-1 border border-zinc-800 rounded-full">Databases</span>
-            <span class="px-3 py-1 border border-zinc-800 rounded-full">Any REST API</span>
+        <div class="mt-8 flex flex-wrap justify-center gap-3 text-sm text-zinc-500 reveal-stagger">
+            <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Discord</span>
+            <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Slack</span>
+            <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Email (SendGrid)</span>
+            <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Databases</span>
+            <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Any REST API</span>
         </div>
     </div>
 </section>

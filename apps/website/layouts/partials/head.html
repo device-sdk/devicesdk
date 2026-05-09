@@ -253,13 +253,14 @@
         background: rgba(16, 185, 129, 0.1);
     }
 
-    /* Overflow prevention */
+    /* Overflow prevention — use `clip` (not `hidden`) so it doesn't create a
+       scroll container, which would break `position: sticky` inside main. */
     html, body {
         width: 100%;
-        overflow-x: hidden;
+        overflow-x: clip;
     }
     main {
-        overflow-x: hidden;
+        overflow-x: clip;
     }
 
     /* Prose for light-bg legal pages */
@@ -335,16 +336,634 @@
     .accordion-content {
         max-height: 0;
         overflow: hidden;
-        transition: max-height 0.3s ease;
+        transition: max-height 0.4s cubic-bezier(0.21, 0.6, 0.35, 1),
+                    opacity 0.3s ease;
+        opacity: 0;
     }
     .accordion-content.open {
         max-height: 500px;
+        opacity: 1;
     }
     .accordion-chevron {
-        transition: transform 0.3s ease;
+        transition: transform 0.35s cubic-bezier(0.21, 0.6, 0.35, 1);
     }
     .accordion-chevron.open {
         transform: rotate(180deg);
+    }
+
+    /* ---- Motion system ---- */
+    /* Honor user's motion preference */
+    @media (prefers-reduced-motion: reduce) {
+        .reveal, .reveal-stagger > *, .fade-up {
+            opacity: 1 !important;
+            transform: none !important;
+            transition: none !important;
+        }
+        .hero-mesh::before, .hero-mesh::after,
+        .float, .pulse-soft::before, .gradient-pan,
+        .code-window-dots span, .ticker-num {
+            animation: none !important;
+        }
+    }
+
+    /* Reveal — single element fades in on scroll */
+    .reveal {
+        opacity: 0;
+        transform: translateY(28px);
+        transition: opacity 0.85s cubic-bezier(0.21, 0.6, 0.35, 1),
+                    transform 0.85s cubic-bezier(0.21, 0.6, 0.35, 1);
+        will-change: opacity, transform;
+    }
+    .reveal[data-reveal="left"]  { transform: translateX(-28px); }
+    .reveal[data-reveal="right"] { transform: translateX(28px);  }
+    .reveal[data-reveal="scale"] { transform: scale(0.96);       }
+    .reveal.is-revealed {
+        opacity: 1;
+        transform: none;
+    }
+
+    /* Reveal-stagger — children animate in sequence when parent enters viewport */
+    .reveal-stagger > * {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.7s cubic-bezier(0.21, 0.6, 0.35, 1),
+                    transform 0.7s cubic-bezier(0.21, 0.6, 0.35, 1);
+        will-change: opacity, transform;
+    }
+    .reveal-stagger.is-revealed > * { opacity: 1; transform: none; }
+    .reveal-stagger.is-revealed > *:nth-child(1)  { transition-delay: 0ms; }
+    .reveal-stagger.is-revealed > *:nth-child(2)  { transition-delay: 70ms; }
+    .reveal-stagger.is-revealed > *:nth-child(3)  { transition-delay: 140ms; }
+    .reveal-stagger.is-revealed > *:nth-child(4)  { transition-delay: 210ms; }
+    .reveal-stagger.is-revealed > *:nth-child(5)  { transition-delay: 280ms; }
+    .reveal-stagger.is-revealed > *:nth-child(6)  { transition-delay: 350ms; }
+    .reveal-stagger.is-revealed > *:nth-child(7)  { transition-delay: 420ms; }
+    .reveal-stagger.is-revealed > *:nth-child(8)  { transition-delay: 490ms; }
+    .reveal-stagger.is-revealed > *:nth-child(n+9) { transition-delay: 560ms; }
+
+    /* Hero entrance — first-paint stagger (no IntersectionObserver wait) */
+    .hero-enter > * {
+        opacity: 0;
+        transform: translateY(16px);
+        animation: hero-rise 0.9s cubic-bezier(0.21, 0.6, 0.35, 1) forwards;
+    }
+    .hero-enter > *:nth-child(1) { animation-delay: 100ms; }
+    .hero-enter > *:nth-child(2) { animation-delay: 180ms; }
+    .hero-enter > *:nth-child(3) { animation-delay: 260ms; }
+    .hero-enter > *:nth-child(4) { animation-delay: 340ms; }
+    .hero-enter > *:nth-child(5) { animation-delay: 420ms; }
+    .hero-enter > *:nth-child(n+6) { animation-delay: 500ms; }
+    @keyframes hero-rise {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Hero gradient mesh — drifting blurred orbs behind heroes (dark sections only) */
+    .hero-mesh {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 0;
+        mask-image: radial-gradient(ellipse at center, #000 55%, transparent 100%);
+        -webkit-mask-image: radial-gradient(ellipse at center, #000 55%, transparent 100%);
+    }
+    .hero-mesh::before,
+    .hero-mesh::after {
+        content: '';
+        position: absolute;
+        border-radius: 9999px;
+        filter: blur(90px);
+        will-change: transform;
+    }
+    .hero-mesh::before {
+        width: 520px; height: 520px;
+        background: radial-gradient(circle at center, rgba(16,185,129,0.55) 0%, transparent 70%);
+        top: -140px; left: -100px;
+        animation: drift-a 20s ease-in-out infinite;
+    }
+    .hero-mesh::after {
+        width: 420px; height: 420px;
+        background: radial-gradient(circle at center, rgba(99,102,241,0.4) 0%, transparent 70%);
+        bottom: -120px; right: -80px;
+        animation: drift-b 24s ease-in-out infinite;
+    }
+    .hero-mesh.subtle::before { opacity: 0.55; }
+    .hero-mesh.subtle::after  { opacity: 0.5; }
+    @keyframes drift-a {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50%      { transform: translate(70px, 50px) scale(1.12); }
+    }
+    @keyframes drift-b {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50%      { transform: translate(-60px, -40px) scale(1.18); }
+    }
+    /* Make sure hero content sits above the mesh */
+    .hero-stack { position: relative; z-index: 1; }
+
+    /* Soft float (subtle vertical drift for badges/icons) */
+    .float { animation: float 6s ease-in-out infinite; }
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-4px); }
+    }
+
+    /* Live-pulse — a halo that radiates out from a small dot */
+    .pulse-soft {
+        position: relative;
+    }
+    .pulse-soft::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: currentColor;
+        opacity: 0.7;
+        animation: pulse-soft 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    @keyframes pulse-soft {
+        0%   { transform: scale(1);    opacity: 0.7; }
+        100% { transform: scale(2.6);  opacity: 0; }
+    }
+
+    /* Card lift — replaces / extends the existing .card hover */
+    .card.card-lift,
+    .card-lift {
+        transition: transform 0.3s cubic-bezier(0.21, 0.6, 0.35, 1),
+                    border-color 0.3s ease,
+                    box-shadow 0.3s ease;
+    }
+    .card.card-lift:hover,
+    .card-lift:hover {
+        transform: translateY(-3px);
+        border-color: rgba(16, 185, 129, 0.35);
+        box-shadow: 0 14px 36px -16px rgba(16, 185, 129, 0.22),
+                    0 4px 12px -6px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Button shimmer — sweeping highlight on hover for primary CTAs */
+    .btn-primary {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+    }
+    .btn-primary::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(110deg,
+            transparent 30%,
+            rgba(255, 255, 255, 0.28) 50%,
+            transparent 70%);
+        transform: translateX(-120%);
+        transition: transform 0.7s cubic-bezier(0.21, 0.6, 0.35, 1);
+        pointer-events: none;
+        z-index: 1;
+    }
+    .btn-primary:hover::after {
+        transform: translateX(120%);
+    }
+    .btn-primary > * { position: relative; z-index: 2; }
+
+    /* Code-window traffic-light dots: tiny pop on first paint */
+    .code-window-dots span {
+        animation: dot-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+    }
+    .code-window-dots span:nth-child(1) { animation-delay: 200ms; }
+    .code-window-dots span:nth-child(2) { animation-delay: 280ms; }
+    .code-window-dots span:nth-child(3) { animation-delay: 360ms; }
+    @keyframes dot-pop {
+        0%   { transform: scale(0); }
+        100% { transform: scale(1); }
+    }
+
+    /* Animated gradient text (used for hero headline accent) */
+    .gradient-pan {
+        background: linear-gradient(120deg, #10b981 0%, #34d399 30%, #6ee7b7 50%, #34d399 70%, #10b981 100%);
+        background-size: 200% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        animation: pan 8s ease-in-out infinite;
+    }
+    @keyframes pan {
+        0%, 100% { background-position: 0% 50%; }
+        50%      { background-position: 100% 50%; }
+    }
+
+    /* Underline reveal — for inline links */
+    .link-underline {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+    }
+    .link-underline::after {
+        content: '';
+        position: absolute;
+        left: 0; right: 0; bottom: -2px;
+        height: 1px;
+        background: currentColor;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.35s cubic-bezier(0.21, 0.6, 0.35, 1);
+    }
+    .link-underline:hover::after {
+        transform: scaleX(1);
+    }
+
+    /* Magnetic icon nudge — for CTA arrows */
+    .nudge svg {
+        transition: transform 0.25s cubic-bezier(0.21, 0.6, 0.35, 1);
+    }
+    .nudge:hover svg {
+        transform: translateX(3px);
+    }
+
+    /* Filter pill morph (examples page) — emerald active state with smooth ease */
+    .filter-pill {
+        transition: all 0.25s cubic-bezier(0.21, 0.6, 0.35, 1);
+    }
+    .filter-pill.active {
+        border-color: #10b981;
+        color: #34d399;
+        background: rgba(16, 185, 129, 0.1);
+    }
+
+    /* Filtered-out card collapse (examples page) */
+    [data-category] {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    [data-category].is-hidden {
+        opacity: 0;
+        transform: scale(0.96);
+        pointer-events: none;
+    }
+
+    /* ---- Scroll assembly scene (homepage) ---- */
+    /* Five pieces fly in from off-screen and connect as the user scrolls. */
+    /* JS sets --p (overall progress 0..1) and --p1..--p5 (per-piece eased slices). */
+
+    .assembly-scene {
+        height: 240vh; /* sticky-track length controls scroll duration */
+        background: linear-gradient(180deg, #09090b 0%, #0a0a0d 50%, #09090b 100%);
+        /* Use `clip` not `hidden` — `hidden` creates a scroll container that
+           re-scopes the inner sticky child and breaks the lock-in behaviour. */
+        overflow: clip;
+        --p: 0;
+        --p1: 0;
+        --p2: 0;
+        --p3: 0;
+        --p4: 0;
+        --p5: 0;
+    }
+    .assembly-sticky {
+        position: sticky;
+        /* Sit below the fixed navbar (h-14 = 3.5rem) so captions aren't hidden. */
+        top: 3.5rem;
+        height: calc(100vh - 3.5rem);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        /* Reserve room at the top for the caption so the stage doesn't overlap it. */
+        padding-top: clamp(96px, 18vh, 160px);
+        padding-bottom: clamp(24px, 4vh, 48px);
+    }
+    /* Atmosphere: drifting orb mesh behind the scene */
+    .assembly-sticky::before {
+        content: '';
+        position: absolute;
+        inset: -10%;
+        background:
+            radial-gradient(circle at 20% 30%, rgba(16,185,129,0.18), transparent 45%),
+            radial-gradient(circle at 80% 60%, rgba(99,102,241,0.14), transparent 50%);
+        filter: blur(40px);
+        pointer-events: none;
+        opacity: calc(0.4 + var(--p) * 0.6);
+        transition: opacity 0.2s linear;
+    }
+
+    /* Caption — sits at the top of the sticky frame with breathing room */
+    .assembly-caption {
+        position: absolute;
+        top: clamp(24px, 5vh, 56px);
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        z-index: 5;
+        max-width: 92%;
+        padding: 0 1rem;
+    }
+    .assembly-caption-eyebrow {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.78rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #34d399;
+        opacity: calc(0.55 + var(--p) * 0.45);
+        text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+    }
+    .assembly-caption-title {
+        margin-top: 0.65rem;
+        font-size: clamp(1.4rem, 3.6vw, 2.25rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #fafafa;
+        height: 2.4em;
+        position: relative;
+        text-shadow: 0 1px 16px rgba(0,0,0,0.7);
+    }
+    .assembly-caption-title > span {
+        position: absolute;
+        left: 0; right: 0;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .assembly-caption-title > span.is-active {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Stage — fixed aspect canvas centered in viewport */
+    .assembly-stage {
+        position: relative;
+        width: min(1000px, 92vw);
+        height: min(560px, 60vh);
+        z-index: 1;
+    }
+
+    /* SVG connection lines */
+    .assembly-lines {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+    }
+    .assembly-lines .line {
+        fill: none;
+        stroke: url(#line-grad);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-dasharray: 600;
+        stroke-dashoffset: 600;
+    }
+    .assembly-lines .line-1 { stroke-dashoffset: calc(600 * (1 - var(--p2))); }
+    .assembly-lines .line-2 { stroke-dashoffset: calc(600 * (1 - var(--p3))); }
+    .assembly-lines .line-3 { stroke-dashoffset: calc(600 * (1 - var(--p5))); }
+    /* Travelling packet dot — appears once line-3 is drawn */
+    .assembly-lines .packet {
+        opacity: var(--p5);
+        offset-path: path("M 720 220 C 800 240, 850 320, 820 420");
+        offset-rotate: 0deg;
+        animation: packet-flow 1.8s linear infinite;
+        filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.8));
+    }
+    @keyframes packet-flow {
+        0%   { offset-distance: 0%;   }
+        100% { offset-distance: 100%; }
+    }
+
+    /* Common piece base — start scattered, ease to final */
+    .piece {
+        position: absolute;
+        will-change: transform, opacity;
+        z-index: 2;
+    }
+
+    /* Editor: enters from left, settles top-left */
+    .piece-editor {
+        top: 22%;
+        left: 5%;
+        width: clamp(220px, 28%, 320px);
+        opacity: var(--p1);
+        transform:
+            translate3d(calc((1 - var(--p1)) * -90%), 0, 0)
+            rotate(calc((1 - var(--p1)) * -8deg))
+            scale(calc(0.85 + var(--p1) * 0.15));
+    }
+    .piece-window {
+        background: #0f0f12;
+        border: 1px solid rgba(63, 63, 70, 0.8);
+        border-radius: 0.6rem;
+        overflow: hidden;
+        box-shadow: 0 18px 40px -12px rgba(0,0,0,0.6),
+                    0 0 0 1px rgba(16,185,129,calc(var(--p1) * 0.15));
+    }
+    .piece-bar {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 7px 10px;
+        background: #18181b;
+        border-bottom: 1px solid #27272a;
+    }
+    .piece-bar > span {
+        width: 7px; height: 7px; border-radius: 50%;
+    }
+    .piece-bar > span:nth-child(1) { background: #ef4444; opacity: 0.8; }
+    .piece-bar > span:nth-child(2) { background: #eab308; opacity: 0.8; }
+    .piece-bar > span:nth-child(3) { background: #22c55e; opacity: 0.8; }
+    .piece-bar-title {
+        margin-left: 8px !important;
+        width: auto !important;
+        height: auto !important;
+        border-radius: 0 !important;
+        background: none !important;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.65rem;
+        color: #71717a;
+    }
+    .piece-window pre {
+        margin: 0;
+        padding: 0.7rem 0.85rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        line-height: 1.55;
+        color: #e4e4e7;
+        white-space: pre;
+        overflow: hidden;
+    }
+
+    /* CLI bar: enters from below, settles centre */
+    .piece-cli {
+        top: 58%;
+        left: 30%;
+        width: clamp(200px, 22%, 260px);
+        opacity: var(--p2);
+        transform:
+            translate3d(0, calc((1 - var(--p2)) * 60%), 0)
+            scale(calc(0.85 + var(--p2) * 0.15));
+    }
+    .piece-cli-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0.55rem 0.85rem;
+        background: #09090b;
+        border: 1px solid rgba(63,63,70,0.8);
+        border-radius: 0.5rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.78rem;
+        color: #e4e4e7;
+        box-shadow: 0 12px 30px -12px rgba(0,0,0,0.6),
+                    0 0 0 1px rgba(16,185,129,calc(var(--p2) * 0.2));
+    }
+    .cli-cmd {
+        flex: 1;
+    }
+    .cli-check {
+        color: #34d399;
+        opacity: calc(max(0, var(--p2) - 0.5) * 2);
+        transform: scale(calc(0.5 + max(0, var(--p2) - 0.5) * 1));
+        transition: transform 0.2s ease;
+    }
+
+    /* Cloud node: descends from top */
+    .piece-cloud {
+        top: 16%;
+        right: 20%;
+        text-align: center;
+        opacity: var(--p3);
+        transform:
+            translate3d(0, calc((1 - var(--p3)) * -70%), 0)
+            scale(calc(0.7 + var(--p3) * 0.3));
+    }
+    .cloud-orb {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, rgba(16,185,129,0.4), rgba(16,185,129,0.05) 70%);
+        border: 1px solid rgba(52,211,153,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #34d399;
+        box-shadow: 0 0 0 calc(var(--p3) * 6px) rgba(16,185,129,0.08),
+                    0 0 30px rgba(16,185,129,calc(var(--p3) * 0.4));
+    }
+    .cloud-orb svg {
+        width: 28px;
+        height: 28px;
+    }
+    .cloud-label {
+        margin-top: 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #fafafa;
+    }
+    .cloud-region {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.64rem;
+        color: #71717a;
+        letter-spacing: 0.04em;
+    }
+
+    /* Device: enters from right, "boots" at end */
+    .piece-device {
+        bottom: 12%;
+        right: 8%;
+        width: clamp(180px, 22%, 240px);
+        opacity: var(--p4);
+        transform:
+            translate3d(calc((1 - var(--p4)) * 90%), 0, 0)
+            rotate(calc((1 - var(--p4)) * 8deg))
+            scale(calc(0.85 + var(--p4) * 0.15));
+    }
+    .device-board {
+        position: relative;
+        background:
+            linear-gradient(135deg, #064e3b 0%, #022c22 100%);
+        border: 1px solid rgba(52,211,153,0.3);
+        border-radius: 0.5rem;
+        padding: 1rem 0.9rem 1.1rem;
+        box-shadow: 0 18px 40px -12px rgba(0,0,0,0.7),
+                    inset 0 1px 0 rgba(255,255,255,0.06),
+                    0 0 24px rgba(16,185,129,calc(var(--p5) * 0.25));
+    }
+    .device-chip {
+        background: #09090b;
+        border: 1px solid #27272a;
+        border-radius: 0.25rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        color: #a1a1aa;
+        text-align: center;
+        padding: 0.45rem 0.6rem;
+        letter-spacing: 0.05em;
+    }
+    .device-pins {
+        display: flex;
+        gap: 4px;
+        margin-top: 8px;
+        justify-content: center;
+    }
+    .device-pins span {
+        width: 8px; height: 4px;
+        background: #d4d4d8;
+        border-radius: 1px;
+        opacity: 0.5;
+    }
+    .device-led {
+        position: absolute;
+        top: 8px; right: 10px;
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        border: 1px solid rgba(52,211,153,0.6);
+        background: rgba(16,185,129,calc(0.1 + var(--p5) * 0.6));
+        box-shadow: 0 0 calc(var(--p5) * 12px) rgba(52,211,153, calc(var(--p5) * 0.9));
+    }
+    .device-led-dot {
+        display: block;
+        width: 100%; height: 100%;
+        border-radius: 50%;
+        background: #34d399;
+        opacity: var(--p5);
+        animation: device-blink 1.4s ease-in-out infinite;
+    }
+    @keyframes device-blink {
+        0%, 100% { opacity: 0.4; transform: scale(0.85); }
+        50%      { opacity: 1;   transform: scale(1.05); }
+    }
+    .device-label {
+        margin-top: 8px;
+        text-align: center;
+        font-size: 0.7rem;
+        color: #6ee7b7;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Reduced motion: collapse the scene to its final assembled state, no scroll lock */
+    @media (prefers-reduced-motion: reduce) {
+        .assembly-scene {
+            height: auto;
+            --p: 1; --p1: 1; --p2: 1; --p3: 1; --p4: 1; --p5: 1;
+        }
+        .assembly-sticky {
+            position: relative;
+            height: auto;
+            padding: 4rem 1rem;
+        }
+        .assembly-lines .packet { animation: none; }
+        .device-led-dot { animation: none; }
+    }
+
+    /* Mobile: scene shrinks but still works as a vertical stack at smaller heights */
+    @media (max-width: 640px) {
+        .assembly-scene { height: 200vh; }
+        .assembly-stage {
+            width: 96vw;
+            height: 70vh;
+        }
+        .piece-editor   { left: 2%;  width: 60%;  top: 10%; }
+        .piece-cli      { left: 50%; width: 45%;  top: 38%; }
+        .piece-cloud    { right: 6%; top: 6%; }
+        .piece-device   { right: 4%; width: 55%; bottom: 8%; }
+        .assembly-caption-title { font-size: 1.05rem; }
     }
 </style>
 

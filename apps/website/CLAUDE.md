@@ -26,6 +26,25 @@ Never reference Cloudflare, Workers, D1, R2, Durable Objects, KV, Wrangler, or P
 
 Internal runbooks live under `docs/internal/` and are **not** mounted into the Hugo build, so they may reference Cloudflare freely.
 
+## Motion / animation vocabulary
+
+A small set of CSS-only motion utilities lives in `layouts/partials/head.html`. Use them instead of inventing one-off keyframes — keeps the site visually cohesive and respects `prefers-reduced-motion` automatically.
+
+- `.fade-up` — *legacy*, still works. Fades + rises 20px when scrolled into view. Toggled by the IntersectionObserver in `_default/baseof.html`.
+- `.reveal` — modern replacement for `.fade-up`. Larger displacement (28px), slower easing. Add `data-reveal="left|right|scale"` to vary the direction.
+- `.reveal-stagger` — apply to a parent; its direct children animate in sequence (70ms step, capped at 9). Use for grids, lists, and "reveal a sequence" moments. Nest under a `.reveal` if both the container and items should animate.
+- `.hero-enter` — first-paint stagger (no IntersectionObserver). Apply to a hero copy block to fade-and-rise its children on load.
+- `.hero-mesh` — drifting blurred gradient orbs behind a hero. Wrap in `<section class="relative overflow-hidden">` and add a sibling `<div class="hero-mesh subtle" aria-hidden="true"></div>`. Place hero content inside `.hero-stack` so it sits above the mesh.
+- `.gradient-pan` — animated emerald gradient text. Use sparingly — typically the second line of an h1 (the accent phrase).
+- `.pulse-soft` — a halo that radiates out from a small dot. Great for "live" / beta indicators. The dot itself is a separate sibling element.
+- `.card-lift` — lifts a card 3px with an emerald-tinted shadow on hover. Compose with `.card` (`class="card card-lift"`) or use standalone on any bordered surface.
+- `.btn-primary` — already has a sweeping shimmer on hover. No extra class needed.
+- `.nudge` — for CTAs; pairs with an inline `<svg>` arrow to nudge the arrow 3px right on hover.
+- `.link-underline` — animated underline that grows from the left on hover.
+- `.float` — gentle 4px vertical drift loop. Use sparingly on a single element near a hero.
+
+The IntersectionObserver in `layouts/_default/baseof.html` handles `.fade-up`, `.reveal`, and `.reveal-stagger` together — you only need to add classes; no per-page wiring required.
+
 ## OG Image Generation
 
 The site uses Playwright to render social-preview images during build. `pnpm build` requires `pnpm exec playwright install` to have run at least once. CI caches the Playwright browsers between runs.

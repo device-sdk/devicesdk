@@ -86,6 +86,10 @@
 - [Changelog](https://devicesdk.com/docs/changelog/index.md)
 - [REST API (OpenAPI)](https://devicesdk.com/docs/api/openapi.json)
 
+## Agent integrations
+
+- [MCP server (@devicesdk/mcp)](https://devicesdk.com/docs/mcp/index.md): drive DeviceSDK from Claude / Cursor / Continue / Windsurf via Model Context Protocol — install snippets per host, tool reference, auth model
+
 ## Optional
 
 - [Full docs as a single file](https://devicesdk.com/llms-full.txt) — every page concatenated, ready to paste into a long-context model

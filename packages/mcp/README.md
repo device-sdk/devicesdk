@@ -41,6 +41,10 @@ The server inherits the CLI's auth: it reads `~/.devicesdk/auth.json` (created b
 
 Each tool wraps the equivalent `devicesdk <cmd> --json` invocation, so the agent gets the same `{ success, result | error }` shape returned by the CLI.
 
+## Full docs
+
+The complete reference — install snippets per MCP host (Claude Desktop, Claude Code, Cursor, Continue.dev, Windsurf), auth model, troubleshooting — lives at **<https://devicesdk.com/docs/mcp/>**.
+
 ## See also
 
 - [`devicesdk init`](https://devicesdk.com/docs/cli/init/) — scaffolds a project with `.mcp.json` preconfigured.

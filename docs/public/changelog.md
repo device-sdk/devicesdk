@@ -1,8 +1,22 @@
 ---
 title: Changelog
 description: Latest releases and updates for DeviceSDK
-social_image: /og-images/docs/resources/changelog.png
+social_image: /og-images/docs/changelog.png
 ---
+
+## May 2026
+
+- **`@devicesdk/mcp` (new)** — Model Context Protocol stdio server that exposes 7 DeviceSDK tools to AI coding agents (Claude Desktop, Claude Code, Cursor, Continue.dev, Windsurf). See [`/docs/mcp/`](/docs/mcp/) for install snippets per host.
+- **AI-agent friendliness pass:**
+  - `devicesdk init` now scaffolds `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/devicesdk.mdc`, `.mcp.json`, and a project `README.md`.
+  - `@devicesdk/core` ships `AGENTS.md` and the full `docs/` folder inside the npm tarball; JSDoc with runnable `@example` blocks added to every method on `DeviceSenderInterface`.
+  - Public docs site now publishes [`/llms.txt`](/llms.txt), [`/llms-full.txt`](/llms-full.txt), and per-page Markdown mirrors at `<page-url>/index.md`.
+  - CLI commands gained a `--json` flag (`whoami`, `status`, `logs`, `env list`); `logs --tail --json` emits NDJSON.
+  - Auth errors now carry stable `code` and `docs` fields. See the new [error reference](/docs/errors/).
+  - Branded ID types (`ProjectId`, `DeviceId`, …), an `OnboardLED` constant, and literal-union pin types (`PicoGpioPin`, `Esp32C3GpioPin`, …) added to `@devicesdk/core` for type-safer device code.
+  - `DeviceSender` now validates pin/range/I2C arguments synchronously — bad calls throw a typed error pointing at the docs page instead of silently round-tripping.
+  - New cookbook at [`/docs/recipes/`](/docs/recipes/) with 10 task-shaped recipes.
+  - URL change: `/docs/resources/changelog/` is now `/docs/changelog/` (the old URL 301s).
 
 ## April 11, 2026
 

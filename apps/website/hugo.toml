@@ -21,8 +21,37 @@ disableKinds = ["taxonomy", "term"]
 [[module.mounts]]
   source = "../../docs/public"
   target = "content/docs"
+
+# Output formats for AI coding agents.
+# - llms.txt   : curated index of the docs (home only).
+# - llms-full.txt : full concatenation of every doc page (home only).
+# - md        : per-page Markdown mirror at <page-url>/index.md so agents can
+#               fetch the raw doc instead of parsing rendered HTML.
+[outputFormats.LLMS]
+  baseName = "llms"
+  isPlainText = true
+  mediaType = "text/plain"
+  notAlternative = true
+
+[outputFormats.LLMSFull]
+  baseName = "llms-full"
+  isPlainText = true
+  mediaType = "text/plain"
+  notAlternative = true
+
+[outputFormats.MD]
+  baseName = "index"
+  isPlainText = true
+  mediaType = "text/markdown"
+  notAlternative = true
+
 [outputs]
-  home = ["HTML"]
+  home = ["HTML", "LLMS", "LLMSFull"]
+  page = ["HTML", "MD"]
+  section = ["HTML", "MD"]
+
+[mediaTypes."text/markdown"]
+  suffixes = ["md"]
 
 [params]
   description = "Managed platform for shipping TypeScript firmware to ESP32 and Pi Pico. Write, deploy, and stream telemetry over WebSocket in minutes."
@@ -81,7 +110,7 @@ disableKinds = ["taxonomy", "term"]
     weight = 1
   [[menu.footer_company]]
     name = "Changelog"
-    url = "/docs/resources/changelog/"
+    url = "/docs/changelog/"
     weight = 2
 
   [[menu.footer_community]]

@@ -3,6 +3,78 @@ import type { DeviceCommand, DeviceResponse } from "@devicesdk/core";
 import type { BaseDevice } from "./device";
 import type { DeviceSenderProps, KVInterface } from "./userWorkerTypes";
 
+// --- Client-side validation helpers ---
+//
+// Synchronously validate user-supplied arguments before they round-trip to the
+// firmware. Without this, a bad value (pin out of range, duty cycle out of
+// 0..1, malformed I2C address) silently fires and the user only sees a
+// `command_error` event in `onMessage` — which they often haven't wired up.
+// Throwing locally means agents and humans alike get an actionable stack with
+// the exact field that's wrong.
+
+function fail(
+	field: string,
+	got: unknown,
+	expected: string,
+	docs: string,
+): never {
+	const error = new Error(
+		`DeviceSDK: invalid ${field} (${JSON.stringify(got)}). Expected ${expected}. See ${docs}`,
+	);
+	(error as Error & { code?: string; docs?: string }).code = "invalid_argument";
+	(error as Error & { code?: string; docs?: string }).docs = docs;
+	throw error;
+}
+
+const PIN_MIN = 0;
+const PIN_MAX = 99; // 99 = virtual onboard LED
+const I2C_ADDR_RE = /^0x[0-9A-Fa-f]{1,2}$/;
+const I2C_BYTE_RE = /^0x[0-9A-Fa-f]{1,2}$/;
+
+function validatePin(pin: number, docs: string): void {
+	if (!Number.isInteger(pin) || pin < PIN_MIN || pin > PIN_MAX) {
+		fail(
+			"pin",
+			pin,
+			`an integer in ${PIN_MIN}..${PIN_MAX} (use 99 for the onboard LED)`,
+			docs,
+		);
+	}
+}
+
+function validateBus(bus: number, docs: string): void {
+	if (!Number.isInteger(bus) || bus < 0 || bus > 7) {
+		fail("bus", bus, "a non-negative integer (typically 0 or 1)", docs);
+	}
+}
+
+function validateI2cAddress(address: string, docs: string): void {
+	if (typeof address !== "string" || !I2C_ADDR_RE.test(address)) {
+		fail("I2C address", address, 'a 7-bit hex string like "0x3C"', docs);
+	}
+}
+
+function validateHexBytes(data: unknown, docs: string): void {
+	if (!Array.isArray(data)) {
+		fail(
+			"data",
+			data,
+			'an array of single-byte hex strings like ["0xAE", "0xD5"]',
+			docs,
+		);
+	}
+	for (const byte of data) {
+		if (typeof byte !== "string" || !I2C_BYTE_RE.test(byte)) {
+			fail(
+				"data byte",
+				byte,
+				'a single-byte hex string like "0xAE" — one byte per array element, do not pack',
+				docs,
+			);
+		}
+	}
+}
+
 // WorkerEntrypoint that is provided to the dynamic worker as a binding
 // This allows user code to send commands back to the IoT device
 export class DeviceSender extends WorkerEntrypoint<
@@ -55,6 +127,15 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async setGpioState(pin: number, state: "high" | "low"): Promise<void> {
+		validatePin(pin, "https://devicesdk.com/docs/concepts/device-api/");
+		if (state !== "high" && state !== "low") {
+			fail(
+				"state",
+				state,
+				'"high" or "low"',
+				"https://devicesdk.com/docs/concepts/device-api/",
+			);
+		}
 		await this.sendCommand({
 			type: "set_gpio_state",
 			payload: { pin, state },
@@ -66,6 +147,28 @@ export class DeviceSender extends WorkerEntrypoint<
 		frequency: number,
 		dutyCycle: number,
 	): Promise<void> {
+		const docs = "https://devicesdk.com/docs/concepts/device-api/";
+		validatePin(pin, docs);
+		if (
+			!Number.isFinite(frequency) ||
+			frequency < 1 ||
+			frequency > 50_000_000
+		) {
+			fail(
+				"frequency",
+				frequency,
+				"a positive number in 1..50000000 Hz (typical: 1000–25000 for LEDs, 50 for servos)",
+				docs,
+			);
+		}
+		if (!Number.isFinite(dutyCycle) || dutyCycle < 0 || dutyCycle > 1) {
+			fail(
+				"dutyCycle",
+				dutyCycle,
+				"a number in 0..1 (NOT a percent — pass 0.5 for half, not 50)",
+				docs,
+			);
+		}
 		await this.sendCommand({
 			type: "set_pwm_state",
 			payload: { pin, frequency, duty_cycle: dutyCycle },
@@ -76,6 +179,11 @@ export class DeviceSender extends WorkerEntrypoint<
 		pin: number,
 		mode: "analog" | "digital",
 	): Promise<DeviceResponse> {
+		const docs = "https://devicesdk.com/docs/concepts/device-api/";
+		validatePin(pin, docs);
+		if (mode !== "analog" && mode !== "digital") {
+			fail("mode", mode, '"analog" or "digital"', docs);
+		}
 		return this.sendCommandAndWait({
 			type: "get_pin_state",
 			payload: { pin, mode },
@@ -83,6 +191,7 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async i2cScan(bus: number): Promise<DeviceResponse> {
+		validateBus(bus, "https://devicesdk.com/docs/guides/using-i2c/");
 		return this.sendCommandAndWait({
 			type: "i2c_scan",
 			payload: { bus },
@@ -90,6 +199,10 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async i2cWrite(bus: number, address: string, data: string[]): Promise<void> {
+		const docs = "https://devicesdk.com/docs/guides/using-i2c/";
+		validateBus(bus, docs);
+		validateI2cAddress(address, docs);
+		validateHexBytes(data, docs);
 		await this.sendCommand({
 			type: "i2c_write",
 			payload: { bus, address, data },
@@ -102,6 +215,29 @@ export class DeviceSender extends WorkerEntrypoint<
 		bytesToRead: number,
 		registerToRead?: string,
 	): Promise<DeviceResponse> {
+		const docs = "https://devicesdk.com/docs/guides/using-i2c/";
+		validateBus(bus, docs);
+		validateI2cAddress(address, docs);
+		if (
+			!Number.isInteger(bytesToRead) ||
+			bytesToRead < 1 ||
+			bytesToRead > 4096
+		) {
+			fail("bytesToRead", bytesToRead, "an integer in 1..4096", docs);
+		}
+		if (registerToRead !== undefined) {
+			if (
+				typeof registerToRead !== "string" ||
+				!I2C_BYTE_RE.test(registerToRead)
+			) {
+				fail(
+					"registerToRead",
+					registerToRead,
+					'a single-byte hex string like "0xD0", or omit',
+					docs,
+				);
+			}
+		}
 		return this.sendCommandAndWait({
 			type: "i2c_read",
 			payload: {

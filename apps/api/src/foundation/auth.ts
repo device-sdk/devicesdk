@@ -40,6 +40,8 @@ function checkSuspension(user: { suspended_at?: number }): Response | null {
 			{
 				success: false,
 				error: "Account suspended. Contact support@devicesdk.com",
+				code: "account_suspended",
+				docs: "https://devicesdk.com/docs/errors/account_suspended/",
 			},
 			{ status: 403 },
 		);
@@ -62,6 +64,8 @@ function checkDeletionPending(user: {
 			{
 				success: false,
 				error: `Account is scheduled for deletion in ${daysRemaining} days. Contact support@devicesdk.com to cancel.`,
+				code: "account_deletion_pending",
+				docs: "https://devicesdk.com/docs/errors/account_deletion_pending/",
 			},
 			{ status: 403 },
 		);
@@ -120,7 +124,10 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		return Response.json(
 			{
 				success: false,
-				error: "Authentication error",
+				error:
+					"Missing credentials. Provide a Bearer token, session cookie, or `dsdk_*` CLI token.",
+				code: "missing_credentials",
+				docs: "https://devicesdk.com/docs/errors/missing_credentials/",
 			},
 			{
 				status: 401,
@@ -172,7 +179,10 @@ export async function authenticateUser(c: AppContext, next: Next) {
 			return Response.json(
 				{
 					success: false,
-					error: "Authentication error",
+					error:
+						"CLI token is invalid or expired. Run `devicesdk login` to issue a fresh one.",
+					code: "invalid_cli_token",
+					docs: "https://devicesdk.com/docs/errors/invalid_cli_token/",
 				},
 				{
 					status: 401,
@@ -272,7 +282,10 @@ export async function authenticateUser(c: AppContext, next: Next) {
 				return Response.json(
 					{
 						success: false,
-						error: "Authentication error",
+						error:
+							"Token is invalid or expired. For CLI tokens (dsdk_*), run `devicesdk login`. For dashboard sessions, sign in again.",
+						code: "invalid_token",
+						docs: "https://devicesdk.com/docs/errors/invalid_token/",
 					},
 					{
 						status: 401,

@@ -23,11 +23,16 @@ devicesdk init [project-name] [flags]
 ## Description
 
 Creates a new project directory with:
-- `devicesdk.ts` - Project configuration
-- `src/devices/` - Device entrypoint directory
-- Example device code
-- TypeScript configuration
-- `.gitignore` file
+- `devicesdk.ts` — project configuration
+- `src/devices/` — device entrypoint directory
+- Example device code that uses `DeviceResponse`-typed `onMessage`
+- `tsconfig.json` (strict) and `package.json`
+- `.gitignore`
+- `AGENTS.md` — version-matched guidance for AI coding agents working in the project
+- `CLAUDE.md` — one-line `@AGENTS.md` reference for Claude Code
+- `.cursor/rules/devicesdk.mdc` — Cursor rules pointing at `AGENTS.md`
+- `.mcp.json` — preconfigures the `@devicesdk/mcp` server for MCP-aware agents
+- `README.md` — quick reference for humans
 
 ## Interactive Mode
 
@@ -90,9 +95,16 @@ my-project/
 ├── src/
 │   └── devices/
 │       └── my-device.ts  # Device entrypoint
+├── AGENTS.md             # AI-agent guidance
+├── CLAUDE.md             # @AGENTS.md (Claude Code reference)
+├── .cursor/
+│   └── rules/
+│       └── devicesdk.mdc # Cursor rules
+├── .mcp.json             # MCP config (preconfigures @devicesdk/mcp)
+├── README.md             # Human-facing readme
 ├── .devicesdk/           # Build output (generated)
-├── tsconfig.json         # TypeScript config
-├── package.json          # Dependencies
+├── tsconfig.json
+├── package.json
 └── .gitignore
 ```
 

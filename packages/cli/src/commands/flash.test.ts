@@ -369,6 +369,7 @@ describe("flash command", () => {
 					'Firmware for device_type "esp32c3" is not currently published.',
 					404,
 					"FIRMWARE_NOT_PUBLISHED",
+					undefined,
 					{
 						success: false,
 						error:

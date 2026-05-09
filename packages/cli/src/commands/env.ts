@@ -7,11 +7,13 @@ import {
 } from "../api.js";
 import { requireAuth } from "../credentials.js";
 import { EXIT } from "../exitCodes.js";
+import { emitJsonError, emitJsonSuccess, isJsonMode } from "../output.js";
 import { loadConfig } from "../utils.js";
 
 interface EnvOptions {
 	project?: string;
 	config?: string;
+	json?: boolean;
 }
 
 async function resolveProjectId(options: EnvOptions): Promise<string> {
@@ -70,11 +72,20 @@ export async function envSet(
 }
 
 export async function envList(options: EnvOptions): Promise<void> {
+	const json = isJsonMode(options);
 	try {
 		const token = await requireAuth();
 		const projectId = await resolveProjectId(options);
 
 		const vars = await listEnvVars(token, projectId);
+
+		if (json) {
+			emitJsonSuccess({
+				projectId,
+				vars: vars.map((v) => ({ key: v.key, updatedAt: v.updated_at })),
+			});
+			return;
+		}
 
 		if (vars.length === 0) {
 			console.log(`No env vars set for project "${projectId}".`);
@@ -98,7 +109,12 @@ export async function envList(options: EnvOptions): Promise<void> {
 		}
 	} catch (error) {
 		if (error instanceof DeviceSDKApiError) {
-			console.error(`✗ ${error.message}`);
+			if (json)
+				emitJsonError(error.message, {
+					code: error.code,
+					docs: "https://devicesdk.com/docs/concepts/env-vars/",
+				});
+			else console.error(`✗ ${error.message}`);
 			process.exit(EXIT.GENERIC);
 		}
 		throw error;

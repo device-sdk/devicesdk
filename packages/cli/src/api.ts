@@ -23,12 +23,30 @@ export interface ApiError {
 	};
 }
 
+/**
+ * Error thrown by every CLI ↔ API call when the response is non-2xx.
+ *
+ * `statusCode` is the HTTP status. `code` is a stable identifier (e.g.
+ * `"invalid_token"`, `"FIRMWARE_NOT_PUBLISHED"`) suitable for `===` comparison.
+ * `docs` is an absolute URL to a docs page explaining the error.
+ *
+ * @example
+ * try { await deploy(); }
+ * catch (err) {
+ *   if (err instanceof DeviceSDKApiError) {
+ *     if (err.code === "invalid_token") await login();
+ *     console.error(err.message);
+ *     if (err.docs) console.error(`See ${err.docs}`);
+ *   }
+ * }
+ */
 export class DeviceSDKApiError extends Error {
 	constructor(
 		message: string,
 		public statusCode: number,
 		public code?: string,
-		public responseBody?: any,
+		public docs?: string,
+		public responseBody?: unknown,
 	) {
 		super(message);
 		this.name = "DeviceSDKApiError";
@@ -38,6 +56,8 @@ export class DeviceSDKApiError extends Error {
 const AUTH_EXPIRED_CODES = new Set([
 	"invalid_refresh_token",
 	"invalid_token",
+	"invalid_cli_token",
+	"missing_credentials",
 	"unauthorized",
 ]);
 
@@ -55,23 +75,31 @@ function looksLikeErrorCode(value: unknown): value is string {
 	);
 }
 
+function looksLikeUrl(value: unknown): value is string {
+	return (
+		typeof value === "string" &&
+		(value.startsWith("https://") || value.startsWith("http://"))
+	);
+}
+
 interface ParsedErrorBody {
 	message: string | undefined;
 	code: string | undefined;
+	docs: string | undefined;
 }
 
-// Tolerate both the canonical `{ success: false, error: "string", code? }` and
-// the legacy `{ error: { message, code } }` response shapes. Returns the human
-// message and (only) a stable, identifier-shaped code.
+// Tolerate both the canonical `{ success: false, error: "string", code?, docs? }`
+// and the legacy `{ error: { message, code } }` response shapes. Returns the
+// human message, a stable identifier-shaped code, and an optional docs URL.
 function parseErrorBody(data: unknown): ParsedErrorBody {
 	const obj = (data ?? undefined) as
-		| { error?: unknown; code?: unknown }
+		| { error?: unknown; code?: unknown; docs?: unknown }
 		| undefined;
 	const errorField = obj?.error;
 	const errorString = typeof errorField === "string" ? errorField : undefined;
 	const errorObject =
 		errorField && typeof errorField === "object"
-			? (errorField as { message?: unknown; code?: unknown })
+			? (errorField as { message?: unknown; code?: unknown; docs?: unknown })
 			: undefined;
 	const message =
 		(typeof errorObject?.message === "string"
@@ -83,7 +111,9 @@ function parseErrorBody(data: unknown): ParsedErrorBody {
 		: looksLikeErrorCode(errorString)
 			? errorString
 			: undefined;
-	return { message, code };
+	const docsField = obj?.docs ?? errorObject?.docs;
+	const docs = looksLikeUrl(docsField) ? docsField : undefined;
+	return { message, code, docs };
 }
 
 function isAuthExpired(status: number, code: string | undefined): boolean {
@@ -167,6 +197,7 @@ async function request<T>(
 			buildErrorMessage(response.status, parsed),
 			response.status,
 			parsed.code,
+			parsed.docs,
 			data ?? responseText,
 		);
 	}
@@ -178,6 +209,7 @@ async function request<T>(
 			parsed.message || "Request failed",
 			response.status,
 			parsed.code,
+			parsed.docs,
 			data,
 		);
 	}
@@ -249,6 +281,7 @@ export async function startAuth(): Promise<AuthStartResponse> {
 				data.error?.message || `Request failed with status ${response.status}`,
 				response.status,
 				data.error?.code,
+				typeof data.error?.docs === "string" ? data.error.docs : undefined,
 			);
 		}
 
@@ -510,6 +543,7 @@ export async function downloadDeviceFirmware(
 			buildErrorMessage(response.status, parsed),
 			response.status,
 			parsed.code,
+			parsed.docs,
 			responseBody ?? responseText,
 		);
 	}

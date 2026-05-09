@@ -69,17 +69,23 @@ Your TypeScript code running on a serverless runtime:
 
 ## Message Protocol
 
-Messages are JSON-based:
+Messages are JSON-based and use a discriminated `type` field. Commands sent to the device match a typed schema; responses (events emitted by the device) match a parallel schema. For example, a GPIO write command:
 
 ```json
 {
-  "type": "gpio_write",
-  "pin": 25,
-  "value": 1
+  "id": "01J9X…",
+  "type": "set_gpio_state",
+  "payload": { "pin": 25, "state": "high" }
 }
 ```
 
-Standard message types are defined, but you can create custom types for your application.
+You normally don't write these messages by hand — call typed helpers on `this.env.DEVICE` instead:
+
+```typescript
+await this.env.DEVICE.setGpioState(25, "high");
+```
+
+The full set of command and response types is defined in [`@devicesdk/core`](https://devicesdk.com/docs/concepts/device-api/) and surfaces as a discriminated union you can narrow in `onMessage`.
 
 ## Script Execution Model
 

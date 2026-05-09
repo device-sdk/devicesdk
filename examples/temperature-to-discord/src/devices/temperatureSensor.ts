@@ -1,45 +1,55 @@
-import { DeviceEntrypoint } from "@devicesdk/core";
+import { DeviceEntrypoint, type DeviceResponse } from "@devicesdk/core";
 
+/**
+ * Reads the Pico W's onboard temperature sensor every 5 minutes (UTC) and
+ * posts the value to a Discord channel via webhook. The webhook URL is read
+ * from the `DISCORD_WEBHOOK_URL` env var, set with:
+ *
+ *   devicesdk env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+ */
 export class TemperatureSensor extends DeviceEntrypoint {
-	async onDeviceConnect() {
-		console.log("Temperature sensor connected");
-	}
+  // Run every 5 minutes UTC. Edit to taste.
+  crons = { reading: "*/5 * * * *" };
 
-	async onDeviceDisconnect() {
-		console.log("Temperature sensor disconnected");
-	}
+  async onCron(_name: string) {
+    // Ask the device for its current temperature. The result arrives
+    // asynchronously as a `temperature_result` event, handled in onMessage.
+    await this.env.DEVICE.getTemperature();
+  }
 
-	/**
-	 * Call this from your device firmware whenever a temperature reading is ready.
-	 * For example, inside onDeviceConnect or a polling loop:
-	 *
-	 *   await this.sendTemperatureToDiscord(sensor.readCelsius());
-	 *
-	 * Requires DISCORD_WEBHOOK_URL to be set before deploying:
-	 *   devicesdk env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-	 */
-	async sendTemperatureToDiscord(temperatureCelsius: number) {
-		const webhookUrl = await this.env.VARS.get("DISCORD_WEBHOOK_URL");
-		if (!webhookUrl) {
-			console.error(
-				"DISCORD_WEBHOOK_URL env var is not set. Run: devicesdk env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...",
-			);
-			return;
-		}
+  async onMessage(message: DeviceResponse) {
+    if (message.type !== "temperature_result") return;
+    await this.postToDiscord(message.payload.celsius);
+  }
 
-		const message = `🌡️ Temperature reading: **${temperatureCelsius.toFixed(1)}°C**`;
+  private async postToDiscord(celsius: number) {
+    const webhookUrl = await this.env.VARS.get("DISCORD_WEBHOOK_URL");
+    if (!webhookUrl) {
+      console.error(
+        "DISCORD_WEBHOOK_URL env var is not set. Run: devicesdk env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...",
+      );
+      return;
+    }
 
-		try {
-			const response = await fetch(webhookUrl, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ content: message }),
-			});
-			if (!response.ok) {
-				console.error(`Discord webhook failed: ${response.status}`);
-			}
-		} catch (err) {
-			console.error("Failed to post to Discord:", err);
-		}
-	}
+    const body = JSON.stringify({
+      content: `🌡️ Temperature reading: **${celsius.toFixed(1)}°C**`,
+    });
+
+    try {
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        console.error(
+          `Discord webhook failed: ${response.status} ${response.statusText}` +
+            (text ? ` — ${text.slice(0, 200)}` : ""),
+        );
+      }
+    } catch (err) {
+      console.error("Failed to post to Discord:", err);
+    }
+  }
 }

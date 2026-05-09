@@ -1,0 +1,55 @@
+{
+	"name": "@devicesdk/mcp",
+	"version": "0.1.0",
+	"description": "Model Context Protocol server for DeviceSDK — gives AI agents tools to deploy, flash, inspect, and query DeviceSDK projects.",
+	"author": "DeviceSDK <hello@devicesdk.com>",
+	"license": "SEE LICENSE IN LICENSE",
+	"homepage": "https://devicesdk.com/docs/",
+	"bugs": {
+		"url": "https://github.com/device-sdk/devicesdk-monorepo/issues"
+	},
+	"keywords": [
+		"mcp",
+		"model-context-protocol",
+		"devicesdk",
+		"iot",
+		"ai-agent",
+		"claude",
+		"cursor",
+		"copilot"
+	],
+	"main": "dist/index.js",
+	"bin": {
+		"devicesdk-mcp": "dist/index.js"
+	},
+	"files": [
+		"dist",
+		"LICENSE",
+		"README.md"
+	],
+	"private": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/device-sdk/devicesdk-monorepo.git",
+		"directory": "packages/mcp"
+	},
+	"type": "module",
+	"scripts": {
+		"build": "tsc",
+		"start": "tsx src/index.ts",
+		"dev": "tsx src/index.ts",
+		"check-types": "tsc --noEmit",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@devicesdk/cli": "workspace:*",
+		"@modelcontextprotocol/sdk": "^1.0.4",
+		"execa": "^8.0.1"
+	},
+	"devDependencies": {
+		"@repo/typescript-config": "workspace:*",
+		"@types/node": "catalog:",
+		"tsx": "catalog:",
+		"typescript": "catalog:"
+	}
+}

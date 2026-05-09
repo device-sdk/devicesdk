@@ -11,10 +11,10 @@ social_image: /og-images/docs/changelog.png
   - `devicesdk init` now scaffolds `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/devicesdk.mdc`, `.mcp.json`, and a project `README.md`.
   - `@devicesdk/core` ships `AGENTS.md` and the full `docs/` folder inside the npm tarball; JSDoc with runnable `@example` blocks added to every method on `DeviceSenderInterface`.
   - Public docs site now publishes [`/llms.txt`](/llms.txt), [`/llms-full.txt`](/llms-full.txt), and per-page Markdown mirrors at `<page-url>/index.md`.
-  - CLI commands gained a `--json` flag (`whoami`, `status`, `logs`, `env list`); `logs --tail --json` emits NDJSON.
+  - CLI commands gained a `--json` flag (`whoami`, `status`, `logs`, `env list`, `env set`, `env unset`, `deploy`); `logs --tail --json` emits NDJSON. `DEVICESDK_OUTPUT=json` works as a global toggle.
   - Auth errors now carry stable `code` and `docs` fields. See the new [error reference](/docs/errors/).
   - Branded ID types (`ProjectId`, `DeviceId`, …), an `OnboardLED` constant, and literal-union pin types (`PicoGpioPin`, `Esp32C3GpioPin`, …) added to `@devicesdk/core` for type-safer device code.
-  - `DeviceSender` now validates pin/range/I2C arguments synchronously — bad calls throw a typed error pointing at the docs page instead of silently round-tripping.
+  - `DeviceSender` now validates pin/range/I2C/SPI/UART/WS2812 arguments synchronously — bad calls throw a typed error (`code: "invalid_argument"`) with a `docs` URL instead of silently round-tripping.
   - New cookbook at [`/docs/recipes/`](/docs/recipes/) with 10 task-shaped recipes.
   - URL change: `/docs/resources/changelog/` is now `/docs/changelog/` (the old URL 301s).
 

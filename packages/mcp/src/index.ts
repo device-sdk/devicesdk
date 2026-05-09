@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * @devicesdk/mcp — Model Context Protocol stdio server.
  *
@@ -7,7 +8,6 @@
  * without learning the shell. Inherits auth from `~/.devicesdk/auth.json`.
  */
 
-import { execa } from "execa";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -15,6 +15,7 @@ import {
 	ListToolsRequestSchema,
 	type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
+import { execa } from "execa";
 
 interface CliResult {
 	success: boolean;
@@ -26,8 +27,12 @@ interface CliResult {
 
 async function runCli(args: string[]): Promise<CliResult> {
 	try {
-		const { stdout } = await execa("devicesdk", [...args, "--json"], {
-			env: process.env,
+		// We pass DEVICESDK_OUTPUT=json instead of appending --json so the call
+		// works for every subcommand uniformly — including the ones (`env set`,
+		// `env unset`, `deploy`) that don't declare a `--json` flag and would
+		// otherwise be rejected by Commander as an unknown option.
+		const { stdout } = await execa("devicesdk", args, {
+			env: { ...process.env, DEVICESDK_OUTPUT: "json" },
 			reject: false,
 		});
 		const trimmed = stdout.trim();
@@ -41,7 +46,10 @@ async function runCli(args: string[]): Promise<CliResult> {
 		try {
 			return JSON.parse(lastLine) as CliResult;
 		} catch {
-			return { success: false, error: `Invalid JSON from CLI: ${lastLine.slice(0, 200)}` };
+			return {
+				success: false,
+				error: `Invalid JSON from CLI: ${lastLine.slice(0, 200)}`,
+			};
 		}
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
@@ -136,7 +144,8 @@ const TOOLS: Tool[] = [
 				pairs: {
 					type: "array",
 					items: { type: "string" },
-					description: 'KEY=VALUE strings, e.g. ["DISCORD_WEBHOOK=https://..."].',
+					description:
+						'KEY=VALUE strings, e.g. ["DISCORD_WEBHOOK=https://..."].',
 				},
 			},
 			required: ["pairs"],
@@ -246,8 +255,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 			// Lightweight search: fetch /llms.txt and grep for the query. The
 			// llms.txt is a curated index, so the first hit is usually the right
 			// page. Avoids depending on a separate search index.
-			const query =
-				typeof a.query === "string" ? a.query.toLowerCase() : "";
+			const query = typeof a.query === "string" ? a.query.toLowerCase() : "";
 			if (!query) {
 				return asToolResponse({
 					success: false,

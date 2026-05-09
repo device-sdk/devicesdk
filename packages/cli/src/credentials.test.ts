@@ -234,5 +234,58 @@ describe("credentials", () => {
 			expect(printed).not.toContain("Response body");
 			expect(printed).not.toContain("invalid_refresh_token");
 		});
+
+		describe("DEVICESDK_OUTPUT=json mode", () => {
+			let stdoutSpy: MockInstance;
+			const originalEnv = process.env.DEVICESDK_OUTPUT;
+
+			beforeEach(() => {
+				process.env.DEVICESDK_OUTPUT = "json";
+				stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+			});
+
+			afterEach(() => {
+				if (originalEnv === undefined) delete process.env.DEVICESDK_OUTPUT;
+				else process.env.DEVICESDK_OUTPUT = originalEnv;
+			});
+
+			it("emits JSON with code=not_authenticated when no credentials are present", async () => {
+				await expect(requireAuth()).rejects.toThrow("process.exit");
+				expect(processExitSpy).toHaveBeenCalledWith(3);
+				const lastWrite = stdoutSpy.mock.calls.at(-1)?.[0] as string;
+				const payload = JSON.parse(lastWrite);
+				expect(payload).toMatchObject({
+					success: false,
+					code: "not_authenticated",
+					docs: "https://devicesdk.com/docs/cli/login/",
+				});
+				expect(payload.error).toMatch(/Authentication required/);
+				// Stderr must stay clean so MCP / agents see only the JSON.
+				expect(consoleErrorSpy).not.toHaveBeenCalled();
+			});
+
+			it("emits JSON with code=session_expired when refresh fails", async () => {
+				const creds = makeCredentials({ expiresAt: Date.now() - 1000 });
+				readFileSpy.mockResolvedValue(Buffer.from(JSON.stringify(creds)));
+				refreshTokenMock.mockRejectedValue(
+					new DeviceSDKApiError(
+						"Session expired",
+						401,
+						"invalid_refresh_token",
+					),
+				);
+
+				await expect(requireAuth()).rejects.toThrow("process.exit");
+				expect(processExitSpy).toHaveBeenCalledWith(3);
+				const lastWrite = stdoutSpy.mock.calls.at(-1)?.[0] as string;
+				const payload = JSON.parse(lastWrite);
+				expect(payload).toMatchObject({
+					success: false,
+					code: "session_expired",
+					docs: "https://devicesdk.com/docs/cli/login/",
+				});
+				expect(consoleErrorSpy).not.toHaveBeenCalled();
+			});
+		});
 	});
 });

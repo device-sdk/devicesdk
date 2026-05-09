@@ -147,13 +147,15 @@ program
 	.option("-m, --message <text>", "Deployment message (version note)")
 	.option("--dry-run", "Validate without uploading")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("--json", "Emit a machine-readable JSON document and exit")
 	.addHelpText(
 		"after",
 		`
 Examples:
   $ devicesdk deploy
   $ devicesdk deploy --device sensor-1 -m "Fix temperature drift"
-  $ devicesdk deploy --dry-run`,
+  $ devicesdk deploy --dry-run
+  $ devicesdk deploy --json | jq '.result.versions[].versionId'`,
 	)
 	.action(deploy);
 
@@ -277,12 +279,14 @@ envCmd
 	.description("Set one or more env vars (KEY=VALUE format)")
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("--json", "Emit a machine-readable JSON document and exit")
 	.addHelpText(
 		"after",
 		`
 Examples:
   $ devicesdk env set DISCORD_WEBHOOK=https://discord.com/api/webhooks/...
-  $ devicesdk env set API_KEY=abc123 DEBUG=true`,
+  $ devicesdk env set API_KEY=abc123 DEBUG=true
+  $ devicesdk env set API_KEY=abc123 --json`,
 	)
 	.action((pairs, options) => envSet(pairs, options));
 
@@ -312,11 +316,13 @@ envCmd
 	.description("Remove an env var")
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("--json", "Emit a machine-readable JSON document and exit")
 	.addHelpText(
 		"after",
 		`
 Examples:
-  $ devicesdk env unset DISCORD_WEBHOOK`,
+  $ devicesdk env unset DISCORD_WEBHOOK
+  $ devicesdk env unset DISCORD_WEBHOOK --json`,
 	)
 	.action((key, options) => envUnset(key, options));
 

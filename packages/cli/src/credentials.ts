@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { refreshToken as apiRefreshToken, DeviceSDKApiError } from "./api.js";
 import { EXIT } from "./exitCodes.js";
+import { emitJsonError, isJsonMode } from "./output.js";
 
 export interface Credentials {
 	accessToken: string;
@@ -101,13 +102,31 @@ export async function getToken(): Promise<
 
 export async function requireAuth(): Promise<string> {
 	const token = await getToken();
+	// Honour DEVICESDK_OUTPUT=json so JSON consumers (the MCP server, agents,
+	// scripts) get a parseable failure rather than stderr noise + empty stdout.
+	const json = isJsonMode();
+	const docs = "https://devicesdk.com/docs/cli/login/";
 	if (token === SESSION_EXPIRED) {
-		console.error("✗ Session expired — run `devicesdk login`.");
+		if (json) {
+			emitJsonError("Session expired — run `devicesdk login`.", {
+				code: "session_expired",
+				docs,
+			});
+		} else {
+			console.error("✗ Session expired — run `devicesdk login`.");
+		}
 		process.exit(EXIT.NOT_AUTHENTICATED);
 	}
 	if (!token) {
-		console.error("✗ Error: Authentication required\n");
-		console.error("  Please run `devicesdk login` to authenticate.");
+		if (json) {
+			emitJsonError(
+				"Authentication required. Run `devicesdk login` to authenticate.",
+				{ code: "not_authenticated", docs },
+			);
+		} else {
+			console.error("✗ Error: Authentication required\n");
+			console.error("  Please run `devicesdk login` to authenticate.");
+		}
 		process.exit(EXIT.NOT_AUTHENTICATED);
 	}
 	return token;

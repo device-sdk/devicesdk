@@ -149,8 +149,11 @@ function openSession(state: SessionState): void {
 				exitCode: EXIT.GENERIC,
 				reason: `Rate limited: ${status} ${res.statusMessage ?? ""}${headerHint}\n  Wait for the period above to elapse before retrying.`,
 			});
-		} else {
-			// Non-auth, non-rate-limit failure — let close fire and reconnect path handle it.
+		} else if (!state.json) {
+			// Non-auth, non-rate-limit failure — let close fire and reconnect path
+			// handle it. Suppress stderr in JSON mode so the only output is the
+			// final JSON (or NDJSON) document; the close handler will emit a
+			// `logs_session_error` record describing the failure.
 			console.error(
 				`✗ Watcher upgrade failed: ${status} ${res.statusMessage ?? ""}${headerHint}`,
 			);

@@ -28,9 +28,13 @@ export async function envSet(
 	pairs: string[],
 	options: EnvOptions,
 ): Promise<void> {
+	const json = isJsonMode(options);
+	const docs = "https://devicesdk.com/docs/concepts/env-vars/";
 	try {
 		if (pairs.length === 0) {
-			console.error("✗ Provide at least one KEY=VALUE pair.");
+			const msg = "Provide at least one KEY=VALUE pair.";
+			if (json) emitJsonError(msg, { code: "missing_pairs", docs });
+			else console.error(`✗ ${msg}`);
 			process.exit(EXIT.GENERIC);
 		}
 
@@ -38,16 +42,18 @@ export async function envSet(
 		for (const pair of pairs) {
 			const eqIdx = pair.indexOf("=");
 			if (eqIdx === -1) {
-				console.error(`✗ Invalid format "${pair}". Expected KEY=VALUE.`);
+				const msg = `Invalid format "${pair}". Expected KEY=VALUE.`;
+				if (json) emitJsonError(msg, { code: "invalid_pair_format", docs });
+				else console.error(`✗ ${msg}`);
 				process.exit(EXIT.GENERIC);
 			}
 			const key = pair.slice(0, eqIdx);
 			const value = pair.slice(eqIdx + 1);
 
 			if (!ENV_VAR_KEY_REGEX.test(key)) {
-				console.error(
-					`✗ Invalid key "${key}". Keys must be uppercase letters, digits, and underscores, starting with a letter (max 64 chars).`,
-				);
+				const msg = `Invalid key "${key}". Keys must be uppercase letters, digits, and underscores, starting with a letter (max 64 chars).`;
+				if (json) emitJsonError(msg, { code: "invalid_env_key", docs });
+				else console.error(`✗ ${msg}`);
 				process.exit(EXIT.GENERIC);
 			}
 
@@ -59,12 +65,17 @@ export async function envSet(
 
 		const result = await setEnvVars(token, projectId, vars);
 		const count = result.count;
+		if (json) {
+			emitJsonSuccess({ projectId, count, keys: Object.keys(vars) });
+			return;
+		}
 		console.log(
 			`✓ Set ${count} env var${count !== 1 ? "s" : ""} for project "${projectId}".`,
 		);
 	} catch (error) {
 		if (error instanceof DeviceSDKApiError) {
-			console.error(`✗ ${error.message}`);
+			if (json) emitJsonError(error.message, { code: error.code, docs });
+			else console.error(`✗ ${error.message}`);
 			process.exit(EXIT.GENERIC);
 		}
 		throw error;
@@ -125,19 +136,28 @@ export async function envUnset(
 	key: string,
 	options: EnvOptions,
 ): Promise<void> {
+	const json = isJsonMode(options);
+	const docs = "https://devicesdk.com/docs/concepts/env-vars/";
 	try {
 		const token = await requireAuth();
 		const projectId = await resolveProjectId(options);
 
 		await deleteEnvVar(token, projectId, key);
+		if (json) {
+			emitJsonSuccess({ projectId, key, deleted: true });
+			return;
+		}
 		console.log(`✓ Unset "${key}" for project "${projectId}".`);
 	} catch (error) {
 		if (error instanceof DeviceSDKApiError) {
 			if (error.statusCode === 404) {
-				console.error(`✗ Env var "${key}" not found.`);
+				const msg = `Env var "${key}" not found.`;
+				if (json) emitJsonError(msg, { code: "env_var_not_found", docs });
+				else console.error(`✗ ${msg}`);
 				process.exit(EXIT.GENERIC);
 			}
-			console.error(`✗ ${error.message}`);
+			if (json) emitJsonError(error.message, { code: error.code, docs });
+			else console.error(`✗ ${error.message}`);
 			process.exit(EXIT.GENERIC);
 		}
 		throw error;

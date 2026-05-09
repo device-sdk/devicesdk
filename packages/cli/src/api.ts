@@ -274,19 +274,29 @@ export async function startAuth(): Promise<AuthStartResponse> {
 			body: JSON.stringify({}),
 		});
 
-		const data = await response.json();
+		const responseText = await response.text();
+		let data: unknown = null;
+		try {
+			data = responseText ? JSON.parse(responseText) : null;
+		} catch {
+			// non-JSON response body
+		}
 
 		if (!response.ok) {
+			const parsed = parseErrorBody(data);
+			dumpResponseBodyIfVerbose(response.status, data, responseText);
 			throw new DeviceSDKApiError(
-				data.error?.message || `Request failed with status ${response.status}`,
+				buildErrorMessage(response.status, parsed),
 				response.status,
-				data.error?.code,
-				typeof data.error?.docs === "string" ? data.error.docs : undefined,
+				parsed.code,
+				parsed.docs,
+				data ?? responseText,
 			);
 		}
 
 		// Unwrap the result
-		return data.result || data;
+		const obj = data as { result?: AuthStartResponse } | null;
+		return obj?.result ?? (data as AuthStartResponse);
 	} catch (error) {
 		console.error("startAuth error:", error);
 		throw error;

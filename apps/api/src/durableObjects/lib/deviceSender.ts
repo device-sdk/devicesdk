@@ -75,6 +75,21 @@ function validateHexBytes(data: unknown, docs: string): void {
 	}
 }
 
+function validatePixel(
+	pixel: unknown,
+	index: number,
+	docs: string,
+): asserts pixel is [number, number, number] {
+	if (!Array.isArray(pixel) || pixel.length !== 3) {
+		fail(`pixels[${index}]`, pixel, "an [r, g, b] triplet (each 0..255)", docs);
+	}
+	for (const channel of pixel) {
+		if (!Number.isInteger(channel) || channel < 0 || channel > 255) {
+			fail(`pixels[${index}] channel`, channel, "an integer in 0..255", docs);
+		}
+	}
+}
+
 // WorkerEntrypoint that is provided to the dynamic worker as a binding
 // This allows user code to send commands back to the IoT device
 export class DeviceSender extends WorkerEntrypoint<
@@ -254,6 +269,11 @@ export class DeviceSender extends WorkerEntrypoint<
 		enable: boolean,
 		pull: "up" | "down" | "none" = "up",
 	): Promise<void> {
+		const docs = "https://devicesdk.com/docs/concepts/device-api/";
+		validatePin(pin, docs);
+		if (pull !== "up" && pull !== "down" && pull !== "none") {
+			fail("pull", pull, '"up", "down", or "none"', docs);
+		}
 		await this.sendCommand({
 			type: "configure_gpio_input_monitoring",
 			payload: { pin, enable, pull },
@@ -268,6 +288,17 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async watchdogConfigure(timeoutMs: number, enable: boolean): Promise<void> {
+		const docs = "https://devicesdk.com/docs/concepts/device-api/";
+		// Pico's hardware watchdog tops out at 8388 ms; ESP32 goes higher (~30s).
+		// We accept the looser ESP32 ceiling here; firmware will clamp on Pico.
+		if (!Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
+			fail(
+				"timeoutMs",
+				timeoutMs,
+				"a number in 1..30000 ms (Pico clamps to 8388)",
+				docs,
+			);
+		}
 		await this.sendCommand({
 			type: "watchdog_configure",
 			payload: { timeout_ms: timeoutMs, enable },
@@ -290,6 +321,27 @@ export class DeviceSender extends WorkerEntrypoint<
 		frequency: number,
 		mode: 0 | 1 | 2 | 3,
 	): Promise<void> {
+		const docs = "https://devicesdk.com/docs/guides/using-spi/";
+		validateBus(bus, docs);
+		validatePin(clkPin, docs);
+		validatePin(mosiPin, docs);
+		validatePin(misoPin, docs);
+		validatePin(csPin, docs);
+		if (
+			!Number.isFinite(frequency) ||
+			frequency < 1 ||
+			frequency > 62_500_000
+		) {
+			fail(
+				"frequency",
+				frequency,
+				"a positive number in 1..62500000 Hz (typical: 1_000_000–10_000_000)",
+				docs,
+			);
+		}
+		if (mode !== 0 && mode !== 1 && mode !== 2 && mode !== 3) {
+			fail("mode", mode, "0, 1, 2, or 3 (CPOL/CPHA combinations)", docs);
+		}
 		await this.sendCommand({
 			type: "spi_configure",
 			payload: {
@@ -305,6 +357,9 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async spiTransfer(bus: number, data: string[]): Promise<DeviceResponse> {
+		const docs = "https://devicesdk.com/docs/guides/using-spi/";
+		validateBus(bus, docs);
+		validateHexBytes(data, docs);
 		return this.sendCommandAndWait({
 			type: "spi_transfer",
 			payload: { bus, data },
@@ -312,6 +367,9 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async spiWrite(bus: number, data: string[]): Promise<void> {
+		const docs = "https://devicesdk.com/docs/guides/using-spi/";
+		validateBus(bus, docs);
+		validateHexBytes(data, docs);
 		await this.sendCommand({
 			type: "spi_write",
 			payload: { bus, data },
@@ -319,6 +377,15 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async spiRead(bus: number, bytesToRead: number): Promise<DeviceResponse> {
+		const docs = "https://devicesdk.com/docs/guides/using-spi/";
+		validateBus(bus, docs);
+		if (
+			!Number.isInteger(bytesToRead) ||
+			bytesToRead < 1 ||
+			bytesToRead > 4096
+		) {
+			fail("bytesToRead", bytesToRead, "an integer in 1..4096", docs);
+		}
 		return this.sendCommandAndWait({
 			type: "spi_read",
 			payload: { bus, bytes_to_read: bytesToRead },
@@ -334,6 +401,32 @@ export class DeviceSender extends WorkerEntrypoint<
 		stopBits?: 1 | 2,
 		parity?: "none" | "even" | "odd",
 	): Promise<void> {
+		const docs = "https://devicesdk.com/docs/guides/using-uart/";
+		validateBus(port, docs);
+		validatePin(txPin, docs);
+		validatePin(rxPin, docs);
+		if (!Number.isInteger(baudRate) || baudRate < 50 || baudRate > 5_000_000) {
+			fail(
+				"baudRate",
+				baudRate,
+				"an integer in 50..5000000 (typical: 9600, 115200)",
+				docs,
+			);
+		}
+		if (dataBits !== undefined && ![5, 6, 7, 8].includes(dataBits)) {
+			fail("dataBits", dataBits, "5, 6, 7, or 8", docs);
+		}
+		if (stopBits !== undefined && stopBits !== 1 && stopBits !== 2) {
+			fail("stopBits", stopBits, "1 or 2", docs);
+		}
+		if (
+			parity !== undefined &&
+			parity !== "none" &&
+			parity !== "even" &&
+			parity !== "odd"
+		) {
+			fail("parity", parity, '"none", "even", or "odd"', docs);
+		}
 		await this.sendCommand({
 			type: "uart_configure",
 			payload: {
@@ -349,6 +442,9 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async uartWrite(port: number, data: string[]): Promise<void> {
+		const docs = "https://devicesdk.com/docs/guides/using-uart/";
+		validateBus(port, docs);
+		validateHexBytes(data, docs);
 		await this.sendCommand({
 			type: "uart_write",
 			payload: { port, data },
@@ -360,6 +456,20 @@ export class DeviceSender extends WorkerEntrypoint<
 		bytesToRead: number,
 		timeoutMs?: number,
 	): Promise<DeviceResponse> {
+		const docs = "https://devicesdk.com/docs/guides/using-uart/";
+		validateBus(port, docs);
+		if (
+			!Number.isInteger(bytesToRead) ||
+			bytesToRead < 1 ||
+			bytesToRead > 4096
+		) {
+			fail("bytesToRead", bytesToRead, "an integer in 1..4096", docs);
+		}
+		if (timeoutMs !== undefined) {
+			if (!Number.isFinite(timeoutMs) || timeoutMs < 0 || timeoutMs > 60_000) {
+				fail("timeoutMs", timeoutMs, "a number in 0..60000 ms, or omit", docs);
+			}
+		}
 		return this.sendCommandAndWait({
 			type: "uart_read",
 			payload: {
@@ -371,6 +481,11 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async pioWs2812Configure(pin: number, numLeds: number): Promise<void> {
+		const docs = "https://devicesdk.com/docs/guides/addressable-leds/";
+		validatePin(pin, docs);
+		if (!Number.isInteger(numLeds) || numLeds < 1 || numLeds > 1024) {
+			fail("numLeds", numLeds, "an integer in 1..1024", docs);
+		}
 		await this.sendCommand({
 			type: "pio_ws2812_configure",
 			payload: { pin, num_leds: numLeds },
@@ -378,6 +493,18 @@ export class DeviceSender extends WorkerEntrypoint<
 	}
 
 	async pioWs2812Update(pixels: [number, number, number][]): Promise<void> {
+		const docs = "https://devicesdk.com/docs/guides/addressable-leds/";
+		if (!Array.isArray(pixels)) {
+			fail(
+				"pixels",
+				pixels,
+				"an array of [r, g, b] triplets, e.g. [[255, 0, 0], [0, 255, 0]]",
+				docs,
+			);
+		}
+		for (let i = 0; i < pixels.length; i++) {
+			validatePixel(pixels[i], i, docs);
+		}
 		await this.sendCommand({
 			type: "pio_ws2812_update",
 			payload: { pixels },

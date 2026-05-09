@@ -75,7 +75,7 @@ onMounted(async () => {
 			v-if="reconnecting"
 			class="px-4 py-1.5 text-xs font-medium border-b border-yellow-400/30 bg-yellow-400/10 text-yellow-700 dark:text-yellow-300"
 		>
-			Worker restarted — reconnecting…
+			Local server restarted — reconnecting…
 		</div>
 		<main
 			class="flex-1 grid overflow-hidden"

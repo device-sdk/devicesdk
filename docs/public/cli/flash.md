@@ -198,7 +198,7 @@ devicesdk status
 # my-sensor-1  ● online  a1b2c3d4  2s ago
 ```
 
-Status reads the live Durable Object connection state, so it flips to `● online` within a second of the device's WebSocket handshake.
+Status reads the live edge connection state, so it flips to `● online` within a second of the device's WebSocket handshake.
 
 ## WiFi Configuration
 

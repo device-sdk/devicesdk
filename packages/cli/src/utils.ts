@@ -10,6 +10,12 @@ import { EXIT } from "./exitCodes.js";
 
 const CONFIG_FILENAME = "devicesdk.ts";
 
+// If we find one of these at a given level *without* a `devicesdk.ts`, we
+// treat it as a foreign-project boundary and stop walking. This avoids binding
+// to a `devicesdk.ts` higher up when the user happens to be running inside an
+// unrelated repository checkout.
+const PROJECT_BOUNDARY_MARKERS = [".git", "package.json"];
+
 function findConfigUp(startDir: string): string | null {
 	const home = os.homedir();
 	let current = path.resolve(startDir);
@@ -18,10 +24,12 @@ function findConfigUp(startDir: string): string | null {
 		if (existsSync(candidate)) {
 			return candidate;
 		}
+		for (const marker of PROJECT_BOUNDARY_MARKERS) {
+			if (existsSync(path.join(current, marker))) return null;
+		}
 		const parent = path.dirname(current);
 		if (parent === current) return null;
-		// Stop walking once we leave the user's home directory tree to avoid
-		// accidentally picking up an unrelated devicesdk.ts higher up.
+		// Belt-and-suspenders: never walk above the user's home directory tree.
 		if (current === home) return null;
 		current = parent;
 	}

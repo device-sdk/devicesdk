@@ -3,6 +3,6 @@
   "authorization_servers": [],
   "bearer_methods_supported": ["header"],
   "resource_name": "DeviceSDK API",
-  "resource_documentation": "https://devicesdk.com/docs/api",
+  "resource_documentation": "https://devicesdk.com/docs/api/",
   "scopes_supported": []
 }

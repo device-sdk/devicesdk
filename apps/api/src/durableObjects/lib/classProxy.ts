@@ -16,8 +16,12 @@ import {${entrypointName}} from './device.js';
 export class ProxyEntrypoint extends WorkerEntrypoint {
   getTarget() {
     const device = this.env.DEVICE;
-    const prefix = '[' + this.env.__PROJECT_ID + ':' + this.env.__DEVICE_ID + ']';
 
+    // The runtime stdout pass-through used to prepend '[' + projectId + ':' + deviceId + ']'
+    // to every console.* call. The persisted log path (\`persist(level, args)\`) never
+    // included it, and consumers (CLI \`devicesdk logs\`, dashboard) already carry
+    // device context out-of-band via the watcher URL. The prefix only made
+    // Wrangler tail and the simulator panel noisy, so it has been dropped.
     const _log = console.log.bind(console);
     const _info = console.info.bind(console);
     const _warn = console.warn.bind(console);
@@ -31,11 +35,11 @@ export class ProxyEntrypoint extends WorkerEntrypoint {
 
     function persist(level, args) { device.persistLog(level, serialize(args)).catch(() => {}); }
 
-    console.log = (...args) => { _log(prefix, ...args); persist('log', args); };
-    console.info = (...args) => { _info(prefix, ...args); persist('info', args); };
-    console.warn = (...args) => { _warn(prefix, ...args); persist('warn', args); };
-    console.error = (...args) => { _error(prefix, ...args); persist('error', args); };
-    console.debug = (...args) => { _debug(prefix, ...args); persist('debug', args); };
+    console.log = (...args) => { _log(...args); persist('log', args); };
+    console.info = (...args) => { _info(...args); persist('info', args); };
+    console.warn = (...args) => { _warn(...args); persist('warn', args); };
+    console.error = (...args) => { _error(...args); persist('error', args); };
+    console.debug = (...args) => { _debug(...args); persist('debug', args); };
 
     // Strip internal bindings from user-facing env
     const { __DEVICE_BRIDGE: bridge, __DEVICE_ID: _did, __PROJECT_ID: _pid, __ENV_VARS: _envVarsJson, ...publicEnv } = this.env;

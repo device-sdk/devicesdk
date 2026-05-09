@@ -2,11 +2,13 @@ import WebSocket from "ws";
 import { getWatchUrl, type LogEntry } from "../api.js";
 import { requireAuth } from "../credentials.js";
 import { EXIT } from "../exitCodes.js";
+import { loadConfig } from "../utils.js";
 
 interface LogsOptions {
 	tail: boolean;
 	lines: number;
 	level?: string;
+	config?: string;
 }
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -214,11 +216,33 @@ function openSession(state: SessionState): void {
 }
 
 export default async function logs(
-	projectId: string,
-	deviceId: string,
+	projectIdArg: string | undefined,
+	deviceIdArg: string | undefined,
 	options: LogsOptions,
 ): Promise<void> {
 	const token = await requireAuth();
+
+	let projectId = projectIdArg;
+	let deviceId = deviceIdArg;
+	if (!projectId || !deviceId) {
+		const config = await loadConfig(options.config);
+		if (!projectId) projectId = config.projectId;
+		if (!deviceId) {
+			const deviceKeys = Object.keys(config.devices);
+			if (deviceKeys.length === 1) {
+				deviceId = deviceKeys[0];
+			} else if (deviceKeys.length === 0) {
+				console.error("✗ Error: No devices declared in devicesdk.ts\n");
+				process.exit(EXIT.CONFIG_INVALID);
+			} else {
+				console.error(
+					"✗ Error: Multiple devices in devicesdk.ts — pass one as positional.\n",
+				);
+				console.error(`  Available: ${deviceKeys.join(", ")}`);
+				process.exit(EXIT.CONFIG_INVALID);
+			}
+		}
+	}
 
 	const result = await new Promise<SessionResult>((resolve) => {
 		const state: SessionState = {

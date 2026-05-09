@@ -30,6 +30,8 @@ export default {
 }
 ```
 
+Most commands auto-discover this file by walking up from the current directory, so they work from any subdirectory of your project. The keys under `devices` are **device slugs** and the top-level `projectId` is the **project slug** — see [Project & Device Identifiers](/docs/concepts/identifiers/) for the conventions.
+
 ## Global Flags
 
 All commands support these global flags:

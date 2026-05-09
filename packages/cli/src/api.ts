@@ -35,6 +35,93 @@ export class DeviceSDKApiError extends Error {
 	}
 }
 
+const AUTH_EXPIRED_CODES = new Set([
+	"invalid_refresh_token",
+	"invalid_token",
+	"unauthorized",
+]);
+
+// Programmatic error codes are short ASCII identifiers (e.g.
+// `FIRMWARE_NOT_PUBLISHED`, `invalid_refresh_token`). Anything else — full
+// sentences, punctuation, very long strings — is a human message that must not
+// pollute `DeviceSDKApiError.code`, since downstream consumers compare it with
+// `===` against a known code.
+function looksLikeErrorCode(value: unknown): value is string {
+	return (
+		typeof value === "string" &&
+		value.length > 0 &&
+		value.length <= 64 &&
+		/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)
+	);
+}
+
+interface ParsedErrorBody {
+	message: string | undefined;
+	code: string | undefined;
+}
+
+// Tolerate both the canonical `{ success: false, error: "string", code? }` and
+// the legacy `{ error: { message, code } }` response shapes. Returns the human
+// message and (only) a stable, identifier-shaped code.
+function parseErrorBody(data: unknown): ParsedErrorBody {
+	const obj = (data ?? undefined) as
+		| { error?: unknown; code?: unknown }
+		| undefined;
+	const errorField = obj?.error;
+	const errorString = typeof errorField === "string" ? errorField : undefined;
+	const errorObject =
+		errorField && typeof errorField === "object"
+			? (errorField as { message?: unknown; code?: unknown })
+			: undefined;
+	const message =
+		(typeof errorObject?.message === "string"
+			? errorObject.message
+			: undefined) ?? errorString;
+	const explicitCode = obj?.code ?? errorObject?.code;
+	const code = looksLikeErrorCode(explicitCode)
+		? explicitCode
+		: looksLikeErrorCode(errorString)
+			? errorString
+			: undefined;
+	return { message, code };
+}
+
+function isAuthExpired(status: number, code: string | undefined): boolean {
+	return status === 401 && code !== undefined && AUTH_EXPIRED_CODES.has(code);
+}
+
+// Build the human-facing message for an error response. Auth-expired sessions
+// collapse to a single line; other 401s append a re-auth hint to whatever the
+// server said; everything else falls back to a generic status line.
+function buildErrorMessage(status: number, parsed: ParsedErrorBody): string {
+	if (isAuthExpired(status, parsed.code)) {
+		return "Session expired — run `devicesdk login`.";
+	}
+	const base = parsed.message || `Request failed with status ${status}`;
+	if (status === 401) {
+		return `${base}\nPlease run \`devicesdk login\` to re-authenticate.`;
+	}
+	return base;
+}
+
+// Verbose mode is the escape hatch for raw response bodies; otherwise we keep
+// the user-facing surface to a single line. Dumping JSON for every 4xx burns
+// user attention without telling them what to do.
+function dumpResponseBodyIfVerbose(
+	status: number,
+	data: unknown,
+	responseText: string | undefined,
+): void {
+	if (!verboseLogging) return;
+	if ((data === null || data === undefined) && !responseText) return;
+	console.error(`\nResponse body (${status}):`);
+	try {
+		console.error(JSON.stringify(data ?? responseText, null, 2));
+	} catch {
+		console.error(responseText ?? "");
+	}
+}
+
 async function request<T>(
 	endpoint: string,
 	options: RequestInit = {},
@@ -74,35 +161,23 @@ async function request<T>(
 	}
 
 	if (!response.ok) {
-		if (responseText) {
-			console.error(`
-Response body (${response.status}):`);
-			try {
-				console.error(JSON.stringify(data ?? responseText, null, 2));
-			} catch {
-				console.error(responseText);
-			}
-		}
-
-		let message =
-			data?.error?.message || `Request failed with status ${response.status}`;
-		if (response.status === 401) {
-			message += "\nPlease run `npx devicesdk login` to re-authenticate.";
-		}
+		const parsed = parseErrorBody(data);
+		dumpResponseBodyIfVerbose(response.status, data, responseText);
 		throw new DeviceSDKApiError(
-			message,
+			buildErrorMessage(response.status, parsed),
 			response.status,
-			data?.error?.code,
+			parsed.code,
 			data ?? responseText,
 		);
 	}
 
 	// Some endpoints return data directly, others wrap in { success, result }
 	if (unwrapResult && data?.success === false) {
+		const parsed = parseErrorBody(data);
 		throw new DeviceSDKApiError(
-			data.error?.message || "Request failed",
+			parsed.message || "Request failed",
 			response.status,
-			data.error?.code,
+			parsed.code,
 			data,
 		);
 	}
@@ -420,41 +495,21 @@ export async function downloadDeviceFirmware(
 	});
 
 	if (!response.ok) {
-		let message = `Request failed with status ${response.status}`;
-		let responseBody: any;
+		let responseBody: unknown;
 		let responseText: string | undefined;
 		try {
 			responseText = await response.text();
 			responseBody = responseText ? JSON.parse(responseText) : undefined;
-			// API returns either `error: "string"` (canonical) or `error: { message }`.
-			if (typeof responseBody?.error === "string") {
-				message = responseBody.error;
-			} else if (responseBody?.error?.message) {
-				message = responseBody.error.message;
-			}
 		} catch {
 			// ignore parse failure
 		}
 
-		if (responseBody || responseText) {
-			console.error(`
-Response body (${response.status}):`);
-			try {
-				console.error(JSON.stringify(responseBody ?? responseText, null, 2));
-			} catch {
-				console.error(responseText);
-			}
-		}
-
-		if (response.status === 401) {
-			message += "\nPlease run `npx devicesdk login` to re-authenticate.";
-		}
-		// Structured `code` may be top-level (canonical) or nested in `error.code`.
-		const code = responseBody?.code ?? responseBody?.error?.code;
+		const parsed = parseErrorBody(responseBody);
+		dumpResponseBodyIfVerbose(response.status, responseBody, responseText);
 		throw new DeviceSDKApiError(
-			message,
+			buildErrorMessage(response.status, parsed),
 			response.status,
-			code,
+			parsed.code,
 			responseBody ?? responseText,
 		);
 	}

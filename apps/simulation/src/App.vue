@@ -19,6 +19,7 @@ const {
 	status: connectionStatus,
 	isDevMode,
 	availableDevices,
+	reconnecting,
 	detectDevMode,
 	connect,
 	sendEvent,
@@ -70,6 +71,12 @@ onMounted(async () => {
 <template>
 	<div class="flex flex-col h-screen bg-background text-foreground">
 		<SimHeader @device-change="handleDeviceChange" />
+		<div
+			v-if="reconnecting"
+			class="px-4 py-1.5 text-xs font-medium border-b border-yellow-400/30 bg-yellow-400/10 text-yellow-700 dark:text-yellow-300"
+		>
+			Local server restarted — reconnecting…
+		</div>
 		<main
 			class="flex-1 grid overflow-hidden"
 			style="grid-template-columns: 240px 1fr 320px"

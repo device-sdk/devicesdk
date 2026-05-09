@@ -241,7 +241,9 @@ describe("credentials", () => {
 
 			beforeEach(() => {
 				process.env.DEVICESDK_OUTPUT = "json";
-				stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+				stdoutSpy = vi
+					.spyOn(process.stdout, "write")
+					.mockImplementation(() => true);
 			});
 
 			afterEach(() => {

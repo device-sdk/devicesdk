@@ -7,7 +7,9 @@
 		"dev": "vite --port 9002",
 		"build": "vite build",
 		"preview": "vite preview",
-		"check-types": "vue-tsc --noEmit"
+		"check-types": "vue-tsc --noEmit",
+		"test:unit": "vitest run --config tests/vitest.config.ts",
+		"test": "pnpm test:unit"
 	},
 	"dependencies": {
 		"@devicesdk/core": "workspace:*",
@@ -21,6 +23,7 @@
 		"tailwindcss": "catalog:tailwind4",
 		"vite": "^6.3.0",
 		"vue-tsc": "^3.0.7",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "catalog:"
 	}
 }

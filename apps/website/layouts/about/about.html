@@ -1,10 +1,11 @@
 {{ define "main" }}
 <!-- Hero -->
-<section class="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-4xl mx-auto text-center">
+<section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div class="hero-mesh subtle" aria-hidden="true"></div>
+    <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
         <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
             About<br/>
-            <span class="text-emerald-500">DeviceSDK</span>
+            <span class="gradient-pan">DeviceSDK</span>
         </h1>
     </div>
 </section>
@@ -31,9 +32,9 @@
 <section class="py-20 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto fade-up">
         <div class="grid md:grid-cols-2 gap-8">
-            <div>
+            <div class="reveal" data-reveal="left">
                 <h3 class="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-6">Before DeviceSDK</h3>
-                <ul class="space-y-3 text-sm">
+                <ul class="space-y-3 text-sm reveal-stagger">
                     <li class="flex items-start gap-2 text-zinc-500">
                         <span class="text-zinc-600 mt-0.5 line-through">Learn C/C++ for each microcontroller</span>
                     </li>
@@ -51,9 +52,9 @@
                     </li>
                 </ul>
             </div>
-            <div>
+            <div class="reveal" data-reveal="right">
                 <h3 class="text-sm font-semibold text-emerald-500 uppercase tracking-wider mb-6">With DeviceSDK</h3>
-                <ul class="space-y-3 text-sm">
+                <ul class="space-y-3 text-sm reveal-stagger">
                     <li class="flex items-start gap-2 text-zinc-300">
                         <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         Write TypeScript with full type safety

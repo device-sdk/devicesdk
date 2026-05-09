@@ -1,10 +1,11 @@
 {{ define "main" }}
 <!-- Hero -->
-<section class="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-4xl mx-auto text-center">
+<section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div class="hero-mesh subtle" aria-hidden="true"></div>
+    <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
         <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
             Simple, transparent<br/>
-            <span class="text-emerald-500">pricing</span>
+            <span class="gradient-pan">pricing</span>
         </h1>
         <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
             Start building for free. Upgrade when you need more capacity.
@@ -27,9 +28,9 @@
 <!-- Pricing Cards -->
 <section class="pb-20 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto">
-        <div class="grid md:grid-cols-2 gap-6 fade-up">
+        <div class="grid md:grid-cols-2 gap-6 reveal-stagger">
             <!-- Free -->
-            <div class="card p-8">
+            <div class="card card-lift p-8">
                 <h3 class="text-lg font-semibold text-zinc-50">Free</h3>
                 <div class="mt-4">
                     <span class="text-4xl font-bold text-zinc-50">$0</span>
@@ -70,7 +71,7 @@
             </div>
 
             <!-- Pro -->
-            <div class="card p-8 border-emerald-500/30">
+            <div class="card card-lift p-8 border-emerald-500/30 relative">
                 <h3 class="text-lg font-semibold text-zinc-50">Pro</h3>
                 <div class="mt-4">
                     <span class="text-2xl font-bold text-zinc-50">Contact us</span>
@@ -111,7 +112,7 @@
         </div>
 
         <!-- Enterprise -->
-        <div class="mt-6 card p-6 flex flex-col sm:flex-row items-center justify-between gap-4 fade-up">
+        <div class="mt-6 card card-lift p-6 flex flex-col sm:flex-row items-center justify-between gap-4 reveal">
             <div>
                 <h3 class="font-semibold text-zinc-50">Enterprise</h3>
                 <p class="text-sm text-zinc-500 mt-1">Custom limits, SLAs, dedicated support, and custom integrations.</p>
@@ -180,7 +181,7 @@
 
         <div class="space-y-0 border border-zinc-800 rounded-xl overflow-hidden" id="faq">
             <div class="border-b border-zinc-800">
-                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left hover:bg-zinc-900/40 transition-colors" data-faq>
                     <span class="font-medium text-zinc-50">What happens if I hit a limit on the free tier?</span>
                     <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
@@ -189,7 +190,7 @@
                 </div>
             </div>
             <div class="border-b border-zinc-800">
-                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left hover:bg-zinc-900/40 transition-colors" data-faq>
                     <span class="font-medium text-zinc-50">Will limits increase after the beta?</span>
                     <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
@@ -198,7 +199,7 @@
                 </div>
             </div>
             <div class="border-b border-zinc-800">
-                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left hover:bg-zinc-900/40 transition-colors" data-faq>
                     <span class="font-medium text-zinc-50">Do I pay for device connections?</span>
                     <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
@@ -207,7 +208,7 @@
                 </div>
             </div>
             <div class="border-b border-zinc-800">
-                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left hover:bg-zinc-900/40 transition-colors" data-faq>
                     <span class="font-medium text-zinc-50">Is KV storage free?</span>
                     <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
@@ -216,7 +217,7 @@
                 </div>
             </div>
             <div>
-                <button class="faq-btn w-full flex items-center justify-between p-5 text-left" data-faq>
+                <button class="faq-btn w-full flex items-center justify-between p-5 text-left hover:bg-zinc-900/40 transition-colors" data-faq>
                     <span class="font-medium text-zinc-50">Can I self-host?</span>
                     <svg class="accordion-chevron w-4 h-4 text-zinc-500 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>

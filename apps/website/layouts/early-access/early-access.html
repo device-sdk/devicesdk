@@ -1,13 +1,18 @@
 {{ define "main" }}
 <!-- Hero -->
-<section class="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-4xl mx-auto text-center">
-        <div class="inline-flex items-center px-3 py-1 text-xs font-medium text-emerald-400 border border-emerald-500/30 rounded-full mb-6">
+<section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div class="hero-mesh subtle" aria-hidden="true"></div>
+    <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
+        <div class="inline-flex items-center gap-2 px-3 py-1 text-xs font-medium text-emerald-400 border border-emerald-500/30 rounded-full mb-6">
+            <span class="relative inline-flex w-1.5 h-1.5">
+                <span class="pulse-soft absolute inset-0 rounded-full text-emerald-400"></span>
+                <span class="relative inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            </span>
             Private Beta
         </div>
         <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
             Get early<br/>
-            <span class="text-emerald-500">access</span>
+            <span class="gradient-pan">access</span>
         </h1>
         <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
             DeviceSDK is in private beta. Request access to start building IoT applications with TypeScript.
@@ -20,14 +25,14 @@
     <div class="max-w-5xl mx-auto">
         <div class="grid md:grid-cols-5 gap-12 items-start">
             <!-- Form Card -->
-            <div class="md:col-span-3 fade-up">
-                <div class="card p-8 sm:p-10">
+            <div class="md:col-span-3 reveal" data-reveal="left">
+                <div class="card card-lift p-8 sm:p-10">
                     <h2 class="text-xl font-bold tracking-tight mb-2">Request Early Access</h2>
                     <p class="text-sm text-zinc-500 mb-8">Fill out the form and we'll get back to you soon.</p>
 
                     <div class="text-center">
-                        <a href="https://forms.gle/mHZy1XSmT6NM7XSG8" target="_blank" rel="noopener" class="btn-primary h-12 px-8 text-base">
-                            Fill out application form
+                        <a href="https://forms.gle/mHZy1XSmT6NM7XSG8" target="_blank" rel="noopener" class="btn-primary nudge h-12 px-8 text-base">
+                            <span>Fill out application form</span>
                             <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                         </a>
                         <p class="mt-3 text-xs text-zinc-600">Takes less than 2 minutes</p>
@@ -36,9 +41,9 @@
             </div>
 
             <!-- Value Props Sidebar -->
-            <div class="md:col-span-2 fade-up">
+            <div class="md:col-span-2 reveal" data-reveal="right">
                 <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-6">What you'll get</h3>
-                <ul class="space-y-5">
+                <ul class="space-y-5 reveal-stagger">
                     <li class="flex items-start gap-3">
                         <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         <div>

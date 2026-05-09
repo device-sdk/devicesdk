@@ -1,10 +1,11 @@
 {{ define "main" }}
 <!-- Hero -->
-<section class="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-4xl mx-auto text-center">
+<section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div class="hero-mesh subtle" aria-hidden="true"></div>
+    <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
         <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
             The complete IoT<br/>
-            <span class="text-emerald-500">development platform</span>
+            <span class="gradient-pan">development platform</span>
         </h1>
         <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
             CLI, runtime, dashboard, and API — everything from first line of code to production fleet.
@@ -22,7 +23,7 @@
                 <p class="mt-4 text-zinc-400 text-lg leading-relaxed">
                     One tool for the entire lifecycle: scaffold, develop, test, deploy, and flash.
                 </p>
-                <div class="mt-8 space-y-3">
+                <div class="mt-8 space-y-3 reveal-stagger">
                     <div class="flex items-center gap-3 text-sm">
                         <code class="font-mono text-emerald-400 w-36">devicesdk init</code>
                         <span class="text-zinc-500">Scaffold a new project with TypeScript config</span>
@@ -108,7 +109,7 @@
                 <p class="mt-4 text-zinc-400 text-lg leading-relaxed">
                     Extend <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">DeviceEntrypoint</code> and implement two lifecycle hooks. Your code runs on a globally distributed runtime — the device communicates via WebSocket.
                 </p>
-                <div class="mt-8 space-y-4 text-sm">
+                <div class="mt-8 space-y-4 text-sm reveal-stagger">
                     <div class="border-b border-zinc-800 pb-3">
                         <code class="font-mono text-emerald-400">onDeviceConnect()</code>
                         <p class="text-zinc-500 mt-1">Configure GPIO, I2C, ADC monitoring when the device first connects</p>
@@ -144,38 +145,38 @@
             <p class="mt-4 text-zinc-400 text-lg">Web dashboard at <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">dash.devicesdk.com</code></p>
         </div>
 
-        <div class="space-y-0 border border-zinc-800 rounded-xl overflow-hidden">
-            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+        <div class="space-y-0 border border-zinc-800 rounded-xl overflow-hidden reveal-stagger">
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
                 <div>
                     <h3 class="font-medium text-zinc-50">Project management</h3>
                     <p class="text-sm text-zinc-500 mt-0.5">Organize devices into projects with separate settings</p>
                 </div>
             </div>
-            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
                 <div>
                     <h3 class="font-medium text-zinc-50">Device inventory</h3>
                     <p class="text-sm text-zinc-500 mt-0.5">See all devices, connection status, and last seen time</p>
                 </div>
             </div>
-            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
                 <div>
                     <h3 class="font-medium text-zinc-50">Script deployment</h3>
                     <p class="text-sm text-zinc-500 mt-0.5">Upload and deploy scripts from the browser or API</p>
                 </div>
             </div>
-            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
                 <div>
                     <h3 class="font-medium text-zinc-50">Version history</h3>
                     <p class="text-sm text-zinc-500 mt-0.5">Full deployment log with one-click rollback</p>
                 </div>
             </div>
-            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
                 <div>
                     <h3 class="font-medium text-zinc-50">API tokens</h3>
                     <p class="text-sm text-zinc-500 mt-0.5">Create and revoke tokens for CLI and programmatic access</p>
                 </div>
             </div>
-            <div class="flex items-center justify-between p-5">
+            <div class="flex items-center justify-between p-5 hover:bg-zinc-900/40 transition-colors">
                 <div>
                     <h3 class="font-medium text-zinc-50">Google OAuth</h3>
                     <p class="text-sm text-zinc-500 mt-0.5">Secure sign-in with session management</p>
@@ -203,20 +204,20 @@
                         <th class="text-left p-4 text-zinc-400 font-medium">Status</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr class="border-b border-zinc-800">
+                <tbody class="reveal-stagger">
+                    <tr class="border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
                         <td class="p-4 font-medium text-zinc-50">Raspberry Pi Pico W</td>
                         <td class="p-4 text-zinc-400">RP2040</td>
                         <td class="p-4 text-zinc-400">2.4 GHz</td>
                         <td class="p-4"><span class="badge badge-emerald">Supported</span></td>
                     </tr>
-                    <tr class="border-b border-zinc-800">
+                    <tr class="border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
                         <td class="p-4 font-medium text-zinc-50">Raspberry Pi Pico 2 W</td>
                         <td class="p-4 text-zinc-400">RP2350</td>
                         <td class="p-4 text-zinc-400">2.4 GHz</td>
                         <td class="p-4"><span class="badge badge-emerald">Supported</span></td>
                     </tr>
-                    <tr>
+                    <tr class="hover:bg-zinc-900/40 transition-colors">
                         <td class="p-4 font-medium text-zinc-50">ESP32</td>
                         <td class="p-4 text-zinc-400">ESP32</td>
                         <td class="p-4 text-zinc-400">2.4 GHz</td>

@@ -14,7 +14,8 @@ interface DevicesBridgeProps {
  * on other devices in the same project via `this.env.DEVICES["slug"].method()`.
  *
  * Follows the same architecture as DeviceSender — a named export from the main
- * worker, accessed via `(this.ctx as any).exports.DevicesBridge(...)` from inside the DO.
+ * worker, accessed via `ctx.exports.DevicesBridge(...)` from inside the DO
+ * (typed locally as `DeviceCtxExports` in device.ts).
  */
 export class DevicesBridge extends WorkerEntrypoint<
 	{ DB: D1Database; DEVICE: DurableObjectNamespace<BaseDevice> },

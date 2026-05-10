@@ -28,7 +28,21 @@ import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
 import { type CronStorage, resolveDueCrons } from "./cronDispatch";
 import { nextCronTime } from "./cronParser";
-import type { IUserDeviceWorker } from "./userWorkerTypes";
+import type {
+	DeviceSenderInterface,
+	DeviceSenderProps,
+	IUserDeviceWorker,
+} from "./userWorkerTypes";
+
+// ctx.exports loopback bindings for top-level WorkerEntrypoints. Properly typed
+// via Cloudflare.Exports when GlobalProps.mainModule is configured; until then
+// we narrow locally so consumers don't have to use `as any`.
+type DeviceCtxExports = {
+	DeviceSender: (opts: { props: DeviceSenderProps }) => DeviceSenderInterface;
+	DevicesBridge: (opts: {
+		props: { projectId: string; userId: string };
+	}) => DeviceSenderInterface;
+};
 
 const DeviceMessageSchema = z.object({
 	id: z.string().max(64).optional().default(""),
@@ -86,9 +100,9 @@ interface DeviceSession {
 
 // Structure to hold pending command promises
 interface PendingCommand {
-	resolve: (value: any) => void;
-	reject: (reason?: any) => void;
-	timeoutId: any;
+	resolve: (value: DeviceResponse) => void;
+	reject: (reason?: unknown) => void;
+	timeoutId: ReturnType<typeof setTimeout>;
 	startedAt: number;
 	commandType: string;
 }
@@ -434,6 +448,10 @@ export class BaseDevice extends DurableObject<Env> {
 					(envVarsResult.results ?? []).map((r) => [r.key, r.value]),
 				);
 
+				const ctxExports = (
+					this.ctx as DurableObjectState & { exports: DeviceCtxExports }
+				).exports;
+
 				return {
 					compatibilityDate: "2026-04-24",
 					mainModule: "main.js",
@@ -443,11 +461,11 @@ export class BaseDevice extends DurableObject<Env> {
 					},
 					env: {
 						// Provide the DeviceSender binding for sending commands to the device
-						DEVICE: (this.ctx as any).exports.DeviceSender({
+						DEVICE: ctxExports.DeviceSender({
 							props: { deviceId, projectId },
 						}),
 						// Provide the DevicesBridge binding for inter-device RPC
-						__DEVICE_BRIDGE: (this.ctx as any).exports.DevicesBridge({
+						__DEVICE_BRIDGE: ctxExports.DevicesBridge({
 							props: { projectId, userId },
 						}),
 						// Metadata for console override prefix in proxy entrypoint
@@ -599,7 +617,7 @@ export class BaseDevice extends DurableObject<Env> {
 			}, 5000); // 5-second timeout
 
 			this.pendingCommands.set(command.id, {
-				resolve,
+				resolve: resolve as (value: DeviceResponse) => void,
 				reject,
 				timeoutId,
 				startedAt,

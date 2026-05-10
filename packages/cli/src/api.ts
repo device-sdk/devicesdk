@@ -183,7 +183,7 @@ async function request<T>(
 	}
 
 	const responseText = await response.text();
-	let data: any = null;
+	let data: unknown = null;
 	try {
 		data = responseText ? JSON.parse(responseText) : null;
 	} catch {
@@ -203,7 +203,12 @@ async function request<T>(
 	}
 
 	// Some endpoints return data directly, others wrap in { success, result }
-	if (unwrapResult && data?.success === false) {
+	const envelope =
+		data && typeof data === "object"
+			? (data as { success?: boolean; result?: unknown })
+			: null;
+
+	if (unwrapResult && envelope?.success === false) {
 		const parsed = parseErrorBody(data);
 		throw new DeviceSDKApiError(
 			parsed.message || "Request failed",
@@ -214,9 +219,11 @@ async function request<T>(
 		);
 	}
 
-	return unwrapResult && data?.result !== undefined
-		? data.result
-		: (data ?? responseText);
+	return (
+		unwrapResult && envelope?.result !== undefined
+			? envelope.result
+			: (data ?? responseText)
+	) as T;
 }
 
 async function fetchAllPages<T>(endpoint: string, token: string): Promise<T[]> {
@@ -600,7 +607,10 @@ export async function uploadScript(
 	message?: string,
 	entrypoint?: string,
 ): Promise<UploadScriptResult> {
-	const body: any = { script, message };
+	const body: { script: string; message?: string; entrypoint?: string } = {
+		script,
+		message,
+	};
 	if (entrypoint) {
 		body.entrypoint = entrypoint;
 	}

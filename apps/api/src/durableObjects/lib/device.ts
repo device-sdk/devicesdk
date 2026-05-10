@@ -8,7 +8,6 @@ import { z } from "zod";
 import {
 	recordCommandRpc,
 	recordScriptInit,
-	recordWorkerLoaderFailure,
 } from "../../foundation/analytics";
 import {
 	LOG_CLEANUP_INTERVAL,
@@ -29,6 +28,11 @@ import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
 import { type CronStorage, resolveDueCrons } from "./cronDispatch";
 import { nextCronTime } from "./cronParser";
+import {
+	drainPendingUserWorkerEvents,
+	enqueueUserWorkerEvent,
+	type PendingUserEvent,
+} from "./userEventQueue";
 import type {
 	DeviceSenderInterface,
 	DeviceSenderProps,
@@ -70,26 +74,6 @@ function earliestFireTime(schedules: CronStorage): number {
 // to durable storage so that a future hibernation-recovery path can restore
 // the connection timestamp without requiring the client to reconnect.
 export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
-
-// Queue of user-worker events to dispatch on the next alarm firing.
-// Hibernation-API webSocketMessage handlers cannot reliably invoke the Worker
-// Loader (the getTarget() RPC hangs), so onDeviceConnect / onMessage get
-// deferred to a fresh alarm() invocation where Worker Loader works.
-export const PENDING_USER_EVENTS_KEY = "__internal:pending_user_events";
-
-export type PendingUserEvent =
-	| { kind: "connect"; attempts?: number }
-	| { kind: "message"; message: DeviceResponse; attempts?: number };
-
-// Transient errors re-queue with backoff; persistent errors drop immediately.
-// Patterns are matched as substrings against the thrown error's `.message`,
-// which (after the wrapper in getOrCreateUserWorker) includes the underlying
-// loader/runtime error text.
-const MAX_USER_EVENT_ATTEMPTS = 6;
-const TRANSIENT_ERROR_PATTERNS = [
-	"Too many concurrent dynamic workers",
-	"ECONNREFUSED",
-];
 
 // Prefix reserved for internal DO storage keys; blocked from user-facing kv API
 const INTERNAL_KEY_PREFIX = "__internal:";
@@ -862,18 +846,7 @@ export class BaseDevice extends DurableObject<Env> {
 	 * webSocketMessage handlers, which hang on getTarget()).
 	 */
 	protected async enqueueUserWorkerEvent(event: PendingUserEvent) {
-		const existing =
-			(await this.ctx.storage.get<PendingUserEvent[]>(
-				PENDING_USER_EVENTS_KEY,
-			)) ?? [];
-		existing.push(event);
-		await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, existing);
-
-		const soon = Date.now() + 10;
-		const currentAlarm = await this.ctx.storage.getAlarm();
-		if (currentAlarm === null || currentAlarm > soon) {
-			await this.ctx.storage.setAlarm(soon);
-		}
+		await enqueueUserWorkerEvent(this.ctx.storage, event);
 	}
 
 	/**
@@ -884,133 +857,13 @@ export class BaseDevice extends DurableObject<Env> {
 	 * trips the "Too many concurrent dynamic workers" limit).
 	 */
 	protected async drainPendingUserWorkerEvents(): Promise<IUserDeviceWorker | null> {
-		const pending = await this.ctx.storage.get<PendingUserEvent[]>(
-			PENDING_USER_EVENTS_KEY,
-		);
-		if (!pending || pending.length === 0) return null;
-
-		// Clear up-front so a subsequent enqueue during processing doesn't get
-		// swallowed if we persist an emptied array at the end.
-		await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
-
-		let userWorker: IUserDeviceWorker;
-		try {
-			userWorker = await this.getOrCreateUserWorker();
-		} catch (err) {
-			const message = (err as Error)?.message ?? "";
-			const isTransient = TRANSIENT_ERROR_PATTERNS.some((p) =>
-				message.includes(p),
-			);
-			if (isTransient) {
-				// Re-queue with exponential backoff so we retry once the
-				// rate-limiter / transient condition clears. Cap attempts to
-				// avoid eventually piling up.
-				const retryable = pending
-					.map((e) => ({ ...e, attempts: (e.attempts ?? 0) + 1 }))
-					.filter((e) => e.attempts < MAX_USER_EVENT_ATTEMPTS);
-				if (retryable.length > 0) {
-					const maxAttempts = Math.max(
-						...retryable.map((e) => e.attempts ?? 0),
-					);
-					const backoffMs = Math.min(30_000, 500 * 2 ** maxAttempts);
-					await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, retryable);
-					const currentAlarm = await this.ctx.storage.getAlarm();
-					const nextFire = Date.now() + backoffMs;
-					if (currentAlarm === null || currentAlarm > nextFire) {
-						await this.ctx.storage.setAlarm(nextFire);
-					}
-					logger.warn("Worker init transient failure; re-queued events", {
-						count: retryable.length,
-						backoffMs,
-						message,
-					});
-					recordWorkerLoaderFailure(this.env.ANALYTICS, {
-						failureKind: "transient",
-						errorName: (err as Error)?.name,
-						attemptCount: maxAttempts,
-						deviceId: this.deviceMeta?.deviceId,
-						projectId: this.deviceMeta?.projectId,
-					});
-				} else {
-					logger.error(
-						err,
-						"user worker drain: transient failure, max attempts reached, dropping batch",
-						{
-							droppedCount: pending.length,
-							kinds: pending.map((e) => e.kind),
-							userId: this.deviceMeta?.userId,
-							projectId: this.deviceMeta?.projectId,
-							deviceId: this.deviceMeta?.deviceId,
-							versionId: this.deviceMeta?.versionId,
-						},
-					);
-					recordWorkerLoaderFailure(this.env.ANALYTICS, {
-						failureKind: "transient",
-						errorName: (err as Error)?.name,
-						attemptCount: MAX_USER_EVENT_ATTEMPTS,
-						deviceId: this.deviceMeta?.deviceId,
-						projectId: this.deviceMeta?.projectId,
-					});
-				}
-			} else {
-				// Persistent error (SyntaxError, script missing, etc.) — drop.
-				logger.error(
-					err,
-					"user worker drain: persistent failure, dropping batch",
-					{
-						droppedCount: pending.length,
-						kinds: pending.map((e) => e.kind),
-						userId: this.deviceMeta?.userId,
-						projectId: this.deviceMeta?.projectId,
-						deviceId: this.deviceMeta?.deviceId,
-						versionId: this.deviceMeta?.versionId,
-					},
-				);
-				recordWorkerLoaderFailure(this.env.ANALYTICS, {
-					failureKind: "persistent",
-					errorName: (err as Error)?.name,
-					attemptCount: 1,
-					deviceId: this.deviceMeta?.deviceId,
-					projectId: this.deviceMeta?.projectId,
-				});
-			}
-			return null;
-		}
-
-		let connectProcessed = false;
-		for (const event of pending) {
-			try {
-				if (event.kind === "connect") {
-					await userWorker.onDeviceConnect();
-					connectProcessed = true;
-				} else {
-					await userWorker.onMessage(event.message);
-				}
-			} catch (error) {
-				logger.error(
-					error,
-					`Error in user worker ${event.kind === "connect" ? "onDeviceConnect" : "onMessage"} (via alarm)`,
-					{
-						kind: event.kind,
-						userId: this.deviceMeta?.userId,
-						deviceId: this.deviceMeta?.deviceId,
-					},
-				);
-			}
-		}
-
-		// Initialize cron schedules once per batch if a connect was processed.
-		if (connectProcessed) {
-			try {
-				await this.initializeCrons(userWorker);
-			} catch (error) {
-				logger.error(error, "Error initializing cron schedules", {
-					deviceId: this.deviceMeta?.deviceId,
-				});
-			}
-		}
-
-		return userWorker;
+		return drainPendingUserWorkerEvents({
+			storage: this.ctx.storage,
+			analytics: this.env.ANALYTICS,
+			getOrCreateUserWorker: () => this.getOrCreateUserWorker(),
+			initializeCrons: (worker) => this.initializeCrons(worker),
+			deviceMeta: this.deviceMeta,
+		});
 	}
 
 	private async handleConnectionLost(reason: string) {

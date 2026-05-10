@@ -23,8 +23,32 @@ defaults:
     working-directory: firmware/pico
 
 jobs:
+  unit-tests:
+    name: Host unit tests
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore gtest build cache
+        uses: actions/cache@v4
+        with:
+          path: firmware/pico/test/build/_deps
+          key: pico-gtest-${{ hashFiles('firmware/pico/test/CMakeLists.txt') }}
+
+      - name: Build and run tests
+        working-directory: firmware/pico/test
+        run: |
+          cmake -B build
+          cmake --build build -j$(nproc)
+          ./build/run_tests
+
   build:
     name: Build Pico firmware
+    needs: unit-tests
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     permissions:
       contents: read

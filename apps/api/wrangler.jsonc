@@ -80,6 +80,12 @@
 			"binding": "LOADER"
 		}
 	],
+	"analytics_engine_datasets": [
+		{
+			"binding": "ANALYTICS",
+			"dataset": "devicesdk_api_metrics"
+		}
+	],
 	"env": {
 		"production": {
 			"name": "devicesdk-api",
@@ -135,6 +141,12 @@
 			"worker_loaders": [
 				{
 					"binding": "LOADER"
+				}
+			],
+			"analytics_engine_datasets": [
+				{
+					"binding": "ANALYTICS",
+					"dataset": "devicesdk_api_metrics"
 				}
 			]
 		}

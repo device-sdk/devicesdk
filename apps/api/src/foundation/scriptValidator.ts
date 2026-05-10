@@ -1,4 +1,5 @@
 import type { Env } from "../types";
+import { recordScriptInit, recordWorkerLoaderFailure } from "./analytics";
 
 export interface ValidationResult {
 	valid: boolean;
@@ -31,6 +32,7 @@ export async function validateUserScript(
 	const errors: string[] = [];
 	const warnings: string[] = [];
 
+	const validationStartedAt = Date.now();
 	try {
 		// Use a random ID since we're just validating
 		const validationId = `validation:${crypto.randomUUID()}`;
@@ -98,6 +100,11 @@ export class Validator extends WorkerEntrypoint {
 			),
 		]);
 
+		recordScriptInit(env.ANALYTICS, {
+			source: "validator",
+			initLatencyMs: Date.now() - validationStartedAt,
+		});
+
 		// Check for required methods on the appropriate export
 		if (!result.methods.includes("onMessage")) {
 			errors.push(
@@ -120,6 +127,12 @@ export class Validator extends WorkerEntrypoint {
 		const errorMessage =
 			error instanceof Error ? error.message : "Unknown error";
 		errors.push(`Script validation failed: ${errorMessage}`);
+		const isTimeout = errorMessage.includes("Script validation timed out");
+		recordWorkerLoaderFailure(env.ANALYTICS, {
+			failureKind: isTimeout ? "validator_timeout" : "validator_error",
+			errorName: error instanceof Error ? error.name : undefined,
+			attemptCount: 1,
+		});
 	}
 
 	return {

@@ -13,5 +13,12 @@ export default defineConfig({
 		environment: "node",
 		root: dir,
 		include: ["**/*.spec.ts"],
+		coverage: {
+			provider: "istanbul",
+			reporter: ["text-summary", "json-summary", "html", "lcov"],
+			reportsDirectory: "./coverage",
+			include: ["../src/**/*.{ts,vue}"],
+			exclude: ["../src/**/*.spec.ts"],
+		},
 	},
 });

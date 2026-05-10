@@ -40,10 +40,19 @@ export default defineConfig({
 		setupFiles: ["./tests/apply-migrations.ts", "./tests/setup-test-data.ts"],
 		coverage: {
 			provider: "istanbul",
-			reporter: ["text", "json-summary", "html"],
+			reporter: ["text", "text-summary", "json-summary", "html", "lcov"],
 			reportsDirectory: "./coverage",
 			include: ["src/**/*.ts"],
 			exclude: ["src/types.d.ts"],
+			// Baseline measured 2026-05-10: lines 75.52%, statements 75.15%,
+			// functions 83.05%, branches 63.63%. Thresholds set ~5pts below to
+			// give a regression buffer while keeping the gate meaningful.
+			thresholds: {
+				lines: 70,
+				statements: 70,
+				functions: 75,
+				branches: 55,
+			},
 		},
 	},
 });

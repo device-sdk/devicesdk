@@ -27,5 +27,12 @@ export default defineConfig({
     root: dir,
     setupFiles: ["./setup.ts"],
     include: ["**/*.spec.ts"],
+    coverage: {
+      provider: "istanbul",
+      reporter: ["text-summary", "json-summary", "html", "lcov"],
+      reportsDirectory: "./coverage",
+      include: ["../../src/**/*.{ts,vue}"],
+      exclude: ["../../src/**/*.spec.ts", "../../src-pwa/**", "../../src-ssr/**"],
+    },
   },
 });

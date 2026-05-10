@@ -24,6 +24,7 @@ import {
 	VALID_LOG_LEVELS,
 	WS_CLOSE_RATE_LIMITED,
 } from "../../foundation/consts";
+import { logger } from "../../foundation/logger";
 import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
 import { type CronStorage, resolveDueCrons } from "./cronDispatch";
@@ -952,9 +953,17 @@ export class BaseDevice extends DurableObject<Env> {
 						projectId: this.deviceMeta?.projectId,
 					});
 				} else {
-					console.error(
-						"Worker init transient failure; max attempts reached, dropping batch:",
-						message,
+					logger.error(
+						err,
+						"user worker drain: transient failure, max attempts reached, dropping batch",
+						{
+							droppedCount: pending.length,
+							kinds: pending.map((e) => e.kind),
+							userId: this.deviceMeta?.userId,
+							projectId: this.deviceMeta?.projectId,
+							deviceId: this.deviceMeta?.deviceId,
+							versionId: this.deviceMeta?.versionId,
+						},
 					);
 					recordWorkerLoaderFailure(this.env.ANALYTICS, {
 						failureKind: "transient",
@@ -966,9 +975,17 @@ export class BaseDevice extends DurableObject<Env> {
 				}
 			} else {
 				// Persistent error (SyntaxError, script missing, etc.) — drop.
-				console.error(
-					"Worker unavailable while draining user events; dropping batch:",
+				logger.error(
 					err,
+					"user worker drain: persistent failure, dropping batch",
+					{
+						droppedCount: pending.length,
+						kinds: pending.map((e) => e.kind),
+						userId: this.deviceMeta?.userId,
+						projectId: this.deviceMeta?.projectId,
+						deviceId: this.deviceMeta?.deviceId,
+						versionId: this.deviceMeta?.versionId,
+					},
 				);
 				recordWorkerLoaderFailure(this.env.ANALYTICS, {
 					failureKind: "persistent",

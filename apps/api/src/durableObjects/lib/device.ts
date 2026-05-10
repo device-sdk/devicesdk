@@ -116,9 +116,6 @@ export class BaseDevice extends DurableObject<Env> {
 	private logsTableReady = false;
 	// In-memory only — cosmetic field, not durable. Avoids a storage write on the hot path.
 	private _connectedSince?: number;
-	// SSE log stream watchers — each watcher gets log events in real time
-	private logWatchers: Map<string, WritableStreamDefaultWriter<string>> =
-		new Map();
 
 	// Message counting for daily rate limits
 	private _messageCountToday = 0;
@@ -1366,17 +1363,6 @@ export class BaseDevice extends DurableObject<Env> {
 			truncated,
 			now,
 		);
-		// Emit to legacy SSE watchers
-		if (this.logWatchers.size > 0) {
-			const event = `data: ${JSON.stringify({ id, level, message: truncated, created_at: now })}\n\n`;
-			for (const [watcherId, writer] of this.logWatchers) {
-				try {
-					writer.write(event);
-				} catch {
-					this.logWatchers.delete(watcherId);
-				}
-			}
-		}
 		// Emit to hibernating watcher WebSockets (dashboard, HA, etc).
 		this.broadcastToWatchers("log", {
 			id,
@@ -1521,17 +1507,6 @@ export class BaseDevice extends DurableObject<Env> {
 		connected: boolean;
 		connectedSince: number | null;
 	}) {
-		// Legacy SSE watchers (log stream). Remove once the dashboard is migrated.
-		if (this.logWatchers.size > 0) {
-			const event = `event: status\ndata: ${JSON.stringify(status)}\n\n`;
-			for (const [watcherId, writer] of this.logWatchers) {
-				try {
-					writer.write(event);
-				} catch {
-					this.logWatchers.delete(watcherId);
-				}
-			}
-		}
 		// Hibernating watcher WebSockets (dashboard, Home Assistant, etc).
 		this.broadcastToWatchers("status", status);
 	}
@@ -1614,47 +1589,6 @@ export class BaseDevice extends DurableObject<Env> {
 			value,
 			source: "user",
 		});
-	}
-
-	/**
-	 * Returns an SSE-compatible ReadableStream that emits log events in real time.
-	 * The stream stays open until the client disconnects.
-	 */
-	async streamLogs(): Promise<ReadableStream<Uint8Array>> {
-		const watcherId = crypto.randomUUID();
-		const encoder = new TextEncoder();
-		const { readable, writable } = new TransformStream<
-			Uint8Array,
-			Uint8Array
-		>();
-		const writer = writable.getWriter();
-
-		// Wrap the writer so logWatchers can write strings (converted to bytes)
-		const stringWriter = {
-			write(s: string) {
-				writer.write(encoder.encode(s));
-			},
-			closed: writer.closed,
-		};
-		// `logWatchers` is in-memory only; on DO hibernation the Map is torn down alongside the
-		// live streams, so no cross-instance leak. Cleanup on client disconnect is handled by
-		// the `writer.closed.then(...)` below.
-		this.logWatchers.set(
-			watcherId,
-			stringWriter as unknown as WritableStreamDefaultWriter<string>,
-		);
-
-		// Send initial connection status
-		const status = await this.getConnectionStatus();
-		stringWriter.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`);
-
-		// Clean up watcher when the writable side closes (client disconnects)
-		writer.closed.then(
-			() => this.logWatchers.delete(watcherId),
-			() => this.logWatchers.delete(watcherId),
-		);
-
-		return readable;
 	}
 
 	/**

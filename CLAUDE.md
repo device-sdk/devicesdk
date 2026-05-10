@@ -85,7 +85,7 @@ examples/*
 - **Endpoints**: `src/endpoints/{resource}/router.ts` defines routes, individual files extend `OpenAPIRoute` with Zod schemas.
 - **Auth**: `src/foundation/auth.ts` — checks Bearer token → session cookie → API token (prefix `dsdk_`). User available via `c.get("user")`, query builder via `c.get("qb")`.
 - **Durable Objects**: `src/durableObjects/lib/device.ts` — `BaseDevice` handles WebSocket device connections. Uses the Hibernation API (`webSocketMessage`, `webSocketClose`, `webSocketError`). Both `webSocketClose` and `webSocketError` must be implemented — abrupt TCP drops (e.g. device hard reboot) fire `webSocketError`, not `webSocketClose`. Never send a WebSocket close frame immediately after a command that triggers a device reboot; let the connection drop naturally.
-- **SSE Streaming**: `GET /v1/projects/:projectId/devices/:deviceId/logs/stream` — Server-Sent Events endpoint for real-time log streaming. The DO's `streamLogs()` method returns a `ReadableStream<Uint8Array>` that emits `data:` events (log entries) and `event: status` events (connection changes). Watchers are stored in `logWatchers` Map and cleaned up automatically.
+- **Real-time streaming**: `GET /v1/projects/:projectId/devices/:deviceId/watch` — WebSocket endpoint that streams `log`, `status`, and `state` frames to dashboard / Home Assistant clients. Uses Hibernation API watcher sockets in `device.ts` (`handleWatcherUpgrade`, `broadcastToWatchers`, `broadcastStateFromMessage`). The legacy `/logs/stream` SSE endpoint was removed in favour of this.
 - **Bindings**: `DB` (D1), `SCRIPTS`/`FIRMWARES` (R2), `DEVICE` (Durable Object), `LOADER` (Worker Loader for sandboxed user scripts).
 - **Cron**: Hourly trigger (`"0 * * * *"` in `wrangler.jsonc`) — handler in `src/scheduled.ts` (or routed via `src/index.ts`'s `scheduled` export). See `tests/integration/cronDispatch.test.ts` for behavior.
 - **Response format**: `{ "success": true, "result": ... }` or `{ "success": false, "error": "..." }`.
@@ -209,7 +209,6 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 | DevicesBridge (inter-device RPC) | `apps/api/src/durableObjects/lib/devicesBridge.ts` |
 | CLI type generation | `packages/cli/src/commands/build.ts` (`generateDeviceTypes`) |
 | Real-time watch WebSocket (canonical) | `apps/api/src/endpoints/devices/watchDevice.ts`, `apps/api/src/durableObjects/lib/device.ts` (`handleWatcherUpgrade`, `broadcastToWatchers`, `broadcastStateFromMessage`) |
-| Real-time log streaming (SSE, deprecated) | `apps/api/src/endpoints/logs/streamLogs.ts`, `apps/api/src/durableObjects/lib/device.ts` (`streamLogs`, `logWatchers`) |
 | Dashboard watch WebSocket composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
 | HA entity declaration types | `packages/core/src/index.ts` (`HaEntityDeclaration`, `HaEntityType`, `HaEntitySource`) |
 | HA entity persistence | `apps/api/src/endpoints/devices/getDeviceEntities.ts`, `apps/api/src/endpoints/devices/upsertDeviceEntities.ts`, `device_entity_configs` table |

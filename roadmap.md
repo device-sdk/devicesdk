@@ -41,6 +41,17 @@ status, env, tokens) have only the existing co-located src/*.test.ts coverage.
 **Done when:** each command in `packages/cli/src/commands/` has at least a
 happy-path + one error-path test in `packages/cli/tests/`.
 
+### Further `device.ts` slimming
+**Why:** The May 2026 audit follow-up extracted `userEventQueue.ts` and
+`logStreaming.ts` from `apps/api/src/durableObjects/lib/device.ts`, taking it
+from 1633 → 1316 LOC. The file is still ~2x the 700 LOC CLAUDE.md ceiling.
+The remaining bulk is `alarm()`, `webSocketMessage()`, `webSocketClose/Error`,
+and Worker-Loader plumbing — these touch DO state heavily and don't extract
+cleanly into pure-function modules.
+**Done when:** device.ts is under 700 LOC, OR a written justification lives
+inline explaining why further splits hurt readability/cohesion more than they
+help (DO-specific reasoning, e.g. hibernation API constraints).
+
 ### Per-tab components for DeviceDetailsPage
 **Why:** This PR extracted the ~300 LOC of inline script templates to
 `apps/dashboard/src/lib/scriptTemplates.ts`, getting the page from 943 → 629

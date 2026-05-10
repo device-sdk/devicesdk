@@ -68,8 +68,13 @@ export interface DrainDeps {
 export async function drainPendingUserWorkerEvents(
 	deps: DrainDeps,
 ): Promise<IUserDeviceWorker | null> {
-	const { storage, analytics, getOrCreateUserWorker, initializeCrons, deviceMeta } =
-		deps;
+	const {
+		storage,
+		analytics,
+		getOrCreateUserWorker,
+		initializeCrons,
+		deviceMeta,
+	} = deps;
 
 	const pending = await storage.get<PendingUserEvent[]>(
 		PENDING_USER_EVENTS_KEY,

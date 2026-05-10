@@ -5,16 +5,8 @@ import type {
 	DeviceResponse,
 } from "@devicesdk/core";
 import { z } from "zod";
+import { recordCommandRpc, recordScriptInit } from "../../foundation/analytics";
 import {
-	recordCommandRpc,
-	recordScriptInit,
-} from "../../foundation/analytics";
-import {
-	LOG_CLEANUP_INTERVAL,
-	LOG_CLEANUP_MIN_INTERVAL_MS,
-	LOG_MAX_STORED,
-	LOG_MESSAGE_MAX_LENGTH,
-	LOG_RETENTION_MS,
 	type LogLevel,
 	MESSAGE_COUNT_DATE_KEY,
 	MESSAGE_COUNT_KEY,
@@ -28,6 +20,14 @@ import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
 import { type CronStorage, resolveDueCrons } from "./cronDispatch";
 import { nextCronTime } from "./cronParser";
+import {
+	broadcastStateFromMessage,
+	broadcastToWatchers,
+	emitStatusEvent,
+	fetchRecentLogs,
+	type LogStreamState,
+	persistAndBroadcastLog,
+} from "./logStreaming";
 import {
 	drainPendingUserWorkerEvents,
 	enqueueUserWorkerEvent,
@@ -96,8 +96,12 @@ export class BaseDevice extends DurableObject<Env> {
 	private static readonly MAX_PENDING_COMMANDS = 100;
 	private _session?: DeviceSession;
 	private pendingCommands: Map<string, PendingCommand> = new Map();
-	private logWriteCount = 0;
-	private logsTableReady = false;
+	// Mutable holder for log-streaming bookkeeping. See logStreaming.ts.
+	private logStream: LogStreamState = {
+		logsTableReady: false,
+		logWriteCount: 0,
+		lastLogCleanupAt: 0,
+	};
 	// In-memory only — cosmetic field, not durable. Avoids a storage write on the hot path.
 	private _connectedSince?: number;
 
@@ -110,10 +114,6 @@ export class BaseDevice extends DurableObject<Env> {
 	// answer for "are there any cron schedules?". Lets alarm() skip the
 	// CRON_STORAGE_KEY read once we've confirmed there are none.
 	private _hasCrons: boolean | null = null;
-
-	// In-memory throttle for the device_logs cleanup query, which can scan up
-	// to LOG_MAX_STORED rows per fire. Reset on DO eviction.
-	private _lastLogCleanupAt = 0;
 
 	// Cached user worker stub, keyed by workerId (project:device:version).
 	// A new script deploy bumps versionId → workerId → cache miss → rebuild.
@@ -224,7 +224,10 @@ export class BaseDevice extends DurableObject<Env> {
 						? rawLevel
 						: undefined;
 				try {
-					const { logs } = this.fetchRecentLogs({ limit, level });
+					const { logs } = fetchRecentLogs(this.ctx, this.logStream, {
+						limit,
+						level,
+					});
 					// Send oldest first so the client can append in display order.
 					for (let i = logs.length - 1; i >= 0; i--) {
 						server.send(
@@ -323,8 +326,8 @@ export class BaseDevice extends DurableObject<Env> {
 
 		await this.ctx.storage.put(CONNECTED_SINCE_KEY, this._connectedSince);
 
-		// Notify SSE watchers of new connection
-		this.emitStatusEvent({
+		// Notify watcher WebSockets of new connection
+		emitStatusEvent(this.ctx, {
 			connected: true,
 			connectedSince: this._connectedSince,
 		});
@@ -667,7 +670,7 @@ export class BaseDevice extends DurableObject<Env> {
 			// Fan out structured state events to watchers for known hardware messages.
 			// Doing this alongside (not instead of) pending-command resolution and user
 			// worker dispatch so existing flows are unaffected.
-			this.broadcastStateFromMessage(message);
+			broadcastStateFromMessage(this.ctx, message);
 
 			const pendingCommand = this.pendingCommands.get(message.id);
 
@@ -878,8 +881,8 @@ export class BaseDevice extends DurableObject<Env> {
 
 		await this.ctx.storage.delete(CONNECTED_SINCE_KEY);
 
-		// Notify SSE watchers of disconnection
-		this.emitStatusEvent({ connected: false, connectedSince: null });
+		// Notify watcher WebSockets of disconnection
+		emitStatusEvent(this.ctx, { connected: false, connectedSince: null });
 
 		// Update cached connection status in D1. deviceMeta may be absent after
 		// hibernation, so fall back to reading it from durable storage.
@@ -1178,71 +1181,13 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * Ensures the device_logs SQLite table exists in this DO's storage.
-	 */
-	private ensureLogsTable(): void {
-		if (this.logsTableReady) return;
-		this.ctx.storage.sql.exec(`
-			CREATE TABLE IF NOT EXISTS device_logs (
-				id TEXT PRIMARY KEY,
-				level TEXT NOT NULL,
-				message TEXT NOT NULL,
-				created_at INTEGER NOT NULL
-			)
-		`);
-		this.ctx.storage.sql.exec(
-			"CREATE INDEX IF NOT EXISTS idx_logs_created_at ON device_logs(created_at)",
-		);
-		this.logsTableReady = true;
-	}
-
-	/**
-	 * Persists a log entry from user code into DO SQLite storage.
-	 * Called via DeviceSender RPC from the proxy entrypoint's console override.
+	 * Persists a log entry from user code into DO SQLite storage and
+	 * broadcasts it to watcher WebSockets. Called via DeviceSender RPC from
+	 * the proxy entrypoint's console override. Implementation lives in
+	 * `logStreaming.persistAndBroadcastLog`.
 	 */
 	async persistLog(level: string, message: string): Promise<void> {
-		if (!VALID_LOG_LEVELS.includes(level as LogLevel)) return;
-		this.ensureLogsTable();
-		const truncated =
-			message.length > LOG_MESSAGE_MAX_LENGTH
-				? message.slice(0, LOG_MESSAGE_MAX_LENGTH)
-				: message;
-		const id = crypto.randomUUID();
-		const now = Date.now();
-		this.ctx.storage.sql.exec(
-			"INSERT INTO device_logs (id, level, message, created_at) VALUES (?, ?, ?, ?)",
-			id,
-			level,
-			truncated,
-			now,
-		);
-		// Emit to hibernating watcher WebSockets (dashboard, HA, etc).
-		this.broadcastToWatchers("log", {
-			id,
-			level,
-			message: truncated,
-			created_at: now,
-		});
-		this.logWriteCount++;
-		// Throttle cleanup by both write count and wall clock — the overflow
-		// DELETE scans up to LOG_MAX_STORED rows, so running it every 10 writes
-		// burned DO rows-read on chatty scripts. Both gates must pass.
-		if (
-			this.logWriteCount % LOG_CLEANUP_INTERVAL === 0 &&
-			now - this._lastLogCleanupAt > LOG_CLEANUP_MIN_INTERVAL_MS
-		) {
-			this._lastLogCleanupAt = now;
-			this.ctx.storage.sql.exec(
-				"DELETE FROM device_logs WHERE created_at < ?",
-				now - LOG_RETENTION_MS,
-			);
-			this.ctx.storage.sql.exec(
-				`DELETE FROM device_logs WHERE id NOT IN (
-					SELECT id FROM device_logs ORDER BY created_at DESC LIMIT ?
-				)`,
-				LOG_MAX_STORED,
-			);
-		}
+		persistAndBroadcastLog(this.ctx, this.logStream, level, message);
 	}
 
 	/**
@@ -1295,51 +1240,6 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * Fetches the most recent N log rows (newest first), optionally filtered
-	 * by level. No cursor \u2014 used by the watcher WS backfill where the client
-	 * just wants "the last N events I might have missed."
-	 *
-	 * Synchronous because `storage.sql.exec(...).toArray()` is sync; the
-	 * surrounding async wrapper exists only because callers may await it.
-	 */
-	private fetchRecentLogs(opts: { limit: number; level?: string }): {
-		logs: Array<{
-			id: string;
-			level: string;
-			message: string;
-			created_at: number;
-		}>;
-	} {
-		this.ensureLogsTable();
-		const limit = Math.min(Math.max(opts.limit, 1), 100);
-		const rows = opts.level
-			? this.ctx.storage.sql
-					.exec(
-						`SELECT id, level, message, created_at FROM device_logs
-					 WHERE level = ?
-					 ORDER BY created_at DESC, id DESC LIMIT ?`,
-						opts.level,
-						limit,
-					)
-					.toArray()
-			: this.ctx.storage.sql
-					.exec(
-						`SELECT id, level, message, created_at FROM device_logs
-					 ORDER BY created_at DESC, id DESC LIMIT ?`,
-						limit,
-					)
-					.toArray();
-		return {
-			logs: rows as Array<{
-				id: string;
-				level: string;
-				message: string;
-				created_at: number;
-			}>,
-		};
-	}
-
-	/**
 	 * Returns the live WebSocket connection status of the device.
 	 * Uses getWebSockets() which is always authoritative for Hibernation API connections.
 	 */
@@ -1356,88 +1256,13 @@ export class BaseDevice extends DurableObject<Env> {
 		return { connected, connectedSince };
 	}
 
-	private emitStatusEvent(status: {
-		connected: boolean;
-		connectedSince: number | null;
-	}) {
-		// Hibernating watcher WebSockets (dashboard, Home Assistant, etc).
-		this.broadcastToWatchers("status", status);
-	}
-
-	/**
-	 * Fans an event out to every hibernating "watcher"-tagged WebSocket.
-	 * Called from within `webSocketMessage` and other handlers that are
-	 * already in a woken-DO context — adding watchers costs no extra duration.
-	 */
-	private broadcastToWatchers(event: string, data: unknown) {
-		const sockets = this.ctx.getWebSockets("watcher");
-		if (sockets.length === 0) return;
-		const msg = JSON.stringify({ event, data });
-		for (const ws of sockets) {
-			try {
-				ws.send(msg);
-			} catch {
-				// client gone; hibernation runtime will clean up
-			}
-		}
-	}
-
-	/**
-	 * Emits a structured `state` event to watchers for well-known hardware
-	 * messages from the firmware. Unknown message types are ignored here and
-	 * still flow through the normal user worker `onMessage` path.
-	 */
-	private broadcastStateFromMessage(message: DeviceResponse) {
-		try {
-			switch (message.type) {
-				case "gpio_state_changed": {
-					const { pin, state } = message.payload as {
-						pin: number;
-						state: "high" | "low";
-					};
-					if (typeof pin !== "number" || pin < 0 || pin > 255) break;
-					this.broadcastToWatchers("state", {
-						entity_id: `gpio_pin_${pin}`,
-						value: state,
-						source: "gpio_state_changed",
-					});
-					break;
-				}
-				case "pin_state_update": {
-					const { pin, value } = message.payload as {
-						pin: number;
-						value: number | string;
-					};
-					if (typeof pin !== "number" || pin < 0 || pin > 255) break;
-					this.broadcastToWatchers("state", {
-						entity_id: `gpio_pin_${pin}_analog`,
-						value,
-						source: "pin_state_update",
-					});
-					break;
-				}
-				case "temperature_result": {
-					const { celsius } = message.payload as { celsius: number };
-					this.broadcastToWatchers("state", {
-						entity_id: "temperature",
-						value: celsius,
-						source: "temperature_result",
-					});
-					break;
-				}
-			}
-		} catch (error) {
-			logger.error(error, "Failed to broadcast state from message");
-		}
-	}
-
 	/**
 	 * RPC entry point for user scripts calling `this.env.DEVICE.emitState(...)`.
 	 * The user worker invokes this via DeviceSender; it broadcasts a `state`
 	 * event with `source: "user"` to all watcher sockets.
 	 */
 	async emitState(entityId: string, value: unknown): Promise<void> {
-		this.broadcastToWatchers("state", {
+		broadcastToWatchers(this.ctx, "state", {
 			entity_id: entityId,
 			value,
 			source: "user",

@@ -38,6 +38,11 @@ export default defineConfig({
 	],
 	test: {
 		setupFiles: ["./tests/apply-migrations.ts", "./tests/setup-test-data.ts"],
+		// Unit tests live in tests/unit/ and run under a node environment via
+		// tests/vitest.unit.config.mts — they don't (and can't) run under the
+		// Cloudflare Workers pool because they vi.mock modules that the pool's
+		// bundling doesn't intercept.
+		exclude: ["tests/unit/**", "node_modules/**"],
 		coverage: {
 			provider: "istanbul",
 			reporter: ["text", "text-summary", "json-summary", "html", "lcov"],

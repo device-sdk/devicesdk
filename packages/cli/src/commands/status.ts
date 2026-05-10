@@ -6,12 +6,14 @@ import {
 } from "../api.js";
 import { requireAuth } from "../credentials.js";
 import { EXIT } from "../exitCodes.js";
+import { emitJsonError, emitJsonSuccess, isJsonMode } from "../output.js";
 import { loadConfig } from "../utils.js";
 
 interface StatusOptions {
 	project?: string;
 	device?: string;
 	config?: string;
+	json?: boolean;
 }
 
 function formatRelativeTime(ms: number): string {
@@ -43,6 +45,7 @@ function formatVersion(versionId: string | null): string {
 export default async function status(
 	options: StatusOptions = {},
 ): Promise<void> {
+	const json = isJsonMode(options);
 	try {
 		const token = await requireAuth();
 
@@ -61,13 +64,23 @@ export default async function status(
 			devices = await listDevices(token, projectId);
 		} catch (error) {
 			if (error instanceof DeviceSDKApiError && error.statusCode === 404) {
-				console.error(`✗ Project "${projectId}" not found.`);
+				const msg = `Project "${projectId}" not found.`;
+				if (json)
+					emitJsonError(msg, {
+						code: "project_not_found",
+						docs: "https://devicesdk.com/docs/cli/status/",
+					});
+				else console.error(`✗ ${msg}`);
 				process.exit(EXIT.GENERIC);
 			}
 			throw error;
 		}
 
 		if (devices.length === 0) {
+			if (json) {
+				emitJsonSuccess({ projectId, devices: [] });
+				return;
+			}
 			console.log(`Project: ${projectId}\n`);
 			console.log("No devices found.");
 			return;
@@ -78,9 +91,13 @@ export default async function status(
 		if (options.device) {
 			devicesToShow = devices.filter((d) => d.device_id === options.device);
 			if (devicesToShow.length === 0) {
-				console.error(
-					`✗ Device "${options.device}" not found in project "${projectId}".`,
-				);
+				const msg = `Device "${options.device}" not found in project "${projectId}".`;
+				if (json)
+					emitJsonError(msg, {
+						code: "device_not_found",
+						docs: "https://devicesdk.com/docs/cli/status/",
+					});
+				else console.error(`✗ ${msg}`);
 				process.exit(EXIT.GENERIC);
 			}
 		}
@@ -104,6 +121,21 @@ export default async function status(
 		const statusErrors: boolean[] = settledStatuses.map(
 			(result) => result.status === "rejected",
 		);
+
+		if (json) {
+			emitJsonSuccess({
+				projectId,
+				devices: devicesToShow.map((device, i) => ({
+					deviceId: device.device_id,
+					connected: statuses[i].connected,
+					connectedSince: statuses[i].connected_since,
+					lastConnectedAt: statuses[i].last_connected_at,
+					currentVersionId: statuses[i].current_version_id,
+					statusError: statusErrors[i] || undefined,
+				})),
+			});
+			return;
+		}
 
 		const rows = devicesToShow.map((device, i) => ({ device, s: statuses[i] }));
 
@@ -156,7 +188,12 @@ export default async function status(
 		console.log("");
 	} catch (error) {
 		if (error instanceof DeviceSDKApiError) {
-			console.error(`✗ Error: ${error.message}`);
+			if (json)
+				emitJsonError(error.message, {
+					code: error.code,
+					docs: "https://devicesdk.com/docs/cli/status/",
+				});
+			else console.error(`✗ Error: ${error.message}`);
 			process.exit(EXIT.GENERIC);
 		}
 		throw error;

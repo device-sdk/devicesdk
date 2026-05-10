@@ -476,4 +476,74 @@ describe.sequential("Authentication", () => {
 			expect(resp.status).toBe(401);
 		});
 	});
+
+	describe("error response shape", () => {
+		test("missing credentials returns code + docs", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me");
+			expect(res.status).toBe(401);
+			const body = (await res.json()) as {
+				success: boolean;
+				error: string;
+				code: string;
+				docs: string;
+			};
+			expect(body.success).toBe(false);
+			expect(body.code).toBe("missing_credentials");
+			expect(body.docs).toBe(
+				"https://devicesdk.com/docs/errors/missing_credentials/",
+			);
+			expect(body.error).toMatch(/Bearer token/);
+		});
+
+		test("invalid bearer token returns code=invalid_token + docs", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: "Bearer not-a-real-token" },
+			});
+			expect(res.status).toBe(401);
+			const body = (await res.json()) as {
+				success: boolean;
+				code: string;
+				docs: string;
+			};
+			expect(body.success).toBe(false);
+			expect(body.code).toBe("invalid_token");
+			expect(body.docs).toBe(
+				"https://devicesdk.com/docs/errors/invalid_token/",
+			);
+		});
+
+		test("invalid CLI token returns code=invalid_cli_token + docs", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: "Bearer dsdk_not-a-real-cli-token" },
+			});
+			expect(res.status).toBe(401);
+			const body = (await res.json()) as {
+				success: boolean;
+				code: string;
+				docs: string;
+			};
+			expect(body.success).toBe(false);
+			expect(body.code).toBe("invalid_cli_token");
+			expect(body.docs).toBe(
+				"https://devicesdk.com/docs/errors/invalid_cli_token/",
+			);
+		});
+
+		test("suspended user returns code=account_suspended + docs", async () => {
+			const res = await SELF.fetch("http://localhost/v1/user/me", {
+				headers: { Authorization: `Bearer ${TEST_SUSPENDED_SESSION_TOKEN}` },
+			});
+			expect(res.status).toBe(403);
+			const body = (await res.json()) as {
+				success: boolean;
+				code: string;
+				docs: string;
+			};
+			expect(body.success).toBe(false);
+			expect(body.code).toBe("account_suspended");
+			expect(body.docs).toBe(
+				"https://devicesdk.com/docs/errors/account_suspended/",
+			);
+		});
+	});
 });

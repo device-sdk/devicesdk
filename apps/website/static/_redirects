@@ -5,5 +5,6 @@
 
 /docs/resources/hardware/         /docs/hardware/        301
 /docs/resources/hardware/:slug    /docs/hardware/:slug   301
+/docs/resources/changelog/        /docs/changelog/       301
 /docs/guides/control-from-browser/ /docs/guides/         301
 /docs                              /docs/                301

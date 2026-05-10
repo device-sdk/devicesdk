@@ -57,7 +57,7 @@ Visit your [dashboard](https://dash.devicesdk.com) to:
 - Manage device credentials
 - Track version history
 
-## Step 4: Store Secrets with Environment Variables
+## Step 5: Store Secrets with Environment Variables
 
 Keep API keys and credentials out of your source code using project-scoped environment variables:
 

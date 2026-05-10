@@ -70,13 +70,13 @@ export async function generateDeviceTypes(
 // Re-run \`devicesdk build\` to regenerate after config changes.
 
 ${imports.join("\n")}
-import type { GetEnv } from "@devicesdk/core";
+import type { UserWorkerEnv } from "@devicesdk/core";
 
 export type ProjectDevices = {
 ${deviceMap.join("\n")}
 };
 
-export type Env = GetEnv<ProjectDevices>;
+export type Env = UserWorkerEnv<ProjectDevices>;
 `;
 
 	const outPath = path.join(configDir, "devicesdk-env.d.ts");

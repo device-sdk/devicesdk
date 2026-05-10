@@ -12,20 +12,25 @@ npm install @devicesdk/core
 
 ### Device entrypoints
 
-Extend the `DeviceEntrypoint` class to write device scripts:
+Extend the `DeviceEntrypoint` class to write device scripts. Your script runs in a sandboxed serverless runtime — **not on the microcontroller and not in Node.js**. It receives events from the device over WebSocket and can issue commands back through `this.env.DEVICE`.
 
 ```typescript
-import { DeviceEntrypoint } from "@devicesdk/core";
+import { DeviceEntrypoint, type DeviceResponse } from "@devicesdk/core";
 
 export class MyDevice extends DeviceEntrypoint {
   // Called when the physical device connects via WebSocket
   async onDeviceConnect() {
-    await this.ctx.device.log("Device connected!");
+    console.log("Device connected!");
+    // Light up the onboard LED (virtual pin 99 on Pico W and ESP32 boards)
+    await this.env.DEVICE.setGpioState(99, "high");
   }
 
-  // Called when a response/event is received from the device
-  async onMessage(message) {
-    await this.ctx.device.log(`Received: ${JSON.stringify(message)}`);
+  // Called when a response/event is received from the device.
+  // `message` is a discriminated union — narrow on `message.type`.
+  async onMessage(message: DeviceResponse) {
+    if (message.type === "pin_state_update") {
+      console.log(`Pin ${message.payload.pin} = ${message.payload.value}`);
+    }
   }
 
   // Called when the device disconnects
@@ -35,8 +40,8 @@ export class MyDevice extends DeviceEntrypoint {
   crons = { daily: "0 8 * * *" };
 
   // Called when a named cron fires
-  async onCron(name) {
-    await this.ctx.device.log(`Cron fired: ${name}`);
+  async onCron(name: string) {
+    console.log(`Cron fired: ${name}`);
   }
 }
 ```

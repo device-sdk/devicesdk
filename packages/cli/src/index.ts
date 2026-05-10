@@ -28,7 +28,13 @@ program
 	.description(
 		"CLI tool for developing and deploying DeviceSDK IoT applications",
 	)
-	.version(pkg.version);
+	.version(pkg.version)
+	.addHelpText(
+		"after",
+		`
+Docs: https://devicesdk.com/docs/cli/
+Set DEVICESDK_OUTPUT=json to make every read command emit machine-readable JSON.`,
+	);
 
 // Auth commands
 program
@@ -40,7 +46,9 @@ program
 		`
 Examples:
   $ devicesdk login
-  $ devicesdk login --verbose`,
+  $ devicesdk login --verbose
+
+More: https://devicesdk.com/docs/cli/login/`,
 	)
 	.action(login);
 
@@ -51,20 +59,26 @@ program
 		"after",
 		`
 Examples:
-  $ devicesdk logout`,
+  $ devicesdk logout
+
+More: https://devicesdk.com/docs/cli/login/`,
 	)
 	.action(logout);
 
 program
 	.command("whoami")
 	.description("Display current authenticated user")
+	.option("--json", "Emit a machine-readable JSON document and exit")
 	.addHelpText(
 		"after",
 		`
 Examples:
-  $ devicesdk whoami`,
+  $ devicesdk whoami
+  $ devicesdk whoami --json
+
+More: https://devicesdk.com/docs/cli/login/`,
 	)
-	.action(whoami);
+	.action((options) => whoami(options));
 
 // Project commands
 program
@@ -80,10 +94,15 @@ program
 	.addHelpText(
 		"after",
 		`
+Generates AGENTS.md, CLAUDE.md, .cursor/rules/devicesdk.mdc, and .mcp.json
+so AI coding agents working in the new project have project-specific context.
+
 Examples:
   $ devicesdk init my-iot-project
   $ devicesdk init --template multi-device my-farm
-  $ devicesdk init --no-git empty-scaffold`,
+  $ devicesdk init --no-git empty-scaffold
+
+More: https://devicesdk.com/docs/cli/init/`,
 	)
 	.action((projectId, options) => init(projectId, options));
 
@@ -128,13 +147,15 @@ program
 	.option("-m, --message <text>", "Deployment message (version note)")
 	.option("--dry-run", "Validate without uploading")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("--json", "Emit a machine-readable JSON document and exit")
 	.addHelpText(
 		"after",
 		`
 Examples:
   $ devicesdk deploy
   $ devicesdk deploy --device sensor-1 -m "Fix temperature drift"
-  $ devicesdk deploy --dry-run`,
+  $ devicesdk deploy --dry-run
+  $ devicesdk deploy --json | jq '.result.versions[].versionId'`,
 	)
 	.action(deploy);
 
@@ -148,6 +169,10 @@ program
 		"Filter by log level: log, info, warn, error, debug",
 	)
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option(
+		"--json",
+		"Emit JSON. Non-tail: single { success, result } document. Tail: NDJSON, one event per line.",
+	)
 	.addHelpText(
 		"after",
 		`
@@ -155,7 +180,10 @@ Examples:
   $ devicesdk logs                                  # uses devicesdk.ts in current dir or any parent
   $ devicesdk logs sensor-1                         # multi-device project: pick one
   $ devicesdk logs my-project sensor-1 --tail
-  $ devicesdk logs my-project sensor-1 --level error -n 200`,
+  $ devicesdk logs my-project sensor-1 --level error -n 200
+  $ devicesdk logs --tail --json | jq             # NDJSON stream
+
+More: https://devicesdk.com/docs/cli/logs/`,
 	)
 	.action((arg1, arg2, options) => {
 		// One positional → treat as device-id (project from config).
@@ -167,6 +195,7 @@ Examples:
 			lines: Number(options.lines),
 			level: options.level,
 			config: options.config,
+			json: options.json,
 		});
 	});
 
@@ -210,13 +239,17 @@ program
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-d, --device <id>", "Show status for a single device only")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("--json", "Emit a machine-readable JSON document and exit")
 	.addHelpText(
 		"after",
 		`
 Examples:
   $ devicesdk status
   $ devicesdk status --project my-project
-  $ devicesdk status --device sensor-1`,
+  $ devicesdk status --device sensor-1
+  $ devicesdk status --json | jq '.result.devices[].connected'
+
+More: https://devicesdk.com/docs/cli/status/`,
 	)
 	.action(status);
 
@@ -246,12 +279,14 @@ envCmd
 	.description("Set one or more env vars (KEY=VALUE format)")
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("--json", "Emit a machine-readable JSON document and exit")
 	.addHelpText(
 		"after",
 		`
 Examples:
   $ devicesdk env set DISCORD_WEBHOOK=https://discord.com/api/webhooks/...
-  $ devicesdk env set API_KEY=abc123 DEBUG=true`,
+  $ devicesdk env set API_KEY=abc123 DEBUG=true
+  $ devicesdk env set API_KEY=abc123 --json`,
 	)
 	.action((pairs, options) => envSet(pairs, options));
 
@@ -260,12 +295,19 @@ envCmd
 	.description("List env var keys for the project (values are never shown)")
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("--json", "Emit a machine-readable JSON document and exit")
 	.addHelpText(
 		"after",
 		`
+Note: env var *values* are never returned by the API. Read them inside your
+device script with \`await this.env.VARS.get("KEY")\`.
+
 Examples:
   $ devicesdk env list
-  $ devicesdk env list --project my-project`,
+  $ devicesdk env list --project my-project
+  $ devicesdk env list --json
+
+More: https://devicesdk.com/docs/concepts/env-vars/`,
 	)
 	.action((options) => envList(options));
 
@@ -274,11 +316,13 @@ envCmd
 	.description("Remove an env var")
 	.option("-p, --project <id>", "Project ID (overrides devicesdk.ts)")
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
+	.option("--json", "Emit a machine-readable JSON document and exit")
 	.addHelpText(
 		"after",
 		`
 Examples:
-  $ devicesdk env unset DISCORD_WEBHOOK`,
+  $ devicesdk env unset DISCORD_WEBHOOK
+  $ devicesdk env unset DISCORD_WEBHOOK --json`,
 	)
 	.action((key, options) => envUnset(key, options));
 

@@ -7,6 +7,7 @@ import * as esbuild from "esbuild";
 import { ZodError, type z } from "zod";
 import { type DeviceSDKConfig, DeviceSDKConfigSchema } from "./config.js";
 import { EXIT } from "./exitCodes.js";
+import { emitJsonError, isJsonMode } from "./output.js";
 
 const CONFIG_FILENAME = "devicesdk.ts";
 
@@ -53,13 +54,24 @@ export async function loadConfig(
 	configPath?: string,
 ): Promise<DeviceSDKConfig> {
 	const resolvedPath = resolveConfigPath(configPath);
+	// Honour DEVICESDK_OUTPUT=json so JSON consumers (the MCP server, agents,
+	// scripts) get a parseable failure rather than stderr noise + empty stdout.
+	const json = isJsonMode();
+	const docs = "https://devicesdk.com/docs/cli/init/";
 
 	try {
 		await fs.access(resolvedPath);
 	} catch {
-		console.error(`✗ Error: Config file not found\n`);
-		console.error(`  Expected: ${resolvedPath}`);
-		console.error(`  Run \`devicesdk init\` to create a new project.`);
+		if (json) {
+			emitJsonError(
+				`Config file not found at ${resolvedPath}. Run \`devicesdk init\` to create a new project.`,
+				{ code: "config_not_found", docs },
+			);
+		} else {
+			console.error(`✗ Error: Config file not found\n`);
+			console.error(`  Expected: ${resolvedPath}`);
+			console.error(`  Run \`devicesdk init\` to create a new project.`);
+		}
 		process.exit(EXIT.CONFIG_LOAD_FAILED);
 	}
 
@@ -93,15 +105,34 @@ export async function loadConfig(
 		return DeviceSDKConfigSchema.parse(config);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			console.error(`✗ Error: Invalid configuration in ${resolvedPath}\n`);
-			error.issues.forEach((issue: z.ZodIssue) => {
-				console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
-			});
+			if (json) {
+				const issues = error.issues
+					.map(
+						(issue: z.ZodIssue) => `${issue.path.join(".")}: ${issue.message}`,
+					)
+					.join("; ");
+				emitJsonError(`Invalid configuration in ${resolvedPath}: ${issues}`, {
+					code: "config_invalid",
+					docs,
+				});
+			} else {
+				console.error(`✗ Error: Invalid configuration in ${resolvedPath}\n`);
+				error.issues.forEach((issue: z.ZodIssue) => {
+					console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
+				});
+			}
 			process.exit(EXIT.CONFIG_LOAD_FAILED);
 		}
-		console.error(`✗ Error: Could not load config file\n`);
-		if (error instanceof Error) {
-			console.error(`  ${error.message}`);
+		const msg =
+			error instanceof Error ? error.message : "Could not load config file";
+		if (json) {
+			emitJsonError(`Could not load config file: ${msg}`, {
+				code: "config_load_failed",
+				docs,
+			});
+		} else {
+			console.error(`✗ Error: Could not load config file\n`);
+			console.error(`  ${msg}`);
 		}
 		process.exit(EXIT.CONFIG_LOAD_FAILED);
 	}

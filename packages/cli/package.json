@@ -4,7 +4,7 @@
 	"description": "CLI for building, deploying, and flashing DeviceSDK IoT projects.",
 	"author": "DeviceSDK <hello@devicesdk.com>",
 	"license": "SEE LICENSE IN LICENSE",
-	"homepage": "https://devicesdk.com",
+	"homepage": "https://devicesdk.com/docs/",
 	"bugs": {
 		"url": "https://github.com/device-sdk/devicesdk-monorepo/issues"
 	},
@@ -15,7 +15,18 @@
 		"devicesdk",
 		"deploy",
 		"flash",
-		"firmware"
+		"firmware",
+		"microcontroller",
+		"pico",
+		"esp32",
+		"raspberry-pi-pico",
+		"home-assistant",
+		"over-the-air",
+		"ota",
+		"webhook",
+		"serverless",
+		"cli-tool",
+		"arduino-alternative"
 	],
 	"main": "dist/index.js",
 	"bin": {

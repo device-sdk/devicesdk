@@ -4,7 +4,7 @@
 	"description": "Core TypeScript types and device abstractions for DeviceSDK IoT applications.",
 	"author": "DeviceSDK <hello@devicesdk.com>",
 	"license": "SEE LICENSE IN LICENSE",
-	"homepage": "https://devicesdk.com",
+	"homepage": "https://devicesdk.com/docs/",
 	"bugs": {
 		"url": "https://github.com/device-sdk/devicesdk-monorepo/issues"
 	},
@@ -14,7 +14,29 @@
 		"devicesdk",
 		"microcontroller",
 		"pico",
-		"esp32"
+		"esp32",
+		"esp32-c3",
+		"esp32-c61",
+		"raspberry-pi-pico",
+		"rp2040",
+		"rp2350",
+		"gpio",
+		"i2c",
+		"spi",
+		"uart",
+		"pwm",
+		"adc",
+		"oled",
+		"ws2812",
+		"neopixel",
+		"home-assistant",
+		"over-the-air",
+		"ota",
+		"webhook",
+		"serverless",
+		"edge",
+		"firmware",
+		"arduino-alternative"
 	],
 	"main": "dist/index.js",
 	"exports": {
@@ -30,10 +52,16 @@
 			"types": "./dist/devices/pico.d.ts",
 			"import": "./dist/devices/pico.js"
 		},
+		"./devices/esp32": {
+			"types": "./dist/devices/esp32.d.ts",
+			"import": "./dist/devices/esp32.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"files": [
 		"dist",
+		"docs",
+		"AGENTS.md",
 		"LICENSE",
 		"README.md"
 	],

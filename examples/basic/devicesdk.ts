@@ -1,20 +1,17 @@
 import { defineConfig } from "@devicesdk/cli";
 
 export default defineConfig({
-  projectId: "dummy",
+  projectId: "example-basic",
   devices: {
-    "device": {
-      // main: "./src/devices/device.ts",
-      // main: "./src/devices/button.ts",
-      main: "./src/devices/door-sensor.ts",
+    device: {
+      main: "./src/devices/device.ts",
       className: "MyDevice",
       name: "Main Device",
-      //deviceType: 'pico2-w',
-      deviceType: 'esp32c3',
+      deviceType: "pico-w",
       wifi: {
-        ssid: 'Nau',
-        password: '12345679'
-      }
-    }
+        ssid: "YOUR_WIFI_SSID",
+        password: "YOUR_WIFI_PASSWORD",
+      },
+    },
   },
 });

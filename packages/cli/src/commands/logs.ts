@@ -2,6 +2,12 @@ import WebSocket from "ws";
 import { getWatchUrl, type LogEntry } from "../api.js";
 import { requireAuth } from "../credentials.js";
 import { EXIT } from "../exitCodes.js";
+import {
+	emitJsonError,
+	emitJsonSuccess,
+	emitNdjson,
+	isJsonMode,
+} from "../output.js";
 import { loadConfig } from "../utils.js";
 
 interface LogsOptions {
@@ -9,6 +15,7 @@ interface LogsOptions {
 	lines: number;
 	level?: string;
 	config?: string;
+	json?: boolean;
 }
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -56,6 +63,7 @@ interface SessionState {
 	token: string;
 	projectId: string;
 	deviceId: string;
+	json: boolean;
 	seenIds: Set<string>;
 	bufferedHistory: LogEntry[];
 	historyComplete: boolean;
@@ -141,8 +149,11 @@ function openSession(state: SessionState): void {
 				exitCode: EXIT.GENERIC,
 				reason: `Rate limited: ${status} ${res.statusMessage ?? ""}${headerHint}\n  Wait for the period above to elapse before retrying.`,
 			});
-		} else {
-			// Non-auth, non-rate-limit failure — let close fire and reconnect path handle it.
+		} else if (!state.json) {
+			// Non-auth, non-rate-limit failure — let close fire and reconnect path
+			// handle it. Suppress stderr in JSON mode so the only output is the
+			// final JSON (or NDJSON) document; the close handler will emit a
+			// `logs_session_error` record describing the failure.
 			console.error(
 				`✗ Watcher upgrade failed: ${status} ${res.statusMessage ?? ""}${headerHint}`,
 			);
@@ -164,21 +175,42 @@ function openSession(state: SessionState): void {
 
 			if (frame.replay && !state.historyComplete) {
 				state.bufferedHistory.push(entry);
+			} else if (state.json) {
+				// In tail+json mode, stream live entries as NDJSON immediately.
+				emitNdjson({ event: "log", entry });
 			} else {
 				console.log(formatLogLine(entry));
 			}
 		} else if (frame.event === "history_complete") {
 			state.historyComplete = true;
-			for (const entry of state.bufferedHistory) {
-				console.log(formatLogLine(entry));
-			}
-			state.bufferedHistory = [];
-
-			if (!state.tail) {
-				if (state.seenIds.size === 0) {
-					console.log("No logs found.");
+			if (state.json) {
+				// Non-tail json: emit a single { success, result: { entries } }
+				// Tail json: replay the history as NDJSON, then continue streaming.
+				if (state.tail) {
+					for (const entry of state.bufferedHistory) {
+						emitNdjson({ event: "log", entry, replay: true });
+					}
+					state.bufferedHistory = [];
+				} else {
+					emitJsonSuccess({
+						projectId: state.projectId,
+						deviceId: state.deviceId,
+						entries: state.bufferedHistory,
+					});
+					state.bufferedHistory = [];
+					finish(state, { exitCode: EXIT.SUCCESS });
 				}
-				finish(state, { exitCode: EXIT.SUCCESS });
+			} else {
+				for (const entry of state.bufferedHistory) {
+					console.log(formatLogLine(entry));
+				}
+				state.bufferedHistory = [];
+				if (!state.tail) {
+					if (state.seenIds.size === 0) {
+						console.log("No logs found.");
+					}
+					finish(state, { exitCode: EXIT.SUCCESS });
+				}
 			}
 		}
 		// `event === "status"` and `event === "state"` ignored.
@@ -220,6 +252,7 @@ export default async function logs(
 	deviceIdArg: string | undefined,
 	options: LogsOptions,
 ): Promise<void> {
+	const json = isJsonMode(options);
 	const token = await requireAuth();
 
 	let projectId = projectIdArg;
@@ -232,13 +265,30 @@ export default async function logs(
 			if (deviceKeys.length === 1) {
 				deviceId = deviceKeys[0];
 			} else if (deviceKeys.length === 0) {
-				console.error("✗ Error: No devices declared in devicesdk.ts\n");
+				if (json) {
+					emitJsonError("No devices declared in devicesdk.ts", {
+						code: "no_devices_configured",
+						docs: "https://devicesdk.com/docs/cli/logs/",
+					});
+				} else {
+					console.error("✗ Error: No devices declared in devicesdk.ts\n");
+				}
 				process.exit(EXIT.CONFIG_INVALID);
 			} else {
-				console.error(
-					"✗ Error: Multiple devices in devicesdk.ts — pass one as positional.\n",
-				);
-				console.error(`  Available: ${deviceKeys.join(", ")}`);
+				if (json) {
+					emitJsonError(
+						"Multiple devices in devicesdk.ts — pass one as positional.",
+						{
+							code: "device_required",
+							docs: "https://devicesdk.com/docs/cli/logs/",
+						},
+					);
+				} else {
+					console.error(
+						"✗ Error: Multiple devices in devicesdk.ts — pass one as positional.\n",
+					);
+					console.error(`  Available: ${deviceKeys.join(", ")}`);
+				}
 				process.exit(EXIT.CONFIG_INVALID);
 			}
 		}
@@ -254,6 +304,7 @@ export default async function logs(
 			token,
 			projectId,
 			deviceId,
+			json,
 			seenIds: new Set(),
 			bufferedHistory: [],
 			historyComplete: false,
@@ -264,7 +315,7 @@ export default async function logs(
 		};
 
 		process.once("SIGINT", () => {
-			if (state.tail) {
+			if (state.tail && !json) {
 				console.log("\nStopped tailing.");
 			}
 			finish(state, { exitCode: EXIT.SUCCESS });
@@ -274,7 +325,14 @@ export default async function logs(
 	});
 
 	if (result.reason) {
-		console.error(`✗ ${result.reason}`);
+		if (json) {
+			emitJsonError(result.reason, {
+				code: "logs_session_error",
+				docs: "https://devicesdk.com/docs/cli/logs/",
+			});
+		} else {
+			console.error(`✗ ${result.reason}`);
+		}
 	}
 	process.exit(result.exitCode);
 }

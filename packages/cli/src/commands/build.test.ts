@@ -47,7 +47,9 @@ describe("generateDeviceTypes", () => {
 		);
 		expect(content).toContain('"temp-sensor": TempSensor;');
 		expect(content).toContain("export type ProjectDevices");
-		expect(content).toContain("export type Env = GetEnv<ProjectDevices>;");
+		expect(content).toContain(
+			"export type Env = UserWorkerEnv<ProjectDevices>;",
+		);
 	});
 
 	it("should strip the .ts extension from import paths", async () => {
@@ -255,7 +257,7 @@ describe("generateDeviceTypes", () => {
 		expect(outPath).toBe("/some/custom/dir/devicesdk-env.d.ts");
 	});
 
-	it("should import GetEnv from @devicesdk/core", async () => {
+	it("should import UserWorkerEnv from @devicesdk/core", async () => {
 		await generateDeviceTypes(
 			{
 				projectId: "my-project",
@@ -273,6 +275,8 @@ describe("generateDeviceTypes", () => {
 
 		expect(writeFileSpy).toHaveBeenCalledOnce();
 		const [, content] = writeFileSpy.mock.calls[0] as [string, string];
-		expect(content).toContain('import type { GetEnv } from "@devicesdk/core"');
+		expect(content).toContain(
+			'import type { UserWorkerEnv } from "@devicesdk/core"',
+		);
 	});
 });

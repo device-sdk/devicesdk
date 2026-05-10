@@ -223,7 +223,7 @@ export class BaseDevice extends DurableObject<Env> {
 			const status = await this.getConnectionStatus();
 			server.send(JSON.stringify({ event: "status", data: status }));
 		} catch (error) {
-			console.error("Failed to send initial status to watcher:", error);
+			logger.error(error, "Failed to send initial status to watcher");
 		}
 
 		// Optional log history backfill. Single SQL scan per connect — never
@@ -251,7 +251,7 @@ export class BaseDevice extends DurableObject<Env> {
 						);
 					}
 				} catch (error) {
-					console.error("Watcher backfill failed:", error);
+					logger.error(error, "Watcher backfill failed");
 				}
 				server.send(JSON.stringify({ event: "history_complete" }));
 			}
@@ -500,16 +500,11 @@ export class BaseDevice extends DurableObject<Env> {
 			});
 			return resolved;
 		} catch (error) {
-			console.error("Failed to get/create user worker:", {
-				error: {
-					name: (error as Error).name,
-					message: (error as Error).message,
-					stack: (error as Error).stack,
-				},
-			});
 			// Preserve the inner message so callers can classify the failure
 			// (e.g. drainPendingUserWorkerEvents distinguishes transient vs
 			// persistent errors via TRANSIENT_ERROR_PATTERNS).
+			// Don't log here — the caller decides whether to log or rethrow,
+			// since transient retries shouldn't spam Sentry.
 			throw new Error(
 				`Failed to initialize user worker: ${(error as Error).message}`,
 			);
@@ -569,7 +564,7 @@ export class BaseDevice extends DurableObject<Env> {
 			throw new Error("Device not connected");
 		}
 		// Send the command to the device
-		console.log("sending command without ack:", JSON.stringify(command));
+		logger.debug("sending command without ack", { command });
 		session.websocket.send(JSON.stringify(command));
 		recordCommandRpc(this.env.ANALYTICS, {
 			commandType: command.type,
@@ -626,7 +621,7 @@ export class BaseDevice extends DurableObject<Env> {
 			});
 
 			// Send the command to the device
-			console.log("sending:", JSON.stringify(command));
+			logger.debug("sending command", { command });
 			if (session.websocket.readyState === WebSocket.READY_STATE_OPEN) {
 				session.websocket.send(JSON.stringify(command));
 			} else {
@@ -647,7 +642,7 @@ export class BaseDevice extends DurableObject<Env> {
 		this._session = { websocket: _ws };
 
 		if (typeof data !== "string") {
-			console.error("Received non-string WebSocket data, ignoring");
+			logger.warn("Received non-string WebSocket data, ignoring");
 			return;
 		}
 
@@ -660,18 +655,11 @@ export class BaseDevice extends DurableObject<Env> {
 			const raw = JSON.parse(data);
 			parsed = DeviceMessageSchema.safeParse(raw);
 		} catch (_error) {
-			console.error("Failed to parse message from device:", {
-				data: data,
-				error: {
-					name: (_error as Error).name,
-					message: (_error as Error).message,
-					stack: (_error as Error).stack,
-				},
-			});
+			logger.error(_error, "Failed to parse message from device", { data });
 			return;
 		}
 		if (!parsed.success) {
-			console.error("Invalid device message:", parsed.error.message);
+			logger.warn("Invalid device message", { error: parsed.error.message });
 			return;
 		}
 		// Keepalive — never count toward daily limit, never wake user worker.
@@ -703,7 +691,7 @@ export class BaseDevice extends DurableObject<Env> {
 			const pendingCommand = this.pendingCommands.get(message.id);
 
 			if (pendingCommand) {
-				console.log(`Resolving pending command ${message.id}`);
+				logger.debug("Resolving pending command", { id: message.id });
 				clearTimeout(pendingCommand.timeoutId);
 				this.pendingCommands.delete(message.id);
 
@@ -730,14 +718,7 @@ export class BaseDevice extends DurableObject<Env> {
 				await this.enqueueUserWorkerEvent({ kind: "message", message });
 			}
 		} catch (_error) {
-			console.error("Failed to dispatch device message:", {
-				data: data,
-				error: {
-					name: (_error as Error).name,
-					message: (_error as Error).message,
-					stack: (_error as Error).stack,
-				},
-			});
+			logger.error(_error, "Failed to dispatch device message", { data });
 		}
 	}
 
@@ -754,7 +735,7 @@ export class BaseDevice extends DurableObject<Env> {
 			return;
 		}
 
-		console.log(`webSocketClose with code ${code}, ${reason}`);
+		logger.info("webSocketClose", { code, reason });
 		await this.handleConnectionLost(
 			`WebSocket closed. Code: ${code}, Reason: ${reason}`,
 		);
@@ -773,7 +754,7 @@ export class BaseDevice extends DurableObject<Env> {
 			return;
 		}
 
-		console.log(`webSocketError: ${error}`);
+		logger.info("webSocketError", { error: String(error) });
 		await this.handleConnectionLost(`WebSocket error: ${error}`);
 		ws.close(1011, "WebSocket error");
 	}
@@ -941,10 +922,11 @@ export class BaseDevice extends DurableObject<Env> {
 					if (currentAlarm === null || currentAlarm > nextFire) {
 						await this.ctx.storage.setAlarm(nextFire);
 					}
-					console.warn(
-						`Worker init transient failure; re-queued ${retryable.length} event(s) with ${backoffMs}ms backoff:`,
+					logger.warn("Worker init transient failure; re-queued events", {
+						count: retryable.length,
+						backoffMs,
 						message,
-					);
+					});
 					recordWorkerLoaderFailure(this.env.ANALYTICS, {
 						failureKind: "transient",
 						errorName: (err as Error)?.name,
@@ -1008,9 +990,14 @@ export class BaseDevice extends DurableObject<Env> {
 					await userWorker.onMessage(event.message);
 				}
 			} catch (error) {
-				console.error(
-					`Error in user worker ${event.kind === "connect" ? "onDeviceConnect" : "onMessage"} (via alarm):`,
+				logger.error(
 					error,
+					`Error in user worker ${event.kind === "connect" ? "onDeviceConnect" : "onMessage"} (via alarm)`,
+					{
+						kind: event.kind,
+						userId: this.deviceMeta?.userId,
+						deviceId: this.deviceMeta?.deviceId,
+					},
 				);
 			}
 		}
@@ -1020,7 +1007,9 @@ export class BaseDevice extends DurableObject<Env> {
 			try {
 				await this.initializeCrons(userWorker);
 			} catch (error) {
-				console.error("Error initializing cron schedules:", error);
+				logger.error(error, "Error initializing cron schedules", {
+					deviceId: this.deviceMeta?.deviceId,
+				});
 			}
 		}
 
@@ -1056,9 +1045,11 @@ export class BaseDevice extends DurableObject<Env> {
 		if (worker) {
 			try {
 				await worker.onDeviceDisconnect();
-				console.log(`User worker onDeviceDisconnect completed`);
+				logger.debug("User worker onDeviceDisconnect completed");
 			} catch (error) {
-				console.error("Error in user worker onDeviceDisconnect:", error);
+				logger.error(error, "Error in user worker onDeviceDisconnect", {
+					deviceId: this.deviceMeta?.deviceId,
+				});
 			}
 		}
 	}
@@ -1099,10 +1090,10 @@ export class BaseDevice extends DurableObject<Env> {
 						: nextCronTime(expr, now);
 				storage[name] = { cron: expr, nextFireAt };
 			} catch (err) {
-				console.error(
-					`Invalid cron expression for ${JSON.stringify(name.slice(0, 64))}:`,
-					err,
-				);
+				logger.warn("Invalid cron expression", {
+					name: name.slice(0, 64),
+					error: (err as Error).message,
+				});
 			}
 		}
 
@@ -1149,7 +1140,9 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					legacyWorker = await this.getOrCreateUserWorker();
 				} catch (err) {
-					console.error("Worker unavailable during alarm (legacy path):", err);
+					logger.error(err, "Worker unavailable during alarm (legacy path)", {
+						deviceId: this.deviceMeta?.deviceId,
+					});
 					return;
 				}
 			}
@@ -1157,7 +1150,9 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					await legacyWorker.onAlarm();
 				} catch (error) {
-					console.error("Error in user worker onAlarm:", error);
+					logger.error(error, "Error in user worker onAlarm", {
+						deviceId: this.deviceMeta?.deviceId,
+					});
 				}
 			}
 			return;
@@ -1175,7 +1170,9 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					legacyWorker = await this.getOrCreateUserWorker();
 				} catch (err) {
-					console.error("Worker unavailable during alarm (legacy path):", err);
+					logger.error(err, "Worker unavailable during alarm (legacy path)", {
+						deviceId: this.deviceMeta?.deviceId,
+					});
 					return;
 				}
 			}
@@ -1183,7 +1180,9 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					await legacyWorker.onAlarm();
 				} catch (error) {
-					console.error("Error in user worker onAlarm:", error);
+					logger.error(error, "Error in user worker onAlarm", {
+						deviceId: this.deviceMeta?.deviceId,
+					});
 				}
 			}
 			return;
@@ -1199,9 +1198,10 @@ export class BaseDevice extends DurableObject<Env> {
 			try {
 				userWorker = await this.getOrCreateUserWorker();
 			} catch (err) {
-				console.error(
-					"Worker unavailable during alarm — rescheduling without advancing cron schedule:",
+				logger.error(
 					err,
+					"Worker unavailable during alarm — rescheduling without advancing cron schedule",
+					{ deviceId: this.deviceMeta?.deviceId },
 				);
 				await this.ctx.storage.setAlarm(
 					Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
@@ -1214,8 +1214,10 @@ export class BaseDevice extends DurableObject<Env> {
 		// implementation changes). Treat null like an exception — reschedule without
 		// advancing so cron firings are not silently lost.
 		if (userWorker === null) {
-			console.error(
+			logger.error(
+				new Error("Worker returned null during alarm"),
 				"Worker returned null during alarm — rescheduling without advancing cron schedule",
+				{ deviceId: this.deviceMeta?.deviceId },
 			);
 			await this.ctx.storage.setAlarm(
 				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
@@ -1236,9 +1238,12 @@ export class BaseDevice extends DurableObject<Env> {
 						Object.entries(schedules).map(([name, e]) => [name, e.cron]),
 					);
 		} catch (err) {
-			console.error(
-				"getCrons() RPC failed during alarm — falling back to stored cron expressions:",
-				err,
+			logger.warn(
+				"getCrons() RPC failed during alarm — falling back to stored cron expressions",
+				{
+					deviceId: this.deviceMeta?.deviceId,
+					error: (err as Error).message,
+				},
 			);
 			currentCrons = Object.fromEntries(
 				Object.entries(schedules).map(([name, e]) => [name, e.cron]),
@@ -1257,9 +1262,10 @@ export class BaseDevice extends DurableObject<Env> {
 		} catch (err) {
 			// Invalid cron expression in user script — reschedule without advancing
 			// so no firings are permanently lost. The script can be fixed and redeployed.
-			console.error(
-				"Error resolving due crons — rescheduling without advancing:",
+			logger.error(
 				err,
+				"Error resolving due crons — rescheduling without advancing",
+				{ deviceId: this.deviceMeta?.deviceId },
 			);
 			await this.ctx.storage.setAlarm(
 				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
@@ -1273,10 +1279,10 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					await userWorker.onCron(name);
 				} catch (error) {
-					console.error(
-						`Error in user worker onCron(${JSON.stringify(name.slice(0, 64))}):`,
-						error,
-					);
+					logger.error(error, "Error in user worker onCron", {
+						cronName: name.slice(0, 64),
+						deviceId: this.deviceMeta?.deviceId,
+					});
 				}
 			}
 		}
@@ -1593,7 +1599,7 @@ export class BaseDevice extends DurableObject<Env> {
 				}
 			}
 		} catch (error) {
-			console.error("Failed to broadcast state from message:", error);
+			logger.error(error, "Failed to broadcast state from message");
 		}
 	}
 
@@ -1696,9 +1702,10 @@ export class BaseDevice extends DurableObject<Env> {
 		reason: string;
 	}> {
 		const session = this.getSession();
-		console.log(
-			`[reboot] Session found: ${!!session}, readyState: ${session?.websocket.readyState}`,
-		);
+		logger.debug("[reboot] Session check", {
+			hasSession: !!session,
+			readyState: session?.websocket.readyState,
+		});
 
 		if (
 			!session ||

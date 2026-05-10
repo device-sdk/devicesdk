@@ -2,6 +2,7 @@ import { ApiException } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
 import { recalculateEsp32Checksum } from "../../foundation/esp32ImageChecksum";
+import { logger } from "../../foundation/logger";
 import { validateUf2Structure } from "../../foundation/picoUf2Checksum";
 import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext, tableProjects } from "../../types";
@@ -212,9 +213,9 @@ export class DownloadFirmware extends BaseRoute {
 				try {
 					validateUf2Structure(bytes);
 				} catch (uf2Err) {
-					console.error(
-						"UF2 structure validation failed after patching:",
-						uf2Err instanceof Error ? uf2Err.message : uf2Err,
+					logger.error(
+						uf2Err,
+						"UF2 structure validation failed after patching",
 					);
 					return c.json(
 						{

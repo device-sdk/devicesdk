@@ -15,11 +15,22 @@
 		"local:flash": "pnpm --filter @devicesdk/example-basic flash-local",
 		"changeset": "changeset",
 		"version-packages": "changeset version",
-		"release": "changeset publish"
+		"release": "changeset publish",
+		"prepare": "husky"
+	},
+	"lint-staged": {
+		"{apps/api,apps/simulation,packages/core,packages/cli}/**/*.{ts,tsx,js,mjs,cjs,json,jsonc}": [
+			"biome check --write --no-errors-on-unmatched"
+		],
+		"apps/dashboard/src*/**/*.{ts,js,cjs,mjs,vue}": [
+			"pnpm --filter @devicesdk/dashboard exec eslint --fix --no-error-on-unmatched-pattern"
+		]
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.8",
 		"@changesets/cli": "^2.29.8",
+		"husky": "^9.1.7",
+		"lint-staged": "^17.0.4",
 		"turbo": "^2.5.0"
 	},
 	"packageManager": "pnpm@9.15.4",

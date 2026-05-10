@@ -1,5 +1,12 @@
 # @devicesdk/simulation
 
+## 0.1.8
+
+### Patch Changes
+
+- Updated dependencies [d03b5ae]
+  - @devicesdk/core@1.4.0
+
 ## 0.1.7
 
 ### Patch Changes

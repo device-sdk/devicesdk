@@ -214,6 +214,16 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 | HA entity persistence | `apps/api/src/endpoints/devices/getDeviceEntities.ts`, `apps/api/src/endpoints/devices/upsertDeviceEntities.ts`, `device_entity_configs` table |
 | License | `LICENSE` (proprietary, all rights reserved) |
 
+## Audit-finding sanity-check
+
+When an audit (security, code-quality, etc.) flags something in this codebase, **trace the actual call path before acting**. The May 2026 audit follow-up flagged 4 "security" issues; 3 were false alarms because the audit agent didn't follow the chain through to where authorization actually happens. Common patterns that *look* like vulnerabilities but aren't:
+
+- **Durable Object query params look untrusted, but they aren't.** `apps/api/src/durableObjects/lib/device.ts` reads `userId` / `projectId` / `deviceId` from the WebSocket upgrade URL. These come from the authenticated server route (`apps/api/src/endpoints/devices/deviceConnect.ts:41–151`) which authenticates the user, looks up `project.id` / `device.id` from D1 with a `user_id = ?` constraint, and passes the *server-derived* IDs to the DO. The client cannot forge them. The watcher endpoint (`watchDevice.ts` → `foundation/projectDeviceResolve.ts:18–56`) follows the same pattern.
+- **DO `fetch()` handlers don't re-authenticate, and they don't need to.** Durable Objects are only reachable through their bindings; there is no public route to a DO. Authentication happens on the API route that resolves the stub. Adding "auth checks inside the DO" duplicates the gate without adding security.
+- **`Sentry.withSentry()` wraps both `fetch` and `scheduled`.** `apps/api/src/index.ts:218–228`. Unhandled exceptions in `handleScheduled` are captured by the Sentry integration; you don't need an explicit top-level try/catch for cron failures to land in Sentry.
+
+When in doubt, grep for the entry point (`grep -rn 'env.DEVICE.idFromName' apps/api/src/`, `grep -rn 'authenticateUser' apps/api/src/`) and trace to the DO before assuming the DO is reachable from the public internet.
+
 ## Multi-Agent Safety
 
 - **Multi-agent safety:** do **not** create/apply/drop `git stash` entries unless explicitly requested. Assume other agents may be working; keep unrelated WIP untouched.

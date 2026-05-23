@@ -8,6 +8,10 @@
   "name": "devicesdk-dash",
   "account_id": "888e736867edd3b81b49b17c9067d5df",
   "workers_dev": false,
+  // PR preview deploys use `wrangler versions upload`, which requires
+  // preview_urls to be enabled. Production traffic still routes to the custom
+  // domain below; preview URLs are only emitted for non-promoted versions.
+  "preview_urls": true,
   "assets": {
     "directory": "./dist/spa/",
     "not_found_handling": "single-page-application"

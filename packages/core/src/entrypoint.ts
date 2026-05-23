@@ -1,5 +1,5 @@
-import type { DeviceResponse } from "./responses";
-import type { Content, UserWorkerEnv } from "./runtime";
+import type { DeviceResponse } from "./responses.js";
+import type { Content, UserWorkerEnv } from "./runtime.js";
 
 // Backward-compat type aliases — deprecated, use UserWorkerEnv instead
 

@@ -1,5 +1,5 @@
-import type { DeviceCommand } from "./commands";
-import type { DeviceResponse } from "./responses";
+import type { DeviceCommand } from "./commands.js";
+import type { DeviceResponse } from "./responses.js";
 
 /**
  * Per-device key/value storage. Persists across reconnects, deploys, and reboots.

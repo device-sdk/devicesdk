@@ -6,9 +6,9 @@
 // - ha.ts: Home Assistant entity types
 // - entrypoint.ts: DeviceEntrypoint base class + deprecated RemoteDevice/GetEnv
 
-export * from "./commands";
-export * from "./entrypoint";
-export * from "./ha";
-export * from "./identity";
-export * from "./responses";
-export * from "./runtime";
+export * from "./commands.js";
+export * from "./entrypoint.js";
+export * from "./ha.js";
+export * from "./identity.js";
+export * from "./responses.js";
+export * from "./runtime.js";

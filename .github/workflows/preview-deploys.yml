@@ -1,0 +1,153 @@
+name: Preview Deploys
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/dashboard/**'
+      - 'apps/website/**'
+      - 'apps/api/**'
+      - 'docs/**'
+      - 'packages/core/**'
+
+concurrency:
+  group: preview-deploys-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Opt JS actions (checkout, cache, setup-node…) onto Node 24 now.
+  # GitHub will default-force this on 2026-06-02.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    outputs:
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+      website: ${{ steps.filter.outputs.website }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            dashboard:
+              - 'apps/dashboard/**'
+              - 'packages/core/**'
+            website:
+              - 'apps/website/**'
+              - 'apps/api/**'
+              - 'docs/**'
+
+  preview-dashboard:
+    name: Preview Dashboard
+    needs: changes
+    if: needs.changes.outputs.dashboard == 'true'
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Restore Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-
+            turbo-${{ github.job }}-
+      - run: pnpm build --filter @devicesdk/dashboard
+      - name: Upload preview version
+        id: upload
+        working-directory: apps/dashboard
+        # `versions upload` produces a preview Worker version without promoting
+        # it to production. The CLI prints "Worker Version ID: <uuid>" always,
+        # and "Version Preview URL: <url>" only if the account has its
+        # workers.dev subdomain enabled. We capture both with `|| true` so a
+        # missing URL doesn't fail the step under bash's default `set -eo
+        # pipefail`.
+        run: |
+          OUT=$(npx wrangler versions upload --tag "pr-${{ github.event.number }}" --message "PR #${{ github.event.number }} (${{ github.sha }})" 2>&1 | tee /dev/stderr)
+          URL=$(echo "$OUT" | grep -oE 'https://[A-Za-z0-9.-]+\.workers\.dev' | head -1 || true)
+          VID=$(echo "$OUT" | grep -oE 'Worker Version ID: [a-f0-9-]+' | awk '{print $NF}' || true)
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "version_id=${VID}" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df
+      - name: Comment on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-dashboard
+          message: |
+            **Dashboard preview** uploaded for PR #${{ github.event.number }}.
+
+            ${{ steps.upload.outputs.url && format('Preview URL: {0}', steps.upload.outputs.url) || '_Preview URL not emitted — the workers.dev subdomain may not be enabled on the account. Worker version is uploaded and can be promoted manually._' }}
+
+            <sub>Worker Version: `${{ steps.upload.outputs.version_id }}` · Commit: ${{ github.sha }}</sub>
+
+  preview-website:
+    name: Preview Website
+    needs: changes
+    if: needs.changes.outputs.website == 'true'
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+      - name: Install Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: 'latest'
+          extended: true
+      - run: pnpm install --frozen-lockfile
+      - name: Restore Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-
+            turbo-${{ github.job }}-
+      - name: Install Playwright browsers
+        # `--with-deps` would try to `sudo apt-get install` system libs, which
+        # fails on the self-hosted runner (no passwordless sudo). The persistent
+        # proxmox runner has those libs pre-installed.
+        run: pnpm --filter @devicesdk/website exec playwright install chromium
+      - name: Build website
+        run: pnpm build --filter @devicesdk/website
+      - name: Upload preview version
+        id: upload
+        working-directory: apps/website
+        # See dashboard job above for why grep + `|| true`.
+        run: |
+          OUT=$(npx wrangler versions upload --tag "pr-${{ github.event.number }}" --message "PR #${{ github.event.number }} (${{ github.sha }})" 2>&1 | tee /dev/stderr)
+          URL=$(echo "$OUT" | grep -oE 'https://[A-Za-z0-9.-]+\.workers\.dev' | head -1 || true)
+          VID=$(echo "$OUT" | grep -oE 'Worker Version ID: [a-f0-9-]+' | awk '{print $NF}' || true)
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "version_id=${VID}" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df
+      - name: Comment on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-website
+          message: |
+            **Website preview** uploaded for PR #${{ github.event.number }}.
+
+            ${{ steps.upload.outputs.url && format('Preview URL: {0}', steps.upload.outputs.url) || '_Preview URL not emitted — the workers.dev subdomain may not be enabled on the account. Worker version is uploaded and can be promoted manually._' }}
+
+            <sub>Worker Version: `${{ steps.upload.outputs.version_id }}` · Commit: ${{ github.sha }}</sub>

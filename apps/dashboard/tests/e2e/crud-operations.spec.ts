@@ -250,11 +250,18 @@ test.describe("CRUD operations", () => {
         .getByRole("button", { name: "Delete" })
         .click();
 
+      // The success toast and the redirect fire in the same tick, and the
+      // toast auto-dismisses after ~5s. Assert it before waiting on the
+      // redirect so a slow delete under CI load can't let it expire first;
+      // Quasar notifications render at the document root and survive the
+      // route change.
+      await expect(page.getByText("Device deleted")).toBeVisible({
+        timeout: 10000,
+      });
       // Should redirect to project page
       await expect(page).toHaveURL(/\/projects\/deletable-project/, {
         timeout: 10000,
       });
-      await expect(page.getByText("Device deleted")).toBeVisible();
     });
   });
 
@@ -294,9 +301,12 @@ test.describe("CRUD operations", () => {
       // Delete
       await deleteBtn.click();
 
+      // Assert the toast before the redirect (see device-delete note above).
+      await expect(page.getByText("Project deleted")).toBeVisible({
+        timeout: 10000,
+      });
       // Should redirect to projects list
       await expect(page).toHaveURL(/\/projects$/, { timeout: 10000 });
-      await expect(page.getByText("Project deleted")).toBeVisible();
     });
   });
 });

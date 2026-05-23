@@ -43,6 +43,7 @@ declare namespace Cloudflare {
 		SALT_TOKEN: string;
 		DEVICE: DurableObjectNamespace;
 		LOADER: WorkerLoader;
+		ANALYTICS?: AnalyticsEngineDataset;
 		ENV: "local" | "production";
 		SENTRY_DSN: string | undefined;
 	}

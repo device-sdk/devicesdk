@@ -74,13 +74,15 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsc",
-		"check-types": "tsc --noEmit",
+		"check-types": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json",
+		"test": "vitest run --config vitest.config.ts",
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
 		"tsx": "catalog:",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "catalog:"
 	}
 }

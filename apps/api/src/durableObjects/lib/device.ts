@@ -6,6 +6,11 @@ import type {
 } from "@devicesdk/core";
 import { z } from "zod";
 import {
+	recordCommandRpc,
+	recordScriptInit,
+	recordWorkerLoaderFailure,
+} from "../../foundation/analytics";
+import {
 	LOG_CLEANUP_INTERVAL,
 	LOG_CLEANUP_MIN_INTERVAL_MS,
 	LOG_MAX_STORED,
@@ -84,6 +89,8 @@ interface PendingCommand {
 	resolve: (value: any) => void;
 	reject: (reason?: any) => void;
 	timeoutId: any;
+	startedAt: number;
+	commandType: string;
 }
 
 export class BaseDevice extends DurableObject<Env> {
@@ -402,6 +409,7 @@ export class BaseDevice extends DurableObject<Env> {
 		const r2ProjectKey = projectSlug ?? projectId;
 		const r2DeviceKey = deviceSlug ?? deviceId;
 
+		const initStartedAt = Date.now();
 		try {
 			// EW-9769 (cross-request stub invalidation) is fixed in the runtime,
 			// so a single LOADER.get() per DO lifetime is enough; the resolved
@@ -464,6 +472,13 @@ export class BaseDevice extends DurableObject<Env> {
 
 			const resolved = target as unknown as IUserDeviceWorker;
 			this.cachedUserWorker = { workerId, worker: resolved };
+			recordScriptInit(this.env.ANALYTICS, {
+				source: "runtime",
+				initLatencyMs: Date.now() - initStartedAt,
+				deviceId,
+				projectId,
+				versionId,
+			});
 			return resolved;
 		} catch (error) {
 			console.error("Failed to get/create user worker:", {
@@ -537,6 +552,14 @@ export class BaseDevice extends DurableObject<Env> {
 		// Send the command to the device
 		console.log("sending command without ack:", JSON.stringify(command));
 		session.websocket.send(JSON.stringify(command));
+		recordCommandRpc(this.env.ANALYTICS, {
+			commandType: command.type,
+			outcome: "fire_and_forget",
+			latencyMs: 0,
+			ackReceived: false,
+			deviceId: this.deviceMeta?.deviceId,
+			projectId: this.deviceMeta?.projectId,
+		});
 	}
 
 	/**
@@ -557,8 +580,17 @@ export class BaseDevice extends DurableObject<Env> {
 				return reject(new Error("Too many pending commands"));
 			}
 
+			const startedAt = Date.now();
 			const timeoutId = setTimeout(() => {
 				this.pendingCommands.delete(command.id);
+				recordCommandRpc(this.env.ANALYTICS, {
+					commandType: command.type,
+					outcome: "timeout",
+					latencyMs: Date.now() - startedAt,
+					ackReceived: false,
+					deviceId: this.deviceMeta?.deviceId,
+					projectId: this.deviceMeta?.projectId,
+				});
 				reject(
 					new Error(
 						`Timeout: No response from device for command '${command.type}' with id '${command.id}' within 5 seconds.`,
@@ -566,7 +598,13 @@ export class BaseDevice extends DurableObject<Env> {
 				);
 			}, 5000); // 5-second timeout
 
-			this.pendingCommands.set(command.id, { resolve, reject, timeoutId });
+			this.pendingCommands.set(command.id, {
+				resolve,
+				reject,
+				timeoutId,
+				startedAt,
+				commandType: command.type,
+			});
 
 			// Send the command to the device
 			console.log("sending:", JSON.stringify(command));
@@ -649,6 +687,15 @@ export class BaseDevice extends DurableObject<Env> {
 				console.log(`Resolving pending command ${message.id}`);
 				clearTimeout(pendingCommand.timeoutId);
 				this.pendingCommands.delete(message.id);
+
+				recordCommandRpc(this.env.ANALYTICS, {
+					commandType: pendingCommand.commandType,
+					outcome: message.type === "command_error" ? "error" : "ack",
+					latencyMs: Date.now() - pendingCommand.startedAt,
+					ackReceived: true,
+					deviceId: this.deviceMeta?.deviceId,
+					projectId: this.deviceMeta?.projectId,
+				});
 
 				if (message.type === "command_error") {
 					pendingCommand.reject(
@@ -879,11 +926,25 @@ export class BaseDevice extends DurableObject<Env> {
 						`Worker init transient failure; re-queued ${retryable.length} event(s) with ${backoffMs}ms backoff:`,
 						message,
 					);
+					recordWorkerLoaderFailure(this.env.ANALYTICS, {
+						failureKind: "transient",
+						errorName: (err as Error)?.name,
+						attemptCount: maxAttempts,
+						deviceId: this.deviceMeta?.deviceId,
+						projectId: this.deviceMeta?.projectId,
+					});
 				} else {
 					console.error(
 						"Worker init transient failure; max attempts reached, dropping batch:",
 						message,
 					);
+					recordWorkerLoaderFailure(this.env.ANALYTICS, {
+						failureKind: "transient",
+						errorName: (err as Error)?.name,
+						attemptCount: MAX_USER_EVENT_ATTEMPTS,
+						deviceId: this.deviceMeta?.deviceId,
+						projectId: this.deviceMeta?.projectId,
+					});
 				}
 			} else {
 				// Persistent error (SyntaxError, script missing, etc.) — drop.
@@ -891,6 +952,13 @@ export class BaseDevice extends DurableObject<Env> {
 					"Worker unavailable while draining user events; dropping batch:",
 					err,
 				);
+				recordWorkerLoaderFailure(this.env.ANALYTICS, {
+					failureKind: "persistent",
+					errorName: (err as Error)?.name,
+					attemptCount: 1,
+					deviceId: this.deviceMeta?.deviceId,
+					projectId: this.deviceMeta?.projectId,
+				});
 			}
 			return null;
 		}

@@ -138,6 +138,47 @@ describe("drainPendingUserWorkerEvents — logger.error on drop", () => {
 		});
 	});
 
+	it("reports dropped events AND re-queues survivors on a mixed-attempt batch", async () => {
+		// One event has exhausted its retries (bumps to the cap and is dropped);
+		// a fresher event in the same batch stays under the cap and is re-queued.
+		// Both the Sentry drop signal and the backoff re-queue must fire.
+		const storage = makeStorage({
+			[PENDING_USER_EVENTS_KEY]: [
+				{ kind: "connect", attempts: MAX_USER_EVENT_ATTEMPTS - 1 },
+				{
+					kind: "message",
+					message: { id: "m", type: "ping", payload: {} },
+					attempts: 0,
+				},
+			],
+		});
+
+		await drainPendingUserWorkerEvents({
+			storage,
+			getOrCreateUserWorker: async () => {
+				throw new Error("Too many concurrent dynamic workers");
+			},
+			initializeCrons: async () => {},
+			deviceMeta,
+		});
+
+		// The maxed-out event is reported as dropped...
+		expect(logger.error).toHaveBeenCalledOnce();
+		const [, msgArg, ctxArg] = vi.mocked(logger.error).mock.calls[0];
+		expect(msgArg).toContain("max attempts reached");
+		expect(ctxArg).toMatchObject({ droppedCount: 1, kinds: ["connect"] });
+
+		// ...while the fresher event is re-queued with its attempt count bumped.
+		expect(logger.warn).toHaveBeenCalledOnce();
+		const remaining = storage.data.get(PENDING_USER_EVENTS_KEY) as Array<{
+			kind: string;
+			attempts: number;
+		}>;
+		expect(remaining).toHaveLength(1);
+		expect(remaining[0].kind).toBe("message");
+		expect(remaining[0].attempts).toBe(1);
+	});
+
 	it("does NOT call logger.error on transient failures below the attempt cap (re-queues instead)", async () => {
 		const storage = makeStorage({
 			[PENDING_USER_EVENTS_KEY]: [{ kind: "connect" }],

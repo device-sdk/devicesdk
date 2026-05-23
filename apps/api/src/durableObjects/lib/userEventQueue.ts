@@ -95,11 +95,42 @@ export async function drainPendingUserWorkerEvents(
 		);
 		if (isTransient) {
 			// Re-queue with exponential backoff so we retry once the
-			// rate-limiter / transient condition clears. Cap attempts to
-			// avoid eventually piling up.
-			const retryable = pending
-				.map((e) => ({ ...e, attempts: (e.attempts ?? 0) + 1 }))
-				.filter((e) => e.attempts < MAX_USER_EVENT_ATTEMPTS);
+			// rate-limiter / transient condition clears. Bump every event's
+			// attempt count, then split into events still under the cap
+			// (re-queued) and events that just hit the cap (dropped).
+			const bumped = pending.map((e) => ({
+				...e,
+				attempts: (e.attempts ?? 0) + 1,
+			}));
+			const retryable = bumped.filter(
+				(e) => e.attempts < MAX_USER_EVENT_ATTEMPTS,
+			);
+			const dropped = bumped.filter(
+				(e) => e.attempts >= MAX_USER_EVENT_ATTEMPTS,
+			);
+
+			// Any event that exhausted its retries is lost — surface it to
+			// Sentry even when the rest of the batch is still retryable, so the
+			// "operators see dropped events" contract holds for partial drops.
+			if (dropped.length > 0) {
+				logger.error(
+					err,
+					"user worker drain: transient failure, max attempts reached, dropping events",
+					{
+						droppedCount: dropped.length,
+						kinds: dropped.map((e) => e.kind),
+						...deviceMeta,
+					},
+				);
+				recordWorkerLoaderFailure(analytics, {
+					failureKind: "transient",
+					errorName: (err as Error)?.name,
+					attemptCount: MAX_USER_EVENT_ATTEMPTS,
+					deviceId: deviceMeta?.deviceId,
+					projectId: deviceMeta?.projectId,
+				});
+			}
+
 			if (retryable.length > 0) {
 				const maxAttempts = Math.max(...retryable.map((e) => e.attempts ?? 0));
 				const backoffMs = Math.min(30_000, 500 * 2 ** maxAttempts);
@@ -118,23 +149,6 @@ export async function drainPendingUserWorkerEvents(
 					failureKind: "transient",
 					errorName: (err as Error)?.name,
 					attemptCount: maxAttempts,
-					deviceId: deviceMeta?.deviceId,
-					projectId: deviceMeta?.projectId,
-				});
-			} else {
-				logger.error(
-					err,
-					"user worker drain: transient failure, max attempts reached, dropping batch",
-					{
-						droppedCount: pending.length,
-						kinds: pending.map((e) => e.kind),
-						...deviceMeta,
-					},
-				);
-				recordWorkerLoaderFailure(analytics, {
-					failureKind: "transient",
-					errorName: (err as Error)?.name,
-					attemptCount: MAX_USER_EVENT_ATTEMPTS,
 					deviceId: deviceMeta?.deviceId,
 					projectId: deviceMeta?.projectId,
 				});

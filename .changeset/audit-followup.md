@@ -41,5 +41,5 @@ May 2026 audit follow-up — security, observability, and tech-debt cleanup.
 **Repo-wide**
 
 - New: husky + lint-staged pre-commit hook automates the `pnpm lint` step from CLAUDE.md so it can no longer be bypassed.
-- CI: Playwright browsers cached in `dashboard-tests.yml` (saves ~30s per E2E run when warm).
+- CI: Playwright browsers cached in the dashboard E2E job in `ci.yml` (saves ~30s per E2E run when warm).
 - New: `roadmap.md` at the repo root tracks the audit's bigger-investment items + the per-tab component split that was deferred from the DeviceDetailsPage refactor.

@@ -12,7 +12,7 @@ Send `Authorization: Bearer <token>`. Tokens come from either the dashboard OAut
 - `GET /v1/projects/{id}/devices`, `POST /v1/projects/{id}/devices` — list / create devices.
 - `GET /v1/projects/{id}/devices/{did}/script`, `POST …/script` — fetch / upload a device script (the POST returns a signed upload URL).
 - `GET /v1/projects/{id}/devices/{did}/logs` — paginated logs.
-- `GET /v1/projects/{id}/devices/{did}/logs/stream` — Server-Sent-Events stream of new log entries.
+- `GET /v1/projects/{id}/devices/{did}/watch` — WebSocket (upgrade) streaming `status` / `log` / `state` frames in real time.
 - `GET /v1/projects/{id}/env`, `PUT …/env/{key}` — environment variables.
 - `POST /v1/tokens` — create API tokens.
 

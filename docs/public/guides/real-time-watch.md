@@ -66,7 +66,3 @@ State events are the structured alternative to parsing log text. The runtime aut
 - `temperature_result` → `entity_id: "temperature"`
 
 User code can also emit custom state events from device scripts with `this.env.DEVICE.emitState(entity_id, value)` — see [Emit State](/docs/concepts/emit-state/) for details.
-
-## Legacy SSE log stream
-
-An older SSE endpoint at `GET /logs/stream` exists for backward compatibility. New clients should use the watch WebSocket instead. The SSE endpoint will be removed in a future release.

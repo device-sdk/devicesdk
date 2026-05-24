@@ -5,17 +5,8 @@ import type {
 	DeviceResponse,
 } from "@devicesdk/core";
 import { z } from "zod";
+import { recordCommandRpc, recordScriptInit } from "../../foundation/analytics";
 import {
-	recordCommandRpc,
-	recordScriptInit,
-	recordWorkerLoaderFailure,
-} from "../../foundation/analytics";
-import {
-	LOG_CLEANUP_INTERVAL,
-	LOG_CLEANUP_MIN_INTERVAL_MS,
-	LOG_MAX_STORED,
-	LOG_MESSAGE_MAX_LENGTH,
-	LOG_RETENTION_MS,
 	type LogLevel,
 	MESSAGE_COUNT_DATE_KEY,
 	MESSAGE_COUNT_KEY,
@@ -24,11 +15,39 @@ import {
 	VALID_LOG_LEVELS,
 	WS_CLOSE_RATE_LIMITED,
 } from "../../foundation/consts";
+import { logger } from "../../foundation/logger";
 import type { Env } from "../../types";
 import { getProxyEntrypoint } from "./classProxy";
 import { type CronStorage, resolveDueCrons } from "./cronDispatch";
 import { nextCronTime } from "./cronParser";
-import type { IUserDeviceWorker } from "./userWorkerTypes";
+import {
+	broadcastStateFromMessage,
+	broadcastToWatchers,
+	emitStatusEvent,
+	fetchRecentLogs,
+	type LogStreamState,
+	persistAndBroadcastLog,
+} from "./logStreaming";
+import {
+	drainPendingUserWorkerEvents,
+	enqueueUserWorkerEvent,
+	type PendingUserEvent,
+} from "./userEventQueue";
+import type {
+	DeviceSenderInterface,
+	DeviceSenderProps,
+	IUserDeviceWorker,
+} from "./userWorkerTypes";
+
+// ctx.exports loopback bindings for top-level WorkerEntrypoints. Properly typed
+// via Cloudflare.Exports when GlobalProps.mainModule is configured; until then
+// we narrow locally so consumers don't have to use `as any`.
+type DeviceCtxExports = {
+	DeviceSender: (opts: { props: DeviceSenderProps }) => DeviceSenderInterface;
+	DevicesBridge: (opts: {
+		props: { projectId: string; userId: string };
+	}) => DeviceSenderInterface;
+};
 
 const DeviceMessageSchema = z.object({
 	id: z.string().max(64).optional().default(""),
@@ -56,26 +75,6 @@ function earliestFireTime(schedules: CronStorage): number {
 // the connection timestamp without requiring the client to reconnect.
 export const CONNECTED_SINCE_KEY = "__internal:connectedSince";
 
-// Queue of user-worker events to dispatch on the next alarm firing.
-// Hibernation-API webSocketMessage handlers cannot reliably invoke the Worker
-// Loader (the getTarget() RPC hangs), so onDeviceConnect / onMessage get
-// deferred to a fresh alarm() invocation where Worker Loader works.
-export const PENDING_USER_EVENTS_KEY = "__internal:pending_user_events";
-
-export type PendingUserEvent =
-	| { kind: "connect"; attempts?: number }
-	| { kind: "message"; message: DeviceResponse; attempts?: number };
-
-// Transient errors re-queue with backoff; persistent errors drop immediately.
-// Patterns are matched as substrings against the thrown error's `.message`,
-// which (after the wrapper in getOrCreateUserWorker) includes the underlying
-// loader/runtime error text.
-const MAX_USER_EVENT_ATTEMPTS = 6;
-const TRANSIENT_ERROR_PATTERNS = [
-	"Too many concurrent dynamic workers",
-	"ECONNREFUSED",
-];
-
 // Prefix reserved for internal DO storage keys; blocked from user-facing kv API
 const INTERNAL_KEY_PREFIX = "__internal:";
 
@@ -86,9 +85,9 @@ interface DeviceSession {
 
 // Structure to hold pending command promises
 interface PendingCommand {
-	resolve: (value: any) => void;
-	reject: (reason?: any) => void;
-	timeoutId: any;
+	resolve: (value: DeviceResponse) => void;
+	reject: (reason?: unknown) => void;
+	timeoutId: ReturnType<typeof setTimeout>;
 	startedAt: number;
 	commandType: string;
 }
@@ -97,13 +96,14 @@ export class BaseDevice extends DurableObject<Env> {
 	private static readonly MAX_PENDING_COMMANDS = 100;
 	private _session?: DeviceSession;
 	private pendingCommands: Map<string, PendingCommand> = new Map();
-	private logWriteCount = 0;
-	private logsTableReady = false;
+	// Mutable holder for log-streaming bookkeeping. See logStreaming.ts.
+	private logStream: LogStreamState = {
+		logsTableReady: false,
+		logWriteCount: 0,
+		lastLogCleanupAt: 0,
+	};
 	// In-memory only — cosmetic field, not durable. Avoids a storage write on the hot path.
 	private _connectedSince?: number;
-	// SSE log stream watchers — each watcher gets log events in real time
-	private logWatchers: Map<string, WritableStreamDefaultWriter<string>> =
-		new Map();
 
 	// Message counting for daily rate limits
 	private _messageCountToday = 0;
@@ -114,10 +114,6 @@ export class BaseDevice extends DurableObject<Env> {
 	// answer for "are there any cron schedules?". Lets alarm() skip the
 	// CRON_STORAGE_KEY read once we've confirmed there are none.
 	private _hasCrons: boolean | null = null;
-
-	// In-memory throttle for the device_logs cleanup query, which can scan up
-	// to LOG_MAX_STORED rows per fire. Reset on DO eviction.
-	private _lastLogCleanupAt = 0;
 
 	// Cached user worker stub, keyed by workerId (project:device:version).
 	// A new script deploy bumps versionId → workerId → cache miss → rebuild.
@@ -208,7 +204,7 @@ export class BaseDevice extends DurableObject<Env> {
 			const status = await this.getConnectionStatus();
 			server.send(JSON.stringify({ event: "status", data: status }));
 		} catch (error) {
-			console.error("Failed to send initial status to watcher:", error);
+			logger.error(error, "Failed to send initial status to watcher");
 		}
 
 		// Optional log history backfill. Single SQL scan per connect — never
@@ -228,7 +224,10 @@ export class BaseDevice extends DurableObject<Env> {
 						? rawLevel
 						: undefined;
 				try {
-					const { logs } = this.fetchRecentLogs({ limit, level });
+					const { logs } = fetchRecentLogs(this.ctx, this.logStream, {
+						limit,
+						level,
+					});
 					// Send oldest first so the client can append in display order.
 					for (let i = logs.length - 1; i >= 0; i--) {
 						server.send(
@@ -236,7 +235,7 @@ export class BaseDevice extends DurableObject<Env> {
 						);
 					}
 				} catch (error) {
-					console.error("Watcher backfill failed:", error);
+					logger.error(error, "Watcher backfill failed");
 				}
 				server.send(JSON.stringify({ event: "history_complete" }));
 			}
@@ -327,8 +326,8 @@ export class BaseDevice extends DurableObject<Env> {
 
 		await this.ctx.storage.put(CONNECTED_SINCE_KEY, this._connectedSince);
 
-		// Notify SSE watchers of new connection
-		this.emitStatusEvent({
+		// Notify watcher WebSockets of new connection
+		emitStatusEvent(this.ctx, {
 			connected: true,
 			connectedSince: this._connectedSince,
 		});
@@ -434,6 +433,10 @@ export class BaseDevice extends DurableObject<Env> {
 					(envVarsResult.results ?? []).map((r) => [r.key, r.value]),
 				);
 
+				const ctxExports = (
+					this.ctx as DurableObjectState & { exports: DeviceCtxExports }
+				).exports;
+
 				return {
 					compatibilityDate: "2026-04-24",
 					mainModule: "main.js",
@@ -443,11 +446,11 @@ export class BaseDevice extends DurableObject<Env> {
 					},
 					env: {
 						// Provide the DeviceSender binding for sending commands to the device
-						DEVICE: (this.ctx as any).exports.DeviceSender({
+						DEVICE: ctxExports.DeviceSender({
 							props: { deviceId, projectId },
 						}),
 						// Provide the DevicesBridge binding for inter-device RPC
-						__DEVICE_BRIDGE: (this.ctx as any).exports.DevicesBridge({
+						__DEVICE_BRIDGE: ctxExports.DevicesBridge({
 							props: { projectId, userId },
 						}),
 						// Metadata for console override prefix in proxy entrypoint
@@ -481,16 +484,11 @@ export class BaseDevice extends DurableObject<Env> {
 			});
 			return resolved;
 		} catch (error) {
-			console.error("Failed to get/create user worker:", {
-				error: {
-					name: (error as Error).name,
-					message: (error as Error).message,
-					stack: (error as Error).stack,
-				},
-			});
 			// Preserve the inner message so callers can classify the failure
 			// (e.g. drainPendingUserWorkerEvents distinguishes transient vs
 			// persistent errors via TRANSIENT_ERROR_PATTERNS).
+			// Don't log here — the caller decides whether to log or rethrow,
+			// since transient retries shouldn't spam Sentry.
 			throw new Error(
 				`Failed to initialize user worker: ${(error as Error).message}`,
 			);
@@ -550,7 +548,7 @@ export class BaseDevice extends DurableObject<Env> {
 			throw new Error("Device not connected");
 		}
 		// Send the command to the device
-		console.log("sending command without ack:", JSON.stringify(command));
+		logger.debug("sending command without ack", { command });
 		session.websocket.send(JSON.stringify(command));
 		recordCommandRpc(this.env.ANALYTICS, {
 			commandType: command.type,
@@ -599,7 +597,7 @@ export class BaseDevice extends DurableObject<Env> {
 			}, 5000); // 5-second timeout
 
 			this.pendingCommands.set(command.id, {
-				resolve,
+				resolve: resolve as (value: DeviceResponse) => void,
 				reject,
 				timeoutId,
 				startedAt,
@@ -607,7 +605,7 @@ export class BaseDevice extends DurableObject<Env> {
 			});
 
 			// Send the command to the device
-			console.log("sending:", JSON.stringify(command));
+			logger.debug("sending command", { command });
 			if (session.websocket.readyState === WebSocket.READY_STATE_OPEN) {
 				session.websocket.send(JSON.stringify(command));
 			} else {
@@ -628,7 +626,7 @@ export class BaseDevice extends DurableObject<Env> {
 		this._session = { websocket: _ws };
 
 		if (typeof data !== "string") {
-			console.error("Received non-string WebSocket data, ignoring");
+			logger.warn("Received non-string WebSocket data, ignoring");
 			return;
 		}
 
@@ -641,18 +639,11 @@ export class BaseDevice extends DurableObject<Env> {
 			const raw = JSON.parse(data);
 			parsed = DeviceMessageSchema.safeParse(raw);
 		} catch (_error) {
-			console.error("Failed to parse message from device:", {
-				data: data,
-				error: {
-					name: (_error as Error).name,
-					message: (_error as Error).message,
-					stack: (_error as Error).stack,
-				},
-			});
+			logger.error(_error, "Failed to parse message from device", { data });
 			return;
 		}
 		if (!parsed.success) {
-			console.error("Invalid device message:", parsed.error.message);
+			logger.warn("Invalid device message", { error: parsed.error.message });
 			return;
 		}
 		// Keepalive — never count toward daily limit, never wake user worker.
@@ -679,12 +670,12 @@ export class BaseDevice extends DurableObject<Env> {
 			// Fan out structured state events to watchers for known hardware messages.
 			// Doing this alongside (not instead of) pending-command resolution and user
 			// worker dispatch so existing flows are unaffected.
-			this.broadcastStateFromMessage(message);
+			broadcastStateFromMessage(this.ctx, message);
 
 			const pendingCommand = this.pendingCommands.get(message.id);
 
 			if (pendingCommand) {
-				console.log(`Resolving pending command ${message.id}`);
+				logger.debug("Resolving pending command", { id: message.id });
 				clearTimeout(pendingCommand.timeoutId);
 				this.pendingCommands.delete(message.id);
 
@@ -711,14 +702,7 @@ export class BaseDevice extends DurableObject<Env> {
 				await this.enqueueUserWorkerEvent({ kind: "message", message });
 			}
 		} catch (_error) {
-			console.error("Failed to dispatch device message:", {
-				data: data,
-				error: {
-					name: (_error as Error).name,
-					message: (_error as Error).message,
-					stack: (_error as Error).stack,
-				},
-			});
+			logger.error(_error, "Failed to dispatch device message", { data });
 		}
 	}
 
@@ -735,7 +719,7 @@ export class BaseDevice extends DurableObject<Env> {
 			return;
 		}
 
-		console.log(`webSocketClose with code ${code}, ${reason}`);
+		logger.info("webSocketClose", { code, reason });
 		await this.handleConnectionLost(
 			`WebSocket closed. Code: ${code}, Reason: ${reason}`,
 		);
@@ -754,7 +738,7 @@ export class BaseDevice extends DurableObject<Env> {
 			return;
 		}
 
-		console.log(`webSocketError: ${error}`);
+		logger.info("webSocketError", { error: String(error) });
 		await this.handleConnectionLost(`WebSocket error: ${error}`);
 		ws.close(1011, "WebSocket error");
 	}
@@ -865,18 +849,7 @@ export class BaseDevice extends DurableObject<Env> {
 	 * webSocketMessage handlers, which hang on getTarget()).
 	 */
 	protected async enqueueUserWorkerEvent(event: PendingUserEvent) {
-		const existing =
-			(await this.ctx.storage.get<PendingUserEvent[]>(
-				PENDING_USER_EVENTS_KEY,
-			)) ?? [];
-		existing.push(event);
-		await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, existing);
-
-		const soon = Date.now() + 10;
-		const currentAlarm = await this.ctx.storage.getAlarm();
-		if (currentAlarm === null || currentAlarm > soon) {
-			await this.ctx.storage.setAlarm(soon);
-		}
+		await enqueueUserWorkerEvent(this.ctx.storage, event);
 	}
 
 	/**
@@ -887,109 +860,13 @@ export class BaseDevice extends DurableObject<Env> {
 	 * trips the "Too many concurrent dynamic workers" limit).
 	 */
 	protected async drainPendingUserWorkerEvents(): Promise<IUserDeviceWorker | null> {
-		const pending = await this.ctx.storage.get<PendingUserEvent[]>(
-			PENDING_USER_EVENTS_KEY,
-		);
-		if (!pending || pending.length === 0) return null;
-
-		// Clear up-front so a subsequent enqueue during processing doesn't get
-		// swallowed if we persist an emptied array at the end.
-		await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
-
-		let userWorker: IUserDeviceWorker;
-		try {
-			userWorker = await this.getOrCreateUserWorker();
-		} catch (err) {
-			const message = (err as Error)?.message ?? "";
-			const isTransient = TRANSIENT_ERROR_PATTERNS.some((p) =>
-				message.includes(p),
-			);
-			if (isTransient) {
-				// Re-queue with exponential backoff so we retry once the
-				// rate-limiter / transient condition clears. Cap attempts to
-				// avoid eventually piling up.
-				const retryable = pending
-					.map((e) => ({ ...e, attempts: (e.attempts ?? 0) + 1 }))
-					.filter((e) => e.attempts < MAX_USER_EVENT_ATTEMPTS);
-				if (retryable.length > 0) {
-					const maxAttempts = Math.max(
-						...retryable.map((e) => e.attempts ?? 0),
-					);
-					const backoffMs = Math.min(30_000, 500 * 2 ** maxAttempts);
-					await this.ctx.storage.put(PENDING_USER_EVENTS_KEY, retryable);
-					const currentAlarm = await this.ctx.storage.getAlarm();
-					const nextFire = Date.now() + backoffMs;
-					if (currentAlarm === null || currentAlarm > nextFire) {
-						await this.ctx.storage.setAlarm(nextFire);
-					}
-					console.warn(
-						`Worker init transient failure; re-queued ${retryable.length} event(s) with ${backoffMs}ms backoff:`,
-						message,
-					);
-					recordWorkerLoaderFailure(this.env.ANALYTICS, {
-						failureKind: "transient",
-						errorName: (err as Error)?.name,
-						attemptCount: maxAttempts,
-						deviceId: this.deviceMeta?.deviceId,
-						projectId: this.deviceMeta?.projectId,
-					});
-				} else {
-					console.error(
-						"Worker init transient failure; max attempts reached, dropping batch:",
-						message,
-					);
-					recordWorkerLoaderFailure(this.env.ANALYTICS, {
-						failureKind: "transient",
-						errorName: (err as Error)?.name,
-						attemptCount: MAX_USER_EVENT_ATTEMPTS,
-						deviceId: this.deviceMeta?.deviceId,
-						projectId: this.deviceMeta?.projectId,
-					});
-				}
-			} else {
-				// Persistent error (SyntaxError, script missing, etc.) — drop.
-				console.error(
-					"Worker unavailable while draining user events; dropping batch:",
-					err,
-				);
-				recordWorkerLoaderFailure(this.env.ANALYTICS, {
-					failureKind: "persistent",
-					errorName: (err as Error)?.name,
-					attemptCount: 1,
-					deviceId: this.deviceMeta?.deviceId,
-					projectId: this.deviceMeta?.projectId,
-				});
-			}
-			return null;
-		}
-
-		let connectProcessed = false;
-		for (const event of pending) {
-			try {
-				if (event.kind === "connect") {
-					await userWorker.onDeviceConnect();
-					connectProcessed = true;
-				} else {
-					await userWorker.onMessage(event.message);
-				}
-			} catch (error) {
-				console.error(
-					`Error in user worker ${event.kind === "connect" ? "onDeviceConnect" : "onMessage"} (via alarm):`,
-					error,
-				);
-			}
-		}
-
-		// Initialize cron schedules once per batch if a connect was processed.
-		if (connectProcessed) {
-			try {
-				await this.initializeCrons(userWorker);
-			} catch (error) {
-				console.error("Error initializing cron schedules:", error);
-			}
-		}
-
-		return userWorker;
+		return drainPendingUserWorkerEvents({
+			storage: this.ctx.storage,
+			analytics: this.env.ANALYTICS,
+			getOrCreateUserWorker: () => this.getOrCreateUserWorker(),
+			initializeCrons: (worker) => this.initializeCrons(worker),
+			deviceMeta: this.deviceMeta,
+		});
 	}
 
 	private async handleConnectionLost(reason: string) {
@@ -1004,8 +881,8 @@ export class BaseDevice extends DurableObject<Env> {
 
 		await this.ctx.storage.delete(CONNECTED_SINCE_KEY);
 
-		// Notify SSE watchers of disconnection
-		this.emitStatusEvent({ connected: false, connectedSince: null });
+		// Notify watcher WebSockets of disconnection
+		emitStatusEvent(this.ctx, { connected: false, connectedSince: null });
 
 		// Update cached connection status in D1. deviceMeta may be absent after
 		// hibernation, so fall back to reading it from durable storage.
@@ -1021,9 +898,11 @@ export class BaseDevice extends DurableObject<Env> {
 		if (worker) {
 			try {
 				await worker.onDeviceDisconnect();
-				console.log(`User worker onDeviceDisconnect completed`);
+				logger.debug("User worker onDeviceDisconnect completed");
 			} catch (error) {
-				console.error("Error in user worker onDeviceDisconnect:", error);
+				logger.error(error, "Error in user worker onDeviceDisconnect", {
+					deviceId: this.deviceMeta?.deviceId,
+				});
 			}
 		}
 	}
@@ -1064,10 +943,10 @@ export class BaseDevice extends DurableObject<Env> {
 						: nextCronTime(expr, now);
 				storage[name] = { cron: expr, nextFireAt };
 			} catch (err) {
-				console.error(
-					`Invalid cron expression for ${JSON.stringify(name.slice(0, 64))}:`,
-					err,
-				);
+				logger.warn("Invalid cron expression", {
+					name: name.slice(0, 64),
+					error: (err as Error).message,
+				});
 			}
 		}
 
@@ -1114,7 +993,9 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					legacyWorker = await this.getOrCreateUserWorker();
 				} catch (err) {
-					console.error("Worker unavailable during alarm (legacy path):", err);
+					logger.error(err, "Worker unavailable during alarm (legacy path)", {
+						deviceId: this.deviceMeta?.deviceId,
+					});
 					return;
 				}
 			}
@@ -1122,7 +1003,9 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					await legacyWorker.onAlarm();
 				} catch (error) {
-					console.error("Error in user worker onAlarm:", error);
+					logger.error(error, "Error in user worker onAlarm", {
+						deviceId: this.deviceMeta?.deviceId,
+					});
 				}
 			}
 			return;
@@ -1140,7 +1023,9 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					legacyWorker = await this.getOrCreateUserWorker();
 				} catch (err) {
-					console.error("Worker unavailable during alarm (legacy path):", err);
+					logger.error(err, "Worker unavailable during alarm (legacy path)", {
+						deviceId: this.deviceMeta?.deviceId,
+					});
 					return;
 				}
 			}
@@ -1148,7 +1033,9 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					await legacyWorker.onAlarm();
 				} catch (error) {
-					console.error("Error in user worker onAlarm:", error);
+					logger.error(error, "Error in user worker onAlarm", {
+						deviceId: this.deviceMeta?.deviceId,
+					});
 				}
 			}
 			return;
@@ -1164,9 +1051,10 @@ export class BaseDevice extends DurableObject<Env> {
 			try {
 				userWorker = await this.getOrCreateUserWorker();
 			} catch (err) {
-				console.error(
-					"Worker unavailable during alarm — rescheduling without advancing cron schedule:",
+				logger.error(
 					err,
+					"Worker unavailable during alarm — rescheduling without advancing cron schedule",
+					{ deviceId: this.deviceMeta?.deviceId },
 				);
 				await this.ctx.storage.setAlarm(
 					Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
@@ -1179,8 +1067,10 @@ export class BaseDevice extends DurableObject<Env> {
 		// implementation changes). Treat null like an exception — reschedule without
 		// advancing so cron firings are not silently lost.
 		if (userWorker === null) {
-			console.error(
+			logger.error(
+				new Error("Worker returned null during alarm"),
 				"Worker returned null during alarm — rescheduling without advancing cron schedule",
+				{ deviceId: this.deviceMeta?.deviceId },
 			);
 			await this.ctx.storage.setAlarm(
 				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
@@ -1201,9 +1091,12 @@ export class BaseDevice extends DurableObject<Env> {
 						Object.entries(schedules).map(([name, e]) => [name, e.cron]),
 					);
 		} catch (err) {
-			console.error(
-				"getCrons() RPC failed during alarm — falling back to stored cron expressions:",
-				err,
+			logger.warn(
+				"getCrons() RPC failed during alarm — falling back to stored cron expressions",
+				{
+					deviceId: this.deviceMeta?.deviceId,
+					error: (err as Error).message,
+				},
 			);
 			currentCrons = Object.fromEntries(
 				Object.entries(schedules).map(([name, e]) => [name, e.cron]),
@@ -1222,9 +1115,10 @@ export class BaseDevice extends DurableObject<Env> {
 		} catch (err) {
 			// Invalid cron expression in user script — reschedule without advancing
 			// so no firings are permanently lost. The script can be fixed and redeployed.
-			console.error(
-				"Error resolving due crons — rescheduling without advancing:",
+			logger.error(
 				err,
+				"Error resolving due crons — rescheduling without advancing",
+				{ deviceId: this.deviceMeta?.deviceId },
 			);
 			await this.ctx.storage.setAlarm(
 				Math.max(Date.now() + 60_000, earliestFireTime(schedules)),
@@ -1238,10 +1132,10 @@ export class BaseDevice extends DurableObject<Env> {
 				try {
 					await userWorker.onCron(name);
 				} catch (error) {
-					console.error(
-						`Error in user worker onCron(${JSON.stringify(name.slice(0, 64))}):`,
-						error,
-					);
+					logger.error(error, "Error in user worker onCron", {
+						cronName: name.slice(0, 64),
+						deviceId: this.deviceMeta?.deviceId,
+					});
 				}
 			}
 		}
@@ -1287,82 +1181,13 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * Ensures the device_logs SQLite table exists in this DO's storage.
-	 */
-	private ensureLogsTable(): void {
-		if (this.logsTableReady) return;
-		this.ctx.storage.sql.exec(`
-			CREATE TABLE IF NOT EXISTS device_logs (
-				id TEXT PRIMARY KEY,
-				level TEXT NOT NULL,
-				message TEXT NOT NULL,
-				created_at INTEGER NOT NULL
-			)
-		`);
-		this.ctx.storage.sql.exec(
-			"CREATE INDEX IF NOT EXISTS idx_logs_created_at ON device_logs(created_at)",
-		);
-		this.logsTableReady = true;
-	}
-
-	/**
-	 * Persists a log entry from user code into DO SQLite storage.
-	 * Called via DeviceSender RPC from the proxy entrypoint's console override.
+	 * Persists a log entry from user code into DO SQLite storage and
+	 * broadcasts it to watcher WebSockets. Called via DeviceSender RPC from
+	 * the proxy entrypoint's console override. Implementation lives in
+	 * `logStreaming.persistAndBroadcastLog`.
 	 */
 	async persistLog(level: string, message: string): Promise<void> {
-		if (!VALID_LOG_LEVELS.includes(level as LogLevel)) return;
-		this.ensureLogsTable();
-		const truncated =
-			message.length > LOG_MESSAGE_MAX_LENGTH
-				? message.slice(0, LOG_MESSAGE_MAX_LENGTH)
-				: message;
-		const id = crypto.randomUUID();
-		const now = Date.now();
-		this.ctx.storage.sql.exec(
-			"INSERT INTO device_logs (id, level, message, created_at) VALUES (?, ?, ?, ?)",
-			id,
-			level,
-			truncated,
-			now,
-		);
-		// Emit to legacy SSE watchers
-		if (this.logWatchers.size > 0) {
-			const event = `data: ${JSON.stringify({ id, level, message: truncated, created_at: now })}\n\n`;
-			for (const [watcherId, writer] of this.logWatchers) {
-				try {
-					writer.write(event);
-				} catch {
-					this.logWatchers.delete(watcherId);
-				}
-			}
-		}
-		// Emit to hibernating watcher WebSockets (dashboard, HA, etc).
-		this.broadcastToWatchers("log", {
-			id,
-			level,
-			message: truncated,
-			created_at: now,
-		});
-		this.logWriteCount++;
-		// Throttle cleanup by both write count and wall clock — the overflow
-		// DELETE scans up to LOG_MAX_STORED rows, so running it every 10 writes
-		// burned DO rows-read on chatty scripts. Both gates must pass.
-		if (
-			this.logWriteCount % LOG_CLEANUP_INTERVAL === 0 &&
-			now - this._lastLogCleanupAt > LOG_CLEANUP_MIN_INTERVAL_MS
-		) {
-			this._lastLogCleanupAt = now;
-			this.ctx.storage.sql.exec(
-				"DELETE FROM device_logs WHERE created_at < ?",
-				now - LOG_RETENTION_MS,
-			);
-			this.ctx.storage.sql.exec(
-				`DELETE FROM device_logs WHERE id NOT IN (
-					SELECT id FROM device_logs ORDER BY created_at DESC LIMIT ?
-				)`,
-				LOG_MAX_STORED,
-			);
-		}
+		persistAndBroadcastLog(this.ctx, this.logStream, level, message);
 	}
 
 	/**
@@ -1415,51 +1240,6 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
-	 * Fetches the most recent N log rows (newest first), optionally filtered
-	 * by level. No cursor \u2014 used by the watcher WS backfill where the client
-	 * just wants "the last N events I might have missed."
-	 *
-	 * Synchronous because `storage.sql.exec(...).toArray()` is sync; the
-	 * surrounding async wrapper exists only because callers may await it.
-	 */
-	private fetchRecentLogs(opts: { limit: number; level?: string }): {
-		logs: Array<{
-			id: string;
-			level: string;
-			message: string;
-			created_at: number;
-		}>;
-	} {
-		this.ensureLogsTable();
-		const limit = Math.min(Math.max(opts.limit, 1), 100);
-		const rows = opts.level
-			? this.ctx.storage.sql
-					.exec(
-						`SELECT id, level, message, created_at FROM device_logs
-					 WHERE level = ?
-					 ORDER BY created_at DESC, id DESC LIMIT ?`,
-						opts.level,
-						limit,
-					)
-					.toArray()
-			: this.ctx.storage.sql
-					.exec(
-						`SELECT id, level, message, created_at FROM device_logs
-					 ORDER BY created_at DESC, id DESC LIMIT ?`,
-						limit,
-					)
-					.toArray();
-		return {
-			logs: rows as Array<{
-				id: string;
-				level: string;
-				message: string;
-				created_at: number;
-			}>,
-		};
-	}
-
-	/**
 	 * Returns the live WebSocket connection status of the device.
 	 * Uses getWebSockets() which is always authoritative for Hibernation API connections.
 	 */
@@ -1476,144 +1256,17 @@ export class BaseDevice extends DurableObject<Env> {
 		return { connected, connectedSince };
 	}
 
-	private emitStatusEvent(status: {
-		connected: boolean;
-		connectedSince: number | null;
-	}) {
-		// Legacy SSE watchers (log stream). Remove once the dashboard is migrated.
-		if (this.logWatchers.size > 0) {
-			const event = `event: status\ndata: ${JSON.stringify(status)}\n\n`;
-			for (const [watcherId, writer] of this.logWatchers) {
-				try {
-					writer.write(event);
-				} catch {
-					this.logWatchers.delete(watcherId);
-				}
-			}
-		}
-		// Hibernating watcher WebSockets (dashboard, Home Assistant, etc).
-		this.broadcastToWatchers("status", status);
-	}
-
-	/**
-	 * Fans an event out to every hibernating "watcher"-tagged WebSocket.
-	 * Called from within `webSocketMessage` and other handlers that are
-	 * already in a woken-DO context — adding watchers costs no extra duration.
-	 */
-	private broadcastToWatchers(event: string, data: unknown) {
-		const sockets = this.ctx.getWebSockets("watcher");
-		if (sockets.length === 0) return;
-		const msg = JSON.stringify({ event, data });
-		for (const ws of sockets) {
-			try {
-				ws.send(msg);
-			} catch {
-				// client gone; hibernation runtime will clean up
-			}
-		}
-	}
-
-	/**
-	 * Emits a structured `state` event to watchers for well-known hardware
-	 * messages from the firmware. Unknown message types are ignored here and
-	 * still flow through the normal user worker `onMessage` path.
-	 */
-	private broadcastStateFromMessage(message: DeviceResponse) {
-		try {
-			switch (message.type) {
-				case "gpio_state_changed": {
-					const { pin, state } = message.payload as {
-						pin: number;
-						state: "high" | "low";
-					};
-					if (typeof pin !== "number" || pin < 0 || pin > 255) break;
-					this.broadcastToWatchers("state", {
-						entity_id: `gpio_pin_${pin}`,
-						value: state,
-						source: "gpio_state_changed",
-					});
-					break;
-				}
-				case "pin_state_update": {
-					const { pin, value } = message.payload as {
-						pin: number;
-						value: number | string;
-					};
-					if (typeof pin !== "number" || pin < 0 || pin > 255) break;
-					this.broadcastToWatchers("state", {
-						entity_id: `gpio_pin_${pin}_analog`,
-						value,
-						source: "pin_state_update",
-					});
-					break;
-				}
-				case "temperature_result": {
-					const { celsius } = message.payload as { celsius: number };
-					this.broadcastToWatchers("state", {
-						entity_id: "temperature",
-						value: celsius,
-						source: "temperature_result",
-					});
-					break;
-				}
-			}
-		} catch (error) {
-			console.error("Failed to broadcast state from message:", error);
-		}
-	}
-
 	/**
 	 * RPC entry point for user scripts calling `this.env.DEVICE.emitState(...)`.
 	 * The user worker invokes this via DeviceSender; it broadcasts a `state`
 	 * event with `source: "user"` to all watcher sockets.
 	 */
 	async emitState(entityId: string, value: unknown): Promise<void> {
-		this.broadcastToWatchers("state", {
+		broadcastToWatchers(this.ctx, "state", {
 			entity_id: entityId,
 			value,
 			source: "user",
 		});
-	}
-
-	/**
-	 * Returns an SSE-compatible ReadableStream that emits log events in real time.
-	 * The stream stays open until the client disconnects.
-	 */
-	async streamLogs(): Promise<ReadableStream<Uint8Array>> {
-		const watcherId = crypto.randomUUID();
-		const encoder = new TextEncoder();
-		const { readable, writable } = new TransformStream<
-			Uint8Array,
-			Uint8Array
-		>();
-		const writer = writable.getWriter();
-
-		// Wrap the writer so logWatchers can write strings (converted to bytes)
-		const stringWriter = {
-			write(s: string) {
-				writer.write(encoder.encode(s));
-			},
-			closed: writer.closed,
-		};
-		// `logWatchers` is in-memory only; on DO hibernation the Map is torn down alongside the
-		// live streams, so no cross-instance leak. Cleanup on client disconnect is handled by
-		// the `writer.closed.then(...)` below.
-		this.logWatchers.set(
-			watcherId,
-			stringWriter as unknown as WritableStreamDefaultWriter<string>,
-		);
-
-		// Send initial connection status
-		const status = await this.getConnectionStatus();
-		stringWriter.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`);
-
-		// Clean up watcher when the writable side closes (client disconnects)
-		writer.closed.then(
-			() => this.logWatchers.delete(watcherId),
-			() => this.logWatchers.delete(watcherId),
-		);
-
-		return readable;
 	}
 
 	/**
@@ -1661,9 +1314,10 @@ export class BaseDevice extends DurableObject<Env> {
 		reason: string;
 	}> {
 		const session = this.getSession();
-		console.log(
-			`[reboot] Session found: ${!!session}, readyState: ${session?.websocket.readyState}`,
-		);
+		logger.debug("[reboot] Session check", {
+			hasSession: !!session,
+			readyState: session?.websocket.readyState,
+		});
 
 		if (
 			!session ||

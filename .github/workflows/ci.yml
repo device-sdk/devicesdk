@@ -132,6 +132,13 @@ jobs:
             turbo-${{ github.job }}-
       - name: Build dependencies
         run: pnpm build --filter @devicesdk/core
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/dashboard/package.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
       - name: Install Playwright browsers
         # System libs are pre-installed on the self-hosted runner — skip --with-deps
         # which requires passwordless sudo. Browser binaries still cache to ~/.cache.

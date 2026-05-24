@@ -1,9 +1,11 @@
-import { useAuthStore } from '@/stores/auth';
+import type { Pinia } from 'pinia';
+import type { App } from 'vue';
 import { isAllowedRedirectUrl } from '@/lib/redirect';
+import { useAuthStore } from '@/stores/auth';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default async ({ app }: any) => {
-  const authStore = useAuthStore(app.$pinia);
+export default async ({ app }: { app: App }) => {
+  const pinia = (app as App & { $pinia?: Pinia }).$pinia;
+  const authStore = useAuthStore(pinia);
   await authStore.fetchUser();
 
   if (authStore.isAuthenticated) {

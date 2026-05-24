@@ -67,7 +67,7 @@ export default async function login(options?: {
 			if (
 				error instanceof Error &&
 				"statusCode" in error &&
-				(error as any).statusCode === 401
+				(error as Error & { statusCode: number }).statusCode === 401
 			) {
 				// Token might not be active yet; wait once and retry
 				await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));

@@ -50,6 +50,7 @@
 		"start": "tsx src/index.ts",
 		"dev": "tsx src/index.ts",
 		"test": "tsc && vitest run",
+		"test:coverage": "tsc && vitest run --coverage",
 		"check-types": "tsc --noEmit",
 		"clean": "rm -rf dist"
 	},
@@ -70,6 +71,7 @@
 		"@repo/typescript-config": "workspace:*",
 		"@types/node": "catalog:",
 		"@types/ws": "^8.5.12",
+		"@vitest/coverage-istanbul": "catalog:",
 		"ts-node": "^10.9.2",
 		"tsx": "catalog:",
 		"typescript": "catalog:",

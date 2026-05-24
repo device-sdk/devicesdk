@@ -17,6 +17,7 @@ social_image: /og-images/docs/changelog.png
   - `DeviceSender` now validates pin/range/I2C/SPI/UART/WS2812 arguments synchronously — bad calls throw a typed error (`code: "invalid_argument"`) with a `docs` URL instead of silently round-tripping.
   - New cookbook at [`/docs/recipes/`](/docs/recipes/) with 10 task-shaped recipes.
   - URL change: `/docs/resources/changelog/` is now `/docs/changelog/` (the old URL 301s).
+- **Removed:** the deprecated SSE log stream endpoint (`GET /logs/stream`). Use the [watch WebSocket](/docs/guides/real-time-watch/) instead — the dashboard, CLI, and Home Assistant integration already do.
 
 ## April 11, 2026
 

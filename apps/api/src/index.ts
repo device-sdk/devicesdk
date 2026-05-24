@@ -28,6 +28,7 @@ import {
 	handleGoogleCallback,
 	handleLogout,
 } from "./foundation/auth";
+import { logger } from "./foundation/logger";
 import {
 	rateLimitMiddleware,
 	userRateLimitMiddleware,
@@ -78,11 +79,9 @@ app.onError((err, c) => {
 		return (err as HTTPException).getResponse();
 	}
 
-	console.error(`Global error handler caught ${err.name}:${err.message}`, {
-		err: JSON.stringify(err),
-	}); // Log the error if it's not known
-
-	Sentry.captureException(err);
+	logger.error(err, "Global error handler caught unhandled error", {
+		errorName: err.name,
+	});
 
 	// For other errors, return a generic 500 response
 	const isDev = c.env.ENV === "local";

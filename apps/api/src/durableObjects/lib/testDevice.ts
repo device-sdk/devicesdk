@@ -10,12 +10,11 @@
  */
 
 import type { CronStorage } from "./cronDispatch";
+import { BaseDevice, CRON_STORAGE_KEY } from "./device";
 import {
-	BaseDevice,
-	CRON_STORAGE_KEY,
 	PENDING_USER_EVENTS_KEY,
 	type PendingUserEvent,
-} from "./device";
+} from "./userEventQueue";
 import type { IUserDeviceWorker } from "./userWorkerTypes";
 
 export class TestDevice extends BaseDevice {

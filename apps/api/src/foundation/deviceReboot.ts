@@ -1,5 +1,6 @@
 import type { Env } from "../types";
 import { getDeviceStub } from "./durableObjectStub";
+import { logger } from "./logger";
 
 export interface RebootResult {
 	rebooted: boolean;
@@ -16,16 +17,16 @@ export async function triggerDeviceReboot(
 	deviceId: string,
 ): Promise<RebootResult> {
 	const doName = `${projectId}:${deviceId}`;
-	console.log(`[reboot] Triggering reboot for DO: ${doName}`);
+	logger.debug("[reboot] Triggering reboot for DO", { doName });
 	const stub = getDeviceStub(env, projectId, deviceId);
 
 	try {
 		const result = await stub.triggerRebootForDeploy();
-		console.log(`[reboot] Result:`, JSON.stringify(result));
+		logger.debug("[reboot] Result", { result });
 		return result;
 	} catch (error) {
 		const reason = `Failed to contact DO: ${(error as Error).message}`;
-		console.error(`[reboot] Error:`, reason);
+		logger.error(error, "[reboot] Failed to contact DO", { doName });
 		return { rebooted: false, reason };
 	}
 }

@@ -34,6 +34,7 @@
     "@quasar/quasar-app-extension-testing-unit-vitest": "^1.2.4",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vitest/coverage-istanbul": "catalog:",
     "@vue/eslint-config-prettier": "^10.1.0",
     "@vue/eslint-config-typescript": "^14.4.0",
     "@vue/test-utils": "^2.4.6",

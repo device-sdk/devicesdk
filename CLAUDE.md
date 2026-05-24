@@ -85,7 +85,7 @@ examples/*
 - **Endpoints**: `src/endpoints/{resource}/router.ts` defines routes, individual files extend `OpenAPIRoute` with Zod schemas.
 - **Auth**: `src/foundation/auth.ts` — checks Bearer token → session cookie → API token (prefix `dsdk_`). User available via `c.get("user")`, query builder via `c.get("qb")`.
 - **Durable Objects**: `src/durableObjects/lib/device.ts` — `BaseDevice` handles WebSocket device connections. Uses the Hibernation API (`webSocketMessage`, `webSocketClose`, `webSocketError`). Both `webSocketClose` and `webSocketError` must be implemented — abrupt TCP drops (e.g. device hard reboot) fire `webSocketError`, not `webSocketClose`. Never send a WebSocket close frame immediately after a command that triggers a device reboot; let the connection drop naturally.
-- **SSE Streaming**: `GET /v1/projects/:projectId/devices/:deviceId/logs/stream` — Server-Sent Events endpoint for real-time log streaming. The DO's `streamLogs()` method returns a `ReadableStream<Uint8Array>` that emits `data:` events (log entries) and `event: status` events (connection changes). Watchers are stored in `logWatchers` Map and cleaned up automatically.
+- **Real-time streaming**: `GET /v1/projects/:projectId/devices/:deviceId/watch` — WebSocket endpoint that streams `log`, `status`, and `state` frames to dashboard / Home Assistant clients. Uses Hibernation API watcher sockets in `device.ts` (`handleWatcherUpgrade`, `broadcastToWatchers`, `broadcastStateFromMessage`). The legacy `/logs/stream` SSE endpoint was removed in favour of this.
 - **Bindings**: `DB` (D1), `SCRIPTS`/`FIRMWARES` (R2), `DEVICE` (Durable Object), `LOADER` (Worker Loader for sandboxed user scripts).
 - **Cron**: Hourly trigger (`"0 * * * *"` in `wrangler.jsonc`) — handler in `src/scheduled.ts` (or routed via `src/index.ts`'s `scheduled` export). See `tests/integration/cronDispatch.test.ts` for behavior.
 - **Response format**: `{ "success": true, "result": ... }` or `{ "success": false, "error": "..." }`.
@@ -209,11 +209,20 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 | DevicesBridge (inter-device RPC) | `apps/api/src/durableObjects/lib/devicesBridge.ts` |
 | CLI type generation | `packages/cli/src/commands/build.ts` (`generateDeviceTypes`) |
 | Real-time watch WebSocket (canonical) | `apps/api/src/endpoints/devices/watchDevice.ts`, `apps/api/src/durableObjects/lib/device.ts` (`handleWatcherUpgrade`, `broadcastToWatchers`, `broadcastStateFromMessage`) |
-| Real-time log streaming (SSE, deprecated) | `apps/api/src/endpoints/logs/streamLogs.ts`, `apps/api/src/durableObjects/lib/device.ts` (`streamLogs`, `logWatchers`) |
 | Dashboard watch WebSocket composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
 | HA entity declaration types | `packages/core/src/index.ts` (`HaEntityDeclaration`, `HaEntityType`, `HaEntitySource`) |
 | HA entity persistence | `apps/api/src/endpoints/devices/getDeviceEntities.ts`, `apps/api/src/endpoints/devices/upsertDeviceEntities.ts`, `device_entity_configs` table |
 | License | `LICENSE` (proprietary, all rights reserved) |
+
+## Audit-finding sanity-check
+
+When an audit (security, code-quality, etc.) flags something in this codebase, **trace the actual call path before acting**. The May 2026 audit follow-up flagged 4 "security" issues; 3 were false alarms because the audit agent didn't follow the chain through to where authorization actually happens. Common patterns that *look* like vulnerabilities but aren't:
+
+- **Durable Object query params look untrusted, but they aren't.** `apps/api/src/durableObjects/lib/device.ts` reads `userId` / `projectId` / `deviceId` from the WebSocket upgrade URL. These come from the authenticated server route (`apps/api/src/endpoints/devices/deviceConnect.ts:41–151`) which authenticates the user, looks up `project.id` / `device.id` from D1 with a `user_id = ?` constraint, and passes the *server-derived* IDs to the DO. The client cannot forge them. The watcher endpoint (`watchDevice.ts` → `foundation/projectDeviceResolve.ts:18–56`) follows the same pattern.
+- **DO `fetch()` handlers don't re-authenticate, and they don't need to.** Durable Objects are only reachable through their bindings; there is no public route to a DO. Authentication happens on the API route that resolves the stub. Adding "auth checks inside the DO" duplicates the gate without adding security.
+- **`Sentry.withSentry()` wraps both `fetch` and `scheduled`.** `apps/api/src/index.ts:218–228`. Unhandled exceptions in `handleScheduled` are captured by the Sentry integration; you don't need an explicit top-level try/catch for cron failures to land in Sentry.
+
+When in doubt, grep for the entry point (`grep -rn 'env.DEVICE.idFromName' apps/api/src/`, `grep -rn 'authenticateUser' apps/api/src/`) and trace to the DO before assuming the DO is reachable from the public internet.
 
 ## Multi-Agent Safety
 

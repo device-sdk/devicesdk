@@ -9,7 +9,7 @@
 
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import type { PendingUserEvent } from "../../src/durableObjects/lib/device";
+import type { PendingUserEvent } from "../../src/durableObjects/lib/userEventQueue";
 
 function getTestDeviceStub(name: string) {
 	const id = env.TEST_DEVICE.idFromName(name);

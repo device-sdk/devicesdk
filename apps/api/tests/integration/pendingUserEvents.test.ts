@@ -19,7 +19,7 @@ import { describe, expect, it } from "vitest";
 import {
 	PENDING_USER_EVENTS_KEY,
 	type PendingUserEvent,
-} from "../../src/durableObjects/lib/device";
+} from "../../src/durableObjects/lib/userEventQueue";
 
 const gpioStateChangedFixture = (
 	pin: number,

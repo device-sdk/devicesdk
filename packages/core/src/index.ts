@@ -12,3 +12,9 @@ export * from "./ha.js";
 export * from "./identity.js";
 export * from "./responses.js";
 export * from "./runtime.js";
+
+/**
+ * Maximum uploaded device-script size, in bytes (1 MiB). Canonical platform
+ * limit shared by the API (upload validation) and the CLI (pre-deploy check).
+ */
+export const MAX_SCRIPT_SIZE_BYTES = 1024 * 1024;

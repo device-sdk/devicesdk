@@ -414,7 +414,12 @@ const versionColumns = [
   { name: 'actions', label: 'Actions', field: 'actions', align: 'right' as const },
 ];
 
-const SCRIPT_MAX_LENGTH = 1048576;
+// Mirrors the canonical platform limit (@devicesdk/core MAX_SCRIPT_SIZE_BYTES =
+// 1 MiB). Kept as a local literal on purpose: the dashboard has no
+// @devicesdk/core dependency, and adding one to share a single number would
+// pull a build-ordered package into the SPA (and break the no-build lint /
+// component-test CI jobs).
+const SCRIPT_MAX_LENGTH = 1024 * 1024;
 
 const isScriptTooLarge = computed(() => scriptContent.value.length > SCRIPT_MAX_LENGTH);
 

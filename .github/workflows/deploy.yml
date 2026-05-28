@@ -8,6 +8,11 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+# Deploys authenticate with a separate Cloudflare API token; the GitHub token
+# only needs read access to check out the repo.
+permissions:
+  contents: read
+
 jobs:
   changes:
     name: Detect changes
@@ -18,7 +23,7 @@ jobs:
       website: ${{ steps.filter.outputs.website }}
     steps:
       - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
         id: filter
         with:
           filters: |
@@ -38,7 +43,7 @@ jobs:
     if: needs.changes.outputs.api == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -73,7 +78,7 @@ jobs:
     if: needs.changes.outputs.dashboard == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -101,13 +106,13 @@ jobs:
     if: needs.changes.outputs.website == 'true' || needs.changes.outputs.api == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
       - name: Install Hugo
-        uses: peaceiris/actions-hugo@v3
+        uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3
         with:
           hugo-version: 'latest'
           extended: true

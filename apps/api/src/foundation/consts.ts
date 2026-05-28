@@ -23,8 +23,9 @@ export const LOG_CLEANUP_MIN_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 export const JS_IDENTIFIER_REGEX = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
-/** Maximum uploaded device-script size, in bytes (1 MiB). */
-export const MAX_SCRIPT_SIZE_BYTES = 1024 * 1024;
+// Canonical platform limit lives in @devicesdk/core; re-exported here so API
+// code keeps sourcing constants from one place.
+export { MAX_SCRIPT_SIZE_BYTES } from "@devicesdk/core";
 
 // --- Tier-based usage limits ---
 

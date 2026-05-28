@@ -123,7 +123,7 @@ TEST_F(WebSocketHandlerTest, I2cScan) {
 
 TEST_F(WebSocketHandlerTest, I2cWrite) {
     const char *msg = "{\"type\":\"i2c_write\",\"id\":\"msg-9\","
-                      "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"data\":\"AQID\"}}";
+                      "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"data\":[\"0x01\",\"0x02\",\"0x03\"]}}";
     EXPECT_TRUE(handle_websocket_message(msg));
 }
 

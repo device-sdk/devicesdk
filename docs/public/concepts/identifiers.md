@@ -1,7 +1,7 @@
 ---
 title: Project & Device Identifiers
 description: How project slugs and device slugs map to your devicesdk.ts config
-social_image: /og-images/docs/concepts.png
+social_image: /og-images/docs/concepts/identifiers.png
 ---
 
 ## Two slugs you'll see everywhere

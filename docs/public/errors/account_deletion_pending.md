@@ -1,6 +1,7 @@
 ---
-title: "Error: account_deletion_pending"
+title: 'Error: account_deletion_pending'
 description: A deletion has been scheduled for this account; data will be removed soon.
+social_image: /og-images/docs/errors/account_deletion_pending.png
 ---
 
 ## What it means

@@ -53,6 +53,8 @@ This is a pnpm + Turborepo monorepo for the DeviceSDK IoT platform. The platform
 
 **`packages/cli`** (`@devicesdk/cli`) — CLI tool (`devicesdk` binary). Commands: `login`, `logout`, `whoami`, `init`, `build`, `dev`, `deploy`, `flash`, `logs` (with `--tail`), `status`, `inspect`. Uses esbuild to bundle user device scripts, workerd for local simulation. Build copies Vite build output from `apps/simulation/dist` into `dist/simulator/assets/`.
 
+**`packages/mcp`** (`@devicesdk/mcp`) — Model Context Protocol server (`devicesdk-mcp` binary). Published to npm. Wraps `@devicesdk/cli` (`workspace:*` dep) to expose DeviceSDK as tools for AI coding agents (Claude, Cursor, Copilot): `devicesdk_whoami`, `devicesdk_status`, `devicesdk_logs_tail`, `devicesdk_env_list`/`_set`, `devicesdk_deploy`, `devicesdk_docs_search`. Inherits CLI auth from `~/.devicesdk/auth.json`, with `DEVICESDK_TOKEN` env taking precedence. `devicesdk init` writes the `.mcp.json` entry that launches it. Single source file: `src/index.ts`.
+
 **`packages/typescript-config`** (`@repo/typescript-config`) — Shared `base.json` tsconfig extended by `core` and `cli`.
 
 **`apps/api`** (`@devicesdk/api`) — Cloudflare Workers API using Hono + Chanfana (auto-generates OpenAPI schema). Uses D1 (SQLite) via `workers-qb`, R2 for script/firmware storage, Durable Objects for WebSocket device connections. Depends on `@devicesdk/core` via `workspace:*`.
@@ -75,8 +77,8 @@ This is a pnpm + Turborepo monorepo for the DeviceSDK IoT platform. The platform
 @devicesdk/core ──────────→ @devicesdk/api
   ↓                              ↓
 @devicesdk/cli ←── @devicesdk/simulation
-  ↓
-examples/*
+  ↓        ↓
+examples/* @devicesdk/mcp
 ```
 
 ### API Architecture (apps/api)
@@ -133,6 +135,8 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 - `packageManager: pnpm@9.15.4` in root `package.json`
 - Node >= 20 required (using v24 via nvm)
 - Turbo `^build` ensures dependency-ordered builds
+- **Dependency versions are pinned via pnpm catalogs** in `pnpm-workspace.yaml`, not per-package. Shared pins use `catalog:` (`typescript`, `vitest`, `wrangler`, `tsx`, `@types/node`). Named catalogs hold parallel majors for staged migrations: `catalog:zod4`/`catalog:zod3` and `catalog:tailwind4`/`catalog:tailwind3`. Everything is on zod 4 + tailwind 4 today (the v3 catalogs are unused). When adding a shared dep, reference a catalog rather than hardcoding a version.
+
 ## Local Development Workflow
 
 To run the full stack locally (API + dashboard + device):
@@ -208,6 +212,7 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 | Inter-device RPC types | `packages/core/src/index.ts` (`RemoteDevice`, `GetEnv`) |
 | DevicesBridge (inter-device RPC) | `apps/api/src/durableObjects/lib/devicesBridge.ts` |
 | CLI type generation | `packages/cli/src/commands/build.ts` (`generateDeviceTypes`) |
+| MCP server (AI-agent tools) | `packages/mcp/src/index.ts` |
 | Real-time watch WebSocket (canonical) | `apps/api/src/endpoints/devices/watchDevice.ts`, `apps/api/src/durableObjects/lib/device.ts` (`handleWatcherUpgrade`, `broadcastToWatchers`, `broadcastStateFromMessage`) |
 | Dashboard watch WebSocket composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
 | HA entity declaration types | `packages/core/src/index.ts` (`HaEntityDeclaration`, `HaEntityType`, `HaEntitySource`) |
@@ -228,16 +233,22 @@ When in doubt, grep for the entry point (`grep -rn 'env.DEVICE.idFromName' apps/
 
 - **Multi-agent safety:** do **not** create/apply/drop `git stash` entries unless explicitly requested. Assume other agents may be working; keep unrelated WIP untouched.
 - **Multi-agent safety:** when the user says "push", you may `git pull --rebase` to integrate latest changes (never discard other agents' work). When the user says "commit", scope to your changes only.
-- **Multi-agent safety:** do **not** create/remove/modify `git worktree` checkouts unless explicitly requested.
+- **Multi-agent safety:** create your **own** worktree per change (named after the change — see Git Workflow). Never create, remove, or modify a worktree or branch you didn't create — other agents may be using it.
 - **Multi-agent safety:** do **not** switch branches unless explicitly requested.
 - **Multi-agent safety:** running multiple agents is OK as long as each agent has its own session.
 - **Multi-agent safety:** when you see unrecognized files, keep going; focus on your changes and commit only those.
 
 ## Git Workflow
 
-- **Never commit directly to `main`**. Always create a new branch for your changes.
+- **Never commit directly to `main`, and never work in the main checkout.** Do every change in its own dedicated git worktree. Choose one kebab-case **change name** (the same slug you'll use for the changeset, e.g. `per-page-og-images`) and use it verbatim for **both** the worktree directory and the branch:
+
+  ```bash
+  git worktree add .worktrees/<change-name> -b <change-name>
+  ```
+
+  `.worktrees/` is gitignored — reserve `.claude/worktrees/` for harness-managed isolated agents and `.worktrees/pr-*` for PR-review checkouts. After the change merges, clean up with `git worktree remove .worktrees/<change-name>`.
 - **Before every commit**, run `pnpm lint` to fix lint issues. Do not commit if linting fails.
-- **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in any prior PR's changeset entry (or `.changeset/README.md` for the format reference). Use `patch` for bug fixes, `minor` for new features. Reference every workspace package the change touches — this covers both the npm-published packages (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`) **and the private apps that maintain their own changelog** (`@devicesdk/website`, `@devicesdk/dashboard`, `@devicesdk/simulation`). Firmware, examples, and shared configs are not versioned and do not need changeset entries.
+- **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in any prior PR's changeset entry (or `.changeset/README.md` for the format reference). Use `patch` for bug fixes, `minor` for new features. Reference every workspace package the change touches — this covers both the npm-published packages (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`, `@devicesdk/mcp`) **and the private apps that maintain their own changelog** (`@devicesdk/website`, `@devicesdk/dashboard`, `@devicesdk/simulation`). Firmware, examples, and shared configs are not versioned and do not need changeset entries.
 - **Never set a `major` bump in a changeset without explicit user consent.** When a change is genuinely breaking, surface that explicitly and ask before writing the changeset. Do **not** soften the change with back-compat aliases unless the user asks — declining a major bump is not a request for back-compat, it just means ship without the major-bump ceremony.
 
 ## CI Runner Image

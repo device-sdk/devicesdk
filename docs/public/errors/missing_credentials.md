@@ -1,6 +1,7 @@
 ---
-title: "Error: missing_credentials"
-description: The request had no Bearer token, session cookie, or CLI token.
+title: 'Error: missing_credentials'
+description: 'The request had no Bearer token, session cookie, or CLI token.'
+social_image: /og-images/docs/errors/missing_credentials.png
 ---
 
 ## What it means

@@ -1,6 +1,7 @@
 ---
-title: "Error: invalid_cli_token"
-description: A `dsdk_*` CLI token is missing, expired, or revoked.
+title: 'Error: invalid_cli_token'
+description: 'A `dsdk_*` CLI token is missing, expired, or revoked.'
+social_image: /og-images/docs/errors/invalid_cli_token.png
 ---
 
 ## What it means

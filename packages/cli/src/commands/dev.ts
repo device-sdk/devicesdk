@@ -246,7 +246,20 @@ const dev = async (options: { config?: string; port?: string }) => {
 		let port = options.port ? Number.parseInt(options.port, 10) : 8181;
 		if (!(await isPortAvailable(port))) {
 			const original = port;
-			port = Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
+			// Scan upward for the next genuinely-free port. A single random pick
+			// can itself be in use, which would crash `workerd serve` on bind.
+			let candidate = -1;
+			for (let p = original + 1; p <= 65535; p++) {
+				if (await isPortAvailable(p)) {
+					candidate = p;
+					break;
+				}
+			}
+			if (candidate === -1) {
+				console.error(`Error: no free port available above ${original}.`);
+				process.exit(EXIT.GENERIC);
+			}
+			port = candidate;
 			console.log(`Port ${original} is in use, using ${port} instead.`);
 		}
 

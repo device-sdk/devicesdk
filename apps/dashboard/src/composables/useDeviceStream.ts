@@ -45,6 +45,7 @@ export function useDeviceStream(
   function connect() {
     if (disposed) return;
     if (ws) {
+      ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
       ws.close();
       ws = null;
     }
@@ -53,14 +54,15 @@ export function useDeviceStream(
     // history_complete fires once per connection; reset on every reconnect so
     // consumers can show a "loading" indicator each time.
     historyLoaded.value = options.backfillLimit == null;
-    ws = new WebSocket(url);
+    const socket = new WebSocket(url);
+    ws = socket;
     streaming.value = true;
 
-    ws.onopen = () => {
+    socket.onopen = () => {
       reconnectDelay = 1000;
     };
 
-    ws.onmessage = (event) => {
+    socket.onmessage = (event) => {
       try {
         const frame = JSON.parse(event.data as string) as {
           event: string;
@@ -101,18 +103,24 @@ export function useDeviceStream(
       }
     };
 
+    // A failed connection fires onerror *then* onclose; without a guard each
+    // would schedule its own reconnect (leaking the first timer, which
+    // disconnect() can then no longer cancel). Detach this socket's handlers on
+    // the first call so we reconnect at most once per drop.
     const handleClose = () => {
+      socket.onopen = socket.onmessage = socket.onerror = socket.onclose = null;
+      if (ws === socket) ws = null;
       streaming.value = false;
-      ws = null;
-      if (disposed) return;
+      if (disposed || reconnectTimer) return;
       reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
         connect();
       }, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 30000);
     };
 
-    ws.onerror = handleClose;
-    ws.onclose = handleClose;
+    socket.onerror = handleClose;
+    socket.onclose = handleClose;
   }
 
   function disconnect() {

@@ -172,6 +172,13 @@ function openSession(state: SessionState): void {
 			const entry = frame.data;
 			if (state.seenIds.has(entry.id)) return;
 			state.seenIds.add(entry.id);
+			// Bound memory in long-running --tail sessions. Only ids within a
+			// reconnect's backfill-replay window can collide, so evicting the
+			// oldest beyond a generous cap never produces a duplicate in practice.
+			if (state.seenIds.size > 5000) {
+				const oldest = state.seenIds.values().next().value;
+				if (oldest !== undefined) state.seenIds.delete(oldest);
+			}
 
 			if (frame.replay && !state.historyComplete) {
 				state.bufferedHistory.push(entry);

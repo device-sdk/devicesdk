@@ -71,16 +71,16 @@ importers:
         version: link:../../packages/core
       '@hono/oauth-providers':
         specifier: ^0.8.5
-        version: 0.8.5(hono@4.10.7)
+        version: 0.8.5(hono@4.12.23)
       '@sentry/cloudflare':
         specifier: ^10.29.0
         version: 10.38.0(@cloudflare/workers-types@4.20260501.1)
       chanfana:
-        specifier: ^3.3.0
+        specifier: 3.3.0
         version: 3.3.0(patch_hash=mwdcsktalhf2qc335xrgn4bizi)
       hono:
-        specifier: 4.10.7
-        version: 4.10.7
+        specifier: ^4.12.23
+        version: 4.12.23
       workers-qb:
         specifier: ^1.11.2
         version: 1.13.0
@@ -3176,12 +3176,8 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
-  hono@4.10.7:
-    resolution: {integrity: sha512-icXIITfw/07Q88nLSkB9aiUrd8rYzSweK681Kjo/TSggaGbOX4RRyxxm71v+3PC8C/j+4rlxGeoTRxQDkaJkUw==}
-    engines: {node: '>=16.9.0'}
-
-  hono@4.12.18:
-    resolution: {integrity: sha512-RWzP96k/yv0PQfyXnWjs6zot20TqfpfsNXhOnev8d1InAxubW93L11/oNUc3tQqn2G0bSdAOBpX+2uDFHV7kdQ==}
+  hono@4.12.23:
+    resolution: {integrity: sha512-eIaZ9qDgu7XV0pxOCrg7/WhnQ6Ivm22UcxhXx/A3dcbqbbYgBEkc6e/J/s7j2tS96zoB0S9VBdLwQNCWwUo4LA==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -5121,11 +5117,6 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
-  yaml@2.8.2:
-    resolution: {integrity: sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==}
-    engines: {node: '>= 14.6'}
-    hasBin: true
-
   yaml@2.8.4:
     resolution: {integrity: sha512-ml/JPOj9fOQK8RNnWojA67GbZ0ApXAUlN2UQclwv2eVgTgn7O9gg9o7paZWKMp4g0H3nTLtS9LVzhkpOFIKzog==}
     engines: {node: '>= 14.6'}
@@ -5878,13 +5869,13 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
-  '@hono/node-server@1.19.14(hono@4.12.18)':
+  '@hono/node-server@1.19.14(hono@4.12.23)':
     dependencies:
-      hono: 4.12.18
+      hono: 4.12.23
 
-  '@hono/oauth-providers@0.8.5(hono@4.10.7)':
+  '@hono/oauth-providers@0.8.5(hono@4.12.23)':
     dependencies:
-      hono: 4.10.7
+      hono: 4.12.23
 
   '@humanfs/core@0.19.1': {}
 
@@ -6066,7 +6057,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.29.0(zod@4.3.6)':
     dependencies:
-      '@hono/node-server': 1.19.14(hono@4.12.18)
+      '@hono/node-server': 1.19.14(hono@4.12.23)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -6076,7 +6067,7 @@ snapshots:
       eventsource-parser: 3.0.8
       express: 5.2.1
       express-rate-limit: 8.5.1(express@5.2.1)
-      hono: 4.12.18
+      hono: 4.12.23
       jose: 6.2.3
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -7951,9 +7942,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.10.7: {}
-
-  hono@4.12.18: {}
+  hono@4.12.23: {}
 
   hookable@5.5.3: {}
 
@@ -8546,7 +8535,7 @@ snapshots:
 
   openapi3-ts@4.5.0:
     dependencies:
-      yaml: 2.8.2
+      yaml: 2.8.4
 
   optionator@0.9.4:
     dependencies:
@@ -9787,10 +9776,7 @@ snapshots:
 
   yallist@3.1.1: {}
 
-  yaml@2.8.2: {}
-
-  yaml@2.8.4:
-    optional: true
+  yaml@2.8.4: {}
 
   yargs-parser@21.1.1: {}
 

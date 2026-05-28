@@ -108,7 +108,6 @@ export class DeviceSender extends WorkerEntrypoint<
 		if (!this._kv) {
 			const stub = this.getDoStub();
 			this._kv = {
-				// get: <T = unknown>(key: string) => stub.kvGet<T>(key), todo: fix this
 				get: <T = unknown>(key: string) => stub.kvGet(key),
 				put: <T>(key: string, value: T) => stub.kvPut(key, value),
 				delete: (key: string) => stub.kvDelete(key),

@@ -84,12 +84,12 @@
                   <div class="info-row">
                     <span class="info-label">Last Connected</span>
                     <span class="info-value">
-                      {{ device.last_connected_at ? formatDate(device.last_connected_at) : 'Never' }}
+                      {{ device.last_connected_at ? formatDate(device.last_connected_at, { withTime: true }) : 'Never' }}
                     </span>
                   </div>
                   <div class="info-row">
                     <span class="info-label">Created</span>
-                    <span class="info-value">{{ formatDate(device.created_at) }}</span>
+                    <span class="info-value">{{ formatDate(device.created_at, { withTime: true }) }}</span>
                   </div>
                 </div>
               </div>
@@ -212,7 +212,7 @@
                     {{ props.row.message || '—' }}
                   </q-td>
                   <q-td key="created_at" :props="props">
-                    {{ formatDate(props.row.created_at) }}
+                    {{ formatDate(props.row.created_at, { withTime: true }) }}
                   </q-td>
                   <q-td key="actions" :props="props">
                     <q-btn
@@ -368,6 +368,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import DeviceLogs from '@/components/DeviceLogs.vue';
 import { scriptTemplates, templateCode } from '@/lib/scriptTemplates';
+import { formatDate, normalizeTimestamp } from '@/lib/time';
 import {
   deviceService,
   scriptService,
@@ -417,29 +418,12 @@ const SCRIPT_MAX_LENGTH = 1048576;
 
 const isScriptTooLarge = computed(() => scriptContent.value.length > SCRIPT_MAX_LENGTH);
 
-const normalizeTimestamp = (timestamp: number): number => {
-  // API may return seconds or milliseconds - normalize to milliseconds
-  // If timestamp is less than year 2000 in ms, it's likely in seconds
-  return timestamp < 946684800000 ? timestamp * 1000 : timestamp;
-};
-
 const isOnline = computed(() => {
   if (!device.value?.last_connected_at) return false;
   const lastConnected = normalizeTimestamp(device.value.last_connected_at);
   const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
   return lastConnected > fiveMinutesAgo;
 });
-
-const formatDate = (timestamp: number) => {
-  const normalized = normalizeTimestamp(timestamp);
-  return new Date(normalized).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 
 const loadTemplate = (templateKey: string | null) => {
   if (templateKey && templateCode[templateKey]) {

@@ -192,6 +192,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { projectService, userService, type Project } from '@/services/api.service';
+import { formatDate } from '@/lib/time';
 import { useAuth } from '@/composables/useAuth';
 import CreateProjectDialog from '@/components/CreateProjectDialog.vue';
 import OnboardingWizard from '@/components/OnboardingWizard.vue';
@@ -271,20 +272,6 @@ const filteredProjects = computed(() => {
       (p.description && p.description.toLowerCase().includes(query))
   );
 });
-
-const normalizeTimestamp = (timestamp: number): number => {
-  // API may return seconds or milliseconds - normalize to milliseconds
-  return timestamp < 946684800000 ? timestamp * 1000 : timestamp;
-};
-
-const formatDate = (timestamp: number) => {
-  const normalized = normalizeTimestamp(timestamp);
-  return new Date(normalized).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
 
 const fetchProjects = async () => {
   try {

@@ -71,11 +71,10 @@ async function listVolumes(): Promise<
 		return stdout
 			.split("\n")
 			.map((line) => {
+				// Use the capture groups directly: splitting each `KEY="value"`
+				// pair on "=" would truncate labels/mountpoints that contain "=".
 				const parts = Object.fromEntries(
-					line.match(/([A-Z]+)="([^"]*)"/g)?.map((part) => {
-						const [k, v] = part.split("=");
-						return [k, v.replace(/"/g, "")];
-					}) || [],
+					[...line.matchAll(/([A-Z]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]),
 				);
 				return {
 					label: parts.LABEL || undefined,

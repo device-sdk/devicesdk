@@ -40,6 +40,42 @@ export class TestDevice extends BaseDevice {
 	}
 
 	/**
+	 * Accepts a synthetic "device"-tagged WebSocket so the DO reports a live
+	 * device connection (getWebSockets("device").length > 0), triggers the
+	 * alarm, then snapshots the resulting alarm time — all within one RPC so
+	 * the connection state is deterministic for the whole alarm() invocation.
+	 * Used to exercise the "device connected" branch of the cron cost guard,
+	 * which otherwise can't be reached without a real WebSocket upgrade.
+	 *
+	 * The socket is torn down after the alarm time is read so vitest-pool-workers'
+	 * cleanup isn't left with a dangling connection.
+	 */
+	async triggerAlarmWhileConnected(): Promise<number | null> {
+		const [, server] = Object.values(new WebSocketPair());
+		this.ctx.acceptWebSocket(server, ["device"]);
+		try {
+			await this.alarm();
+			return await this.ctx.storage.getAlarm();
+		} finally {
+			try {
+				server.close(1000, "test cleanup");
+			} catch {
+				/* already closed */
+			}
+		}
+	}
+
+	/**
+	 * Test cleanup: cancel any pending alarm and clear the user-event queue.
+	 * Used by tests that intentionally arm a near-future alarm (e.g. a transient
+	 * retry backoff) so it can't fire during vitest-pool-workers' teardown.
+	 */
+	async clearSchedulerState(): Promise<void> {
+		await this.ctx.storage.deleteAlarm();
+		await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
+	}
+
+	/**
 	 * Seeds the internal cron storage directly, bypassing the KV guard.
 	 * Pass null to clear the schedule.
 	 */

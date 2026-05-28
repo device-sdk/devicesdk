@@ -233,14 +233,20 @@ When in doubt, grep for the entry point (`grep -rn 'env.DEVICE.idFromName' apps/
 
 - **Multi-agent safety:** do **not** create/apply/drop `git stash` entries unless explicitly requested. Assume other agents may be working; keep unrelated WIP untouched.
 - **Multi-agent safety:** when the user says "push", you may `git pull --rebase` to integrate latest changes (never discard other agents' work). When the user says "commit", scope to your changes only.
-- **Multi-agent safety:** do **not** create/remove/modify `git worktree` checkouts unless explicitly requested.
+- **Multi-agent safety:** create your **own** worktree per change (named after the change — see Git Workflow). Never create, remove, or modify a worktree or branch you didn't create — other agents may be using it.
 - **Multi-agent safety:** do **not** switch branches unless explicitly requested.
 - **Multi-agent safety:** running multiple agents is OK as long as each agent has its own session.
 - **Multi-agent safety:** when you see unrecognized files, keep going; focus on your changes and commit only those.
 
 ## Git Workflow
 
-- **Never commit directly to `main`**. Always create a new branch for your changes.
+- **Never commit directly to `main`, and never work in the main checkout.** Do every change in its own dedicated git worktree. Choose one kebab-case **change name** (the same slug you'll use for the changeset, e.g. `per-page-og-images`) and use it verbatim for **both** the worktree directory and the branch:
+
+  ```bash
+  git worktree add .worktrees/<change-name> -b <change-name>
+  ```
+
+  `.worktrees/` is gitignored — reserve `.claude/worktrees/` for harness-managed isolated agents and `.worktrees/pr-*` for PR-review checkouts. After the change merges, clean up with `git worktree remove .worktrees/<change-name>`.
 - **Before every commit**, run `pnpm lint` to fix lint issues. Do not commit if linting fails.
 - **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in any prior PR's changeset entry (or `.changeset/README.md` for the format reference). Use `patch` for bug fixes, `minor` for new features. Reference every workspace package the change touches — this covers both the npm-published packages (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`, `@devicesdk/mcp`) **and the private apps that maintain their own changelog** (`@devicesdk/website`, `@devicesdk/dashboard`, `@devicesdk/simulation`). Firmware, examples, and shared configs are not versioned and do not need changeset entries.
 - **Never set a `major` bump in a changeset without explicit user consent.** When a change is genuinely breaking, surface that explicitly and ask before writing the changeset. Do **not** soften the change with back-compat aliases unless the user asks — declining a major bump is not a request for back-compat, it just means ship without the major-bump ceremony.

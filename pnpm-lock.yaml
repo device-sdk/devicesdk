@@ -279,6 +279,19 @@ importers:
         specifier: 'catalog:'
         version: 5.9.3
 
+  examples/esp32c3-clock:
+    dependencies:
+      '@devicesdk/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@devicesdk/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
   examples/temperature-to-discord:
     dependencies:
       '@devicesdk/cli':

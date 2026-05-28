@@ -1,6 +1,7 @@
 ---
-title: "Error: account_suspended"
+title: 'Error: account_suspended'
 description: Your DeviceSDK account has been suspended.
+social_image: /og-images/docs/errors/account_suspended.png
 ---
 
 ## What it means

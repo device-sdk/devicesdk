@@ -1,6 +1,9 @@
 ---
-title: "Error: invalid_token"
-description: The token on the request does not match any active session, API token, or legacy token.
+title: 'Error: invalid_token'
+description: >-
+  The token on the request does not match any active session, API token, or
+  legacy token.
+social_image: /og-images/docs/errors/invalid_token.png
 ---
 
 ## What it means

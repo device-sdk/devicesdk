@@ -340,6 +340,16 @@ export class BaseDevice extends DurableObject<Env> {
 			.bind(Date.now(), this.deviceMeta.deviceId)
 			.run();
 
+		// Re-arm any per-device cron alarm from the persisted schedule now that a
+		// device socket is live again. alarm()'s cost guard cancels the alarm while
+		// no device is connected; the only other re-arm path is initializeCrons(),
+		// which runs only after a fresh `device_connected` message is drained. A
+		// transport-level reconnect (or a half-open socket the runtime later
+		// replaces) can re-establish the connection without that handshake being
+		// processed, which would otherwise leave the cron cancelled forever. This
+		// closes that gap. No-op on a first connect (no schedule stored yet).
+		await this.rearmCronAlarmFromStorage();
+
 		return new Response(null, {
 			status: 101,
 			webSocket: client,
@@ -970,6 +980,62 @@ export class BaseDevice extends DurableObject<Env> {
 		this._hasCrons = true;
 
 		await this.ctx.storage.setAlarm(earliestFireTime(storage));
+	}
+
+	/**
+	 * Re-arm the per-device cron alarm from the schedule already in storage,
+	 * independent of the `device_connected` handshake. Called from the device
+	 * connect handler when a "device"-tagged WebSocket is accepted.
+	 *
+	 * Why this exists: alarm()'s cost guard calls deleteAlarm() whenever it fires
+	 * with no device socket present, so a disconnected device stops waking the DO.
+	 * The only other re-arm path, initializeCrons(), runs only after a fresh
+	 * `device_connected` message is drained. If a connection is re-established
+	 * without that message being processed (a transport-level reconnect, or a
+	 * half-open socket the runtime later replaces), the cron would stay cancelled
+	 * forever even though the device is back. Re-arming from the persisted
+	 * schedule here closes that gap — and needs no user Worker, so it is safe to
+	 * call directly from the connect handler.
+	 *
+	 * A stored fire time now in the past (a slot elapsed while offline) is
+	 * recomputed to the next occurrence so the missed fire is skipped rather than
+	 * firing an immediate catch-up — matching initializeCrons() and the documented
+	 * "missed fires do not catch up" contract. An already-scheduled, sooner alarm
+	 * (e.g. a pending-event drain) is never pushed out.
+	 */
+	protected async rearmCronAlarmFromStorage(): Promise<void> {
+		const schedules = await this.ctx.storage.get<CronStorage>(CRON_STORAGE_KEY);
+		if (!schedules || Object.keys(schedules).length === 0) {
+			// No per-device crons — nothing to re-arm.
+			return;
+		}
+
+		const now = Date.now();
+		let changed = false;
+		for (const [name, entry] of Object.entries(schedules)) {
+			if (entry.nextFireAt <= now) {
+				try {
+					schedules[name] = {
+						cron: entry.cron,
+						nextFireAt: nextCronTime(entry.cron, now),
+					};
+					changed = true;
+				} catch {
+					// Invalid expression — leave the stale entry; resolveDueCrons()
+					// logs and drops it on the next alarm fire.
+				}
+			}
+		}
+		if (changed) {
+			await this.ctx.storage.put(CRON_STORAGE_KEY, schedules);
+		}
+		this._hasCrons = true;
+
+		const target = earliestFireTime(schedules);
+		const existing = await this.ctx.storage.getAlarm();
+		if (existing === null || target < existing) {
+			await this.ctx.storage.setAlarm(target);
+		}
 	}
 
 	/**

@@ -16,7 +16,7 @@ jobs:
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -40,7 +40,7 @@ jobs:
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -62,7 +62,7 @@ jobs:
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -93,7 +93,7 @@ jobs:
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -111,7 +111,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -162,7 +162,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'

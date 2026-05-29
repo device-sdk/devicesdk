@@ -87,7 +87,7 @@
                   </div>
                   <div class="info-row">
                     <span class="info-label">Created</span>
-                    <span class="info-value">{{ formatDate(project.created_at) }}</span>
+                    <span class="info-value">{{ formatDate(project.created_at, { withTime: true }) }}</span>
                   </div>
                 </div>
               </div>
@@ -156,7 +156,7 @@
                     </q-chip>
                   </q-td>
                   <q-td key="last_connected_at" :props="props">
-                    {{ props.row.last_connected_at ? formatDate(props.row.last_connected_at) : 'Never' }}
+                    {{ props.row.last_connected_at ? formatDate(props.row.last_connected_at, { withTime: true }) : 'Never' }}
                   </q-td>
                   <q-td key="actions" :props="props">
                     <q-btn flat round dense icon="chevron_right" @click.stop="openDevice(props.row.device_id)" />
@@ -290,6 +290,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { projectService, type Project } from '@/services/api.service';
+import { formatDate } from '@/lib/time';
 import CreateDeviceDialog from '@/components/CreateDeviceDialog.vue';
 
 const route = useRoute();
@@ -323,23 +324,6 @@ const deviceColumns = [
 const onlineDevices = computed(() => {
   return project.value?.devices?.filter(d => d.status === 'online').length || 0;
 });
-
-const normalizeTimestamp = (timestamp: number): number => {
-  // API may return seconds or milliseconds - normalize to milliseconds
-  // If timestamp is less than year 2000 in ms, it's likely in seconds
-  return timestamp < 946684800000 ? timestamp * 1000 : timestamp;
-};
-
-const formatDate = (timestamp: number) => {
-  const normalized = normalizeTimestamp(timestamp);
-  return new Date(normalized).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 
 const fetchProject = async () => {
   try {

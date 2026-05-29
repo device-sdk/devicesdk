@@ -260,7 +260,7 @@ bool handle_websocket_message(const char *message) {
         cJSON *addr_obj = cJSON_GetObjectItem(payload, "address");
         cJSON *data_obj = cJSON_GetObjectItem(payload, "data");
 
-        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsString(data_obj)) goto done;
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsArray(data_obj)) goto done;
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
             LOG_E(TAG, "Invalid bus number");
@@ -270,16 +270,22 @@ bool handle_websocket_message(const char *message) {
         cmd.payload.i2c_write.bus = (uint8_t)bus_obj->valuedouble;
         cmd.payload.i2c_write.address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
 
-        // Decode base64 data
-        size_t decoded_len = 0;
-        uint8_t *decoded = base64_decode(data_obj->valuestring, &decoded_len);
-        if (!decoded || decoded_len > MAX_I2C_DATA_LEN) {
-            free(decoded);
+        // Parse data as an array of hex-string bytes (e.g. ["0xAE", "0x01"]),
+        // matching the SDK contract and the i2c_batch_write handler below.
+        int data_count = cJSON_GetArraySize(data_obj);
+        size_t data_len = 0;
+        for (int i = 0; i < data_count && data_len < MAX_I2C_DATA_LEN; i++) {
+            cJSON *byte_obj = cJSON_GetArrayItem(data_obj, i);
+            if (cJSON_IsString(byte_obj)) {
+                cmd.payload.i2c_write.data[data_len++] =
+                    (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+            }
+        }
+        if (data_len == 0) {
+            LOG_E(TAG, "i2c_write: no data");
             goto done;
         }
-        memcpy(cmd.payload.i2c_write.data, decoded, decoded_len);
-        cmd.payload.i2c_write.data_len = decoded_len;
-        free(decoded);
+        cmd.payload.i2c_write.data_len = data_len;
         queue_command(&cmd);
     }
     // === I2C READ ===

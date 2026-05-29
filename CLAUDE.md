@@ -123,7 +123,7 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 ### Firmware (firmware/pico, firmware/esp32)
 
 - **Pico**: C++ with lwIP raw TCP WebSocket client. Single-threaded polling loop. HAL for GPIO/PWM/ADC/I2C. Virtual pin 99 = onboard LED.
-- **ESP32**: ESP-IDF v5.5.2 based. Similar WebSocket architecture. HAL functions prefixed `iotkit_hal_`. Supports addressable LEDs (WS2812) via `espressif/led_strip` component — guarded by `CONFIG_IOTKIT_LED_IS_ADDRESSABLE` Kconfig option.
+- **ESP32**: ESP-IDF v5.5.1 based. Similar WebSocket architecture. HAL functions prefixed `iotkit_hal_`. Supports addressable LEDs (WS2812) via `espressif/led_strip` component — guarded by `CONFIG_IOTKIT_LED_IS_ADDRESSABLE` Kconfig option.
 - **ESP32-C61 specifics**: No RMT peripheral — uses SPI backend for led_strip. DevKitC-1 onboard LED is WS2812 on GPIO 5. Config in `firmware/esp32/main/Kconfig.projbuild`.
 - **ESP32-C3 specifics**: RISC-V single-core, has RMT — `hal.c` branches on `SOC_RMT_SUPPORTED` and uses the RMT backend for led_strip on C3. DevKitM-1 onboard LED is WS2812 on GPIO 8. Bootloader offset is `0x0` (same as C61). Pre-built target produces `esp32c3-client.bin`.
 - Both embed Wi-Fi credentials and API tokens at compile-time via placeholder strings in `config.h` (replaced at build time or via binary patching).

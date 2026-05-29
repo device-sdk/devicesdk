@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { MAX_SCRIPT_SIZE_BYTES } from "@devicesdk/core";
 import * as esbuild from "esbuild";
 import type { DeviceSDKConfig } from "../config.js";
 import { EXIT } from "../exitCodes.js";
@@ -12,8 +13,6 @@ interface BuildOptions {
 	sourcemap?: boolean;
 	config?: string;
 }
-
-const MAX_SCRIPT_SIZE = 1024 * 1024; // 1MB
 
 /**
  * Generates devicesdk-env.d.ts alongside devicesdk.ts with type-safe
@@ -206,9 +205,9 @@ export default async function build(options: BuildOptions = {}): Promise<void> {
 					},
 				);
 
-				if (size > MAX_SCRIPT_SIZE) {
+				if (size > MAX_SCRIPT_SIZE_BYTES) {
 					console.error(
-						`✗ ${deviceId}: Script exceeds maximum size of 1MB (${formatSize(size)})`,
+						`✗ ${deviceId}: Script exceeds maximum size of ${formatSize(MAX_SCRIPT_SIZE_BYTES)} (${formatSize(size)})`,
 					);
 					results.push({ deviceId, size, error: "Script too large" });
 					continue;

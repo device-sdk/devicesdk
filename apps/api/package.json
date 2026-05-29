@@ -19,9 +19,9 @@
 	"dependencies": {
 		"@devicesdk/core": "workspace:*",
 		"@hono/oauth-providers": "^0.8.5",
-		"@sentry/cloudflare": "^10.29.0",
-		"chanfana": "^3.3.0",
-		"hono": "4.10.7",
+		"@sentry/cloudflare": "^10.55.0",
+		"chanfana": "3.3.0",
+		"hono": "^4.12.23",
 		"workers-qb": "^1.11.2",
 		"zod": "catalog:zod4"
 	},

@@ -2,7 +2,11 @@ import * as Sentry from "@sentry/cloudflare";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
-import { JS_IDENTIFIER_REGEX, TIER_LIMITS } from "../../foundation/consts";
+import {
+	JS_IDENTIFIER_REGEX,
+	MAX_SCRIPT_SIZE_BYTES,
+	TIER_LIMITS,
+} from "../../foundation/consts";
 import { triggerDeviceReboot } from "../../foundation/deviceReboot";
 import { pruneOldVersions } from "../../foundation/scriptPruning";
 import { validateUserScript } from "../../foundation/scriptValidator";
@@ -25,7 +29,7 @@ export class UploadScript extends BaseRoute {
 			}),
 			body: contentJson(
 				z.object({
-					script: z.string().max(1024 * 1024), // 1MB
+					script: z.string().max(MAX_SCRIPT_SIZE_BYTES),
 					entrypoint: z
 						.string()
 						.min(1)
@@ -91,6 +95,9 @@ export class UploadScript extends BaseRoute {
 			return c.json(
 				{
 					success: false,
+					// `error` is the canonical contract field the CLI surfaces to
+					// users; `errors`/`warnings` keep the structured detail.
+					error: `Script validation failed: ${validation.errors.join("; ")}`,
 					errors: validation.errors.map((e) => ({ message: e })),
 					warnings: validation.warnings,
 				},

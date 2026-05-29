@@ -122,9 +122,21 @@ TEST_F(WebSocketHandlerTest, I2cScan) {
 }
 
 TEST_F(WebSocketHandlerTest, I2cWrite) {
+    test_reset_last_queued_command();
     const char *msg = "{\"type\":\"i2c_write\",\"id\":\"msg-9\","
-                      "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"data\":\"AQID\"}}";
+                      "\"payload\":{\"bus\":0,\"address\":\"0x3C\",\"data\":[\"0x01\",\"0x02\",\"0x03\"]}}";
     EXPECT_TRUE(handle_websocket_message(msg));
+
+    // The hex-string array must be parsed into raw bytes and queued.
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->type, CMD_I2C_WRITE);
+    EXPECT_EQ(last->payload.i2c_write.bus, 0);
+    EXPECT_EQ(last->payload.i2c_write.address, 0x3C);
+    ASSERT_EQ(last->payload.i2c_write.data_len, 3u);
+    EXPECT_EQ(last->payload.i2c_write.data[0], 0x01);
+    EXPECT_EQ(last->payload.i2c_write.data[1], 0x02);
+    EXPECT_EQ(last->payload.i2c_write.data[2], 0x03);
 }
 
 TEST_F(WebSocketHandlerTest, I2cRead) {

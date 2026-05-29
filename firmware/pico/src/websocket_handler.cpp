@@ -298,7 +298,7 @@ void handle_websocket_message(const picojson::value& v) {
 
         if (bus_it != payload.end() && bus_it->second.is<double>() &&
             addr_it != payload.end() && addr_it->second.is<std::string>() &&
-            data_it != payload.end() && data_it->second.is<std::string>()) {
+            data_it != payload.end() && data_it->second.is<picojson::array>()) {
 
             double bus_val = bus_it->second.get<double>();
             if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
@@ -309,17 +309,23 @@ void handle_websocket_message(const picojson::value& v) {
             std::string addr_str = addr_it->second.get<std::string>();
             cmd.payload.i2c_write.address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
 
-            // Decode base64 data
-            std::string data_b64 = data_it->second.get<std::string>();
-            std::vector<uint8_t> data = base64_decode(data_b64);
-
-            if (data.size() > MAX_I2C_DATA_LEN) {
+            // Parse data as an array of hex-string bytes (e.g. ["0xAE", "0x01"]),
+            // matching the SDK contract and the spi/i2c_batch_write handlers.
+            const picojson::array& data_arr = data_it->second.get<picojson::array>();
+            size_t len = data_arr.size();
+            if (len > MAX_I2C_DATA_LEN) {
                 send_error("I2C data too large");
                 return;
             }
 
-            memcpy(cmd.payload.i2c_write.data, data.data(), data.size());
-            cmd.payload.i2c_write.data_len = data.size();
+            for (size_t i = 0; i < len; i++) {
+                if (data_arr[i].is<std::string>()) {
+                    cmd.payload.i2c_write.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                } else if (data_arr[i].is<double>()) {
+                    cmd.payload.i2c_write.data[i] = (uint8_t)data_arr[i].get<double>();
+                }
+            }
+            cmd.payload.i2c_write.data_len = len;
 
             queue_command(&cmd);
         } else {

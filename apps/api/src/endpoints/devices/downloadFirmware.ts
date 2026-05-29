@@ -55,14 +55,6 @@ export class DownloadFirmware extends BaseRoute {
 		responses: {
 			200: {
 				description: "Firmware file",
-				// content: {
-				// 	"application/octet-stream": {
-				// 		schema: {
-				// 			type: "string",
-				// 			format: "binary",
-				// 		},
-				// 	},
-				// },
 			},
 			404: {
 				description: "Project not found",

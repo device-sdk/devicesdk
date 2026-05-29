@@ -31,6 +31,7 @@ import {
 import {
 	drainPendingUserWorkerEvents,
 	enqueueUserWorkerEvent,
+	PENDING_USER_EVENTS_KEY,
 	type PendingUserEvent,
 } from "./userEventQueue";
 import type {
@@ -936,9 +937,15 @@ export class BaseDevice extends DurableObject<Env> {
 		for (const [name, expr] of Object.entries(crons)) {
 			try {
 				const prev = existing[name];
-				// Preserve the scheduled fire time if the cron expression hasn't changed
+				// Preserve the scheduled fire time only if the cron is unchanged AND
+				// that time is still in the future. A fire time now in the past means
+				// a slot elapsed while the device was offline — recompute the next
+				// occurrence so the missed fire is skipped rather than firing
+				// immediately on reconnect. This keeps the documented "missed fire is
+				// skipped; it does not catch up" contract (docs/concepts/cron-scheduling)
+				// while still not delaying a near-due cron across a brief reconnect.
 				const nextFireAt =
-					prev && prev.cron === expr
+					prev && prev.cron === expr && prev.nextFireAt > now
 						? prev.nextFireAt
 						: nextCronTime(expr, now);
 				storage[name] = { cron: expr, nextFireAt };
@@ -1037,6 +1044,26 @@ export class BaseDevice extends DurableObject<Env> {
 						deviceId: this.deviceMeta?.deviceId,
 					});
 				}
+			}
+			return;
+		}
+
+		// Cost guard: only fire cron schedules while a device is actually
+		// connected. A script that declares a frequent cron (e.g. "*/1 * * * *")
+		// would otherwise keep waking this Durable Object — and re-invoking the
+		// user Worker — every minute forever after the device disconnects,
+		// billing for work that can never reach hardware. When no device socket
+		// is present we cancel the alarm and leave the schedule in storage;
+		// initializeCrons() re-arms it on the next reconnect (preserving each
+		// cron's nextFireAt). We skip deletion if events were re-queued for a
+		// transient retry above, since drainPendingUserWorkerEvents armed its own
+		// alarm for them and we must not cancel that retry.
+		if (this.ctx.getWebSockets("device").length === 0) {
+			const stillPending = await this.ctx.storage.get<PendingUserEvent[]>(
+				PENDING_USER_EVENTS_KEY,
+			);
+			if (!stillPending || stillPending.length === 0) {
+				await this.ctx.storage.deleteAlarm();
 			}
 			return;
 		}

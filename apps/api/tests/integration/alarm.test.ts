@@ -28,6 +28,7 @@ import {
 	CONNECTED_SINCE_KEY,
 	CRON_STORAGE_KEY,
 } from "../../src/durableObjects/lib/device";
+import type { PendingUserEvent } from "../../src/durableObjects/lib/userEventQueue";
 
 /** Production BaseDevice stub — used only for user kv operations and kvDelete guard (no-throw). */
 function getDeviceStub(name: string) {
@@ -49,7 +50,11 @@ function getTestDeviceStub(name: string) {
 		seedCronStorage(storage: CronStorage | null): Promise<void>;
 		getScheduledAlarmTime(): Promise<number | null>;
 		triggerAlarm(): Promise<void>;
+		triggerAlarmWhileConnected(): Promise<number | null>;
 		testInitializeCrons(crons: Record<string, string>): Promise<void>;
+		seedPendingUserEvents(events: PendingUserEvent[] | null): Promise<void>;
+		setTestWorkerInitError(message: string | null): Promise<void>;
+		clearSchedulerState(): Promise<void>;
 		testKvPut(key: string, value: unknown): Promise<string | null>;
 		testKvGet<T = unknown>(
 			key: string,
@@ -231,12 +236,13 @@ describe.sequential("TestDevice — alarm() reschedules without advancing when w
 		};
 		await stub.seedCronStorage(schedule);
 
-		// triggerAlarm() catches the worker init failure (LOADER unavailable in
-		// tests) and reschedules without advancing nextFireAt
-		await stub.triggerAlarm();
+		// With a device connected, the cron cost guard passes; alarm() then
+		// catches the worker init failure (LOADER unavailable in tests) and
+		// reschedules without advancing nextFireAt. (triggerAlarmWhileConnected
+		// returns the post-alarm scheduled time captured while still connected.)
+		const alarmTime = await stub.triggerAlarmWhileConnected();
 
 		// Alarm should have been rescheduled
-		const alarmTime = await stub.getScheduledAlarmTime();
 		expect(alarmTime).toBeGreaterThan(now);
 	});
 
@@ -253,9 +259,8 @@ describe.sequential("TestDevice — alarm() reschedules without advancing when w
 		};
 		await stub.seedCronStorage(schedule);
 
-		await stub.triggerAlarm();
+		const alarmTime = await stub.triggerAlarmWhileConnected();
 
-		const alarmTime = await stub.getScheduledAlarmTime();
 		expect(alarmTime).toBeGreaterThanOrEqual(now + 60_000);
 	});
 
@@ -268,6 +273,90 @@ describe.sequential("TestDevice — alarm() reschedules without advancing when w
 
 		const alarmTime = await stub.getScheduledAlarmTime();
 		expect(alarmTime).toBeNull();
+	});
+});
+
+describe.sequential("TestDevice — cron alarm stops when no device is connected", () => {
+	it("cancels the cron alarm when the alarm fires with no device connected", async () => {
+		// Regression guard for the cost leak: a script with a frequent cron
+		// (e.g. every minute) must NOT keep waking the Durable Object after the
+		// device disconnects.
+		const stub = getTestDeviceStub("cron-guard-test:device-1");
+
+		// Simulate a device that connected and armed a frequent cron.
+		await stub.testInitializeCrons({ heartbeat: "*/1 * * * *" });
+		expect(await stub.getScheduledAlarmTime()).not.toBeNull();
+
+		// Device is now disconnected; the already-scheduled alarm fires with no
+		// device socket present.
+		await stub.triggerAlarm();
+
+		// The alarm is cancelled so the DO stops waking — no recurring cost.
+		expect(await stub.getScheduledAlarmTime()).toBeNull();
+	});
+
+	it("resumes the cron alarm (preserving nextFireAt) when the device reconnects", async () => {
+		const stub = getTestDeviceStub("cron-guard-test:device-2");
+
+		// Connected: arm a cron.
+		await stub.testInitializeCrons({ heartbeat: "*/5 * * * *" });
+		const firstAlarm = await stub.getScheduledAlarmTime();
+		expect(firstAlarm).not.toBeNull();
+
+		// Disconnected alarm fire cancels the alarm but must leave the schedule
+		// in storage.
+		await stub.triggerAlarm();
+		expect(await stub.getScheduledAlarmTime()).toBeNull();
+
+		// Reconnect → initializeCrons re-arms. Because the schedule survived, the
+		// unchanged cron keeps its original nextFireAt rather than being pushed
+		// out a full period.
+		await stub.testInitializeCrons({ heartbeat: "*/5 * * * *" });
+		expect(await stub.getScheduledAlarmTime()).toBe(firstAlarm);
+	});
+
+	it("does NOT cancel the alarm while a device is connected", async () => {
+		const stub = getTestDeviceStub("cron-guard-test:device-3");
+		const now = Date.now();
+		await stub.seedCronStorage({
+			heartbeat: { cron: "*/1 * * * *", nextFireAt: now + 30_000 },
+		});
+
+		// Device connected: the cost guard passes. The worker can't load (no
+		// LOADER in tests), so alarm() reschedules instead of cancelling —
+		// proving the guard did not short-circuit on the connection check.
+		const alarmTime = await stub.triggerAlarmWhileConnected();
+		expect(alarmTime).not.toBeNull();
+	});
+
+	it("preserves a transient-retry alarm when disconnected with queued events", async () => {
+		// A device message can be queued just before disconnect. If the user
+		// Worker can't load right now (transient limit), drain re-queues it and
+		// arms a backoff alarm — the guard must NOT cancel that retry.
+		const stub = getTestDeviceStub("cron-guard-test:device-4");
+		const now = Date.now();
+
+		await stub.seedCronStorage({
+			heartbeat: { cron: "*/1 * * * *", nextFireAt: now + 30_000 },
+		});
+		await stub.seedPendingUserEvents([
+			{
+				kind: "message",
+				message: { id: "m1", type: "telemetry", payload: {} },
+				attempts: 3, // bumped to 4 < MAX → re-queued with ~8s backoff
+			},
+		]);
+		await stub.setTestWorkerInitError("Too many concurrent dynamic workers");
+
+		await stub.triggerAlarm(); // disconnected
+
+		// The drain's backoff retry alarm survived the guard.
+		expect(await stub.getScheduledAlarmTime()).not.toBeNull();
+
+		// Cleanup: the backoff alarm is only seconds out and would otherwise fire
+		// during pool teardown.
+		await stub.setTestWorkerInitError(null);
+		await stub.clearSchedulerState();
 	});
 });
 
@@ -341,5 +430,26 @@ describe.sequential("TestDevice — initializeCrons behavior", () => {
 		expect(alarmTime).not.toBeNull();
 		expect(alarmTime).toBeGreaterThan(now);
 		expect(alarmTime).not.toBe(oldFireAt);
+	});
+
+	it("skips a missed fire on reconnect (does not catch up) when the stored fire time is in the past", async () => {
+		const stub = getTestDeviceStub("init-crons-test:device-6");
+		const now = Date.now();
+		const pastFireAt = now - 120_000; // a slot that elapsed while the device was offline
+
+		await stub.seedCronStorage({
+			heartbeat: { cron: "*/5 * * * *", nextFireAt: pastFireAt },
+		});
+
+		// Reconnect re-initializes crons. A stale (past-due) fire time must be
+		// recomputed to the next future occurrence rather than preserved, so the
+		// missed fire is skipped instead of firing immediately on reconnect —
+		// matching the documented "does not catch up" contract.
+		await stub.testInitializeCrons({ heartbeat: "*/5 * * * *" });
+
+		const alarmTime = await stub.getScheduledAlarmTime();
+		expect(alarmTime).not.toBeNull();
+		expect(alarmTime).toBeGreaterThan(now);
+		expect(alarmTime).not.toBe(pastFireAt);
 	});
 });

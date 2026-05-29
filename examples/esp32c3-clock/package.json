@@ -1,0 +1,22 @@
+{
+  "name": "@devicesdk/example-esp32c3-clock",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ESP32-C3 OLED clock that updates once a minute",
+  "type": "module",
+  "scripts": {
+    "dev": "devicesdk dev",
+    "build": "devicesdk build",
+    "deploy": "devicesdk deploy",
+    "local:login": "DEVICESDK_API_URL=http://localhost:8787 npx devicesdk login",
+    "flash-remote": "devicesdk flash clock",
+    "flash-local": "DEVICESDK_API_URL=http://localhost:8787 devicesdk flash clock --host ${DEVICESDK_DEVICE_HOST:-localhost:8787}"
+  },
+  "dependencies": {
+    "@devicesdk/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@devicesdk/cli": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

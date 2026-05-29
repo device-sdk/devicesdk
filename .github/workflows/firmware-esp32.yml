@@ -13,11 +13,6 @@ concurrency:
   group: firmware-esp32-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # Opt JS actions (checkout, cache, setup-node…) onto Node 24 now.
-  # GitHub will default-force this on 2026-06-02.
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   unit-tests:
     name: Host unit tests
@@ -27,10 +22,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Restore gtest build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: firmware/esp32/test/build/_deps
           key: esp32-gtest-${{ hashFiles('firmware/esp32/test/CMakeLists.txt') }}
@@ -50,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Self-hosted Debian runner: setup-python has no Debian prebuilts, so use
       # the system Python (3.11+) in a venv to satisfy PEP 668.
@@ -79,7 +74,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Resolve ESP-IDF paths
         # `runner.*` context is not available in job-level `env:`; export via
@@ -90,7 +85,7 @@ jobs:
 
       - name: Restore esp-idf clone cache
         id: restore-idf-src
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ env.IDF_PATH }}
           key: esp-idf-src-${{ env.IDF_VERSION }}
@@ -103,14 +98,14 @@ jobs:
 
       - name: Save esp-idf clone cache
         if: steps.restore-idf-src.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ${{ env.IDF_PATH }}
           key: esp-idf-src-${{ env.IDF_VERSION }}
 
       - name: Restore esp-idf tools cache
         id: restore-idf-tools
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ env.IDF_TOOLS_PATH }}
           key: esp-idf-tools-${{ env.IDF_VERSION }}-esp32-esp32c3-esp32c61
@@ -121,13 +116,13 @@ jobs:
 
       - name: Save esp-idf tools cache
         if: steps.restore-idf-tools.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ${{ env.IDF_TOOLS_PATH }}
           key: esp-idf-tools-${{ env.IDF_VERSION }}-esp32-esp32c3-esp32c61
 
       - name: Restore managed components cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: firmware/esp32/managed_components
           key: esp32-components-${{ hashFiles('firmware/esp32/main/idf_component.yml') }}
@@ -163,7 +158,7 @@ jobs:
           build_target esp32c3 0x0
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: devicesdk-esp32-firmware
           path: |
@@ -182,15 +177,15 @@ jobs:
       # Node — set it up the same way the ci.yml jobs do and install the
       # workspace's pinned wrangler (apps/api → catalog) rather than letting
       # `npx` pull an unpinned latest.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
       - name: Install wrangler
         run: pnpm install --frozen-lockfile --filter @devicesdk/api
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: devicesdk-esp32-firmware
           path: firmware/

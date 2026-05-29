@@ -84,6 +84,10 @@
 		{
 			"binding": "ANALYTICS",
 			"dataset": "devicesdk_api_metrics"
+		},
+		{
+			"binding": "USAGE",
+			"dataset": "devicesdk_usage"
 		}
 	],
 	"env": {
@@ -147,6 +151,10 @@
 				{
 					"binding": "ANALYTICS",
 					"dataset": "devicesdk_api_metrics"
+				},
+				{
+					"binding": "USAGE",
+					"dataset": "devicesdk_usage"
 				}
 			]
 		}

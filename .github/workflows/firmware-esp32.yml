@@ -64,8 +64,10 @@ jobs:
         run: ../../.venv/bin/python -m pytest test_websocket_mock.py test_message_handler.py test_integration.py -v
 
   build:
-    name: Build ESP32 firmware (${{ matrix.target }})
+    name: Build ESP32 firmware
     needs: [unit-tests, python-tests]
+    # All targets build in one job so the runner clones esp-idf and installs the
+    # toolchains once, rather than fanning out to one runner per target.
     # proxmox-ephemeral image is expected to have system libs that ESP-IDF's
     # install.sh probes during post-install verify — currently libusb-1.0-0
     # for openocd-esp32. Bake new prereqs into the image rather than the job.
@@ -74,16 +76,6 @@ jobs:
       contents: read
     env:
       IDF_VERSION: v5.5.1
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - target: esp32
-            bootloader_offset: "0x1000"
-          - target: esp32c61
-            bootloader_offset: "0x0"
-          - target: esp32c3
-            bootloader_offset: "0x0"
 
     steps:
       - name: Checkout
@@ -138,32 +130,46 @@ jobs:
         uses: actions/cache@v4
         with:
           path: firmware/esp32/managed_components
-          key: esp32-components-${{ matrix.target }}-${{ hashFiles('firmware/esp32/main/idf_component.yml') }}
+          key: esp32-components-${{ hashFiles('firmware/esp32/main/idf_component.yml') }}
 
-      - name: Build firmware
+      - name: Build firmware (all targets)
         working-directory: firmware/esp32
+        # Build each target sequentially in this one job. `set-target` rewrites
+        # sdkconfig and the build dir per target, so wipe both beforehand to
+        # mirror a fresh checkout (sdkconfig + build are gitignored). The bare
+        # esp32 bootloader sits at 0x1000; the RISC-V parts (c3/c61) at 0x0.
         run: |
           . "$IDF_PATH/export.sh"
-          idf.py set-target ${{ matrix.target }}
-          idf.py build
+          rm -rf dist && mkdir -p dist
 
-      - name: Merge binary
-        working-directory: firmware/esp32
-        run: |
-          . "$IDF_PATH/export.sh"
-          mkdir -p dist
-          esptool.py --chip ${{ matrix.target }} merge_bin \
-            --flash_mode dio --flash_freq 40m --flash_size 4MB \
-            -o dist/${{ matrix.target }}-client.bin \
-            ${{ matrix.bootloader_offset }} build/bootloader/bootloader.bin \
-            0x8000 build/partition_table/partition-table.bin \
-            0x10000 build/iotkit-client.bin
+          build_target() {
+            target="$1"
+            bootloader_offset="$2"
+            echo "::group::Build $target"
+            rm -rf build sdkconfig
+            idf.py set-target "$target"
+            idf.py build
+            esptool.py --chip "$target" merge_bin \
+              --flash_mode dio --flash_freq 40m --flash_size 4MB \
+              -o "dist/$target-client.bin" \
+              "$bootloader_offset" build/bootloader/bootloader.bin \
+              0x8000 build/partition_table/partition-table.bin \
+              0x10000 build/iotkit-client.bin
+            echo "::endgroup::"
+          }
+
+          build_target esp32 0x1000
+          build_target esp32c61 0x0
+          build_target esp32c3 0x0
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: devicesdk-${{ matrix.target }}-firmware
-          path: firmware/esp32/dist/${{ matrix.target }}-client.bin
+          name: devicesdk-esp32-firmware
+          path: |
+            firmware/esp32/dist/esp32-client.bin
+            firmware/esp32/dist/esp32c61-client.bin
+            firmware/esp32/dist/esp32c3-client.bin
           if-no-files-found: error
 
   upload-to-r2:
@@ -171,17 +177,31 @@ jobs:
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     needs: build
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    strategy:
-      matrix:
-        target: [esp32, esp32c61, esp32c3]
     steps:
+      # The artifact upload only needs wrangler, but this runner ships no
+      # Node — set it up the same way the ci.yml jobs do and install the
+      # workspace's pinned wrangler (apps/api → catalog) rather than letting
+      # `npx` pull an unpinned latest.
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - name: Install wrangler
+        run: pnpm install --frozen-lockfile --filter @devicesdk/api
+
       - uses: actions/download-artifact@v4
         with:
-          name: devicesdk-${{ matrix.target }}-firmware
+          name: devicesdk-esp32-firmware
           path: firmware/
 
-      - name: Upload ${{ matrix.target }} firmware to R2
-        run: npx wrangler r2 object put devicesdk-firmwares/${{ matrix.target }}-client.bin --file=firmware/${{ matrix.target }}-client.bin --remote
+      - name: Upload firmware to R2
+        run: |
+          for target in esp32 esp32c61 esp32c3; do
+            pnpm --filter @devicesdk/api exec wrangler r2 object put \
+              "devicesdk-firmwares/${target}-client.bin" \
+              --file="firmware/${target}-client.bin" --remote
+          done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           # Account-owned API tokens cannot call /memberships; supplying the

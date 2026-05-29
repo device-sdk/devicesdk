@@ -149,6 +149,15 @@ export class TestDevice extends BaseDevice {
 	}
 
 	/**
+	 * Invokes the connect-time cron re-arm (rearmCronAlarmFromStorage) directly,
+	 * so tests can verify a reconnect re-arms a previously-cancelled cron alarm
+	 * from the persisted schedule without performing a full WebSocket upgrade.
+	 */
+	async testRearmCronsFromStorage(): Promise<void> {
+		await this.rearmCronAlarmFromStorage();
+	}
+
+	/**
 	 * Reads the pending user-worker event queue. Returns an empty array when
 	 * the key is unset.
 	 */

@@ -358,6 +358,53 @@ describe.sequential("TestDevice — cron alarm stops when no device is connected
 		await stub.setTestWorkerInitError(null);
 		await stub.clearSchedulerState();
 	});
+
+	it("re-arms a cancelled cron alarm when the device reconnects (no handshake needed)", async () => {
+		// Regression for the permanent-death trap: after the cost guard cancels the
+		// alarm (deleteAlarm) on a disconnected fire, a reconnect must resume crons
+		// even if the `device_connected` handshake / initializeCrons path doesn't
+		// run for that connection. The connect handler re-arms from storage.
+		const stub = getTestDeviceStub("cron-guard-test:device-5");
+		const now = Date.now();
+
+		// Schedule survives in storage; the alarm was cancelled by the guard.
+		await stub.seedCronStorage({
+			heartbeat: { cron: "*/1 * * * *", nextFireAt: now + 30_000 },
+		});
+		expect(await stub.getScheduledAlarmTime()).toBeNull();
+
+		// Device reconnects → connect-time re-arm from the persisted schedule.
+		await stub.testRearmCronsFromStorage();
+
+		// The unchanged, still-future fire time is preserved exactly.
+		expect(await stub.getScheduledAlarmTime()).toBe(now + 30_000);
+	});
+
+	it("re-arm on reconnect skips a fire time that elapsed while offline (no catch-up)", async () => {
+		const stub = getTestDeviceStub("cron-guard-test:device-6");
+		const now = Date.now();
+
+		// nextFireAt is in the past — a slot elapsed while the device was offline.
+		await stub.seedCronStorage({
+			heartbeat: { cron: "*/5 * * * *", nextFireAt: now - 60_000 },
+		});
+
+		await stub.testRearmCronsFromStorage();
+
+		// Re-armed to a FUTURE occurrence, not the elapsed slot (no immediate catch-up).
+		const armed = await stub.getScheduledAlarmTime();
+		expect(armed).not.toBeNull();
+		expect(armed as number).toBeGreaterThan(now);
+	});
+
+	it("re-arm on reconnect is a no-op when there are no stored crons", async () => {
+		const stub = getTestDeviceStub("cron-guard-test:device-7");
+		await stub.seedCronStorage(null);
+
+		await stub.testRearmCronsFromStorage();
+
+		expect(await stub.getScheduledAlarmTime()).toBeNull();
+	});
 });
 
 describe.sequential("TestDevice — initializeCrons behavior", () => {

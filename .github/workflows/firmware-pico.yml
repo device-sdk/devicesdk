@@ -120,14 +120,17 @@ jobs:
           name: devicesdk-pico-firmware
           path: firmware/
 
+      # `pnpm --filter … exec` runs wrangler with CWD set to apps/api, so the
+      # --file path must be absolute — the artifact is downloaded to the
+      # workspace-root firmware/ dir, not apps/api/firmware/.
       - name: Upload Pico W firmware to R2
-        run: pnpm --filter @devicesdk/api exec wrangler r2 object put devicesdk-firmwares/devicesdk-pico-w-client.uf2 --file=firmware/devicesdk-pico-w-client.uf2 --remote
+        run: pnpm --filter @devicesdk/api exec wrangler r2 object put devicesdk-firmwares/devicesdk-pico-w-client.uf2 --file="$GITHUB_WORKSPACE/firmware/devicesdk-pico-w-client.uf2" --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df
 
       - name: Upload Pico 2W firmware to R2
-        run: pnpm --filter @devicesdk/api exec wrangler r2 object put devicesdk-firmwares/devicesdk-pico2-w-client.uf2 --file=firmware/devicesdk-pico2-w-client.uf2 --remote
+        run: pnpm --filter @devicesdk/api exec wrangler r2 object put devicesdk-firmwares/devicesdk-pico2-w-client.uf2 --file="$GITHUB_WORKSPACE/firmware/devicesdk-pico2-w-client.uf2" --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df

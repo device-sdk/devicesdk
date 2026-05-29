@@ -45,6 +45,7 @@
           align="left"
         >
           <q-tab name="overview" label="Overview" icon="info" />
+          <q-tab name="metrics" label="Metrics" icon="bar_chart" />
           <q-tab name="script" label="Script" icon="code" />
           <q-tab name="versions" label="Versions" icon="history" />
           <q-tab name="logs" label="Logs" icon="article" />
@@ -127,6 +128,10 @@
                 </div>
               </div>
             </div>
+          </q-tab-panel>
+
+          <q-tab-panel name="metrics" class="q-pa-lg">
+            <DeviceMetricsPanel :project-id="projectId" :device-id="deviceId" />
           </q-tab-panel>
 
           <q-tab-panel name="script" class="q-pa-lg">
@@ -367,6 +372,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import DeviceLogs from '@/components/DeviceLogs.vue';
+import DeviceMetricsPanel from '@/components/metrics/DeviceMetricsPanel.vue';
 import { scriptTemplates, templateCode } from '@/lib/scriptTemplates';
 import { formatDate, normalizeTimestamp } from '@/lib/time';
 import {

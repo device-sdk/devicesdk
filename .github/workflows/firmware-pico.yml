@@ -13,11 +13,6 @@ concurrency:
   group: firmware-pico-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # Opt JS actions (checkout, cache, setup-node…) onto Node 24 now.
-  # GitHub will default-force this on 2026-06-02.
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 defaults:
   run:
     working-directory: firmware/pico
@@ -31,10 +26,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Restore gtest build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: firmware/pico/test/build/_deps
           key: pico-gtest-${{ hashFiles('firmware/pico/test/CMakeLists.txt') }}
@@ -55,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Resolve PICO_SDK_PATH
         # `runner.*` context is not available in job-level `env:`; export it
@@ -67,7 +62,7 @@ jobs:
 
       - name: Restore pico-sdk cache
         id: restore-pico-sdk
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ env.PICO_SDK_PATH }}
           key: pico-sdk-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
@@ -80,7 +75,7 @@ jobs:
 
       - name: Save pico-sdk cache
         if: steps.restore-pico-sdk.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ${{ env.PICO_SDK_PATH }}
           key: pico-sdk-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
@@ -94,7 +89,7 @@ jobs:
           cp build/devicesdk-client.uf2 dist/devicesdk-pico2-w-client.uf2
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: devicesdk-pico-firmware
           path: |
@@ -112,15 +107,15 @@ jobs:
       # Node — set it up the same way the ci.yml jobs do and install the
       # workspace's pinned wrangler (apps/api → catalog) rather than letting
       # `npx` pull an unpinned latest.
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
       - name: Install wrangler
         run: pnpm install --frozen-lockfile --filter @devicesdk/api
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: devicesdk-pico-firmware
           path: firmware/

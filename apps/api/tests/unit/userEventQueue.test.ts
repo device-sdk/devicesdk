@@ -15,12 +15,14 @@ vi.mock("../../src/foundation/logger", () => ({
 }));
 
 const { logger } = await import("../../src/foundation/logger");
-const { drainPendingUserWorkerEvents, PENDING_USER_EVENTS_KEY } = await import(
-	"../../src/durableObjects/lib/userEventQueue"
-);
-const { MAX_USER_EVENT_ATTEMPTS } = await import(
-	"../../src/durableObjects/lib/userEventQueue"
-);
+const {
+	drainPendingUserWorkerEvents,
+	enqueueUserWorkerEvent,
+	PENDING_USER_EVENTS_KEY,
+	MAX_USER_EVENT_ATTEMPTS,
+	MAX_DRAIN_BATCH,
+	MAX_PENDING_EVENTS,
+} = await import("../../src/durableObjects/lib/userEventQueue");
 
 // Minimal in-memory DurableObjectStorage shim — only the methods the queue
 // touches. Returns whatever was put, persists across calls, and tracks the
@@ -202,5 +204,164 @@ describe("drainPendingUserWorkerEvents — logger.error on drop", () => {
 		}>;
 		expect(remaining).toHaveLength(1);
 		expect(remaining[0].attempts).toBe(1);
+	});
+});
+
+// Regression: a huge backlog (built up while the alarm was paused) must not be
+// flushed in one alarm invocation — doing so blows the per-invocation subrequest
+// cap, aborts the invocation before the queue is trimmed, and wedges the device
+// forever (observed in prod: per-minute alarm stuck at "Too many subrequests").
+describe("drainPendingUserWorkerEvents — bounded batch", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	function countingWorker() {
+		const calls = { connect: 0, message: 0 };
+		const worker = {
+			onDeviceConnect: async () => {
+				calls.connect++;
+			},
+			onMessage: async () => {
+				calls.message++;
+			},
+		} as unknown as Awaited<ReturnType<() => Promise<unknown>>>;
+		return { worker, calls };
+	}
+
+	it("dispatches at most MAX_DRAIN_BATCH events and re-queues the remainder in FIFO order", async () => {
+		const total = MAX_DRAIN_BATCH + 70;
+		const events = Array.from({ length: total }, (_, i) => ({
+			kind: "message" as const,
+			message: { id: `m-${i}`, type: "ping", payload: {} },
+		}));
+		const storage = makeStorage({ [PENDING_USER_EVENTS_KEY]: events });
+		const { worker, calls } = countingWorker();
+
+		const returned = await drainPendingUserWorkerEvents({
+			storage,
+			getOrCreateUserWorker: async () => worker as never,
+			initializeCrons: async () => {},
+			deviceMeta,
+		});
+
+		// Exactly one batch dispatched, no more.
+		expect(calls.message).toBe(MAX_DRAIN_BATCH);
+		expect(calls.connect).toBe(0);
+		// Worker is returned so the alarm can reuse it for cron dispatch.
+		expect(returned).toBe(worker);
+
+		// The untouched tail stays queued, oldest-first, ready for next drain.
+		const remaining = storage.data.get(PENDING_USER_EVENTS_KEY) as Array<{
+			message: { id: string };
+		}>;
+		expect(remaining).toHaveLength(70);
+		expect(remaining[0].message.id).toBe(`m-${MAX_DRAIN_BATCH}`);
+		expect(remaining.at(-1)?.message.id).toBe(`m-${total - 1}`);
+
+		// A follow-up alarm is armed to continue draining.
+		expect(storage.alarm).not.toBeNull();
+	});
+
+	it("drains the whole backlog across repeated calls and clears the key when done", async () => {
+		const total = MAX_DRAIN_BATCH * 2 + 5; // 3 drains: 50, 50, 5
+		const events = Array.from({ length: total }, (_, i) => ({
+			kind: "message" as const,
+			message: { id: `m-${i}`, type: "ping", payload: {} },
+		}));
+		const storage = makeStorage({ [PENDING_USER_EVENTS_KEY]: events });
+		const { worker, calls } = countingWorker();
+		const deps = {
+			storage,
+			getOrCreateUserWorker: async () => worker as never,
+			initializeCrons: async () => {},
+			deviceMeta,
+		};
+
+		await drainPendingUserWorkerEvents(deps);
+		await drainPendingUserWorkerEvents(deps);
+		await drainPendingUserWorkerEvents(deps);
+
+		expect(calls.message).toBe(total);
+		// Queue fully drained → key removed, and a final empty drain is a no-op.
+		expect(storage.data.has(PENDING_USER_EVENTS_KEY)).toBe(false);
+		expect(await drainPendingUserWorkerEvents(deps)).toBeNull();
+	});
+
+	it("runs initializeCrons when a connect is inside the bounded batch", async () => {
+		const events = [
+			{ kind: "connect" as const },
+			...Array.from({ length: 10 }, (_, i) => ({
+				kind: "message" as const,
+				message: { id: `m-${i}`, type: "ping", payload: {} },
+			})),
+		];
+		const storage = makeStorage({ [PENDING_USER_EVENTS_KEY]: events });
+		const { worker } = countingWorker();
+		const initializeCrons = vi.fn(async () => {});
+
+		await drainPendingUserWorkerEvents({
+			storage,
+			getOrCreateUserWorker: async () => worker as never,
+			initializeCrons,
+			deviceMeta,
+		});
+
+		expect(initializeCrons).toHaveBeenCalledOnce();
+	});
+});
+
+describe("enqueueUserWorkerEvent — queue bounding", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("coalesces redundant connect events (onDeviceConnect is idempotent)", async () => {
+		const storage = makeStorage({
+			[PENDING_USER_EVENTS_KEY]: [{ kind: "connect" }],
+		});
+
+		await enqueueUserWorkerEvent(storage, { kind: "connect" });
+
+		const queue = storage.data.get(PENDING_USER_EVENTS_KEY) as unknown[];
+		expect(queue).toHaveLength(1);
+		// But the alarm is still bumped so the pending connect drains promptly.
+		expect(storage.alarm).not.toBeNull();
+	});
+
+	it("still queues a message even when a connect is pending", async () => {
+		const storage = makeStorage({
+			[PENDING_USER_EVENTS_KEY]: [{ kind: "connect" }],
+		});
+
+		await enqueueUserWorkerEvent(storage, {
+			kind: "message",
+			message: { id: "m", type: "ping", payload: {} },
+		});
+
+		const queue = storage.data.get(PENDING_USER_EVENTS_KEY) as unknown[];
+		expect(queue).toHaveLength(2);
+	});
+
+	it("caps the queue at MAX_PENDING_EVENTS, dropping the oldest", async () => {
+		const full = Array.from({ length: MAX_PENDING_EVENTS }, (_, i) => ({
+			kind: "message" as const,
+			message: { id: `m-${i}`, type: "ping", payload: {} },
+		}));
+		const storage = makeStorage({ [PENDING_USER_EVENTS_KEY]: full });
+
+		await enqueueUserWorkerEvent(storage, {
+			kind: "message",
+			message: { id: "newest", type: "ping", payload: {} },
+		});
+
+		const queue = storage.data.get(PENDING_USER_EVENTS_KEY) as Array<{
+			message: { id: string };
+		}>;
+		expect(queue).toHaveLength(MAX_PENDING_EVENTS);
+		// Oldest dropped, newest retained.
+		expect(queue[0].message.id).toBe("m-1");
+		expect(queue.at(-1)?.message.id).toBe("newest");
+		expect(logger.warn).toHaveBeenCalledOnce();
 	});
 });

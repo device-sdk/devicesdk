@@ -19,6 +19,24 @@ export const TRANSIENT_ERROR_PATTERNS = [
 	"ECONNREFUSED",
 ];
 
+// Upper bound on how many events a single alarm invocation will dispatch.
+// Each event is a cross-worker RPC into the user Worker (plus that handler's
+// own subrequests), and a Worker invocation has a hard per-invocation
+// subrequest cap. A device that churns connections or chats unsolicited
+// messages while its alarm is paused (e.g. disconnected) can build a large
+// backlog; draining it all in one alarm blows the subrequest cap, which aborts
+// the invocation *before* it can dispatch crons or even trim the queue — so the
+// backlog never shrinks and the device wedges forever. Capping the batch keeps
+// every invocation well under the cap; the remainder is re-queued and a
+// follow-up alarm continues draining.
+export const MAX_DRAIN_BATCH = 50;
+
+// Hard ceiling on the queue length. enqueue drops the oldest events past this
+// so a misbehaving/looping device can never grow the backlog without bound
+// (which would cost storage and slow every drain). Comfortably larger than
+// MAX_DRAIN_BATCH so normal bursts are never truncated.
+export const MAX_PENDING_EVENTS = 500;
+
 export type PendingUserEvent =
 	| { kind: "connect"; attempts?: number }
 	| { kind: "message"; message: DeviceResponse; attempts?: number };
@@ -26,6 +44,14 @@ export type PendingUserEvent =
 /**
  * Append a user-worker event to the persisted queue and arm the DO alarm
  * to fire as soon as possible.
+ *
+ * Two guards keep the queue bounded:
+ *   - Redundant `connect` events are coalesced. onDeviceConnect is re-run on
+ *     every reconnect and is meant to be idempotent, so queuing N of them just
+ *     multiplies drain cost for no benefit — if a connect is already pending we
+ *     skip appending another (but still bump the alarm so it drains promptly).
+ *   - The queue is hard-capped at MAX_PENDING_EVENTS; the oldest events past the
+ *     cap are dropped so a churning/chatty device cannot grow it unbounded.
  */
 export async function enqueueUserWorkerEvent(
 	storage: DurableObjectStorage,
@@ -33,8 +59,23 @@ export async function enqueueUserWorkerEvent(
 ): Promise<void> {
 	const existing =
 		(await storage.get<PendingUserEvent[]>(PENDING_USER_EVENTS_KEY)) ?? [];
-	existing.push(event);
-	await storage.put(PENDING_USER_EVENTS_KEY, existing);
+
+	const connectAlreadyQueued =
+		event.kind === "connect" && existing.some((e) => e.kind === "connect");
+
+	if (!connectAlreadyQueued) {
+		existing.push(event);
+		// Drop oldest events beyond the cap so the backlog stays drainable.
+		if (existing.length > MAX_PENDING_EVENTS) {
+			const overflow = existing.length - MAX_PENDING_EVENTS;
+			existing.splice(0, overflow);
+			logger.warn("Pending user-event queue full; dropped oldest events", {
+				droppedCount: overflow,
+				cap: MAX_PENDING_EVENTS,
+			});
+		}
+		await storage.put(PENDING_USER_EVENTS_KEY, existing);
+	}
 
 	const soon = Date.now() + 10;
 	const currentAlarm = await storage.getAlarm();
@@ -57,10 +98,28 @@ export interface DrainDeps {
 }
 
 /**
+ * Arm the alarm to fire at `at` unless an earlier alarm is already set.
+ * Never pushes out a sooner pending alarm (e.g. a cron about to fire).
+ */
+async function armAlarmNoLaterThan(
+	storage: DurableObjectStorage,
+	at: number,
+): Promise<void> {
+	const currentAlarm = await storage.getAlarm();
+	if (currentAlarm === null || currentAlarm > at) {
+		await storage.setAlarm(at);
+	}
+}
+
+/**
  * Drain queued user-worker events. Returns the user worker created so the
  * caller can reuse it for cron / legacy-onAlarm dispatch without another
  * LOADER.get() (which would trip the "Too many concurrent dynamic workers"
  * limit).
+ *
+ * At most MAX_DRAIN_BATCH events are dispatched per call so one invocation
+ * cannot exhaust the runtime's per-invocation subrequest budget. Any remainder
+ * is left on the queue and a follow-up alarm is armed to continue draining.
  *
  * Transient errors re-queue with exponential backoff; persistent errors drop
  * the batch and capture to Sentry via logger.error.
@@ -81,9 +140,16 @@ export async function drainPendingUserWorkerEvents(
 	);
 	if (!pending || pending.length === 0) return null;
 
-	// Clear up-front so a subsequent enqueue during processing doesn't get
-	// swallowed if we persist an emptied array at the end.
-	await storage.delete(PENDING_USER_EVENTS_KEY);
+	// Process at most MAX_DRAIN_BATCH this invocation; persist the remainder
+	// up-front so the tail survives even if this invocation dies, and so a
+	// concurrent enqueue appends to the right tail.
+	const batch = pending.slice(0, MAX_DRAIN_BATCH);
+	const rest = pending.slice(MAX_DRAIN_BATCH);
+	if (rest.length > 0) {
+		await storage.put(PENDING_USER_EVENTS_KEY, rest);
+	} else {
+		await storage.delete(PENDING_USER_EVENTS_KEY);
+	}
 
 	let userWorker: IUserDeviceWorker;
 	try {
@@ -98,7 +164,7 @@ export async function drainPendingUserWorkerEvents(
 			// rate-limiter / transient condition clears. Bump every event's
 			// attempt count, then split into events still under the cap
 			// (re-queued) and events that just hit the cap (dropped).
-			const bumped = pending.map((e) => ({
+			const bumped = batch.map((e) => ({
 				...e,
 				attempts: (e.attempts ?? 0) + 1,
 			}));
@@ -131,17 +197,17 @@ export async function drainPendingUserWorkerEvents(
 				});
 			}
 
-			if (retryable.length > 0) {
+			// Put the retryable batch back in front of any untouched remainder so
+			// FIFO order is preserved across the bounded drain.
+			const requeued = [...retryable, ...rest];
+			if (requeued.length > 0) {
 				const maxAttempts = Math.max(...retryable.map((e) => e.attempts ?? 0));
 				const backoffMs = Math.min(30_000, 500 * 2 ** maxAttempts);
-				await storage.put(PENDING_USER_EVENTS_KEY, retryable);
-				const currentAlarm = await storage.getAlarm();
-				const nextFire = Date.now() + backoffMs;
-				if (currentAlarm === null || currentAlarm > nextFire) {
-					await storage.setAlarm(nextFire);
-				}
+				await storage.put(PENDING_USER_EVENTS_KEY, requeued);
+				await armAlarmNoLaterThan(storage, Date.now() + backoffMs);
 				logger.warn("Worker init transient failure; re-queued events", {
 					count: retryable.length,
+					remainder: rest.length,
 					backoffMs,
 					message,
 				});
@@ -154,13 +220,15 @@ export async function drainPendingUserWorkerEvents(
 				});
 			}
 		} else {
-			// Persistent error (SyntaxError, script missing, etc.) — drop.
+			// Persistent error (SyntaxError, script missing, etc.) — drop this
+			// batch. The remainder (already persisted) is left for a follow-up
+			// alarm so a single bad batch doesn't strand the rest of the queue.
 			logger.error(
 				err,
 				"user worker drain: persistent failure, dropping batch",
 				{
-					droppedCount: pending.length,
-					kinds: pending.map((e) => e.kind),
+					droppedCount: batch.length,
+					kinds: batch.map((e) => e.kind),
 					...deviceMeta,
 				},
 			);
@@ -171,12 +239,15 @@ export async function drainPendingUserWorkerEvents(
 				deviceId: deviceMeta?.deviceId,
 				projectId: deviceMeta?.projectId,
 			});
+			if (rest.length > 0) {
+				await armAlarmNoLaterThan(storage, Date.now() + 10);
+			}
 		}
 		return null;
 	}
 
 	let connectProcessed = false;
-	for (const event of pending) {
+	for (const event of batch) {
 		try {
 			if (event.kind === "connect") {
 				await userWorker.onDeviceConnect();
@@ -206,6 +277,11 @@ export async function drainPendingUserWorkerEvents(
 				deviceId: deviceMeta?.deviceId,
 			});
 		}
+	}
+
+	// More events still queued — arm a near-term alarm to continue draining.
+	if (rest.length > 0) {
+		await armAlarmNoLaterThan(storage, Date.now() + 50);
 	}
 
 	return userWorker;

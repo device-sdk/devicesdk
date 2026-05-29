@@ -1,5 +1,24 @@
 # @devicesdk/api
 
+## 0.2.12
+
+### Patch Changes
+
+- 0334095: Audit cleanup (correctness, tech-debt, deps, CI):
+  - **dashboard:** fix a watcher-WebSocket reconnect storm in `useDeviceStream` — `onerror`+`onclose` both fired the reconnect handler, scheduling duplicate reconnects and leaking the first timer (which `disconnect()` could then no longer cancel). Each socket now reconnects at most once per drop.
+  - **api:** script-validation `400`s now include the canonical `error` string (alongside the structured `errors`), so `devicesdk deploy` surfaces the real validation messages instead of a generic "Request failed with status 400".
+  - **cli:** `dev` now scans for a genuinely-free fallback port instead of picking one random port that could itself be in use; the Linux `lsblk` volume parser no longer truncates labels/mountpoints containing `=`; `logs --tail` bounds its `seenIds` dedup set in long-running sessions.
+  - **core/api/cli:** centralized the script-size limit as `MAX_SCRIPT_SIZE_BYTES` in `@devicesdk/core`, consumed by the API upload validation and the CLI pre-deploy check (one source of truth).
+  - **firmware (esp32 + pico):** fix `i2c_write` on real hardware — the handlers required a base64 string, but the SDK sends (and `i2c_batch_write`/SPI accept) a hex-string array, so writes were silently dropped on a device. Both handlers now parse the hex-string array.
+  - **dashboard:** removed unused Quasar scaffolding; de-duplicated the `normalizeTimestamp`/`formatDate` helpers into `lib/time.ts`.
+  - **api (security):** bumped `hono` 4.10.7 → 4.12.23 (clears several advisories; the affected JWT middleware is unused) and pinned `chanfana` to exact `3.3.0` to match its patch target. Also bumped `@sentry/cloudflare` and (dashboard) `axios` to latest.
+  - **repo/CI:** untracked the vendored ESP-IDF `managed_components/` (re-fetched at build time via `idf_component.yml`); added minimal `permissions: { contents: read }` to `ci.yml`/`deploy.yml`; SHA-pinned all third-party GitHub Actions; bumped `turbo`; reconciled the ESP-IDF version in docs to match CI (`v5.5.1`).
+
+- 45da6df: Fix per-device cron schedules permanently stopping after a connection blip. The cost guard added in #111 cancels a device's Durable Object alarm whenever it fires with no device socket present, and the only path that re-armed it was `initializeCrons()` — which runs only after a fresh `device_connected` handshake is drained. A device whose WebSocket was re-established at the transport level without re-sending that handshake (or a half-open connection the runtime later replaces) was left with its cron dead forever, even while the device still reported as connected. The device connect handler now re-arms the cron alarm from the persisted schedule on every WebSocket accept (`rearmCronAlarmFromStorage()`), independent of the handshake, skipping any fire time that elapsed while offline.
+- 17ae750: Stop firing device cron schedules while no device is connected. Previously, a script that declared a frequent cron (e.g. `*/1 * * * *`) kept waking its Durable Object — and re-invoking the user Worker — every minute forever after the device disconnected, billing for work that could never reach hardware. The alarm handler now cancels the alarm when no device WebSocket is present and leaves the schedule in storage; reconnecting re-arms it (preserving each cron's `nextFireAt`). Pending user-worker events queued for a transient retry are unaffected.
+- Updated dependencies [0334095]
+  - @devicesdk/core@1.4.2
+
 ## 0.2.11
 
 ### Patch Changes

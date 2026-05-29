@@ -32,7 +32,8 @@
 		"nodejs_compat_populate_process_env"
 	],
 	"vars": {
-		"ENV": "production"
+		"ENV": "production",
+		"CLOUDFLARE_ACCOUNT_ID": "888e736867edd3b81b49b17c9067d5df"
 	},
 	"r2_buckets": [
 		{
@@ -94,7 +95,8 @@
 		"production": {
 			"name": "devicesdk-api",
 			"vars": {
-				"ENV": "production"
+				"ENV": "production",
+				"CLOUDFLARE_ACCOUNT_ID": "888e736867edd3b81b49b17c9067d5df"
 			},
 			"routes": [
 				{

@@ -431,4 +431,25 @@ describe.sequential("TestDevice — initializeCrons behavior", () => {
 		expect(alarmTime).toBeGreaterThan(now);
 		expect(alarmTime).not.toBe(oldFireAt);
 	});
+
+	it("skips a missed fire on reconnect (does not catch up) when the stored fire time is in the past", async () => {
+		const stub = getTestDeviceStub("init-crons-test:device-6");
+		const now = Date.now();
+		const pastFireAt = now - 120_000; // a slot that elapsed while the device was offline
+
+		await stub.seedCronStorage({
+			heartbeat: { cron: "*/5 * * * *", nextFireAt: pastFireAt },
+		});
+
+		// Reconnect re-initializes crons. A stale (past-due) fire time must be
+		// recomputed to the next future occurrence rather than preserved, so the
+		// missed fire is skipped instead of firing immediately on reconnect —
+		// matching the documented "does not catch up" contract.
+		await stub.testInitializeCrons({ heartbeat: "*/5 * * * *" });
+
+		const alarmTime = await stub.getScheduledAlarmTime();
+		expect(alarmTime).not.toBeNull();
+		expect(alarmTime).toBeGreaterThan(now);
+		expect(alarmTime).not.toBe(pastFireAt);
+	});
 });

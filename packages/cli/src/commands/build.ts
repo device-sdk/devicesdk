@@ -207,7 +207,7 @@ export default async function build(options: BuildOptions = {}): Promise<void> {
 
 				if (size > MAX_SCRIPT_SIZE_BYTES) {
 					console.error(
-						`✗ ${deviceId}: Script exceeds maximum size of 1MB (${formatSize(size)})`,
+						`✗ ${deviceId}: Script exceeds maximum size of ${formatSize(MAX_SCRIPT_SIZE_BYTES)} (${formatSize(size)})`,
 					);
 					results.push({ deviceId, size, error: "Script too large" });
 					continue;

@@ -1,5 +1,0 @@
----
-"@devicesdk/api": patch
----
-
-Bound the per-device deferred-event drain so a large backlog can no longer wedge a device. `drainPendingUserWorkerEvents` previously flushed the entire `PENDING_USER_EVENTS_KEY` queue in a single Durable Object alarm invocation. A device that built up a big backlog (e.g. connection churn or unsolicited messages while its cron alarm was paused) would, once the alarm resumed, exceed the runtime's per-invocation subrequest limit on every tick — aborting the invocation before it could dispatch `onCron` or even trim the queue, so the backlog never shrank and the device stopped updating (observed as a per-minute alarm stuck on "Too many subrequests by single Worker invocation"). The drain now processes at most `MAX_DRAIN_BATCH` (50) events per invocation, persists the remainder, and arms a follow-up alarm to continue. `enqueueUserWorkerEvent` also coalesces redundant `connect` events (onDeviceConnect is idempotent) and hard-caps the queue at `MAX_PENDING_EVENTS` (500) so a churning device can never grow it without bound.

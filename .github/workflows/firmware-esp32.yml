@@ -191,11 +191,14 @@ jobs:
           path: firmware/
 
       - name: Upload firmware to R2
+        # `pnpm --filter … exec` runs wrangler with CWD set to apps/api, so the
+        # --file path must be absolute — the artifact is downloaded to the
+        # workspace-root firmware/ dir, not apps/api/firmware/.
         run: |
           for target in esp32 esp32c61 esp32c3; do
             pnpm --filter @devicesdk/api exec wrangler r2 object put \
               "devicesdk-firmwares/${target}-client.bin" \
-              --file="firmware/${target}-client.bin" --remote
+              --file="$GITHUB_WORKSPACE/firmware/${target}-client.bin" --remote
           done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

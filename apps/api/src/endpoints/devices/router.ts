@@ -1,5 +1,6 @@
 import { fromHono } from "chanfana";
 import { Hono } from "hono";
+import { GetDeviceMetrics } from "../metrics/getDeviceMetrics";
 import { CreateDevice } from "./createDevice";
 import { DeleteDevice } from "./deleteDevice";
 import { DeviceConnect } from "./deviceConnect";
@@ -21,6 +22,7 @@ devicesRouter.get("/:deviceId", GetDevice);
 devicesRouter.put("/:deviceId", UpdateDevice);
 devicesRouter.delete("/:deviceId", DeleteDevice);
 devicesRouter.get("/:deviceId/status", GetDeviceStatus);
+devicesRouter.get("/:deviceId/metrics", GetDeviceMetrics);
 devicesRouter.get("/:deviceId/connect/websocket", DeviceConnect);
 devicesRouter.get("/:deviceId/watch", WatchDevice);
 devicesRouter.get("/:deviceId/entities", GetDeviceEntities);

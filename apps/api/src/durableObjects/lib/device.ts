@@ -5,7 +5,11 @@ import type {
 	DeviceResponse,
 } from "@devicesdk/core";
 import { z } from "zod";
-import { recordCommandRpc, recordScriptInit } from "../../foundation/analytics";
+import {
+	recordCommandRpc,
+	recordDeviceUsage,
+	recordScriptInit,
+} from "../../foundation/analytics";
 import {
 	type LogLevel,
 	MESSAGE_COUNT_DATE_KEY,
@@ -547,6 +551,22 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	/**
+	 * Usage metric: one outbound (cloud → device) command. Shared by both the
+	 * fire-and-forget and request/response send paths. No-op without deviceMeta.
+	 */
+	private recordMessageOut(bytes: number): void {
+		if (!this.deviceMeta) return;
+		recordDeviceUsage(this.env.USAGE, {
+			deviceId: this.deviceMeta.deviceId,
+			projectId: this.deviceMeta.projectId,
+			userId: this.deviceMeta.userId,
+			kind: "message_out",
+			messagesOut: 1,
+			bytesOut: bytes,
+		});
+	}
+
+	/**
 	 * Sends a command to the device without waiting for an acknowledgement.
 	 * @param command The command object to send.
 	 */
@@ -560,7 +580,8 @@ export class BaseDevice extends DurableObject<Env> {
 		}
 		// Send the command to the device
 		logger.debug("sending command without ack", { command });
-		session.websocket.send(JSON.stringify(command));
+		const serialized = JSON.stringify(command);
+		session.websocket.send(serialized);
 		recordCommandRpc(this.env.ANALYTICS, {
 			commandType: command.type,
 			outcome: "fire_and_forget",
@@ -569,6 +590,7 @@ export class BaseDevice extends DurableObject<Env> {
 			deviceId: this.deviceMeta?.deviceId,
 			projectId: this.deviceMeta?.projectId,
 		});
+		this.recordMessageOut(serialized.length);
 	}
 
 	/**
@@ -618,7 +640,9 @@ export class BaseDevice extends DurableObject<Env> {
 			// Send the command to the device
 			logger.debug("sending command", { command });
 			if (session.websocket.readyState === WebSocket.READY_STATE_OPEN) {
-				session.websocket.send(JSON.stringify(command));
+				const serialized = JSON.stringify(command);
+				session.websocket.send(serialized);
+				this.recordMessageOut(serialized.length);
 			} else {
 				reject(new Error("WebSocket is not open"));
 			}
@@ -666,6 +690,20 @@ export class BaseDevice extends DurableObject<Env> {
 		// Check daily message limit
 		const limitExceeded = await this.checkMessageLimit(_ws);
 		if (limitExceeded) return;
+
+		// Usage metric: one inbound (device → cloud) message that counted toward
+		// the daily limit. ping keepalives and limit-dropped frames are excluded
+		// above. checkMessageLimit() restored deviceMeta, so it's available here.
+		if (this.deviceMeta) {
+			recordDeviceUsage(this.env.USAGE, {
+				deviceId: this.deviceMeta.deviceId,
+				projectId: this.deviceMeta.projectId,
+				userId: this.deviceMeta.userId,
+				kind: "message_in",
+				messagesIn: 1,
+				bytesIn: data.length,
+			});
+		}
 
 		try {
 			// Handle device connect message
@@ -881,6 +919,12 @@ export class BaseDevice extends DurableObject<Env> {
 	}
 
 	private async handleConnectionLost(reason: string) {
+		// Capture connection start before clearing it, to record uptime. After
+		// hibernation the in-memory field is gone, so fall back to storage.
+		const connectedSince =
+			this._connectedSince ??
+			(await this.ctx.storage.get<number>(CONNECTED_SINCE_KEY));
+
 		// Reject all pending commands because we can no longer receive responses.
 		for (const [_id, command] of this.pendingCommands.entries()) {
 			clearTimeout(command.timeoutId);
@@ -902,6 +946,21 @@ export class BaseDevice extends DurableObject<Env> {
 			await this.env.DB.prepare("UPDATE devices SET connected = 0 WHERE id = ?")
 				.bind(meta.deviceId)
 				.run();
+
+			// Usage metric: total connected time for this session. Recorded once
+			// per disconnect (long-lived sessions only surface uptime on close).
+			if (connectedSince) {
+				recordDeviceUsage(this.env.USAGE, {
+					deviceId: meta.deviceId,
+					projectId: meta.projectId,
+					userId: meta.userId,
+					kind: "connection",
+					connectedSeconds: Math.max(
+						0,
+						Math.round((Date.now() - connectedSince) / 1000),
+					),
+				});
+			}
 		}
 
 		// Clean up the user worker (restore it first if needed)
@@ -1231,6 +1290,18 @@ export class BaseDevice extends DurableObject<Env> {
 					});
 				}
 			}
+		}
+
+		// Usage metric: each due cron is one user-worker invocation (billable
+		// compute). Recorded once per alarm with the batch count.
+		if (due.length > 0 && this.deviceMeta) {
+			recordDeviceUsage(this.env.USAGE, {
+				deviceId: this.deviceMeta.deviceId,
+				projectId: this.deviceMeta.projectId,
+				userId: this.deviceMeta.userId,
+				kind: "cron_fire",
+				cronFires: due.length,
+			});
 		}
 
 		// Persist updated schedule and reschedule the next alarm

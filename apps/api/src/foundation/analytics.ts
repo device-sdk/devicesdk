@@ -41,6 +41,45 @@ export interface LoaderFailureEvent {
 	projectId?: string;
 }
 
+// --- Usage / billing metrics -------------------------------------------------
+//
+// Written to the separate `USAGE` dataset (devicesdk_usage), indexed by
+// deviceId so each device's high-volume stream is sampled independently and the
+// per-device dashboard query is a fast `WHERE index1 = ?`. The project page
+// aggregates with `WHERE blob1 = <projectId> GROUP BY index1`.
+//
+// Fixed column layout (every data point uses the same shape; each event kind
+// populates the relevant doubles and leaves the rest at 0, so read queries can
+// `sum(doubleN * _sample_interval)` per metric without branching on kind):
+//
+//   indexes[0] = deviceId
+//   blobs      = [projectId, userId, kind]
+//   doubles    = [messagesIn, messagesOut, bytesIn, bytesOut,
+//                 cronFires, connectedSeconds]
+//
+// AE adaptively samples under load, so totals are reconstructed with
+// `sum(doubleN * _sample_interval)` — these numbers are estimates, suitable for
+// trend charts and "estimated" billing, not exact-to-the-cent accounting.
+
+export type DeviceUsageKind =
+	| "message_in"
+	| "message_out"
+	| "cron_fire"
+	| "connection";
+
+export interface DeviceUsageEvent {
+	deviceId: string;
+	projectId: string;
+	userId?: string;
+	kind: DeviceUsageKind;
+	messagesIn?: number;
+	messagesOut?: number;
+	bytesIn?: number;
+	bytesOut?: number;
+	cronFires?: number;
+	connectedSeconds?: number;
+}
+
 function safeWrite(
 	analytics: AnalyticsEngineDataset | undefined,
 	kind: string,
@@ -99,5 +138,30 @@ export function recordWorkerLoaderFailure(
 			event.errorName ?? "",
 		],
 		doubles: [event.attemptCount ?? 1],
+	});
+}
+
+/**
+ * Record a per-device usage data point to the `USAGE` dataset. Indexed by
+ * deviceId (see the layout comment above DeviceUsageEvent). No-op when the
+ * binding is absent (local/test) or deviceId is missing — analytics must never
+ * break the device hot path.
+ */
+export function recordDeviceUsage(
+	usage: AnalyticsEngineDataset | undefined,
+	event: DeviceUsageEvent,
+): void {
+	if (!usage || !event.deviceId) return;
+	safeWrite(usage, "device_usage", {
+		indexes: [event.deviceId],
+		blobs: [event.projectId, event.userId ?? "", event.kind],
+		doubles: [
+			event.messagesIn ?? 0,
+			event.messagesOut ?? 0,
+			event.bytesIn ?? 0,
+			event.bytesOut ?? 0,
+			event.cronFires ?? 0,
+			event.connectedSeconds ?? 0,
+		],
 	});
 }

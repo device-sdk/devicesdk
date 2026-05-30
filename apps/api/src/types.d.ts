@@ -44,7 +44,13 @@ declare namespace Cloudflare {
 		DEVICE: DurableObjectNamespace;
 		LOADER: WorkerLoader;
 		ANALYTICS?: AnalyticsEngineDataset;
+		USAGE?: AnalyticsEngineDataset;
 		ENV: "local" | "production";
+		// Cloudflare API credentials for reading back Analytics Engine via the
+		// SQL API (metrics endpoints). Optional so the worker still boots without
+		// them; the metrics endpoints return empty series when unset.
+		CLOUDFLARE_ACCOUNT_ID?: string;
+		CF_ANALYTICS_API_TOKEN?: string;
 		SENTRY_DSN: string | undefined;
 	}
 }

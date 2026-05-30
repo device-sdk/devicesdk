@@ -217,6 +217,11 @@ pnpm local:flash    # Flash a Pico pointing at the local API
 | Dashboard watch WebSocket composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
 | HA entity declaration types | `packages/core/src/index.ts` (`HaEntityDeclaration`, `HaEntityType`, `HaEntitySource`) |
 | HA entity persistence | `apps/api/src/endpoints/devices/getDeviceEntities.ts`, `apps/api/src/endpoints/devices/upsertDeviceEntities.ts`, `device_entity_configs` table |
+| Usage metric recording (write) | `apps/api/src/foundation/analytics.ts` (`recordDeviceUsage` → `devicesdk_usage` AE dataset, indexed by deviceId; instrumented in `device.ts`) |
+| Usage metric reads (AE SQL API) | `apps/api/src/foundation/metricsClient.ts` (sampling-aware query builders + graceful degradation) |
+| Usage→USD cost estimation | `apps/api/src/foundation/pricing.ts` (`estimateCostUsd`, placeholder rates — single source of truth) |
+| Metrics endpoints | `apps/api/src/endpoints/metrics/` (`GET .../devices/:deviceId/metrics`, `GET /projects/:projectId/metrics`) |
+| Dashboard metrics UI | `apps/dashboard/src/components/metrics/`, `apps/dashboard/src/lib/metricsFormat.ts` (chart builders), `apps/dashboard/src/lib/echarts.ts` (tree-shaken ECharts), `metricsService` in `api.service.ts` |
 | License | `LICENSE` (proprietary, all rights reserved) |
 
 ## Audit-finding sanity-check

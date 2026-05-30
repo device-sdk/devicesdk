@@ -35,6 +35,7 @@
           align="left"
         >
           <q-tab name="overview" label="Overview" icon="info" />
+          <q-tab name="analytics" label="Analytics" icon="bar_chart" />
           <q-tab name="devices" label="Devices" icon="memory" />
           <q-tab name="settings" label="Settings" icon="settings" />
         </q-tabs>
@@ -113,6 +114,10 @@
                 </div>
               </div>
             </div>
+          </q-tab-panel>
+
+          <q-tab-panel name="analytics" class="q-pa-lg">
+            <ProjectMetricsPanel :project-id="projectId" />
           </q-tab-panel>
 
           <q-tab-panel name="devices" class="q-pa-lg">
@@ -292,6 +297,7 @@ import { useQuasar } from 'quasar';
 import { projectService, type Project } from '@/services/api.service';
 import { formatDate } from '@/lib/time';
 import CreateDeviceDialog from '@/components/CreateDeviceDialog.vue';
+import ProjectMetricsPanel from '@/components/metrics/ProjectMetricsPanel.vue';
 
 const route = useRoute();
 const router = useRouter();

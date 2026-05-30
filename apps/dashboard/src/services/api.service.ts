@@ -428,6 +428,81 @@ export const logService = {
 };
 
 // ============================================================================
+// Metrics Endpoints
+// ============================================================================
+
+export type MetricsWindow = '1h' | '12h' | '7d';
+
+/** One time bucket of usage; mirrors the API's snake_case wire shape. */
+export interface UsageBucket {
+  ts: number;
+  messages_in: number;
+  messages_out: number;
+  bytes_in: number;
+  bytes_out: number;
+  cron_fires: number;
+  connected_seconds: number;
+  estimated_cost_usd: number;
+}
+
+export type UsageTotals = Omit<UsageBucket, 'ts'>;
+
+export interface DeviceMetrics {
+  window: string;
+  bucket_seconds: number;
+  series: UsageBucket[];
+  totals: UsageTotals;
+}
+
+export interface ProjectDeviceMetrics {
+  device_id: string;
+  name: string | null;
+  series: UsageBucket[];
+  totals: UsageTotals;
+}
+
+export interface ProjectMetrics {
+  window: string;
+  bucket_seconds: number;
+  devices: ProjectDeviceMetrics[];
+  totals: UsageTotals;
+  billing: {
+    window: string;
+    daily: { ts: number; estimated_cost_usd: number }[];
+    total_usd: number;
+  };
+}
+
+export const metricsService = {
+  async getDevice(
+    projectId: string,
+    deviceId: string,
+    window: MetricsWindow = '1h',
+  ): Promise<DeviceMetrics> {
+    const data = await api.call<ApiResponse<DeviceMetrics>>(
+      `/v1/projects/${projectId}/devices/${deviceId}/metrics?window=${window}`,
+    );
+    if (!data || !data.success) {
+      throw new Error('Failed to fetch device metrics');
+    }
+    return data.result;
+  },
+
+  async getProject(
+    projectId: string,
+    window: MetricsWindow = '12h',
+  ): Promise<ProjectMetrics> {
+    const data = await api.call<ApiResponse<ProjectMetrics>>(
+      `/v1/projects/${projectId}/metrics?window=${window}`,
+    );
+    if (!data || !data.success) {
+      throw new Error('Failed to fetch project metrics');
+    }
+    return data.result;
+  },
+};
+
+// ============================================================================
 // Token Endpoints
 // ============================================================================
 
@@ -498,4 +573,5 @@ export const apiService = {
   script: scriptService,
   token: tokenService,
   log: logService,
+  metrics: metricsService,
 };

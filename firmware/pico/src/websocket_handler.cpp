@@ -336,8 +336,12 @@ void handle_websocket_message(const picojson::value& v) {
     else if (type == "i2c_read") {
         auto bus_it = payload.find("bus");
         auto addr_it = payload.find("address");
-        auto len_it = payload.find("length");
-        auto reg_it = payload.find("register");
+        // SDK contract (core I2cReadCommand) sends "bytes_to_read" and an optional
+        // hex-string "register_to_read" (e.g. "0xD0"), matching the standalone
+        // handler in commands/i2c_read.cpp. The legacy "length"/"register" names
+        // never matched any sender.
+        auto len_it = payload.find("bytes_to_read");
+        auto reg_it = payload.find("register_to_read");
 
         if (bus_it != payload.end() && bus_it->second.is<double>() &&
             addr_it != payload.end() && addr_it->second.is<std::string>() &&
@@ -355,13 +359,13 @@ void handle_websocket_message(const picojson::value& v) {
             cmd.payload.i2c_read.address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
 
             cmd.payload.i2c_read.length = (size_t)len_val;
-            cmd.payload.i2c_read.reg = reg_it != payload.end() && reg_it->second.is<double>()
-                ? (int)reg_it->second.get<double>()
+            cmd.payload.i2c_read.reg = reg_it != payload.end() && reg_it->second.is<std::string>()
+                ? (int)strtol(reg_it->second.get<std::string>().c_str(), nullptr, 16)
                 : -1;
 
             queue_command(&cmd);
         } else {
-            send_error("Missing bus, address, or length parameter");
+            send_error("Missing bus, address, or bytes_to_read parameter");
         }
     }
     // === I2C BATCH WRITE ===
@@ -528,7 +532,8 @@ void handle_websocket_message(const picojson::value& v) {
     // === SPI READ ===
     else if (type == "spi_read") {
         auto bus_it = payload.find("bus");
-        auto len_it = payload.find("length");
+        // SDK contract (core SpiReadCommand) sends "bytes_to_read", not "length".
+        auto len_it = payload.find("bytes_to_read");
 
         if (bus_it != payload.end() && bus_it->second.is<double>() &&
             len_it != payload.end() && len_it->second.is<double>()) {
@@ -544,7 +549,7 @@ void handle_websocket_message(const picojson::value& v) {
 
             queue_command(&cmd);
         } else {
-            send_error("Missing bus or length parameter");
+            send_error("Missing bus or bytes_to_read parameter");
         }
     }
     // === UART CONFIGURE ===
@@ -648,7 +653,8 @@ void handle_websocket_message(const picojson::value& v) {
     // === UART READ ===
     else if (type == "uart_read") {
         auto port_it = payload.find("port");
-        auto len_it = payload.find("length");
+        // SDK contract (core UartReadCommand) sends "bytes_to_read", not "length".
+        auto len_it = payload.find("bytes_to_read");
         auto timeout_it = payload.find("timeout_ms");
 
         if (port_it != payload.end() && port_it->second.is<double>() &&
@@ -673,7 +679,7 @@ void handle_websocket_message(const picojson::value& v) {
 
             queue_command(&cmd);
         } else {
-            send_error("Missing port or length parameter");
+            send_error("Missing port or bytes_to_read parameter");
         }
     }
     // === PIO WS2812 CONFIGURE ===

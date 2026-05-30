@@ -45,6 +45,7 @@ private:
 
     void on_tcp_connected(struct altcp_pcb *tpcb, err_t err);
     void on_tcp_recv(struct altcp_pcb *tpcb, struct pbuf *p, err_t err);
+    void on_tcp_err();
     void on_dns_found(const ip_addr_t *ipaddr);
 
     size_t build_frame(char* buffer, size_t buffer_len, const char* payload, size_t payload_len);

@@ -9,7 +9,10 @@
 #include "ca_cert.h"
 
 #define WEBSOCKET_OPCODE_TEXT 0x1
-#define BUF_SIZE 2048
+// Big enough to hold a fully-masked text frame for the largest response we
+// emit. A spi/uart read result of 256 bytes serialises to ~1.8 KB of hex
+// strings, so 4 KB leaves comfortable headroom.
+#define BUF_SIZE 4096
 #define MAX_RX_BUFFER_SIZE 16384
 #define MAX_TX_QUEUE_SIZE 10
 
@@ -227,14 +230,37 @@ void WebsocketClient::close_connection() {
     rx_buffer.shrink_to_fit();
 }
 
+void WebsocketClient::on_tcp_err() {
+    // The pcb is already freed by lwIP when this runs; forget it WITHOUT
+    // closing (that would be a use-after-free). Freeing the TLS config is a
+    // separate allocation and is safe.
+    tls_pcb = nullptr;
+    if (tls_config) {
+        altcp_tls_free_config(tls_config);
+        tls_config = nullptr;
+    }
+    connected_state = 0;
+    http_response_complete = false;
+    rx_buffer.clear();
+    rx_buffer.shrink_to_fit();
+}
+
 size_t WebsocketClient::build_frame(char* buffer, size_t buffer_len, const char* payload, size_t payload_len) {
     buffer[0] = 0x80 | WEBSOCKET_OPCODE_TEXT; // FIN + opcode
 
     size_t header_len = 2;
     if (payload_len < 126) {
-        buffer[1] = payload_len;
+        buffer[1] = (char)payload_len;
+    } else if (payload_len <= 0xFFFF) {
+        // 16-bit extended payload length (126 marker + 2 length bytes, big-endian).
+        // Without this, any frame >= 126 bytes (e.g. nearly every command_ack,
+        // which carries the server's 36-char id) was silently dropped.
+        buffer[1] = 126;
+        buffer[2] = (char)((payload_len >> 8) & 0xFF);
+        buffer[3] = (char)(payload_len & 0xFF);
+        header_len = 4;
     } else {
-        // Extended payload length not supported in this simple implementation
+        // 64-bit lengths are unsupported (and would exceed BUF_SIZE anyway).
         return 0;
     }
 
@@ -299,8 +325,13 @@ void WebsocketClient::process_rx_buffer() {
             // Not enough data for a complete frame, wait for more
             break;
         }
+        // parse_frame() may have torn down the connection (e.g. a Close frame,
+        // including the rate-limit close), which clears rx_buffer. Bail out
+        // before erasing past the end of a now-empty/shorter buffer.
+        if (connected_state == 0 || consumed > rx_buffer.size()) {
+            break;
+        }
         rx_buffer.erase(rx_buffer.begin(), rx_buffer.begin() + consumed);
-        rx_buffer.shrink_to_fit();
     }
 }
 
@@ -389,7 +420,10 @@ err_t WebsocketClient::tcp_recv_callback(void *arg, struct altcp_pcb *tpcb, stru
 }
 
 void WebsocketClient::tcp_err_callback(void *arg, err_t err) {
-    ((WebsocketClient*)arg)->close_connection();
+    // lwIP has already freed the pcb before invoking the error callback, so we
+    // must NOT call altcp_close()/altcp_arg() on it (use-after-free). Just drop
+    // our reference and tear down the rest of the connection state.
+    ((WebsocketClient*)arg)->on_tcp_err();
 }
 
 err_t WebsocketClient::tcp_poll_callback(void *arg, struct altcp_pcb *tpcb) {

@@ -230,3 +230,56 @@ TEST(ConstantsTest, TxQueueSizeIsReasonable) {
     // But not so many that memory is exhausted
     EXPECT_LE(MAX_TX_QUEUE_SIZE, 50);
 }
+
+// ==================== FRAME BUILDER TESTS ====================
+
+// Replicates the header-length logic of WebsocketClient::build_frame(). The
+// real method masks against a hardware RNG and needs lwIP, so we mirror just
+// the framing here (same pattern as the buffer/header tests above). Returns the
+// total frame length, or 0 if the payload can't be framed — exactly what the
+// caller checks before transmitting.
+static size_t simulateBuildFrame(size_t buffer_len, size_t payload_len) {
+    size_t header_len = 2;
+    if (payload_len < 126) {
+        // 7-bit length
+    } else if (payload_len <= 0xFFFF) {
+        header_len = 4;  // 126 marker + 16-bit length
+    } else {
+        return 0;        // 64-bit lengths unsupported
+    }
+    header_len += 4;     // client frames are always masked
+    if (header_len + payload_len > buffer_len) return 0;
+    return header_len + payload_len;
+}
+
+#define WS_BUF_SIZE 4096
+
+TEST(FrameBuilderTest, SmallPayloadUsesTwoByteHeader) {
+    // 16-byte {"type":"ping"} style frame: 2 header + 4 mask + 16 payload.
+    EXPECT_EQ(simulateBuildFrame(WS_BUF_SIZE, 16), 2u + 4u + 16u);
+}
+
+TEST(FrameBuilderTest, BoundaryBelow126UsesShortHeader) {
+    EXPECT_EQ(simulateBuildFrame(WS_BUF_SIZE, 125), 2u + 4u + 125u);
+}
+
+// Regression for the silent-drop bug: a typical command_ack carrying the
+// server's 36-char id is ~132 bytes and MUST still produce a valid frame.
+TEST(FrameBuilderTest, CommandAckSizedPayloadIsNotDropped) {
+    size_t frame = simulateBuildFrame(WS_BUF_SIZE, 132);
+    EXPECT_NE(frame, 0u);
+    EXPECT_EQ(frame, 4u + 4u + 132u);  // extended 16-bit header + mask + payload
+}
+
+TEST(FrameBuilderTest, ExtendedLengthBoundary) {
+    EXPECT_EQ(simulateBuildFrame(WS_BUF_SIZE, 126), 4u + 4u + 126u);
+}
+
+TEST(FrameBuilderTest, RejectsPayloadExceedingBuffer) {
+    // Larger than BUF_SIZE can hold once header + mask are added.
+    EXPECT_EQ(simulateBuildFrame(WS_BUF_SIZE, WS_BUF_SIZE), 0u);
+}
+
+TEST(FrameBuilderTest, Rejects64BitLengths) {
+    EXPECT_EQ(simulateBuildFrame(100000, 0x10000), 0u);
+}

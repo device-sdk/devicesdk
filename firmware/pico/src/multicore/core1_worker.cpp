@@ -489,6 +489,14 @@ static void handle_spi_transfer(const worker_command_t* cmd, worker_response_t* 
         return;
     }
 
+    // The request buffer holds up to MAX_SPI_DATA_LEN (4096) bytes, but the
+    // response buffer is only MAX_SPI_RESPONSE_DATA (256). Guard the memcpy so
+    // a large full-duplex transfer can't overflow the response struct.
+    if (result.len > MAX_SPI_RESPONSE_DATA) {
+        set_error(resp, "SPI transfer result too large");
+        return;
+    }
+
     resp->status = RESPONSE_SUCCESS;
     memcpy(resp->data.spi.data, result.data, result.len);
     resp->data.spi.data_len = result.len;

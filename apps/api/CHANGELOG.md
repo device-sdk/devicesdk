@@ -1,5 +1,25 @@
 # @devicesdk/api
 
+## 0.3.0
+
+### Minor Changes
+
+- 25a68b4: Add read endpoints for per-device and per-project usage metrics, backed by the `devicesdk_usage` Analytics Engine dataset via Cloudflare's Analytics Engine SQL API:
+  - `GET /v1/projects/:projectId/devices/:deviceId/metrics?window=1h|12h|7d` — time-bucketed messages in/out, bytes, cron fires, connection seconds, and estimated cost for one device.
+  - `GET /v1/projects/:projectId/metrics?window=1h|12h|7d` — one usage series per device, project-wide totals, and a 30-day daily _estimated_ spend chart.
+
+  Adds a `pricing.ts` source of truth for cost estimation and a `metricsClient.ts` that builds the AE SQL queries (sampling-aware via `_sample_interval`), guards interpolated identifiers, and degrades gracefully to empty result sets when the `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN` credentials are absent (reusing the existing deploy token; needs Account Analytics: Read).
+
+  Pricing follows the platform model documented in the new root `pricing.md`: **only WebSocket messages (in + out) are metered** — connections, uptime, cron invocations, transfer bytes, storage, logs, and metrics are free, so only the message rate is non-zero. The per-message rate is a placeholder until public Pro pricing is set. All numbers are sampled estimates, not exact billing.
+
+- 91e6c8b: Record per-device usage metrics to a new `devicesdk_usage` Analytics Engine dataset (indexed by deviceId). The device Durable Object now emits inbound message, outbound command, cron-fire, and connection-duration data points (with byte counts) on the hot path via a new `recordDeviceUsage` helper. Writes are no-ops when the `USAGE` binding is absent and never throw into a request. This is the data-collection foundation for upcoming per-device / per-project dashboard metrics and estimated billing.
+
+### Patch Changes
+
+- 8e0cdc9: fix(api): defer device `onDeviceDisconnect` to the alarm queue so a reconnect after a disconnect is never wedged
+
+  `handleConnectionLost` (called from the Hibernation-API `webSocketClose` / `webSocketError` handlers) invoked the Worker Loader inline — `getOrCreateUserWorker()` plus `onDeviceDisconnect()`. Invoking the Worker Loader from a Hibernation-API handler hangs in production and wedged the device's dynamic-worker slot, so after a device disconnected and reconnected it completed the WebSocket handshake but never received another command (ESP32 stuck on the "Server" screen after a disconnect/reconnect cycle). The disconnect lifecycle hook is now dispatched through the same alarm-drained user-event queue as `onDeviceConnect` / `onMessage`, so the close handler only does cheap storage work and the next connect is always served.
+
 ## 0.2.13
 
 ### Patch Changes

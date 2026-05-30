@@ -918,7 +918,7 @@ export class BaseDevice extends DurableObject<Env> {
 		});
 	}
 
-	private async handleConnectionLost(reason: string) {
+	protected async handleConnectionLost(reason: string) {
 		// Capture connection start before clearing it, to record uptime. After
 		// hibernation the in-memory field is gone, so fall back to storage.
 		const connectedSince =

@@ -6,7 +6,7 @@
 // `_sample_interval` to reconstruct an estimated true total. Numbers are
 // estimates, suitable for trend charts and "estimated" billing.
 //
-// Graceful degradation: when CLOUDFLARE_ACCOUNT_ID / CF_ANALYTICS_API_TOKEN are
+// Graceful degradation: when CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN are
 // unset (local dev, tests, or before the secret is provisioned) every query
 // returns an empty result set rather than throwing, so the endpoints still
 // respond with a well-formed (empty) series.
@@ -167,7 +167,7 @@ async function runSql(
 	sql: string,
 ): Promise<Record<string, unknown>[]> {
 	const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-	const token = env.CF_ANALYTICS_API_TOKEN;
+	const token = env.CLOUDFLARE_API_TOKEN;
 	if (!accountId || !token) return [];
 
 	try {

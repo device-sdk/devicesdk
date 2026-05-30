@@ -1,11 +1,18 @@
-// Single source of truth for usage-based pricing used to compute the
-// *estimated* spend shown on the dashboard. These figures are derived from
-// sampled Analytics Engine data (see foundation/analytics.ts) and are explicitly
-// estimates, not an invoice.
+// Single source of truth for the per-unit rates that compute the *estimated*
+// spend shown on the dashboard. Figures are derived from sampled Analytics
+// Engine data (see foundation/analytics.ts) and are explicitly estimates, not
+// an invoice.
 //
-// ⚠️ PLACEHOLDER RATES — replace with the real platform pricing before this is
-// presented as anything other than an internal estimate. The shape is stable;
-// only the numbers should change.
+// Pricing model (see /pricing.md and the customer-facing pricing page,
+// apps/website/layouts/pricing/pricing.html): **only WebSocket messages are
+// metered** — inbound + outbound combined. Connections, uptime, cron-driven
+// invocations, transfer bytes, storage, logs, metrics, and dashboard access are
+// all included at no cost, so every rate below except messages is 0. The other
+// usage dimensions are still recorded and displayed; they just don't bill.
+//
+// ⚠️ The per-message rate is a PLACEHOLDER. Public Pro pricing is "contact
+// sales", so this is the internal estimate basis until a real number is set.
+// Only the numbers should change; the shape is stable.
 
 export interface UsageTotals {
 	messagesIn: number;
@@ -27,13 +34,16 @@ export const EMPTY_USAGE_TOTALS: UsageTotals = {
 
 /** USD rates. One place to tune; `estimateCostUsd` is the only consumer. */
 export const PRICING = {
-	/** Per 1,000,000 device messages (inbound + outbound combined). */
+	/**
+	 * Per 1,000,000 device messages (inbound + outbound combined). The only
+	 * metered dimension. PLACEHOLDER — Pro pricing is "contact sales".
+	 */
 	perMillionMessages: 0.4,
-	/** Per 1,000,000 cron-driven user-worker invocations (compute). */
-	perMillionCronFires: 2.0,
-	/** Per GB of WebSocket transfer (bytes in + out). */
-	perGbTransfer: 0.05,
-	/** Per device-connected-hour. Reserved; free for now. */
+	/** Cron-driven invocations are included at no cost. */
+	perMillionCronFires: 0.0,
+	/** WebSocket transfer is not metered (only the message count is). */
+	perGbTransfer: 0.0,
+	/** Connections and uptime are included at no cost. */
 	perDeviceConnectedHour: 0.0,
 } as const;
 

@@ -8,7 +8,6 @@
 #include "multicore/response_queue.h"
 #include "multicore/shared_buffers.h"
 #include "multicore/core1_worker.h"
-#include "base64.h"
 #include "hardware/watchdog.h"
 #include <cstring>
 
@@ -103,16 +102,16 @@ static void process_worker_responses() {
                     break;
                 }
                 case CMD_I2C_SCAN: {
+                    // Contract (responses.ts I2cScanResult): { bus, addresses_found: string[] }
                     response["type"] = picojson::value("i2c_scan_result");
                     payload["bus"] = picojson::value((double)resp.data.i2c_scan.bus);
-                    picojson::array devices;
+                    picojson::array addresses_found;
                     for (uint8_t i = 0; i < resp.data.i2c_scan.count; i++) {
                         char addr[8];
                         snprintf(addr, sizeof(addr), "0x%02X", resp.data.i2c_scan.addresses[i]);
-                        devices.push_back(picojson::value(addr));
+                        addresses_found.push_back(picojson::value(addr));
                     }
-                    payload["devices"] = picojson::value(devices);
-                    payload["count"] = picojson::value((double)resp.data.i2c_scan.count);
+                    payload["addresses_found"] = picojson::value(addresses_found);
                     break;
                 }
                 case CMD_I2C_WRITE: {
@@ -122,15 +121,20 @@ static void process_worker_responses() {
                     break;
                 }
                 case CMD_I2C_READ: {
+                    // Contract (responses.ts I2cReadResult): { bus, address, data: string[] }
+                    // of hex bytes — matching i2c_scan / spi / uart read results.
                     response["type"] = picojson::value("i2c_read_result");
                     payload["bus"] = picojson::value((double)resp.data.i2c_read.bus);
                     char addr[8];
                     snprintf(addr, sizeof(addr), "0x%02X", resp.data.i2c_read.address);
                     payload["address"] = picojson::value(addr);
-                    // Encode data as base64
-                    std::string data_b64 = base64_encode(resp.data.i2c_read.data, resp.data.i2c_read.data_len);
-                    payload["data"] = picojson::value(data_b64);
-                    payload["length"] = picojson::value((double)resp.data.i2c_read.data_len);
+                    picojson::array data_arr;
+                    for (size_t i = 0; i < resp.data.i2c_read.data_len; i++) {
+                        char hex[8];
+                        snprintf(hex, sizeof(hex), "0x%02X", resp.data.i2c_read.data[i]);
+                        data_arr.push_back(picojson::value(hex));
+                    }
+                    payload["data"] = picojson::value(data_arr);
                     break;
                 }
                 case CMD_GET_TEMPERATURE: {

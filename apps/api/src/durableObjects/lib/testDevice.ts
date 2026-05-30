@@ -23,6 +23,12 @@ export class TestDevice extends BaseDevice {
 	// Used to drive drainPendingUserWorkerEvents through its transient/persistent
 	// classification branches without depending on a real CF rate limit.
 	private _testWorkerInitError?: string;
+	// Test-only: when true, getOrCreateUserWorker returns a no-op worker instead
+	// of going through the (test-unavailable) Worker Loader. Lets integration
+	// tests exercise the real connect/disconnect/reconnect WebSocket lifecycle —
+	// including the alarm-drained disconnect event — without the deferred drain
+	// throwing "Script not found in R2" and failing the run.
+	private _testNoopWorker = false;
 	/**
 	 * Returns the scheduled DO alarm timestamp (ms), or null if none is set.
 	 */
@@ -254,7 +260,38 @@ export class TestDevice extends BaseDevice {
 				`Failed to initialize user worker: ${this._testWorkerInitError}`,
 			);
 		}
+		if (this._testNoopWorker) {
+			return {
+				onDeviceConnect: async () => {},
+				onDeviceDisconnect: async () => {},
+				onMessage: async () => {},
+			};
+		}
 		return super.getOrCreateUserWorker();
+	}
+
+	/**
+	 * Test-only: route the deferred-event drain through a no-op user worker so
+	 * the real WebSocket connect/disconnect/reconnect lifecycle can be exercised
+	 * in integration tests without the (test-unavailable) Worker Loader throwing.
+	 */
+	async useNoopWorker(): Promise<void> {
+		this._testNoopWorker = true;
+	}
+
+	/**
+	 * Runs the production disconnect teardown (handleConnectionLost) and returns
+	 * the resulting pending user-event queue, then clears the alarm + queue so no
+	 * deferred drain fires asynchronously during pool teardown. Asserts the fix:
+	 * onDeviceDisconnect is queued, never invoked inline from the Hibernation-API
+	 * close/error handler.
+	 */
+	async testSimulateDisconnect(): Promise<{ pending: PendingUserEvent[] }> {
+		await this.handleConnectionLost("test: simulated disconnect");
+		const pending = await this.getPendingUserEvents();
+		await this.ctx.storage.deleteAlarm();
+		await this.ctx.storage.delete(PENDING_USER_EVENTS_KEY);
+		return { pending };
 	}
 
 	/**

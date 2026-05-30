@@ -311,6 +311,100 @@ describe("drainPendingUserWorkerEvents — bounded batch", () => {
 	});
 });
 
+// Regression: device disconnect (webSocketClose / webSocketError) must dispatch
+// onDeviceDisconnect through this queue, never inline from the Hibernation-API
+// handler. Invoking the Worker Loader from a Hibernation-API handler hangs in
+// production and wedges the dynamic-worker slot, which left a device unable to
+// receive any command on the next reconnect (firmware stuck on "Server").
+describe("drainPendingUserWorkerEvents — disconnect events", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	function lifecycleWorker() {
+		const calls = { connect: 0, disconnect: 0, message: 0 };
+		const order: string[] = [];
+		const worker = {
+			onDeviceConnect: async () => {
+				calls.connect++;
+				order.push("connect");
+			},
+			onDeviceDisconnect: async () => {
+				calls.disconnect++;
+				order.push("disconnect");
+			},
+			onMessage: async () => {
+				calls.message++;
+				order.push("message");
+			},
+		} as unknown as Awaited<ReturnType<() => Promise<unknown>>>;
+		return { worker, calls, order };
+	}
+
+	it("dispatches onDeviceDisconnect for a queued disconnect event", async () => {
+		const storage = makeStorage({
+			[PENDING_USER_EVENTS_KEY]: [{ kind: "disconnect" }],
+		});
+		const { worker, calls } = lifecycleWorker();
+
+		await drainPendingUserWorkerEvents({
+			storage,
+			getOrCreateUserWorker: async () => worker as never,
+			initializeCrons: async () => {},
+			deviceMeta,
+		});
+
+		expect(calls.disconnect).toBe(1);
+		expect(calls.connect).toBe(0);
+		// A disconnect alone is not a connect, so crons are not (re)initialized.
+		expect(storage.data.has(PENDING_USER_EVENTS_KEY)).toBe(false);
+	});
+
+	it("preserves connect→disconnect ordering within a batch", async () => {
+		const storage = makeStorage({
+			[PENDING_USER_EVENTS_KEY]: [{ kind: "connect" }, { kind: "disconnect" }],
+		});
+		const { worker, order } = lifecycleWorker();
+
+		await drainPendingUserWorkerEvents({
+			storage,
+			getOrCreateUserWorker: async () => worker as never,
+			initializeCrons: async () => {},
+			deviceMeta,
+		});
+
+		expect(order).toEqual(["connect", "disconnect"]);
+	});
+
+	it("labels onDeviceDisconnect errors so operators can see the failing hook", async () => {
+		const storage = makeStorage({
+			[PENDING_USER_EVENTS_KEY]: [{ kind: "disconnect" }],
+		});
+		const boom = new Error("user onDeviceDisconnect threw");
+		const worker = {
+			onDeviceConnect: async () => {},
+			onDeviceDisconnect: async () => {
+				throw boom;
+			},
+			onMessage: async () => {},
+		} as unknown as Awaited<ReturnType<() => Promise<unknown>>>;
+
+		// A throwing hook is logged but does not reject the drain (the device is
+		// already gone; we must not wedge the next reconnect).
+		await drainPendingUserWorkerEvents({
+			storage,
+			getOrCreateUserWorker: async () => worker as never,
+			initializeCrons: async () => {},
+			deviceMeta,
+		});
+
+		expect(logger.error).toHaveBeenCalledOnce();
+		const [errArg, msgArg] = vi.mocked(logger.error).mock.calls[0];
+		expect(errArg).toBe(boom);
+		expect(msgArg).toContain("onDeviceDisconnect");
+	});
+});
+
 describe("enqueueUserWorkerEvent — queue bounding", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -341,6 +435,45 @@ describe("enqueueUserWorkerEvent — queue bounding", () => {
 
 		const queue = storage.data.get(PENDING_USER_EVENTS_KEY) as unknown[];
 		expect(queue).toHaveLength(2);
+	});
+
+	it("coalesces a consecutive duplicate disconnect (webSocketError then webSocketClose)", async () => {
+		const storage = makeStorage({
+			[PENDING_USER_EVENTS_KEY]: [{ kind: "disconnect" }],
+		});
+
+		await enqueueUserWorkerEvent(storage, { kind: "disconnect" });
+
+		const queue = storage.data.get(PENDING_USER_EVENTS_KEY) as unknown[];
+		expect(queue).toHaveLength(1);
+		// Alarm still bumped so the pending disconnect drains promptly.
+		expect(storage.alarm).not.toBeNull();
+	});
+
+	it("does NOT coalesce a disconnect after a connect (ordering must survive)", async () => {
+		const storage = makeStorage({
+			[PENDING_USER_EVENTS_KEY]: [{ kind: "connect" }],
+		});
+
+		await enqueueUserWorkerEvent(storage, { kind: "disconnect" });
+
+		const queue = storage.data.get(PENDING_USER_EVENTS_KEY) as Array<{
+			kind: string;
+		}>;
+		expect(queue.map((e) => e.kind)).toEqual(["connect", "disconnect"]);
+	});
+
+	it("queues a fresh connect after a disconnect (reconnect must re-run onDeviceConnect)", async () => {
+		const storage = makeStorage({
+			[PENDING_USER_EVENTS_KEY]: [{ kind: "disconnect" }],
+		});
+
+		await enqueueUserWorkerEvent(storage, { kind: "connect" });
+
+		const queue = storage.data.get(PENDING_USER_EVENTS_KEY) as Array<{
+			kind: string;
+		}>;
+		expect(queue.map((e) => e.kind)).toEqual(["disconnect", "connect"]);
 	});
 
 	it("caps the queue at MAX_PENDING_EVENTS, dropping the oldest", async () => {

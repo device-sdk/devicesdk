@@ -918,7 +918,7 @@ export class BaseDevice extends DurableObject<Env> {
 		});
 	}
 
-	private async handleConnectionLost(reason: string) {
+	protected async handleConnectionLost(reason: string) {
 		// Capture connection start before clearing it, to record uptime. After
 		// hibernation the in-memory field is gone, so fall back to storage.
 		const connectedSince =
@@ -963,18 +963,20 @@ export class BaseDevice extends DurableObject<Env> {
 			}
 		}
 
-		// Clean up the user worker (restore it first if needed)
-		const worker = await this.getOrCreateUserWorker();
-		if (worker) {
-			try {
-				await worker.onDeviceDisconnect();
-				logger.debug("User worker onDeviceDisconnect completed");
-			} catch (error) {
-				logger.error(error, "Error in user worker onDeviceDisconnect", {
-					deviceId: this.deviceMeta?.deviceId,
-				});
-			}
-		}
+		// Dispatch the user worker's onDeviceDisconnect lifecycle hook via the
+		// deferred-event queue instead of invoking it here. handleConnectionLost
+		// runs from the Hibernation API webSocketClose / webSocketError handlers,
+		// and invoking the Worker Loader from a Hibernation-API handler
+		// (getOrCreateUserWorker → getTarget, or any RPC into the dynamic user
+		// worker) hangs indefinitely in production — the same reason
+		// onDeviceConnect / onMessage are queued (see enqueueUserWorkerEvent and
+		// webSocketMessage). A hung invocation here also wedged the dynamic-worker
+		// slot, which left the device unable to receive any command on the next
+		// reconnect (firmware stuck on the "Server" screen after a
+		// disconnect/reconnect cycle). The queued event is drained from alarm() —
+		// a safe, non-hibernation context — at the top of the drain, before the
+		// connection-gate check, so it still runs for a now-disconnected device.
+		await this.enqueueUserWorkerEvent({ kind: "disconnect" });
 	}
 
 	/**

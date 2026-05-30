@@ -39,6 +39,7 @@ export const MAX_PENDING_EVENTS = 500;
 
 export type PendingUserEvent =
 	| { kind: "connect"; attempts?: number }
+	| { kind: "disconnect"; attempts?: number }
 	| { kind: "message"; message: DeviceResponse; attempts?: number };
 
 /**
@@ -63,7 +64,15 @@ export async function enqueueUserWorkerEvent(
 	const connectAlreadyQueued =
 		event.kind === "connect" && existing.some((e) => e.kind === "connect");
 
-	if (!connectAlreadyQueued) {
+	// Coalesce consecutive duplicate disconnects (a device that errors then
+	// closes fires both webSocketError and webSocketClose). We only skip a
+	// disconnect when the most recent queued event is already a disconnect, so
+	// connect↔disconnect ordering is never inverted.
+	const lastEvent = existing[existing.length - 1];
+	const disconnectIsConsecutiveDup =
+		event.kind === "disconnect" && lastEvent?.kind === "disconnect";
+
+	if (!connectAlreadyQueued && !disconnectIsConsecutiveDup) {
 		existing.push(event);
 		// Drop oldest events beyond the cap so the backlog stays drainable.
 		if (existing.length > MAX_PENDING_EVENTS) {
@@ -252,19 +261,23 @@ export async function drainPendingUserWorkerEvents(
 			if (event.kind === "connect") {
 				await userWorker.onDeviceConnect();
 				connectProcessed = true;
+			} else if (event.kind === "disconnect") {
+				await userWorker.onDeviceDisconnect();
 			} else {
 				await userWorker.onMessage(event.message);
 			}
 		} catch (error) {
-			logger.error(
-				error,
-				`Error in user worker ${event.kind === "connect" ? "onDeviceConnect" : "onMessage"} (via alarm)`,
-				{
-					kind: event.kind,
-					userId: deviceMeta?.userId,
-					deviceId: deviceMeta?.deviceId,
-				},
-			);
+			const hook =
+				event.kind === "connect"
+					? "onDeviceConnect"
+					: event.kind === "disconnect"
+						? "onDeviceDisconnect"
+						: "onMessage";
+			logger.error(error, `Error in user worker ${hook} (via alarm)`, {
+				kind: event.kind,
+				userId: deviceMeta?.userId,
+				deviceId: deviceMeta?.deviceId,
+			});
 		}
 	}
 

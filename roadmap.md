@@ -124,3 +124,25 @@ is used, but until the column is dropped, the code path persists.
 **Done when:** deadline announced; cleartext-token fallback removed; column
 dropped in a migration; row count of legacy tokens before deletion logged for
 visibility.
+
+## Firmware
+
+### ESP32
+
+#### WebSocket frame reassembly
+**Why:** The WS handler ignores `payload_len`/`payload_offset`, so server→device
+frames larger than the 2048-byte `buffer_size` (e.g. large `display_update`/`env`
+blobs) are split across events and dropped.
+**Done when:** the handler reassembles multi-event frames up to a sane cap, and
+the fix is verified on real ESP32 hardware with an oversized `display_update`/`env`
+payload.
+
+### Pico
+
+Deferred (out of scope, parity with ESP32):
+
+- `command_ack`/`command_error` payload uses `command` rather than the contract's
+  `command_type` (server resolves by id, so harmless today; ESP32 also uses
+  `command`).
+- `set_pin_config` is unhandled (returns "Unknown command type") — needs real
+  interval/analog-reporting work on Core 1, not just a field rename.

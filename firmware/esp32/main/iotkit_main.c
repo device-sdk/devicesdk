@@ -489,6 +489,27 @@ static void websocket_task(void *pvParameters) {
         // commands — the 4 KB default overflows hard, 8 KB still fell
         // short by ~700 B. Keep headroom for larger frames.
         .task_stack = 16384,
+        // Dead-socket detection. A half-open TCP drop (home-router/NAT idle
+        // timeout, ~15 min) otherwise goes unnoticed: the app-level
+        // {"type":"ping"} text frame below is fire-and-forget (the server never
+        // replies to it), so the client keeps believing it is connected, never
+        // reconnects, and the server's connection-gated cron alarm stays
+        // cancelled forever — the device shows "online" while its clock/cron
+        // freezes (see repo TROUBLESHOOT.md, "Per-device cron stops firing
+        // after ~15 min"). Enabling protocol-level WebSocket PING/PONG fixes
+        // this from the device side: the runtime PONGs every PING for free
+        // without waking the hibernating server object, so a missing PONG
+        // within pingpong_timeout_sec proves the path is dead and tears the
+        // connection down, triggering the client's built-in auto-reconnect
+        // (re-sends device_connected → server re-arms the cron). The steady
+        // PING traffic also keeps NAT mappings warm, avoiding the idle drop in
+        // the first place. TCP keep-alive is a second, lower-layer backstop.
+        .ping_interval_sec = 20,
+        .pingpong_timeout_sec = 10,
+        .keep_alive_enable = true,
+        .keep_alive_idle = 15,
+        .keep_alive_interval = 15,
+        .keep_alive_count = 3,
     };
 
     ws_client = esp_websocket_client_init(&websocket_cfg);

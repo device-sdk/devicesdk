@@ -1,6 +1,6 @@
 {
   "name": "@devicesdk/firmware-esp32",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "scripts": {
     "build": "bash -c '. ${IDF_PATH:-$HOME/esp/esp-idf}/export.sh 2>/dev/null && idf.py build || echo \"Skipping ESP32 build (ESP-IDF not found)\"'",

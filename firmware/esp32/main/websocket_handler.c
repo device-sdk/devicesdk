@@ -293,8 +293,11 @@ bool handle_websocket_message(const char *message) {
         if (!cJSON_IsObject(payload)) goto done;
         cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
         cJSON *addr_obj = cJSON_GetObjectItem(payload, "address");
-        cJSON *len_obj = cJSON_GetObjectItem(payload, "length");
-        cJSON *reg_obj = cJSON_GetObjectItem(payload, "register");
+        // SDK contract (core I2cReadCommand) sends "bytes_to_read"; the optional
+        // "register_to_read" is a hex-string byte (e.g. "0xD0"), matching the Pico
+        // firmware. The old "length"/"register" names never matched any sender.
+        cJSON *len_obj = cJSON_GetObjectItem(payload, "bytes_to_read");
+        cJSON *reg_obj = cJSON_GetObjectItem(payload, "register_to_read");
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsNumber(len_obj)) goto done;
 
@@ -310,7 +313,9 @@ bool handle_websocket_message(const char *message) {
         cmd.payload.i2c_read.bus = (uint8_t)bus_obj->valuedouble;
         cmd.payload.i2c_read.address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
         cmd.payload.i2c_read.length = (size_t)len_obj->valuedouble;
-        cmd.payload.i2c_read.reg = cJSON_IsNumber(reg_obj) ? (int)reg_obj->valuedouble : -1;
+        cmd.payload.i2c_read.reg = cJSON_IsString(reg_obj)
+            ? (int)strtol(reg_obj->valuestring, NULL, 16)
+            : -1;
         queue_command(&cmd);
     }
     // === GET TEMPERATURE ===
@@ -538,7 +543,8 @@ bool handle_websocket_message(const char *message) {
     else if (strcmp(type, "spi_read") == 0) {
         if (!cJSON_IsObject(payload)) goto done;
         cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
-        cJSON *len_obj = cJSON_GetObjectItem(payload, "length");
+        // SDK contract (core SpiReadCommand) sends "bytes_to_read", not "length".
+        cJSON *len_obj = cJSON_GetObjectItem(payload, "bytes_to_read");
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(len_obj)) goto done;
 
@@ -637,7 +643,8 @@ bool handle_websocket_message(const char *message) {
     else if (strcmp(type, "uart_read") == 0) {
         if (!cJSON_IsObject(payload)) goto done;
         cJSON *port_obj = cJSON_GetObjectItem(payload, "port");
-        cJSON *len_obj = cJSON_GetObjectItem(payload, "length");
+        // SDK contract (core UartReadCommand) sends "bytes_to_read", not "length".
+        cJSON *len_obj = cJSON_GetObjectItem(payload, "bytes_to_read");
         cJSON *timeout_obj = cJSON_GetObjectItem(payload, "timeout_ms");
 
         if (!cJSON_IsNumber(port_obj) || !cJSON_IsNumber(len_obj)) goto done;

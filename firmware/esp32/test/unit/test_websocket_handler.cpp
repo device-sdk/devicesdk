@@ -139,16 +139,71 @@ TEST_F(WebSocketHandlerTest, I2cWrite) {
     EXPECT_EQ(last->payload.i2c_write.data[2], 0x03);
 }
 
+// The SDK contract sends "bytes_to_read" and an optional hex-string
+// "register_to_read" (e.g. "0xD0"), matching the Pico firmware — not the old
+// "length"/"register" numeric fields the firmware used to look for.
 TEST_F(WebSocketHandlerTest, I2cRead) {
+    test_reset_last_queued_command();
     const char *msg = "{\"type\":\"i2c_read\",\"id\":\"msg-10\","
-                      "\"payload\":{\"bus\":0,\"address\":\"0x50\",\"length\":4,\"register\":16}}";
+                      "\"payload\":{\"bus\":0,\"address\":\"0x50\",\"bytes_to_read\":4,\"register_to_read\":\"0x10\"}}";
     EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->type, CMD_I2C_READ);
+    EXPECT_EQ(last->payload.i2c_read.bus, 0);
+    EXPECT_EQ(last->payload.i2c_read.address, 0x50);
+    EXPECT_EQ(last->payload.i2c_read.length, 4u);
+    EXPECT_EQ(last->payload.i2c_read.reg, 0x10);
 }
 
 TEST_F(WebSocketHandlerTest, I2cReadNoRegister) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"i2c_read\","
+                      "\"payload\":{\"bus\":0,\"address\":\"0x50\",\"bytes_to_read\":4}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->type, CMD_I2C_READ);
+    EXPECT_EQ(last->payload.i2c_read.length, 4u);
+    EXPECT_EQ(last->payload.i2c_read.reg, -1);  // no register
+}
+
+// Reject the legacy "length" field name so the contract can't silently regress.
+TEST_F(WebSocketHandlerTest, I2cReadLegacyLengthFieldRejected) {
+    test_reset_last_queued_command();
     const char *msg = "{\"type\":\"i2c_read\","
                       "\"payload\":{\"bus\":0,\"address\":\"0x50\",\"length\":4}}";
     EXPECT_TRUE(handle_websocket_message(msg));
+    EXPECT_EQ(test_get_last_queued_command(), nullptr);
+}
+
+TEST_F(WebSocketHandlerTest, SpiRead) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"spi_read\",\"id\":\"msg-sr\","
+                      "\"payload\":{\"bus\":0,\"bytes_to_read\":8}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->type, CMD_SPI_READ);
+    EXPECT_EQ(last->payload.spi_read.bus, 0);
+    EXPECT_EQ(last->payload.spi_read.length, 8u);
+}
+
+TEST_F(WebSocketHandlerTest, UartRead) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"uart_read\",\"id\":\"msg-ur\","
+                      "\"payload\":{\"port\":1,\"bytes_to_read\":16,\"timeout_ms\":500}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->type, CMD_UART_READ);
+    EXPECT_EQ(last->payload.uart_read.port, 1);
+    EXPECT_EQ(last->payload.uart_read.bytes_to_read, 16u);
+    EXPECT_EQ(last->payload.uart_read.timeout_ms, 500u);
 }
 
 TEST_F(WebSocketHandlerTest, Reboot) {

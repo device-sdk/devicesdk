@@ -23,7 +23,6 @@
 #include "response_queue.h"
 #include "shared_buffers.h"
 #include "worker_task.h"
-#include "base64.h"
 
 static const char *TAG = "IoTKit";
 
@@ -132,16 +131,17 @@ static void process_worker_responses(void) {
                     break;
 
                 case CMD_I2C_SCAN: {
+                    // Contract (responses.ts I2cScanResult) is { bus, addresses_found: string[] },
+                    // matching the Pico firmware. The old "devices"/"count" shape was never read.
                     cJSON_AddStringToObject(response, "type", "i2c_scan_result");
                     cJSON_AddNumberToObject(payload_obj, "bus", resp.data.i2c_scan.bus);
-                    cJSON *devices = cJSON_CreateArray();
+                    cJSON *addresses_found = cJSON_CreateArray();
                     for (uint8_t i = 0; i < resp.data.i2c_scan.count; i++) {
                         char addr_str[8];
                         snprintf(addr_str, sizeof(addr_str), "0x%02X", resp.data.i2c_scan.addresses[i]);
-                        cJSON_AddItemToArray(devices, cJSON_CreateString(addr_str));
+                        cJSON_AddItemToArray(addresses_found, cJSON_CreateString(addr_str));
                     }
-                    cJSON_AddItemToObject(payload_obj, "devices", devices);
-                    cJSON_AddNumberToObject(payload_obj, "count", resp.data.i2c_scan.count);
+                    cJSON_AddItemToObject(payload_obj, "addresses_found", addresses_found);
                     break;
                 }
 
@@ -152,17 +152,21 @@ static void process_worker_responses(void) {
                     break;
 
                 case CMD_I2C_READ: {
+                    // Contract (responses.ts I2cReadResult) is { bus, address, data: string[] }
+                    // of hex bytes, matching the Pico firmware and the spi/uart read results
+                    // below. The old base64 string + "length" shape was never read correctly.
                     cJSON_AddStringToObject(response, "type", "i2c_read_result");
                     cJSON_AddNumberToObject(payload_obj, "bus", resp.data.i2c_read.bus);
                     char addr_str[8];
                     snprintf(addr_str, sizeof(addr_str), "0x%02X", resp.data.i2c_read.address);
                     cJSON_AddStringToObject(payload_obj, "address", addr_str);
-                    char *data_b64 = base64_encode(resp.data.i2c_read.data, resp.data.i2c_read.data_len);
-                    if (data_b64) {
-                        cJSON_AddStringToObject(payload_obj, "data", data_b64);
-                        free(data_b64);
+                    cJSON *i2c_read_data = cJSON_CreateArray();
+                    for (size_t i = 0; i < resp.data.i2c_read.data_len; i++) {
+                        char hex_str[8];
+                        snprintf(hex_str, sizeof(hex_str), "0x%02X", resp.data.i2c_read.data[i]);
+                        cJSON_AddItemToArray(i2c_read_data, cJSON_CreateString(hex_str));
                     }
-                    cJSON_AddNumberToObject(payload_obj, "length", resp.data.i2c_read.data_len);
+                    cJSON_AddItemToObject(payload_obj, "data", i2c_read_data);
                     break;
                 }
 

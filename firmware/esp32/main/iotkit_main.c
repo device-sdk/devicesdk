@@ -395,7 +395,10 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
         case WEBSOCKET_EVENT_CONNECTED:
             ESP_LOGI(TAG, "WEBSOCKET_EVENT_CONNECTED");
             ws_connected = true;
-            display_boot_text("Server");
+            // Connection to the server succeeded — confirm it on the panel.
+            // The cloud sends the first display_update right after the
+            // device_connected handshake below, which overwrites this.
+            display_boot_text("Connected");
             iotkit_hal_blink_led(3);
             {
                 const char *msg = "{\"type\":\"device_connected\"}";
@@ -407,6 +410,10 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
         case WEBSOCKET_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "WEBSOCKET_EVENT_DISCONNECTED");
             ws_connected = false;
+            // Connection lost — revert to "Server" so the panel reflects the
+            // reconnecting state until the next CONNECTED event (or a fresh
+            // cloud display_update) overwrites it.
+            display_boot_text("Server");
             if (rate_limit_retry_after_ms > 0) {
                 uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
                 rate_limit_reconnect_at_ms = now_ms + rate_limit_retry_after_ms;
@@ -514,6 +521,10 @@ static void websocket_task(void *pvParameters) {
 
     ws_client = esp_websocket_client_init(&websocket_cfg);
     esp_websocket_register_events(ws_client, WEBSOCKET_EVENT_ANY, websocket_event_handler, NULL);
+    // Show "Server" while the WebSocket connection is in progress; the
+    // WEBSOCKET_EVENT_CONNECTED handler swaps it to "Connected" on success, so
+    // a panel stuck on "Server" means the server connection never completed.
+    display_boot_text("Server");
     esp_websocket_client_start(ws_client);
 
     while (1) {

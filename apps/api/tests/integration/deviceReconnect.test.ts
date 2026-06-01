@@ -34,6 +34,7 @@ type TestStub = {
 	testSimulateDisconnect(): Promise<{ pending: PendingUserEvent[] }>;
 	useNoopWorker(): Promise<void>;
 	clearSchedulerState(): Promise<void>;
+	getDeviceSocketCounts(): Promise<{ total: number; open: number }>;
 };
 
 function getStub(name: string): TestStub {
@@ -139,6 +140,42 @@ describe.sequential("Device WebSocket connect/disconnect/reconnect", () => {
 		const ws2 = await openDeviceSocket(stub, "cycle");
 		await waitForConnected(stub, true);
 		expect((await stub.getConnectionStatus()).connected).toBe(true);
+
+		ws2.close(1000, "test done");
+		await stub.clearSchedulerState();
+	});
+
+	it("closes a stale (ghost) device socket when a new device connects", async () => {
+		const stub = getStub("reconnect-test:ghost");
+		await stub.useNoopWorker();
+
+		// First connect. The device then loses power abruptly — the runtime hasn't
+		// reaped the half-open socket yet, so we deliberately do NOT close ws1: it
+		// stands in for the lingering ghost connection.
+		const ws1 = await openDeviceSocket(stub, "ghost");
+		await waitForConnected(stub, true);
+		expect((await stub.getDeviceSocketCounts()).open).toBe(1);
+
+		// Device reboots and reconnects while the ghost is still attached. The fix
+		// closes the stale socket before accepting the new one, so the DO is left
+		// with exactly one OPEN device socket (command dispatch can't target a dead
+		// connection → device won't be stuck on "Server").
+		const ws2 = await openDeviceSocket(stub, "ghost");
+		await waitForConnected(stub, true);
+
+		const counts = await stub.getDeviceSocketCounts();
+		expect(counts.open).toBe(1);
+
+		// The ghost's client side observes the server-initiated close (delivered
+		// asynchronously, so poll rather than asserting a single snapshot).
+		const deadline = Date.now() + 2000;
+		while (
+			ws1.readyState === WebSocket.READY_STATE_OPEN &&
+			Date.now() < deadline
+		) {
+			await new Promise<void>((r) => setTimeout(r, 25));
+		}
+		expect(ws1.readyState).not.toBe(WebSocket.READY_STATE_OPEN);
 
 		ws2.close(1000, "test done");
 		await stub.clearSchedulerState();

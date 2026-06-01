@@ -18,6 +18,7 @@ import {
 	type UserPlan,
 	VALID_LOG_LEVELS,
 	WS_CLOSE_RATE_LIMITED,
+	WS_CLOSE_REPLACED,
 } from "../../foundation/consts";
 import { logger } from "../../foundation/logger";
 import type { Env } from "../../types";
@@ -153,10 +154,17 @@ export class BaseDevice extends DurableObject<Env> {
 			return this._session;
 		}
 
-		// Filter by "device" tag so watcher WebSockets don't get picked up as the firmware session
+		// Filter by "device" tag so watcher WebSockets don't get picked up as the firmware session.
+		// Prefer an OPEN socket: a device that lost power can leave a half-open socket attached
+		// until the runtime reaps it, and picking that ghost over the live reconnect would send
+		// every command into a dead connection (device stuck on the "Server" screen). The connect
+		// handler proactively closes stale sockets, but a closing one can still linger here briefly.
 		const sockets = this.ctx.getWebSockets("device");
-		if (sockets.length > 0) {
-			this._session = { websocket: sockets[0] };
+		const live =
+			sockets.find((s) => s.readyState === WebSocket.READY_STATE_OPEN) ??
+			sockets[0];
+		if (live) {
+			this._session = { websocket: live };
 			return this._session;
 		}
 
@@ -256,6 +264,27 @@ export class BaseDevice extends DurableObject<Env> {
 		const upgradeHeader = request.headers.get("Upgrade");
 		if (!upgradeHeader || upgradeHeader !== "websocket") {
 			return new Response("Expected Upgrade: websocket", { status: 426 });
+		}
+
+		// Enforce a single live device session. A device that lost power (or whose
+		// TCP connection went half-open) can leave a stale "device" socket attached
+		// to this DO until the Hibernation runtime reaps it — which can lag the
+		// device's own reboot+reconnect. If the new socket lands while the ghost is
+		// still present, getWebSockets("device") holds two entries and command
+		// dispatch could target the dead one, leaving the freshly-rebooted device
+		// stuck on the "Server" screen (its frames never arrive). Close any existing
+		// device sockets before accepting the replacement.
+		//
+		// Server-initiated close() does NOT invoke our webSocketClose() handler (if
+		// it did, the close() call inside that handler would recurse), so this does
+		// not trigger handleConnectionLost() — no spurious connected=0 write or
+		// onDeviceDisconnect event races the new session being set up below.
+		for (const stale of this.ctx.getWebSockets("device")) {
+			try {
+				stale.close(WS_CLOSE_REPLACED, "Replaced by a new device connection");
+			} catch {
+				/* socket already closing/closed — nothing to do */
+			}
 		}
 
 		// Extract project/version/device info from URL

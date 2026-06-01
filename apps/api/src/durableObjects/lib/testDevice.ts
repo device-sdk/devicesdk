@@ -37,6 +37,19 @@ export class TestDevice extends BaseDevice {
 	}
 
 	/**
+	 * Returns how many "device"-tagged sockets are attached to this DO and how
+	 * many of those are still OPEN. Used to assert the single-live-session
+	 * invariant: a new connect closes any stale device socket before accepting.
+	 */
+	async getDeviceSocketCounts(): Promise<{ total: number; open: number }> {
+		const sockets = this.ctx.getWebSockets("device");
+		const open = sockets.filter(
+			(s) => s.readyState === WebSocket.READY_STATE_OPEN,
+		).length;
+		return { total: sockets.length, open };
+	}
+
+	/**
 	 * Triggers the DO alarm handler directly.
 	 * `alarm` is a reserved DO lifecycle method and cannot be called over JSRPC;
 	 * this wrapper delegates to it so tests can invoke the alarm path.

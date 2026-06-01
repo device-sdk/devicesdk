@@ -1116,7 +1116,43 @@ export class BaseDevice extends DurableObject<Env> {
 		// Any new event enqueued during drain will arm its own alarm via
 		// enqueueUserWorkerEvent (see device.ts setAlarm there), so we don't
 		// need to re-read PENDING_USER_EVENTS_KEY here just to detect that.
+		// [DIAG] Temporary instrumentation for the "Too many subrequests" alarm
+		// wedge (remove once root-caused). One wedged alarm in `wrangler tail`
+		// then reveals whether the per-invocation subrequest fan-out is the
+		// pending-event backlog (pendingEvents large), an accumulation of
+		// zombie device/watcher sockets, or the drain vs onCron phase (timings).
+		const _diagT0 = Date.now();
+		let _diagPending = 0;
+		try {
+			_diagPending =
+				(
+					await this.ctx.storage.get<PendingUserEvent[]>(
+						PENDING_USER_EVENTS_KEY,
+					)
+				)?.length ?? 0;
+		} catch {}
+		const _diagAnomalous =
+			_diagPending > 0 ||
+			this.ctx.getWebSockets("device").length > 1 ||
+			this.ctx.getWebSockets("watcher").length > 0;
+		if (_diagAnomalous) {
+			logger.warn("[DIAG] alarm entry counts", {
+				deviceId: this.deviceMeta?.deviceId,
+				pendingEvents: _diagPending,
+				deviceSockets: this.ctx.getWebSockets("device").length,
+				watcherSockets: this.ctx.getWebSockets("watcher").length,
+			});
+		}
+
 		const drainedWorker = await this.drainPendingUserWorkerEvents();
+
+		if (_diagAnomalous) {
+			logger.warn("[DIAG] alarm post-drain", {
+				deviceId: this.deviceMeta?.deviceId,
+				drainMs: Date.now() - _diagT0,
+				deviceSocketsAfterDrain: this.ctx.getWebSockets("device").length,
+			});
+		}
 
 		// Skip the cron-storage read entirely on devices we already know have
 		// no crons — most devices fall here. _hasCrons is null after wake from
@@ -1283,12 +1319,17 @@ export class BaseDevice extends DurableObject<Env> {
 		// Dispatch onCron for each due schedule
 		for (const name of due) {
 			if (userWorker.onCron) {
+				// [DIAG] time onCron so we can tell whether the subrequest
+				// exhaustion happens inside onCron or was already spent before it.
+				const _diagCronStart = Date.now();
 				try {
 					await userWorker.onCron(name);
 				} catch (error) {
 					logger.error(error, "Error in user worker onCron", {
 						cronName: name.slice(0, 64),
 						deviceId: this.deviceMeta?.deviceId,
+						diagOnCronMs: Date.now() - _diagCronStart,
+						diagAlarmMs: Date.now() - _diagT0,
 					});
 				}
 			}

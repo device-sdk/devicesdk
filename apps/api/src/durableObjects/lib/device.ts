@@ -131,10 +131,6 @@ export class BaseDevice extends DurableObject<Env> {
 		worker: IUserDeviceWorker;
 	} | null = null;
 
-	// [DIAG2] Wall-clock when cachedUserWorker was last (re)resolved. Logged on the
-	// warm path so we can correlate stub age with the "Too many subrequests" wedge.
-	private _diagWorkerCachedAt?: number;
-
 	// Device metadata from connection
 	private deviceMeta?: {
 		userId: string;
@@ -449,14 +445,6 @@ export class BaseDevice extends DurableObject<Env> {
 		// (drain, then cron) need the worker, which keeps us clear of the
 		// "Too many concurrent dynamic workers" limit a stable workerId guards.
 		if (this.cachedUserWorker?.workerId === workerId) {
-			// [DIAG2] Did this tick take the warm (cached cross-invocation stub)
-			// path? If the "Too many subrequests" wedge correlates with cache=warm,
-			// the cached getTarget() handle is stale across DO invocations (its
-			// child isolate was recycled) and re-calling it fans out subrequests.
-			logger.warn("[DIAG2] getOrCreateUserWorker cache=warm", {
-				deviceId,
-				ageMs: Date.now() - (this._diagWorkerCachedAt ?? 0),
-			});
 			return this.cachedUserWorker.worker;
 		}
 
@@ -532,23 +520,11 @@ export class BaseDevice extends DurableObject<Env> {
 
 			// console.log(`User worker initialized for device ${deviceId} with version ${versionId}`);
 
-			// [DIAG2] Mark the cold path so a wedged tick on cache=cold (vs warm)
-			// would instead implicate worker spawn / R2 / D1 / getTarget.
-			logger.warn("[DIAG2] getOrCreateUserWorker cache=cold pre-getTarget", {
-				deviceId,
-			});
-
 			// IMPORTANT: getTarget() returns a Promise because it's an RPC call
 			const target = await entrypointClass.getTarget();
 
-			logger.warn("[DIAG2] getOrCreateUserWorker post-getTarget", {
-				deviceId,
-				getTargetMs: Date.now() - initStartedAt,
-			});
-
 			const resolved = target as unknown as IUserDeviceWorker;
 			this.cachedUserWorker = { workerId, worker: resolved };
-			this._diagWorkerCachedAt = Date.now();
 			recordScriptInit(this.env.ANALYTICS, {
 				source: "runtime",
 				initLatencyMs: Date.now() - initStartedAt,
@@ -1195,43 +1171,7 @@ export class BaseDevice extends DurableObject<Env> {
 		// Any new event enqueued during drain will arm its own alarm via
 		// enqueueUserWorkerEvent (see device.ts setAlarm there), so we don't
 		// need to re-read PENDING_USER_EVENTS_KEY here just to detect that.
-		// [DIAG] Temporary instrumentation for the "Too many subrequests" alarm
-		// wedge (remove once root-caused). One wedged alarm in `wrangler tail`
-		// then reveals whether the per-invocation subrequest fan-out is the
-		// pending-event backlog (pendingEvents large), an accumulation of
-		// zombie device/watcher sockets, or the drain vs onCron phase (timings).
-		const _diagT0 = Date.now();
-		let _diagPending = 0;
-		try {
-			_diagPending =
-				(
-					await this.ctx.storage.get<PendingUserEvent[]>(
-						PENDING_USER_EVENTS_KEY,
-					)
-				)?.length ?? 0;
-		} catch {}
-		const _diagAnomalous =
-			_diagPending > 0 ||
-			this.ctx.getWebSockets("device").length > 1 ||
-			this.ctx.getWebSockets("watcher").length > 0;
-		if (_diagAnomalous) {
-			logger.warn("[DIAG] alarm entry counts", {
-				deviceId: this.deviceMeta?.deviceId,
-				pendingEvents: _diagPending,
-				deviceSockets: this.ctx.getWebSockets("device").length,
-				watcherSockets: this.ctx.getWebSockets("watcher").length,
-			});
-		}
-
 		const drainedWorker = await this.drainPendingUserWorkerEvents();
-
-		if (_diagAnomalous) {
-			logger.warn("[DIAG] alarm post-drain", {
-				deviceId: this.deviceMeta?.deviceId,
-				drainMs: Date.now() - _diagT0,
-				deviceSocketsAfterDrain: this.ctx.getWebSockets("device").length,
-			});
-		}
 
 		// Skip the cron-storage read entirely on devices we already know have
 		// no crons — most devices fall here. _hasCrons is null after wake from
@@ -1398,17 +1338,12 @@ export class BaseDevice extends DurableObject<Env> {
 		// Dispatch onCron for each due schedule
 		for (const name of due) {
 			if (userWorker.onCron) {
-				// [DIAG] time onCron so we can tell whether the subrequest
-				// exhaustion happens inside onCron or was already spent before it.
-				const _diagCronStart = Date.now();
 				try {
 					await userWorker.onCron(name);
 				} catch (error) {
 					logger.error(error, "Error in user worker onCron", {
 						cronName: name.slice(0, 64),
 						deviceId: this.deviceMeta?.deviceId,
-						diagOnCronMs: Date.now() - _diagCronStart,
-						diagAlarmMs: Date.now() - _diagT0,
 					});
 				}
 			}

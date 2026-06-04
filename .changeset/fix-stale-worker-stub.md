@@ -1,5 +1,0 @@
----
-"@devicesdk/api": patch
----
-
-Fix the per-device alarm wedge that made connected devices reconnect every few minutes. `getOrCreateUserWorker` cached the resolved `getTarget()` handle on the Durable Object and reused it across invocations, but that handle is a child-isolate RPC stub scoped to the invocation that created it. Calling `onCron`/`onDeviceConnect` on a stale cross-invocation stub fanned out subrequests that never resolved, blowing the per-invocation subrequest cap (`wallTime≈60s`, `cpuTime 0`) and hanging the single-threaded DO for ~60s. That hang starved the device WebSocket's ping/pong, so the firmware's half-open detection tripped and the device reconnected on a loop. The cached stub is now invalidated at every invocation entry point (`alarm()`, `handleRemoteCall()`) so each invocation re-resolves a fresh worker; the cache still serves intra-invocation reuse (drain + cron in one tick), keeping clear of the "Too many concurrent dynamic workers" limit that a stable `workerId` guards.

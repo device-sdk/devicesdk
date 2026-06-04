@@ -1,5 +1,12 @@
 # @devicesdk/api
 
+## 0.3.3
+
+### Patch Changes
+
+- 248270d: Add temporary `[DIAG2]` instrumentation to `getOrCreateUserWorker` to root-cause the "Too many subrequests" per-device alarm wedge. Logs whether each user-worker invocation took the warm (cached cross-invocation stub) or cold (fresh `LOADER.get` + `getTarget`) path, plus the cached stub's age and the `getTarget()` latency. This is observation-only (no behaviour change) and is meant to be removed once the fan-out source is confirmed. Merging it also forces a fresh API deploy, restarting the affected Durable Object.
+- a0ce855: Fix the per-device alarm wedge that made connected devices reconnect every few minutes. `getOrCreateUserWorker` cached the resolved `getTarget()` handle on the Durable Object and reused it across invocations, but that handle is a child-isolate RPC stub scoped to the invocation that created it. Calling `onCron`/`onDeviceConnect` on a stale cross-invocation stub fanned out subrequests that never resolved, blowing the per-invocation subrequest cap (`wallTime≈60s`, `cpuTime 0`) and hanging the single-threaded DO for ~60s. That hang starved the device WebSocket's ping/pong, so the firmware's half-open detection tripped and the device reconnected on a loop. The cached stub is now invalidated at every invocation entry point (`alarm()`, `handleRemoteCall()`) so each invocation re-resolves a fresh worker; the cache still serves intra-invocation reuse (drain + cron in one tick), keeping clear of the "Too many concurrent dynamic workers" limit that a stable `workerId` guards.
+
 ## 0.3.2
 
 ### Patch Changes

@@ -65,6 +65,15 @@ export interface TierLimits {
 /** WebSocket close code for rate limiting (application-specific range 4000-4999) */
 export const WS_CLOSE_RATE_LIMITED = 4029;
 
+/**
+ * WebSocket close code used when a new device connection supersedes a stale one
+ * on the same Durable Object (application-specific range 4000-4999). A device
+ * that lost power can leave a half-open "device" socket attached until the
+ * runtime reaps it; the connect handler closes any such socket with this code
+ * before accepting the replacement so only one device session is ever live.
+ */
+export const WS_CLOSE_REPLACED = 4001;
+
 /** DO storage keys for message counting */
 export const MESSAGE_COUNT_KEY = "__internal:message_count";
 export const MESSAGE_COUNT_DATE_KEY = "__internal:message_count_date";

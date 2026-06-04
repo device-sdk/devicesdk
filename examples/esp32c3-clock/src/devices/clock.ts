@@ -145,9 +145,6 @@ export class ClockDevice extends DeviceEntrypoint {
 	async onDeviceConnect() {
 		console.info("Clock connected");
 
-		// The OLED must run its power-on init sequence once per connection.
-		await this.env.DEVICE.kv.put("displayInitialized", false);
-
 		await this.env.DEVICE.sendCommand({
 			type: "i2c_configure",
 			payload: {
@@ -158,28 +155,28 @@ export class ClockDevice extends DeviceEntrypoint {
 			},
 		});
 
-		// Draw immediately so the screen isn't blank until the first cron tick.
-		await this.updateDisplay();
+		// onDeviceConnect is the first hook after a fresh (re)connect — the device
+		// just booted, so the OLED needs its one-time power-on init sequence. Draw
+		// immediately too, so the screen isn't blank until the first cron tick.
+		await this.updateDisplay({ init: true });
 	}
 
 	async onCron(_name: string) {
-		await this.updateDisplay();
+		// The panel was already initialized on connect this session; just redraw.
+		await this.updateDisplay({ init: false });
 	}
 
 	async onDeviceDisconnect() {
 		console.info("Clock disconnected");
 	}
 
-	private async updateDisplay() {
+	private async updateDisplay({ init }: { init: boolean }) {
 		const { time, date } = formatClock(TIMEZONE);
 		drawClockFace(this.display, time, date);
 		console.info(`Clock → ${time}  ${date}  (${TIMEZONE})`);
 
-		const initialized =
-			(await this.env.DEVICE.kv.get<boolean>("displayInitialized")) ?? false;
 		await this.env.DEVICE.sendCommand(
-			this.display.toDisplayCommand({ init: !initialized, compress: false }),
+			this.display.toDisplayCommand({ init, compress: false }),
 		);
-		if (!initialized) await this.env.DEVICE.kv.put("displayInitialized", true);
 	}
 }

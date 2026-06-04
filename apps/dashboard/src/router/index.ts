@@ -27,7 +27,11 @@ export default function () {
   Router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore();
 
-    if (authStore.loading && authStore.user === null) {
+    // Resolve auth exactly once. The boot/auth file usually does this before the
+    // first navigation; this guard covers direct hits that bypass it. Gating on
+    // `initialized` (not `loading && user === null`) avoids re-probing after a
+    // failed fetch, which would otherwise leave the guard firing repeatedly.
+    if (!authStore.initialized) {
       await authStore.fetchUser();
     }
 
@@ -47,6 +51,14 @@ export default function () {
         next();
       }
     }
+  });
+
+  // Keep the document title in sync with the active route so browser tabs,
+  // history entries, and screen-reader announcements are distinguishable
+  // instead of all reading "DeviceSDK".
+  Router.afterEach((to) => {
+    const title = to.meta.title as string | undefined;
+    document.title = title ? `${title} · DeviceSDK` : 'DeviceSDK';
   });
 
   return Router;

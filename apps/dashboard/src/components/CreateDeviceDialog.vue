@@ -63,6 +63,7 @@
               <q-input
                 v-model="form.deviceId"
                 outlined
+                autofocus
                 placeholder="e.g., living-room-sensor"
                 :rules="[
                   val => !!val || 'Device slug is required',

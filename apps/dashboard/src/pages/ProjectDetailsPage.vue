@@ -10,7 +10,7 @@
         class="back-btn"
       />
       <q-breadcrumbs class="q-ml-md text-grey-7">
-        <q-breadcrumbs-el icon="folder" to="/projects" />
+        <q-breadcrumbs-el label="Projects" icon="folder" aria-label="Projects" to="/projects" />
         <q-breadcrumbs-el :label="project?.name || projectId" />
       </q-breadcrumbs>
     </div>
@@ -18,6 +18,16 @@
     <div v-if="loading" class="text-center q-pa-xl">
       <q-spinner-dots color="primary" size="50px" />
       <p class="q-mt-md text-grey-6">Loading project...</p>
+    </div>
+
+    <div v-else-if="loadError" class="text-center q-pa-xl">
+      <q-icon name="error_outline" size="56px" color="negative" class="q-mb-md" />
+      <div class="text-h6 text-grey-7 q-mb-sm">Couldn't load this project</div>
+      <p class="text-body2 text-grey-6 q-mb-lg">{{ loadError }}</p>
+      <div class="row q-gutter-sm justify-center">
+        <q-btn unelevated color="primary" label="Retry" icon="refresh" @click="fetchProject" />
+        <q-btn flat color="grey-7" label="Back to Projects" to="/projects" />
+      </div>
     </div>
 
     <template v-else-if="project">
@@ -45,25 +55,18 @@
         <q-tab-panels v-model="activeTab" animated>
           <q-tab-panel name="overview" class="q-pa-lg">
             <div class="row q-col-gutter-lg">
-              <div class="col-12 col-md-4">
+              <div class="col-12 col-md-6">
                 <div class="stat-card">
                   <q-icon name="memory" size="32px" color="primary" />
                   <div class="stat-value">{{ project.device_count || 0 }}</div>
                   <div class="stat-label">Total Devices</div>
                 </div>
               </div>
-              <div class="col-12 col-md-4">
+              <div class="col-12 col-md-6">
                 <div class="stat-card">
                   <q-icon name="wifi" size="32px" color="positive" />
                   <div class="stat-value">{{ onlineDevices }}</div>
                   <div class="stat-label">Online Devices</div>
-                </div>
-              </div>
-              <div class="col-12 col-md-4">
-                <div class="stat-card">
-                  <q-icon name="code" size="32px" color="secondary" />
-                  <div class="stat-value">—</div>
-                  <div class="stat-label">Script Deployments</div>
                 </div>
               </div>
             </div>
@@ -109,7 +112,7 @@
                     label="Edit Project"
                     icon="edit"
                     class="full-width"
-                    @click="showEditDialog = true"
+                    @click="activeTab = 'settings'"
                   />
                 </div>
               </div>
@@ -140,7 +143,15 @@
               :rows-per-page-options="[10, 25, 50]"
             >
               <template #body="props">
-                <q-tr :props="props" class="cursor-pointer" @click="openDevice(props.row.device_id)">
+                <q-tr
+                  :props="props"
+                  class="cursor-pointer"
+                  tabindex="0"
+                  :aria-label="`Open device ${props.row.name || props.row.device_id}`"
+                  @click="openDevice(props.row.device_id)"
+                  @keydown.enter="openDevice(props.row.device_id)"
+                  @keydown.space.prevent="openDevice(props.row.device_id)"
+                >
                   <q-td key="device_id" :props="props">
                     <div class="row items-center">
                       <q-icon name="memory" color="primary" size="20px" class="q-mr-sm" />
@@ -248,22 +259,6 @@
       @device-created="fetchProject"
     />
 
-    <q-dialog v-model="showEditDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">Edit Project</div>
-        </q-card-section>
-        <q-card-section>
-          <q-input v-model="editForm.name" outlined label="Name" class="q-mb-md" />
-          <q-input v-model="editForm.description" outlined label="Description" type="textarea" rows="3" />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" v-close-popup />
-          <q-btn unelevated color="primary" label="Save" :loading="saving" @click="updateProject" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
     <q-dialog v-model="showDeleteDialog">
       <q-card style="min-width: 400px">
         <q-card-section class="row items-center">
@@ -291,7 +286,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { projectService, type Project } from '@/services/api.service';
@@ -306,12 +301,12 @@ const $q = useQuasar();
 const projectId = ref(route.params.projectId as string);
 const project = ref<Project | null>(null);
 const loading = ref(true);
+const loadError = ref<string | null>(null);
 const activeTab = ref('overview');
 const saving = ref(false);
 const deleting = ref(false);
 
 const showAddDeviceDialog = ref(false);
-const showEditDialog = ref(false);
 const showDeleteDialog = ref(false);
 const deleteConfirmation = ref('');
 
@@ -331,19 +326,31 @@ const onlineDevices = computed(() => {
   return project.value?.devices?.filter(d => d.status === 'online').length || 0;
 });
 
+// Cancels an in-flight fetch when the user navigates to another project, so a
+// slow earlier response can't overwrite the newer one.
+let fetchController: AbortController | null = null;
+
 const fetchProject = async () => {
+  fetchController?.abort();
+  const controller = new AbortController();
+  fetchController = controller;
   try {
     loading.value = true;
-    project.value = await projectService.getById(projectId.value);
+    loadError.value = null;
+    project.value = await projectService.getById(projectId.value, controller.signal);
     editForm.value = {
       name: project.value.name || '',
       description: project.value.description || '',
     };
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return;
     console.error('Error fetching project:', error);
-    $q.notify({ type: 'negative', message: 'Failed to load project', position: 'top' });
+    loadError.value = error instanceof Error ? error.message : 'Failed to load project';
   } finally {
-    loading.value = false;
+    if (fetchController === controller) {
+      loading.value = false;
+      fetchController = null;
+    }
   }
 };
 
@@ -355,11 +362,11 @@ const updateProject = async () => {
       description: editForm.value.description || undefined,
     });
     $q.notify({ type: 'positive', message: 'Project updated', position: 'top' });
-    showEditDialog.value = false;
     await fetchProject();
   } catch (error) {
     console.error('Error updating project:', error);
-    $q.notify({ type: 'negative', message: 'Failed to update project', position: 'top' });
+    const message = error instanceof Error ? error.message : 'Failed to update project';
+    $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
     saving.value = false;
   }
@@ -373,7 +380,8 @@ const deleteProject = async () => {
     void router.push('/projects');
   } catch (error) {
     console.error('Error deleting project:', error);
-    $q.notify({ type: 'negative', message: 'Failed to delete project', position: 'top' });
+    const message = error instanceof Error ? error.message : 'Failed to delete project';
+    $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
     deleting.value = false;
   }
@@ -392,6 +400,10 @@ watch(() => route.params.projectId, (newId) => {
 
 onMounted(() => {
   void fetchProject();
+});
+
+onUnmounted(() => {
+  fetchController?.abort();
 });
 </script>
 

@@ -1,8 +1,9 @@
 <template>
   <q-layout view="lHh Lpr lFf">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <q-header class="app-header">
       <q-toolbar class="q-px-md">
-        <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
+        <q-btn flat dense round icon="menu" aria-label="Toggle navigation menu" @click="toggleLeftDrawer" />
 
         <q-toolbar-title class="logo-text">
           <img src="/favicon.svg" alt="DeviceSDK" class="logo-icon" />
@@ -11,11 +12,7 @@
 
         <q-space />
 
-        <q-btn flat dense round icon="notifications_none" class="header-icon q-mr-sm">
-          <q-tooltip>Notifications</q-tooltip>
-        </q-btn>
-
-        <q-btn flat no-caps class="user-btn q-ml-sm">
+        <q-btn flat no-caps class="user-btn q-ml-sm" aria-label="Account menu">
           <q-avatar size="28px" class="q-mr-sm">
             <img v-if="auth.user?.picture" :src="auth.user.picture" />
             <q-icon v-else name="person" size="16px" />
@@ -114,10 +111,23 @@
             <q-item-label>Settings</q-item-label>
           </q-item-section>
         </q-item>
+
+        <q-item
+          clickable
+          class="nav-item text-negative"
+          @click="handleSignOut"
+        >
+          <q-item-section avatar>
+            <q-icon name="logout" size="20px" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Sign out</q-item-label>
+          </q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
 
-    <q-page-container>
+    <q-page-container id="main-content">
       <q-banner
         v-if="showBetaBanner"
         class="beta-banner bg-blue-1 text-blue-9"
@@ -145,11 +155,14 @@ import { useAuth } from '@/composables/useAuth';
 
 const auth = useAuth();
 const leftDrawerOpen = ref(false);
-const showBetaBanner = ref(!localStorage.getItem('devicesdk-beta-banner-dismissed'));
+// Versioned key: bump the suffix to re-surface the banner to everyone after a
+// material change to its content, instead of it staying dismissed forever.
+const BETA_BANNER_KEY = 'devicesdk-beta-banner-dismissed-v1';
+const showBetaBanner = ref(!localStorage.getItem(BETA_BANNER_KEY));
 
 function dismissBetaBanner() {
   showBetaBanner.value = false;
-  localStorage.setItem('devicesdk-beta-banner-dismissed', 'true');
+  localStorage.setItem(BETA_BANNER_KEY, 'true');
 }
 
 function toggleLeftDrawer() {
@@ -162,6 +175,24 @@ async function handleSignOut() {
 </script>
 
 <style scoped lang="scss">
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 10000;
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  &:focus {
+    left: 0.5rem;
+    top: 0.5rem;
+  }
+}
+
 .app-header {
   background: var(--background);
   color: var(--foreground);
@@ -285,6 +316,6 @@ async function handleSignOut() {
 
 .beta-banner {
   font-size: 0.875rem;
-  border-bottom: 1px solid rgba(30, 100, 200, 0.15);
+  border-bottom: 1px solid var(--border);
 }
 </style>

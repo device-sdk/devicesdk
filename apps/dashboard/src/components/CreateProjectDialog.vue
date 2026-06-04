@@ -51,6 +51,7 @@
               <q-input
                 v-model="form.projectId"
                 outlined
+                autofocus
                 placeholder="e.g., smart-home-hub"
                 :rules="[
                   val => !!val || 'Project slug is required',

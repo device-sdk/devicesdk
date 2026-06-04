@@ -11,6 +11,7 @@
         color="grey-3"
         text-color="grey-8"
         size="sm"
+        :disable="loading"
         @update:model-value="fetchMetrics"
       />
     </div>
@@ -45,8 +46,10 @@
     <MetricsChart
       :option="messagesOption"
       :loading="loading"
-      :empty="!loading && noDeviceUsage"
+      :error="!loading && error"
+      :empty="!loading && !error && noDeviceUsage"
       empty-label="No device usage for this period yet"
+      :aria-label="`Messages per device over the ${window} window: ${formatCount(totalMessages)} total.`"
     />
 
     <q-separator class="q-my-lg" />
@@ -57,8 +60,10 @@
     <MetricsChart
       :option="billingOption"
       :loading="loading"
-      :empty="!loading && billingDaily.length === 0"
+      :error="!loading && error"
+      :empty="!loading && !error && billingDaily.length === 0"
       empty-label="No billable usage in the last 30 days"
+      :aria-label="`Estimated spend over the last 30 days: ${formatUsd(billingTotal)} total.`"
       :height="220"
     />
 
@@ -144,6 +149,7 @@ const columns = [
 
 const window = ref<MetricsWindow>('12h');
 const loading = ref(true);
+const error = ref(false);
 const devices = ref<ProjectDeviceMetrics[]>([]);
 const totals = ref<UsageTotals>({ ...EMPTY_TOTALS });
 const billingDaily = ref<ProjectMetrics['billing']['daily']>([]);
@@ -174,18 +180,17 @@ const rankedDevices = computed(() =>
 const fetchMetrics = async () => {
   try {
     loading.value = true;
+    error.value = false;
     const data = await metricsService.getProject(props.projectId, window.value);
-    devices.value = data.devices;
-    totals.value = data.totals;
-    billingDaily.value = data.billing.daily;
-    billingTotal.value = data.billing.total_usd;
-  } catch (error) {
-    console.error('Error fetching project metrics:', error);
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load metrics',
-      position: 'top',
-    });
+    devices.value = data.devices ?? [];
+    totals.value = data.totals ?? { ...EMPTY_TOTALS };
+    billingDaily.value = data.billing?.daily ?? [];
+    billingTotal.value = data.billing?.total_usd ?? 0;
+  } catch (err) {
+    console.error('Error fetching project metrics:', err);
+    error.value = true;
+    const message = err instanceof Error ? err.message : 'Failed to load metrics';
+    $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
     loading.value = false;
   }

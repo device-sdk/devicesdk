@@ -13,7 +13,7 @@ test.describe("Terms page", () => {
     await expect(
       page.getByRole("heading", { name: "Terms of Service" }),
     ).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText("Last updated: December 2024")).toBeVisible();
+    await expect(page.getByText("Last updated: June 2026")).toBeVisible();
 
     await context.close();
   });

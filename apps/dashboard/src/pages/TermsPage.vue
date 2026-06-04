@@ -2,10 +2,10 @@
   <div class="terms-container">
     <div class="terms-card">
       <div class="terms-header">
-        <router-link to="/login" class="back-link">
+        <a class="back-link" href="#" @click.prevent="goBack">
           <q-icon name="arrow_back" size="18px" />
-          Back to Login
-        </router-link>
+          {{ auth.isAuthenticated ? 'Back to Dashboard' : 'Back to Login' }}
+        </a>
         <div class="logo">
           <span class="logo-icon">&#9670;</span>
           <span class="logo-text">DeviceSDK</span>
@@ -14,7 +14,7 @@
 
       <div class="terms-content">
         <h1>Terms of Service</h1>
-        <p class="last-updated">Last updated: December 2024</p>
+        <p class="last-updated">Last updated: {{ LAST_UPDATED }}</p>
 
         <section>
           <h2>1. Acceptance of Terms</h2>
@@ -131,6 +131,20 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
+import { useAuth } from '@/composables/useAuth';
+
+const router = useRouter();
+const auth = useAuth();
+
+// Single maintained constant — bump this whenever the terms text changes.
+const LAST_UPDATED = 'June 2026';
+
+// Context-aware: signed-in users return to their dashboard instead of being
+// dumped on the login screen; everyone else goes to login.
+function goBack() {
+  void router.push(auth.isAuthenticated ? '/projects' : '/login');
+}
 </script>
 
 <style scoped lang="scss">

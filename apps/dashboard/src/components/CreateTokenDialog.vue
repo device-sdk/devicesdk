@@ -1,25 +1,37 @@
 <template>
-  <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
+  <q-dialog
+    :model-value="modelValue"
+    :persistent="!!newToken && !copied"
+    @update:model-value="$emit('update:modelValue', $event)"
+  >
     <q-card class="dialog-card" style="min-width: 600px; max-width: 700px">
       <q-card-section class="dialog-header row items-center q-pb-md">
         <div>
           <div class="text-h5 text-weight-bold">Create API Token</div>
           <div class="text-caption text-grey-7 q-mt-xs">
-            {{ newToken ? 'Save this token securely - it won\'t be shown again' : 'Generate a new API token for programmatic access' }}
+            {{ newToken ? "Save this token securely — it won't be shown again" : 'Generate a new API token for programmatic access' }}
           </div>
         </div>
         <q-space />
-        <q-btn icon="close" flat round dense v-close-popup class="close-btn" />
+        <q-btn
+          icon="close"
+          flat
+          round
+          dense
+          class="close-btn"
+          aria-label="Close"
+          @click="attemptClose"
+        />
       </q-card-section>
 
       <q-separator />
 
       <q-form v-if="!newToken" @submit="createToken" class="q-pa-lg">
         <div class="info-banner q-mb-lg">
-          <q-icon name="info" size="24px" class="q-mr-md" />
+          <q-icon name="info" size="24px" color="primary" class="q-mr-md" />
           <div>
             <div class="text-weight-medium">What are API tokens?</div>
-            <div class="text-caption">API tokens allow you to authenticate API requests without using your password.</div>
+            <div class="text-caption text-grey-7">API tokens allow you to authenticate API requests without using your password.</div>
           </div>
         </div>
 
@@ -28,9 +40,11 @@
             v-model="description"
             label="Description"
             placeholder="Describe what this token is used for"
+            autofocus
             autogrow
             outlined
             dense
+            maxlength="200"
           />
 
           <q-toggle
@@ -54,7 +68,6 @@
             label="Cancel"
             color="grey-7"
             v-close-popup
-            class="action-btn"
             style="min-width: 120px"
           />
           <q-btn
@@ -75,7 +88,7 @@
           <q-icon name="check_circle" size="32px" color="positive" />
           <div class="q-ml-md">
             <div class="text-h6 text-weight-bold">Token Created Successfully!</div>
-            <div class="text-caption text-grey-7">Make sure to copy it now - you won't see it again</div>
+            <div class="text-caption text-grey-7">Make sure to copy it now — you won't see it again</div>
           </div>
         </div>
 
@@ -96,9 +109,13 @@
               color="primary"
               icon="content_copy"
               label="Copy"
+              aria-label="Copy token to clipboard"
               @click="copyToClipboard(newToken, 'token')"
-              class="copy-btn"
             />
+          </div>
+          <div v-if="!copied" class="text-caption text-warning q-mt-sm">
+            <q-icon name="warning" size="14px" class="q-mr-xs" />
+            Copy this token before closing — it can't be retrieved later.
           </div>
         </div>
 
@@ -114,6 +131,7 @@
               icon="content_copy"
               size="sm"
               class="copy-code-btn"
+              aria-label="Copy code snippet"
               @click="copyToClipboard(codeSnippet, 'snippet')"
             >
               <q-tooltip>Copy code</q-tooltip>
@@ -128,9 +146,9 @@
             unelevated
             label="Done"
             color="primary"
-            v-close-popup
             class="create-btn"
             style="min-width: 150px"
+            @click="attemptClose"
           />
         </q-card-actions>
       </div>
@@ -157,6 +175,9 @@ const creating = ref(false);
 const newToken = ref<string | null>(null);
 const description = ref<string>('');
 const managed = ref<boolean>(false);
+// Tracks whether the freshly-created token has been copied at least once, so we
+// can warn before the user closes and loses it forever.
+const copied = ref(false);
 
 const codeSnippet = computed(
   () => `curl -X GET https://api.devicesdk.com/v1/user/me \\
@@ -175,6 +196,7 @@ const createToken = async () => {
 
     const response = await tokenService.create(payload);
     newToken.value = response.token;
+    copied.value = false;
     emit('token-created');
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create token';
@@ -190,11 +212,31 @@ const createToken = async () => {
 
 const copyToClipboard = (text: string, type: string) => {
   void navigator.clipboard.writeText(text);
+  if (type === 'token') copied.value = true;
   $q.notify({
     type: 'positive',
     message: `${type === 'token' ? 'Token' : 'Snippet'} copied to clipboard`,
     position: 'top',
   });
+};
+
+// Guard the close path: if a token was generated but never copied, confirm
+// first since it can't be shown again.
+const attemptClose = () => {
+  if (newToken.value && !copied.value) {
+    $q.dialog({
+      title: 'Close without copying?',
+      message:
+        "You haven't copied your token yet. It won't be shown again after you close this dialog.",
+      cancel: { label: 'Keep open', flat: true },
+      ok: { label: 'Close anyway', color: 'negative', unelevated: true },
+      persistent: true,
+    }).onOk(() => {
+      emit('update:modelValue', false);
+    });
+    return;
+  }
+  emit('update:modelValue', false);
 };
 
 watch(
@@ -204,6 +246,7 @@ watch(
       newToken.value = null;
       description.value = '';
       managed.value = false;
+      copied.value = false;
     }
   }
 );
@@ -211,88 +254,71 @@ watch(
 
 <style scoped lang="scss">
 .dialog-card {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 .dialog-header {
-  background: linear-gradient(135deg, #f8f9fa 0%, #f0f0f5 100%);
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .close-btn {
-  transition: all 0.3s ease;
-  
+  color: var(--foreground-muted);
+
   &:hover {
-    transform: rotate(90deg);
+    color: var(--foreground);
+    background: var(--accent);
   }
 }
 
 .info-banner {
   display: flex;
   align-items: center;
-  background: linear-gradient(135deg, #e3f2fd 0%, #e8eaf6 100%);
-  border-left: 4px solid #667eea;
+  background: var(--background-secondary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 .success-banner {
   display: flex;
   align-items: center;
-  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
-  border-left: 4px solid #4caf50;
-  padding: 1.5rem;
-  border-radius: 8px;
+  background: var(--background-secondary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--success);
+  padding: 1.25rem;
+  border-radius: var(--radius);
 }
 
-.token-section {
-  background: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 12px;
-  border: 1px solid #e0e0e0;
+.token-section,
+.code-section {
+  background: var(--background-secondary);
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
 }
 
 .token-display {
   display: flex;
   gap: 0.5rem;
-  
+
   :deep(.q-input) {
     flex: 1;
   }
-  
-  :deep(.q-field__control) {
-    background: white;
-    border-radius: 8px;
-  }
-}
-
-.copy-btn {
-  min-width: 100px;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-  }
-}
-
-.code-section {
-  background: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 12px;
-  border: 1px solid #e0e0e0;
 }
 
 .code-block {
   position: relative;
-  background: #2d2d2d;
-  border-radius: 8px;
+  background: hsl(240, 10%, 10%);
+  border-radius: var(--radius);
   padding: 1rem;
   overflow-x: auto;
 }
 
 .code-content {
-  color: #a9b7c6;
+  color: hsl(0, 0%, 85%);
   margin: 0;
   font-size: 0.875rem;
   line-height: 1.6;
@@ -303,35 +329,14 @@ watch(
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
 }
 
 .font-mono {
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.875rem;
 }
 
 .create-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  }
-}
-
-.action-btn {
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-  }
+  font-weight: 500;
 }
 </style>

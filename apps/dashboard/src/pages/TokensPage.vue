@@ -52,9 +52,6 @@
                   </div>
                 </div>
               </q-td>
-              <q-td key="description" :props="props">
-                <span class="text-grey-8">{{ props.row.description || '—' }}</span>
-              </q-td>
               <q-td key="managed" :props="props">
                 <q-chip
                   dense
@@ -97,6 +94,7 @@
                   size="sm"
                   round
                   class="delete-btn"
+                  aria-label="Delete token"
                   @click="confirmDelete(props.row.id)"
                 >
                   <q-tooltip>Delete token</q-tooltip>
@@ -286,12 +284,6 @@ const columns = [
     name: 'id',
     label: 'Token ID',
     field: 'id',
-    align: 'left' as const,
-  },
-  {
-    name: 'description',
-    label: 'Description',
-    field: 'description',
     align: 'left' as const,
   },
   {

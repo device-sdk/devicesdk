@@ -177,6 +177,7 @@
             color="negative"
             label="Delete Account"
             :disable="deleteConfirmation !== 'DELETE'"
+            :loading="deleting"
             @click="deleteAccount"
           />
         </q-card-actions>
@@ -190,6 +191,7 @@ import { ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import { useAuth } from '@/composables/useAuth';
 import { userService } from '@/services/api.service';
+import { formatDate } from '@/lib/time';
 
 const $q = useQuasar();
 const auth = useAuth();
@@ -197,6 +199,7 @@ const user = auth.user;
 
 const showDeleteDialog = ref(false);
 const deleteConfirmation = ref('');
+const deleting = ref(false);
 
 function usageColor(used: number, max: number): string {
   const ratio = max > 0 ? used / max : 0;
@@ -216,22 +219,11 @@ const tierLimits = computed(() => {
   ];
 });
 
-const formatDate = (timestamp: number) => {
-  return new Date(timestamp).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-};
-
 const deleteAccount = async () => {
   try {
+    deleting.value = true;
     const result = await userService.deleteAccount();
-    const scheduledDate = new Date(result.deletion_scheduled_at).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const scheduledDate = formatDate(result.deletion_scheduled_at);
     $q.notify({
       type: 'warning',
       message: `Account deletion scheduled for ${scheduledDate}. Contact support@devicesdk.com to cancel.`,
@@ -241,12 +233,16 @@ const deleteAccount = async () => {
     showDeleteDialog.value = false;
     deleteConfirmation.value = '';
     await auth.signOut();
-  } catch {
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to delete account. Please try again.';
     $q.notify({
       type: 'negative',
-      message: 'Failed to delete account. Please try again.',
+      message,
       position: 'top',
     });
+  } finally {
+    deleting.value = false;
   }
 };
 </script>

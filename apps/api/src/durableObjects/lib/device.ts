@@ -129,6 +129,10 @@ export class BaseDevice extends DurableObject<Env> {
 		worker: IUserDeviceWorker;
 	} | null = null;
 
+	// [DIAG2] Wall-clock when cachedUserWorker was last (re)resolved. Logged on the
+	// warm path so we can correlate stub age with the "Too many subrequests" wedge.
+	private _diagWorkerCachedAt?: number;
+
 	// Device metadata from connection
 	private deviceMeta?: {
 		userId: string;
@@ -439,6 +443,14 @@ export class BaseDevice extends DurableObject<Env> {
 		// limit, so dispatching N events per minute (alarm drains, RPC, cron)
 		// without caching trips the limit and stalls onDeviceConnect/onMessage.
 		if (this.cachedUserWorker?.workerId === workerId) {
+			// [DIAG2] Did this tick take the warm (cached cross-invocation stub)
+			// path? If the "Too many subrequests" wedge correlates with cache=warm,
+			// the cached getTarget() handle is stale across DO invocations (its
+			// child isolate was recycled) and re-calling it fans out subrequests.
+			logger.warn("[DIAG2] getOrCreateUserWorker cache=warm", {
+				deviceId,
+				ageMs: Date.now() - (this._diagWorkerCachedAt ?? 0),
+			});
 			return this.cachedUserWorker.worker;
 		}
 
@@ -514,11 +526,23 @@ export class BaseDevice extends DurableObject<Env> {
 
 			// console.log(`User worker initialized for device ${deviceId} with version ${versionId}`);
 
+			// [DIAG2] Mark the cold path so a wedged tick on cache=cold (vs warm)
+			// would instead implicate worker spawn / R2 / D1 / getTarget.
+			logger.warn("[DIAG2] getOrCreateUserWorker cache=cold pre-getTarget", {
+				deviceId,
+			});
+
 			// IMPORTANT: getTarget() returns a Promise because it's an RPC call
 			const target = await entrypointClass.getTarget();
 
+			logger.warn("[DIAG2] getOrCreateUserWorker post-getTarget", {
+				deviceId,
+				getTargetMs: Date.now() - initStartedAt,
+			});
+
 			const resolved = target as unknown as IUserDeviceWorker;
 			this.cachedUserWorker = { workerId, worker: resolved };
+			this._diagWorkerCachedAt = Date.now();
 			recordScriptInit(this.env.ANALYTICS, {
 				source: "runtime",
 				initLatencyMs: Date.now() - initStartedAt,

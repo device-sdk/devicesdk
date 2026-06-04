@@ -131,6 +131,20 @@ export class BaseDevice extends DurableObject<Env> {
 		worker: IUserDeviceWorker;
 	} | null = null;
 
+	// Diagnostic logging toggle for the alarm()/user-worker path. Gated behind the
+	// DEVICE_DIAG_LOGS env var ("1" = on) so the `[DIAG]`/`[DIAG2]` probes that
+	// root-caused the subrequest-wedge stay in the codebase at zero overhead when
+	// off — flip the var + redeploy to investigate. See
+	// .claude/skills/debug-prod-worker-wedge.
+	protected get diagOn(): boolean {
+		return this.env.DEVICE_DIAG_LOGS === "1";
+	}
+
+	// [DIAG2] Wall-clock when cachedUserWorker was last (re)resolved; logged (when
+	// diagOn) as the warm-path stub age, which is what revealed the stale
+	// cross-invocation stub wedge.
+	private _diagWorkerCachedAt?: number;
+
 	// Device metadata from connection
 	private deviceMeta?: {
 		userId: string;
@@ -445,6 +459,12 @@ export class BaseDevice extends DurableObject<Env> {
 		// (drain, then cron) need the worker, which keeps us clear of the
 		// "Too many concurrent dynamic workers" limit a stable workerId guards.
 		if (this.cachedUserWorker?.workerId === workerId) {
+			if (this.diagOn) {
+				logger.warn("[DIAG2] getOrCreateUserWorker cache=warm", {
+					deviceId,
+					ageMs: Date.now() - (this._diagWorkerCachedAt ?? 0),
+				});
+			}
 			return this.cachedUserWorker.worker;
 		}
 
@@ -520,11 +540,25 @@ export class BaseDevice extends DurableObject<Env> {
 
 			// console.log(`User worker initialized for device ${deviceId} with version ${versionId}`);
 
+			if (this.diagOn) {
+				logger.warn("[DIAG2] getOrCreateUserWorker cache=cold pre-getTarget", {
+					deviceId,
+				});
+			}
+
 			// IMPORTANT: getTarget() returns a Promise because it's an RPC call
 			const target = await entrypointClass.getTarget();
 
+			if (this.diagOn) {
+				logger.warn("[DIAG2] getOrCreateUserWorker post-getTarget", {
+					deviceId,
+					getTargetMs: Date.now() - initStartedAt,
+				});
+			}
+
 			const resolved = target as unknown as IUserDeviceWorker;
 			this.cachedUserWorker = { workerId, worker: resolved };
+			this._diagWorkerCachedAt = Date.now();
 			recordScriptInit(this.env.ANALYTICS, {
 				source: "runtime",
 				initLatencyMs: Date.now() - initStartedAt,
@@ -1171,7 +1205,45 @@ export class BaseDevice extends DurableObject<Env> {
 		// Any new event enqueued during drain will arm its own alarm via
 		// enqueueUserWorkerEvent (see device.ts setAlarm there), so we don't
 		// need to re-read PENDING_USER_EVENTS_KEY here just to detect that.
+		//
+		// [DIAG] Subrequest-wedge instrumentation, gated behind DEVICE_DIAG_LOGS
+		// (zero overhead when off). On an anomalous tick it logs the pending-event
+		// backlog and device/watcher socket counts; `_diagT0` feeds the onCron
+		// timing below. See .claude/skills/debug-prod-worker-wedge.
+		const _diagT0 = Date.now();
+		if (this.diagOn) {
+			let pending = 0;
+			try {
+				pending =
+					(
+						await this.ctx.storage.get<PendingUserEvent[]>(
+							PENDING_USER_EVENTS_KEY,
+						)
+					)?.length ?? 0;
+			} catch {}
+			if (
+				pending > 0 ||
+				this.ctx.getWebSockets("device").length > 1 ||
+				this.ctx.getWebSockets("watcher").length > 0
+			) {
+				logger.warn("[DIAG] alarm entry counts", {
+					deviceId: this.deviceMeta?.deviceId,
+					pendingEvents: pending,
+					deviceSockets: this.ctx.getWebSockets("device").length,
+					watcherSockets: this.ctx.getWebSockets("watcher").length,
+				});
+			}
+		}
+
 		const drainedWorker = await this.drainPendingUserWorkerEvents();
+
+		if (this.diagOn) {
+			logger.warn("[DIAG] alarm post-drain", {
+				deviceId: this.deviceMeta?.deviceId,
+				drainMs: Date.now() - _diagT0,
+				deviceSocketsAfterDrain: this.ctx.getWebSockets("device").length,
+			});
+		}
 
 		// Skip the cron-storage read entirely on devices we already know have
 		// no crons — most devices fall here. _hasCrons is null after wake from
@@ -1338,12 +1410,24 @@ export class BaseDevice extends DurableObject<Env> {
 		// Dispatch onCron for each due schedule
 		for (const name of due) {
 			if (userWorker.onCron) {
+				// [DIAG] When DEVICE_DIAG_LOGS is on, time onCron so a wedge tick
+				// shows whether the subrequest exhaustion happens *inside* onCron
+				// (diagOnCronMs large) or was already spent before it (≈0, with a
+				// frozen Date.now() ⇒ fire-and-forget fan-out — the stale-stub
+				// signature). See .claude/skills/debug-prod-worker-wedge.
+				const _diagCronStart = Date.now();
 				try {
 					await userWorker.onCron(name);
 				} catch (error) {
 					logger.error(error, "Error in user worker onCron", {
 						cronName: name.slice(0, 64),
 						deviceId: this.deviceMeta?.deviceId,
+						...(this.diagOn
+							? {
+									diagOnCronMs: Date.now() - _diagCronStart,
+									diagAlarmMs: Date.now() - _diagT0,
+								}
+							: {}),
 					});
 				}
 			}

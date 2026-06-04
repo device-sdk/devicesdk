@@ -35,6 +35,9 @@ type TestStub = {
 	useNoopWorker(): Promise<void>;
 	clearSchedulerState(): Promise<void>;
 	getDeviceSocketCounts(): Promise<{ total: number; open: number }>;
+	testSeedCachedUserWorker(): Promise<void>;
+	testHasCachedUserWorker(): Promise<boolean>;
+	triggerAlarm(): Promise<void>;
 };
 
 function getStub(name: string): TestStub {
@@ -178,6 +181,24 @@ describe.sequential("Device WebSocket connect/disconnect/reconnect", () => {
 		expect(ws1.readyState).not.toBe(WebSocket.READY_STATE_OPEN);
 
 		ws2.close(1000, "test done");
+		await stub.clearSchedulerState();
+	});
+
+	it("clears the cross-invocation user-worker stub cache on alarm() entry", async () => {
+		const stub = getStub("reconnect-test:stub-cache");
+		await stub.useNoopWorker();
+
+		// Simulate a stub resolved by a previous invocation lingering in the cache.
+		// getTarget() handles are invocation-scoped; reusing one across invocations
+		// fans out subrequests until the cap trips (the 60s alarm wedge that starves
+		// the device WebSocket and drives the reconnect-every-few-minutes loop).
+		await stub.testSeedCachedUserWorker();
+		expect(await stub.testHasCachedUserWorker()).toBe(true);
+
+		// A new DO invocation must drop it so the next user-worker call re-resolves.
+		await stub.triggerAlarm();
+		expect(await stub.testHasCachedUserWorker()).toBe(false);
+
 		await stub.clearSchedulerState();
 	});
 });

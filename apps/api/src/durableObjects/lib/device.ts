@@ -124,7 +124,9 @@ export class BaseDevice extends DurableObject<Env> {
 	// Cached user worker stub, keyed by workerId (project:device:version).
 	// A new script deploy bumps versionId → workerId → cache miss → rebuild.
 	// DO eviction discards this naturally; the next call rebuilds.
-	private cachedUserWorker: {
+	// Protected (not private) so TestDevice can seed/inspect it to assert the
+	// invocation-scoped cache-clear in alarm()/handleRemoteCall().
+	protected cachedUserWorker: {
 		workerId: string;
 		worker: IUserDeviceWorker;
 	} | null = null;
@@ -437,11 +439,15 @@ export class BaseDevice extends DurableObject<Env> {
 		// script deploy sets a fresh versionId → new workerId.
 		const workerId = `${projectId}:${deviceId}:${versionId}`;
 
-		// Reuse the resolved stub for the lifetime of this DO instance. Even
-		// with a stable workerId, each LOADER.get() + getEntrypoint().getTarget()
-		// call counts toward the runtime's "Too many concurrent dynamic workers"
-		// limit, so dispatching N events per minute (alarm drains, RPC, cron)
-		// without caching trips the limit and stalls onDeviceConnect/onMessage.
+		// Reuse the resolved stub only *within* the current DO invocation. The
+		// cache is cleared at every invocation entry point (alarm(),
+		// handleRemoteCall()) because the getTarget() handle is a child-isolate
+		// RPC stub scoped to the invocation that created it — reusing it across
+		// invocations is stale and fans out subrequests until the cap trips (the
+		// "Too many subrequests" / 60s-wall wedge). Within one tick this still
+		// avoids a second LOADER.get() + getTarget() when several code paths
+		// (drain, then cron) need the worker, which keeps us clear of the
+		// "Too many concurrent dynamic workers" limit a stable workerId guards.
 		if (this.cachedUserWorker?.workerId === workerId) {
 			// [DIAG2] Did this tick take the warm (cached cross-invocation stub)
 			// path? If the "Too many subrequests" wedge correlates with cache=warm,
@@ -466,9 +472,9 @@ export class BaseDevice extends DurableObject<Env> {
 
 		const initStartedAt = Date.now();
 		try {
-			// EW-9769 (cross-request stub invalidation) is fixed in the runtime,
-			// so a single LOADER.get() per DO lifetime is enough; the resolved
-			// stub is stored in this.cachedUserWorker above.
+			// Resolve a fresh worker for this invocation. The stub is stored in
+			// this.cachedUserWorker only for intra-invocation reuse (see above) —
+			// it is NOT valid across invocations, so the entry points clear it.
 			const worker = this.env.LOADER.get(workerId, async () => {
 				const scriptKey = `${userId}/${r2ProjectKey}/${r2DeviceKey}/${versionId}.js`;
 				const scriptObject = await this.env.SCRIPTS.get(scriptKey);
@@ -579,6 +585,12 @@ export class BaseDevice extends DurableObject<Env> {
 			entrypointName: string;
 		};
 	}): Promise<unknown> {
+		// Drop any user-worker stub cached by a previous invocation — a cached
+		// getTarget() handle is an invocation-scoped child-isolate RPC stub and
+		// goes stale across calls (see the note in alarm() and the
+		// cloudflare-runtime-limitations skill). Re-resolve fresh for this call.
+		this.cachedUserWorker = null;
+
 		// Ensure deviceMeta is available (may not exist if device never connected via WS)
 		if (!this.deviceMeta) {
 			const stored =
@@ -1161,6 +1173,20 @@ export class BaseDevice extends DurableObject<Env> {
 	 * Durable Object context or LOADER binding.
 	 */
 	async alarm(): Promise<void> {
+		// Invalidate any user-worker stub cached by a *previous* DO invocation.
+		// getOrCreateUserWorker caches the resolved getTarget() handle, but that
+		// handle is a child-isolate RPC stub scoped to the invocation that created
+		// it (see .claude/skills/cloudflare-runtime-limitations: "getTarget()
+		// returns are RPC handles too"). Reusing it across invocations is stale:
+		// calling onCron/onDeviceConnect on a cross-invocation stub fans out
+		// subrequests that never resolve, blowing the per-invocation subrequest
+		// cap (60s wall / 0 cpu) and wedging the device — which then starves its
+		// WebSocket ping/pong and makes the firmware reconnect every few minutes.
+		// Clearing here forces a fresh resolve for this invocation; the resolved
+		// worker is still reused *within* this tick via the threaded `drainedWorker`
+		// (and the in-invocation cache), so we never resolve more than once a tick.
+		this.cachedUserWorker = null;
+
 		// Drain any queued onDeviceConnect / onMessage events first — they
 		// were deferred here from webSocketMessage because the Worker Loader
 		// can't be invoked from a Hibernation-API event handler.

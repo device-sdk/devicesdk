@@ -37,6 +37,28 @@ export class TestDevice extends BaseDevice {
 	}
 
 	/**
+	 * Seeds a sentinel into the cross-invocation user-worker stub cache so a test
+	 * can assert that an invocation entry point (alarm) clears it. The cached
+	 * getTarget() handle is invocation-scoped; reusing it across invocations
+	 * wedges the device, so it must never survive into the next invocation.
+	 */
+	async testSeedCachedUserWorker(): Promise<void> {
+		this.cachedUserWorker = {
+			workerId: "sentinel:stale",
+			worker: {
+				onDeviceConnect: async () => {},
+				onDeviceDisconnect: async () => {},
+				onMessage: async () => {},
+			},
+		};
+	}
+
+	/** Whether the cross-invocation user-worker stub cache currently holds a value. */
+	async testHasCachedUserWorker(): Promise<boolean> {
+		return this.cachedUserWorker !== null;
+	}
+
+	/**
 	 * Returns how many "device"-tagged sockets are attached to this DO and how
 	 * many of those are still OPEN. Used to assert the single-live-session
 	 * invariant: a new connect closes any stale device socket before accepting.

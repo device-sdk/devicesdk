@@ -54,6 +54,13 @@ declare namespace Cloudflare {
 		CLOUDFLARE_ACCOUNT_ID?: string;
 		CLOUDFLARE_API_TOKEN?: string;
 		SENTRY_DSN: string | undefined;
+		// Diagnostic toggle for the per-device DO `alarm()` / user-worker path.
+		// "1" enables the (otherwise-zero-overhead) `[DIAG]`/`[DIAG2]` logging used
+		// to root-cause "Too many subrequests" / alarm-wedge issues via `wrangler
+		// tail` (see .claude/skills/debug-prod-worker-wedge). Unset/"0" in normal
+		// operation; flip to "1" + redeploy when investigating. Plaintext var, not
+		// a secret — it carries no sensitive data.
+		DEVICE_DIAG_LOGS?: string;
 	}
 }
 export interface Env extends Cloudflare.Env {}

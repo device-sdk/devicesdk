@@ -33,7 +33,11 @@
 	],
 	"vars": {
 		"ENV": "production",
-		"CLOUDFLARE_ACCOUNT_ID": "888e736867edd3b81b49b17c9067d5df"
+		"CLOUDFLARE_ACCOUNT_ID": "888e736867edd3b81b49b17c9067d5df",
+		// Flip to "1" + redeploy to enable per-device DO alarm/user-worker [DIAG]
+		// logging when debugging a "Too many subrequests"/alarm-wedge issue via
+		// wrangler tail. See .claude/skills/debug-prod-worker-wedge. Off by default.
+		"DEVICE_DIAG_LOGS": "0"
 	},
 	"r2_buckets": [
 		{
@@ -96,7 +100,10 @@
 			"name": "devicesdk-api",
 			"vars": {
 				"ENV": "production",
-				"CLOUDFLARE_ACCOUNT_ID": "888e736867edd3b81b49b17c9067d5df"
+				"CLOUDFLARE_ACCOUNT_ID": "888e736867edd3b81b49b17c9067d5df",
+				// Flip to "1" + redeploy to enable per-device DO alarm/user-worker
+				// [DIAG] logging. See .claude/skills/debug-prod-worker-wedge.
+				"DEVICE_DIAG_LOGS": "0"
 			},
 			"routes": [
 				{

@@ -64,7 +64,16 @@
             </template>
 
             <template #body="props">
-              <q-tr :props="props" class="table-row" @click="openProject(props.row.project_slug)" style="cursor: pointer">
+              <q-tr
+                :props="props"
+                class="table-row"
+                style="cursor: pointer"
+                tabindex="0"
+                :aria-label="`Open project ${props.row.name || props.row.project_slug}`"
+                @click="openProject(props.row.project_slug)"
+                @keydown.enter="openProject(props.row.project_slug)"
+                @keydown.space.prevent="openProject(props.row.project_slug)"
+              >
                 <q-td key="project_slug" :props="props">
                   <div class="row items-center">
                     <q-icon name="folder" color="primary" size="24px" class="q-mr-sm" />
@@ -75,7 +84,10 @@
                   </div>
                 </q-td>
                 <q-td key="description" :props="props">
-                  <span class="text-grey-8">{{ props.row.description || '—' }}</span>
+                  <span class="text-grey-8 description-cell ellipsis">
+                    {{ props.row.description || '—' }}
+                    <q-tooltip v-if="props.row.description">{{ props.row.description }}</q-tooltip>
+                  </span>
                 </q-td>
                 <q-td key="device_count" :props="props">
                   <q-chip
@@ -98,16 +110,11 @@
                     round
                     dense
                     icon="more_vert"
+                    aria-label="Project actions"
                     @click.stop
                   >
                     <q-menu>
                       <q-list style="min-width: 150px">
-                        <q-item clickable v-close-popup @click="openProject(props.row.project_slug)">
-                          <q-item-section avatar>
-                            <q-icon name="open_in_new" />
-                          </q-item-section>
-                          <q-item-section>Open</q-item-section>
-                        </q-item>
                         <q-item clickable v-close-popup @click="confirmDelete(props.row)">
                           <q-item-section avatar>
                             <q-icon name="delete" color="negative" />
@@ -279,11 +286,8 @@ const fetchProjects = async () => {
     projects.value = await projectService.getAll();
   } catch (error) {
     console.error('Error fetching projects:', error);
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load projects',
-      position: 'top',
-    });
+    const message = error instanceof Error ? error.message : 'Failed to load projects';
+    $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
     loading.value = false;
   }
@@ -313,11 +317,8 @@ const deleteProject = async () => {
     await fetchProjects();
   } catch (error) {
     console.error('Error deleting project:', error);
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to delete project',
-      position: 'top',
-    });
+    const message = error instanceof Error ? error.message : 'Failed to delete project';
+    $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
     deleting.value = false;
   }
@@ -377,6 +378,12 @@ onMounted(() => {
 
 .table-row {
   cursor: pointer;
+}
+
+.description-cell {
+  display: inline-block;
+  max-width: 280px;
+  vertical-align: middle;
 }
 
 .empty-state {

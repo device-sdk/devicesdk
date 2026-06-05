@@ -52,10 +52,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useQuasar } from 'quasar';
 import { useAuth } from '@/composables/useAuth';
 import { isAllowedRedirectUrl } from '@/lib/redirect';
 
 const router = useRouter();
+const $q = useQuasar();
 const auth = useAuth();
 const loading = ref(false);
 const sessionExpired = ref(new URLSearchParams(window.location.search).has('expired'));
@@ -73,7 +75,19 @@ onMounted(() => {
 
 const handleSignIn = () => {
   loading.value = true;
-  auth.signIn();
+  try {
+    // Redirects away to the OAuth provider; if it throws (or doesn't redirect),
+    // clear the spinner and tell the user instead of spinning forever.
+    auth.signIn();
+  } catch (error) {
+    console.error('Sign-in failed:', error);
+    loading.value = false;
+    $q.notify({
+      type: 'negative',
+      message: 'Could not start sign-in. Please try again.',
+      position: 'top',
+    });
+  }
 };
 </script>
 
@@ -160,7 +174,7 @@ const handleSignIn = () => {
 
   &:hover {
     background: var(--accent) !important;
-    border-color: hsl(240, 6%, 80%) !important;
+    border-color: var(--border-hover) !important;
   }
 }
 

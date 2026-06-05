@@ -34,16 +34,31 @@ export function useDeviceStream(
 ) {
   const streamedLogs = ref<DeviceLog[]>([]);
   const deviceStatus = ref<DeviceStatus>({ connected: false, connectedSince: null });
+  /** True while the dashboard's watcher socket is open. */
   const streaming = ref(false);
+  /** True while we're between connection attempts (backing off). */
+  const reconnecting = ref(false);
   const historyLoaded = ref(false);
 
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectDelay = 1000;
-  let disposed = false;
+  // `unmounted` is the one-way latch set only when the component goes away — it
+  // permanently kills the stream. `active` tracks whether a consumer *wants* a
+  // connection right now: disconnect() flips it off (revivable) and connect()
+  // flips it back on, so pause/resume works without recreating the composable.
+  let unmounted = false;
+  let active = false;
+
+  // WebSocket close codes that mean "your session is no longer valid" — the
+  // server rejected the upgrade for auth reasons. Mirrors lib/api.ts's 401
+  // handling: stop retrying and bounce to login rather than reconnect forever
+  // against a dead session.
+  const AUTH_CLOSE_CODES = new Set([1008, 4401, 4403]);
 
   function connect() {
-    if (disposed) return;
+    if (unmounted) return;
+    active = true;
     if (ws) {
       ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
       ws.close();
@@ -56,10 +71,11 @@ export function useDeviceStream(
     historyLoaded.value = options.backfillLimit == null;
     const socket = new WebSocket(url);
     ws = socket;
-    streaming.value = true;
+    reconnecting.value = false;
 
     socket.onopen = () => {
       reconnectDelay = 1000;
+      streaming.value = true;
     };
 
     socket.onmessage = (event) => {
@@ -107,11 +123,23 @@ export function useDeviceStream(
     // would schedule its own reconnect (leaking the first timer, which
     // disconnect() can then no longer cancel). Detach this socket's handlers on
     // the first call so we reconnect at most once per drop.
-    const handleClose = () => {
+    const handleClose = (event?: CloseEvent) => {
       socket.onopen = socket.onmessage = socket.onerror = socket.onclose = null;
       if (ws === socket) ws = null;
       streaming.value = false;
-      if (disposed || reconnectTimer) return;
+
+      // Explicit auth-class close → session is dead. Stop retrying and bounce
+      // to login (the API client does the same on a 401) instead of backing
+      // off forever against a connection that will never succeed.
+      if (event && AUTH_CLOSE_CODES.has(event.code)) {
+        active = false;
+        reconnecting.value = false;
+        window.location.href = '/login?expired=true';
+        return;
+      }
+
+      if (unmounted || !active || reconnectTimer) return;
+      reconnecting.value = true;
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
         connect();
@@ -119,17 +147,21 @@ export function useDeviceStream(
       reconnectDelay = Math.min(reconnectDelay * 2, 30000);
     };
 
-    socket.onerror = handleClose;
-    socket.onclose = handleClose;
+    socket.onerror = () => handleClose();
+    socket.onclose = (event) => handleClose(event);
   }
 
   function disconnect() {
-    disposed = true;
+    // Transient stop: stop retrying and close the socket, but stay revivable —
+    // a later connect() can resume the stream on the same composable instance.
+    active = false;
+    reconnecting.value = false;
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
     }
     if (ws) {
+      ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
       ws.close();
       ws = null;
     }
@@ -141,6 +173,7 @@ export function useDeviceStream(
   }
 
   onUnmounted(() => {
+    unmounted = true;
     disconnect();
   });
 
@@ -148,6 +181,7 @@ export function useDeviceStream(
     streamedLogs,
     deviceStatus,
     streaming,
+    reconnecting,
     historyLoaded,
     connect,
     disconnect,

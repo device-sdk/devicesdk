@@ -13,6 +13,15 @@
       />
       <q-space />
       <q-chip
+        v-if="reconnecting"
+        color="orange"
+        text-color="white"
+        size="sm"
+        icon="sync"
+      >
+        Reconnecting…
+      </q-chip>
+      <q-chip
         :color="deviceStatus.connected ? 'green' : 'grey-6'"
         text-color="white"
         size="sm"
@@ -20,7 +29,7 @@
       >
         {{ deviceStatus.connected ? 'Online' : 'Offline' }}
       </q-chip>
-      <q-btn flat icon="delete_sweep" @click="clearLogs">
+      <q-btn flat icon="delete_sweep" aria-label="Clear logs" @click="clearLogs">
         <q-tooltip>Clear logs</q-tooltip>
       </q-btn>
     </div>
@@ -38,9 +47,9 @@
       </p>
     </div>
 
-    <div v-else ref="logsContainer" class="logs-container">
+    <div v-else class="logs-container">
       <div
-        v-for="log in filteredLogs"
+        v-for="log in renderedLogs"
         :key="log.id"
         class="log-entry row items-start q-py-xs q-px-sm"
       >
@@ -54,9 +63,9 @@
           {{ log.level }}
         </q-chip>
         <span class="text-grey-6 text-caption q-mr-sm log-timestamp">
-          {{ formatTimestamp(log.created_at) }}
+          {{ log.time }}
         </span>
-        <span class="font-mono log-message">{{ formatMessage(log.message) }}</span>
+        <span class="font-mono log-message">{{ log.display }}</span>
       </div>
     </div>
   </div>
@@ -64,6 +73,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useQuasar } from 'quasar';
 import { useDeviceStream } from '@/composables/useDeviceStream';
 
 const props = defineProps<{
@@ -71,6 +81,7 @@ const props = defineProps<{
   deviceId: string;
 }>();
 
+const $q = useQuasar();
 const levelFilter = ref<string | null>(null);
 
 // Logs are now WS-only. The watcher WebSocket sends up to `backfillLimit`
@@ -81,6 +92,7 @@ const levelFilter = ref<string | null>(null);
 const {
   streamedLogs,
   deviceStatus,
+  reconnecting,
   historyLoaded,
   connect,
   disconnect,
@@ -91,6 +103,17 @@ const filteredLogs = computed(() => {
   if (!levelFilter.value) return streamedLogs.value;
   return streamedLogs.value.filter((log) => log.level === levelFilter.value);
 });
+
+// Precompute the display string + timestamp once per log (instead of parsing
+// JSON and formatting dates for every row on every re-render).
+const renderedLogs = computed(() =>
+  filteredLogs.value.map((log) => ({
+    id: log.id,
+    level: log.level,
+    time: formatTimestamp(log.created_at),
+    display: formatMessage(log.message),
+  })),
+);
 
 const levelOptions = [
   { label: 'All Levels', value: null },
@@ -113,12 +136,23 @@ const levelColor = (level: string): string => {
 };
 
 const formatTimestamp = (ts: number): string => {
-  return new Date(ts).toLocaleTimeString('en-US', {
+  const date = new Date(ts);
+  const time = date.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
   });
+  // Prefix the date for backfilled entries that aren't from today, so old rows
+  // aren't ambiguous when history spans multiple days.
+  const now = new Date();
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  if (sameDay) return time;
+  const day = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${day} ${time}`;
 };
 
 const formatMessage = (message: string): string => {
@@ -134,7 +168,15 @@ const formatMessage = (message: string): string => {
 };
 
 const clearLogs = () => {
-  clearStreamLogs();
+  $q.dialog({
+    title: 'Clear logs?',
+    message:
+      'This clears the logs from this view. New logs keep streaming, and recent history reloads if the connection drops.',
+    cancel: { label: 'Cancel', flat: true },
+    ok: { label: 'Clear', color: 'negative', unelevated: true },
+  }).onOk(() => {
+    clearStreamLogs();
+  });
 };
 
 onMounted(() => {

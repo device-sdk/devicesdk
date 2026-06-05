@@ -17,6 +17,7 @@
   // Border colors
   --border: hsl(240, 6%, 90%);
   --border-muted: hsl(240, 6%, 94%);
+  --border-hover: hsl(240, 6%, 70%);
 
   // Primary colors
   --primary: hsl(240, 6%, 10%);
@@ -42,6 +43,50 @@
   // Shadows
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+// ============================================================================
+// Dark mode — re-declare the same tokens with dark values. Activated by the OS
+// colour scheme; Quasar's own components flip to dark in tandem via
+// `framework.config.dark: 'auto'`. Quasar also adds `.body--dark` to <body>,
+// which we match so the switch is consistent whichever signal fires first.
+// ============================================================================
+@mixin dark-tokens {
+  --background: hsl(240, 10%, 6%);
+  --background-secondary: hsl(240, 6%, 10%);
+  --background-muted: hsl(240, 6%, 12%);
+
+  --foreground: hsl(0, 0%, 95%);
+  --foreground-muted: hsl(240, 5%, 65%);
+
+  --border: hsl(240, 5%, 18%);
+  --border-muted: hsl(240, 5%, 15%);
+  --border-hover: hsl(240, 5%, 32%);
+
+  --primary: hsl(0, 0%, 95%);
+  --primary-foreground: hsl(240, 6%, 10%);
+
+  --accent: hsl(240, 5%, 16%);
+  --accent-foreground: hsl(0, 0%, 95%);
+
+  --destructive: hsl(0, 72%, 55%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+
+  --success: hsl(142, 60%, 45%);
+  --success-foreground: hsl(0, 0%, 98%);
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    @include dark-tokens;
+  }
+}
+
+body.body--dark {
+  @include dark-tokens;
 }
 
 // ============================================================================
@@ -124,7 +169,7 @@ body {
   transition: border-color 0.2s ease;
 
   &:hover {
-    border-color: hsl(240, 6%, 80%);
+    border-color: var(--border-hover);
   }
 }
 
@@ -242,7 +287,7 @@ body {
   }
 
   &.q-field--outlined .q-field__control:hover::before {
-    border-color: hsl(240, 6%, 70%);
+    border-color: var(--border-hover);
   }
 
   &.q-field--focused .q-field__control::after {

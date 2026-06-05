@@ -12,7 +12,12 @@ interface PaginatedResponse<T> {
   has_more: boolean;
 }
 
-async function fetchAllPages<T>(url: string): Promise<T[]> {
+// Hard cap so a buggy/stale `has_more: true` can never wedge the UI in a
+// permanent loading spinner while hammering the API. 100 pages × 100 items =
+// 10k records, far beyond any real account.
+const MAX_PAGES = 100;
+
+async function fetchAllPages<T>(url: string, signal?: AbortSignal): Promise<T[]> {
   const all: T[] = [];
   let page = 1;
   const per_page = 100;
@@ -20,11 +25,19 @@ async function fetchAllPages<T>(url: string): Promise<T[]> {
   while (hasMore) {
     const data = await api.call<ApiResponse<PaginatedResponse<T>>>(
       `${url}?page=${page}&per_page=${per_page}`,
+      signal ? { signal } : undefined,
     );
-    if (!data?.success) throw new Error('Failed to fetch');
+    if (!data.success) throw new Error('Failed to fetch');
+    if (!Array.isArray(data.result.items)) {
+      throw new Error('Malformed paginated response');
+    }
     all.push(...data.result.items);
     hasMore = data.result.has_more;
     page++;
+    if (page > MAX_PAGES) {
+      console.warn(`fetchAllPages(${url}) hit the ${MAX_PAGES}-page cap; truncating.`);
+      break;
+    }
   }
   return all;
 }
@@ -85,6 +98,13 @@ export interface Device {
   updated_at: number;
 }
 
+export interface DeviceLiveStatus {
+  connected: boolean;
+  connected_since: number | null;
+  last_connected_at: number | null;
+  current_version_id: string | null;
+}
+
 export interface ScriptVersion {
   version_id: string;
   message?: string | null;
@@ -112,10 +132,15 @@ export interface Token {
   managed?: boolean;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  result: T;
-}
+/**
+ * Discriminated union mirroring the API's `{ success, result }` /
+ * `{ success, error }` envelope. Modeling the failure arm means `result` is
+ * only accessible after a `success` check — the type no longer lies about
+ * `result` being present on an error response.
+ */
+export type ApiResponse<T> =
+  | { success: true; result: T }
+  | { success: false; error: string };
 
 // ============================================================================
 // User Endpoints
@@ -123,7 +148,9 @@ export interface ApiResponse<T> {
 
 export const userService = {
   async getMe(): Promise<User> {
-    const data = await api.call<ApiResponse<User>>('/v1/user/me');
+    const data = await api.call<ApiResponse<User>>('/v1/user/me', {
+      suppressAuthRedirect: true,
+    });
     if (!data || !data.success) {
       throw new Error('Failed to fetch user');
     }
@@ -151,7 +178,12 @@ export const userService = {
   },
 
   async completeOnboarding(): Promise<void> {
-    await api.call('/v1/user/me/onboarding', { method: 'PATCH' });
+    const data = await api.call<ApiResponse<unknown>>('/v1/user/me/onboarding', {
+      method: 'PATCH',
+    });
+    if (!data || !data.success) {
+      throw new Error('Failed to complete onboarding');
+    }
   },
 };
 
@@ -171,13 +203,14 @@ export interface UpdateProjectInput {
 }
 
 export const projectService = {
-  async getAll(): Promise<Project[]> {
-    return fetchAllPages<Project>('/v1/projects');
+  async getAll(signal?: AbortSignal): Promise<Project[]> {
+    return fetchAllPages<Project>('/v1/projects', signal);
   },
 
-  async getById(projectId: string): Promise<Project> {
+  async getById(projectId: string, signal?: AbortSignal): Promise<Project> {
     const data = await api.call<ApiResponse<Project>>(
-      `/v1/projects/${projectId}`
+      `/v1/projects/${projectId}`,
+      signal ? { signal } : undefined,
     );
     if (!data || !data.success) {
       throw new Error('Failed to fetch project');
@@ -236,13 +269,14 @@ export interface UpdateDeviceInput {
 }
 
 export const deviceService = {
-  async getAll(projectId: string): Promise<Device[]> {
-    return fetchAllPages<Device>(`/v1/projects/${projectId}/devices`);
+  async getAll(projectId: string, signal?: AbortSignal): Promise<Device[]> {
+    return fetchAllPages<Device>(`/v1/projects/${projectId}/devices`, signal);
   },
 
-  async getById(projectId: string, deviceId: string): Promise<Device> {
+  async getById(projectId: string, deviceId: string, signal?: AbortSignal): Promise<Device> {
     const data = await api.call<ApiResponse<Device>>(
-      `/v1/projects/${projectId}/devices/${deviceId}`
+      `/v1/projects/${projectId}/devices/${deviceId}`,
+      signal ? { signal } : undefined,
     );
     if (!data || !data.success) {
       throw new Error('Failed to fetch device');
@@ -286,6 +320,26 @@ export const deviceService = {
     await api.call(`/v1/projects/${projectId}/devices/${deviceId}`, {
       method: 'DELETE',
     });
+  },
+
+  /**
+   * Authoritative live connection state from the device's Durable Object — the
+   * same signal the project list's online/offline column reflects. Use this for
+   * the detail page's status chip instead of a client-side last-seen heuristic.
+   */
+  async getStatus(
+    projectId: string,
+    deviceId: string,
+    signal?: AbortSignal,
+  ): Promise<DeviceLiveStatus> {
+    const data = await api.call<ApiResponse<DeviceLiveStatus>>(
+      `/v1/projects/${projectId}/devices/${deviceId}/status`,
+      signal ? { signal } : undefined,
+    );
+    if (!data || !data.success) {
+      throw new Error('Failed to fetch device status');
+    }
+    return data.result;
   },
 };
 

@@ -11,6 +11,7 @@
         color="grey-3"
         text-color="grey-8"
         size="sm"
+        :disable="loading"
         @update:model-value="fetchMetrics"
       />
     </div>
@@ -49,7 +50,9 @@
     <MetricsChart
       :option="messagesOption"
       :loading="loading"
-      :empty="!loading && isEmpty"
+      :error="!loading && error"
+      :empty="!loading && !error && isEmpty"
+      :aria-label="chartAriaLabel"
     />
 
     <p class="text-caption text-grey-6 q-mt-md">
@@ -97,29 +100,35 @@ const EMPTY_TOTALS: UsageTotals = {
 
 const window = ref<MetricsWindow>('1h');
 const loading = ref(true);
+const error = ref(false);
 const series = ref<UsageBucket[]>([]);
 const totals = ref<UsageTotals>({ ...EMPTY_TOTALS });
 
 const isEmpty = computed(() => series.value.length === 0);
 const messagesOption = computed(() => buildDeviceMessagesOption(series.value));
+const chartAriaLabel = computed(
+  () =>
+    `Messages over the selected ${window.value} window: ` +
+    `${formatCount(totals.value.messages_in)} received, ` +
+    `${formatCount(totals.value.messages_out)} sent.`,
+);
 
 const fetchMetrics = async () => {
   try {
     loading.value = true;
+    error.value = false;
     const data = await metricsService.getDevice(
       props.projectId,
       props.deviceId,
       window.value,
     );
-    series.value = data.series;
-    totals.value = data.totals;
-  } catch (error) {
-    console.error('Error fetching device metrics:', error);
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load metrics',
-      position: 'top',
-    });
+    series.value = data.series ?? [];
+    totals.value = data.totals ?? { ...EMPTY_TOTALS };
+  } catch (err) {
+    console.error('Error fetching device metrics:', err);
+    error.value = true;
+    const message = err instanceof Error ? err.message : 'Failed to load metrics';
+    $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
     loading.value = false;
   }

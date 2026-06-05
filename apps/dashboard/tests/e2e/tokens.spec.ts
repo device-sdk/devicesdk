@@ -48,6 +48,10 @@ test.describe("Tokens page", () => {
     ).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("Your API Token")).toBeVisible();
 
+    // Copy the token first — the dialog guards against closing the one-time
+    // secret before it's been copied.
+    await page.getByRole("button", { name: "Copy token to clipboard" }).click();
+
     await page.getByRole("button", { name: "Done" }).click();
 
     // Token should appear in the table (shown as ****<last4> in a chip)

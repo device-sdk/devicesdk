@@ -11,7 +11,7 @@ export default (/* ctx */) => {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['error-handler', 'axios', 'auth'],
+    boot: ['error-handler', 'auth'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ['app.scss'],
@@ -89,7 +89,12 @@ export default (/* ctx */) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
-      config: {},
+      config: {
+        // Follow the OS colour scheme. The CSS design tokens in app.scss have a
+        // matching `prefers-color-scheme: dark` block, and Quasar restyles its
+        // own components (cards, drawer, inputs) to dark in tandem.
+        dark: 'auto',
+      },
 
       // iconSet: 'material-icons', // Quasar icon set
       // lang: 'en-US', // Quasar language pack
@@ -102,7 +107,7 @@ export default (/* ctx */) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: ['Notify'],
+      plugins: ['Notify', 'LoadingBar', 'Dialog'],
     },
 
     // animations: 'all', // --- includes all animations

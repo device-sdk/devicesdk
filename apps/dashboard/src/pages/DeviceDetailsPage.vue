@@ -10,7 +10,7 @@
         class="back-btn"
       />
       <q-breadcrumbs class="q-ml-md text-grey-7">
-        <q-breadcrumbs-el icon="folder" to="/projects" />
+        <q-breadcrumbs-el label="Projects" icon="folder" aria-label="Projects" to="/projects" />
         <q-breadcrumbs-el :label="projectId" :to="`/projects/${projectId}`" />
         <q-breadcrumbs-el :label="device?.name || deviceId" />
       </q-breadcrumbs>
@@ -19,6 +19,16 @@
     <div v-if="loading" class="text-center q-pa-xl">
       <q-spinner-dots color="primary" size="50px" />
       <p class="q-mt-md text-grey-6">Loading device...</p>
+    </div>
+
+    <div v-else-if="loadError" class="text-center q-pa-xl">
+      <q-icon name="error_outline" size="56px" color="negative" class="q-mb-md" />
+      <div class="text-h6 text-grey-7 q-mb-sm">Couldn't load this device</div>
+      <p class="text-body2 text-grey-6 q-mb-lg">{{ loadError }}</p>
+      <div class="row q-gutter-sm justify-center">
+        <q-btn unelevated color="primary" label="Retry" icon="refresh" @click="fetchDevice" />
+        <q-btn flat color="grey-7" label="Back to project" :to="`/projects/${projectId}`" />
+      </div>
     </div>
 
     <template v-else-if="device">
@@ -158,6 +168,7 @@
                 :rows="18"
                 class="code-editor font-mono"
                 placeholder="// Enter your device script here..."
+                @keydown.tab="onEditorTab"
               />
               <div :class="['text-caption q-mt-xs', isScriptTooLarge ? 'text-negative' : 'text-grey-6']">
                 {{ scriptContent.length.toLocaleString() }} / 1,048,576 characters
@@ -234,7 +245,10 @@
                       dense
                       icon="restore"
                       color="primary"
-                      @click="rollbackToVersion(props.row.version_id)"
+                      aria-label="Deploy this version"
+                      :loading="rollingBackId === props.row.version_id"
+                      :disable="rollingBackId !== null"
+                      @click="promptRollback(props.row.version_id)"
                     >
                       <q-tooltip>Deploy this version</q-tooltip>
                     </q-btn>
@@ -356,25 +370,62 @@
         <q-card-section class="row items-center">
           <div class="text-h6">Script Version: {{ viewingVersion?.version_id?.slice(0, 8) }}...</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn
+            flat
+            dense
+            no-caps
+            icon="content_copy"
+            label="Copy"
+            class="q-mr-sm"
+            aria-label="Copy script to clipboard"
+            @click="copyViewingScript"
+          />
+          <q-btn icon="close" flat round dense aria-label="Close" v-close-popup />
         </q-card-section>
         <q-separator />
-        <q-card-section class="q-pa-none" style="height: calc(100vh - 100px); overflow: auto;">
-          <pre class="q-pa-md font-mono" style="background: #1e1e1e; color: #d4d4d4; margin: 0; min-height: 100%;">{{ viewingVersion?.script }}</pre>
+        <q-card-section class="q-pa-none version-view">
+          <pre class="q-pa-md font-mono version-code">{{ viewingVersion?.script }}</pre>
         </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="showRollbackDialog">
+      <q-card style="min-width: 400px">
+        <q-card-section class="row items-center">
+          <q-icon name="rocket_launch" color="primary" size="28px" class="q-mr-md" />
+          <span class="text-h6">Deploy this version?</span>
+        </q-card-section>
+        <q-card-section>
+          <p class="q-mb-none">
+            This replaces the script currently running on
+            <strong>{{ device?.name || deviceId }}</strong> with version
+            <strong class="font-mono">{{ pendingRollbackId?.slice(0, 8) }}</strong>.
+            The device will reload its script.
+          </p>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn
+            unelevated
+            color="primary"
+            label="Deploy version"
+            :loading="rollingBackId !== null"
+            @click="confirmRollback"
+          />
+        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useQuasar } from 'quasar';
+import { useQuasar, copyToClipboard } from 'quasar';
 import DeviceLogs from '@/components/DeviceLogs.vue';
 import DeviceMetricsPanel from '@/components/metrics/DeviceMetricsPanel.vue';
 import { scriptTemplates, templateCode } from '@/lib/scriptTemplates';
-import { formatDate, normalizeTimestamp } from '@/lib/time';
+import { formatDate } from '@/lib/time';
 import {
   deviceService,
   scriptService,
@@ -391,14 +442,19 @@ const projectId = ref(route.params.projectId as string);
 const deviceId = ref(route.params.deviceId as string);
 const device = ref<Device | null>(null);
 const loading = ref(true);
+const loadError = ref<string | null>(null);
+const connected = ref(false);
 const activeTab = ref('overview');
 const saving = ref(false);
 const deleting = ref(false);
 const deploying = ref(false);
+const rollingBackId = ref<string | null>(null);
 
 const showEditDialog = ref(false);
 const showDeleteDialog = ref(false);
 const showVersionDialog = ref(false);
+const showRollbackDialog = ref(false);
+const pendingRollbackId = ref<string | null>(null);
 
 const scriptContent = ref('');
 const deployMessage = ref('');
@@ -429,12 +485,10 @@ const SCRIPT_MAX_LENGTH = 1024 * 1024;
 
 const isScriptTooLarge = computed(() => scriptContent.value.length > SCRIPT_MAX_LENGTH);
 
-const isOnline = computed(() => {
-  if (!device.value?.last_connected_at) return false;
-  const lastConnected = normalizeTimestamp(device.value.last_connected_at);
-  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-  return lastConnected > fiveMinutesAgo;
-});
+// Authoritative live connection state from the device's Durable Object (same
+// source as the project list's online/offline column), not a client-side
+// last-seen guess — so the chip can't disagree with the list view.
+const isOnline = computed(() => connected.value);
 
 const loadTemplate = (templateKey: string | null) => {
   if (templateKey && templateCode[templateKey]) {
@@ -442,19 +496,47 @@ const loadTemplate = (templateKey: string | null) => {
   }
 };
 
+// Cancels an in-flight device fetch when the user navigates to a different
+// device, so a slow earlier response can't clobber the newer one.
+let fetchController: AbortController | null = null;
+
 const fetchDevice = async () => {
+  fetchController?.abort();
+  const controller = new AbortController();
+  fetchController = controller;
   try {
     loading.value = true;
-    device.value = await deviceService.getById(projectId.value, deviceId.value);
+    loadError.value = null;
+    device.value = await deviceService.getById(
+      projectId.value,
+      deviceId.value,
+      controller.signal,
+    );
     editForm.value = {
       name: device.value.name || '',
       description: device.value.description || '',
     };
+    void refreshStatus(controller.signal);
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return;
     console.error('Error fetching device:', error);
-    $q.notify({ type: 'negative', message: 'Failed to load device', position: 'top' });
+    loadError.value = error instanceof Error ? error.message : 'Failed to load device';
   } finally {
-    loading.value = false;
+    if (fetchController === controller) {
+      loading.value = false;
+      fetchController = null;
+    }
+  }
+};
+
+const refreshStatus = async (signal?: AbortSignal) => {
+  try {
+    const status = await deviceService.getStatus(projectId.value, deviceId.value, signal);
+    connected.value = status.connected;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return;
+    // Status is best-effort; fall back to offline rather than blocking the page.
+    connected.value = false;
   }
 };
 
@@ -517,9 +599,18 @@ const viewVersion = async (versionId: string) => {
   }
 };
 
-const rollbackToVersion = async (versionId: string) => {
+const promptRollback = (versionId: string) => {
+  pendingRollbackId.value = versionId;
+  showRollbackDialog.value = true;
+};
+
+const confirmRollback = async () => {
+  const versionId = pendingRollbackId.value;
+  if (!versionId) return;
   try {
+    rollingBackId.value = versionId;
     await scriptService.deployVersion(projectId.value, deviceId.value, versionId);
+    showRollbackDialog.value = false;
     $q.notify({ type: 'positive', message: 'Version deployed successfully', position: 'top' });
     versionsCached.value = false;
     await fetchDevice();
@@ -527,7 +618,35 @@ const rollbackToVersion = async (versionId: string) => {
     await fetchCurrentScript();
   } catch (error) {
     console.error('Error deploying version:', error);
-    $q.notify({ type: 'negative', message: 'Failed to deploy version', position: 'top' });
+    const message = error instanceof Error ? error.message : 'Failed to deploy version';
+    $q.notify({ type: 'negative', message, position: 'top' });
+  } finally {
+    rollingBackId.value = null;
+    pendingRollbackId.value = null;
+  }
+};
+
+// Insert two spaces on Tab instead of moving focus out of the editor, so users
+// can indent code in the textarea.
+const onEditorTab = (e: KeyboardEvent) => {
+  e.preventDefault();
+  const target = e.target as HTMLTextAreaElement;
+  const start = target.selectionStart;
+  const end = target.selectionEnd;
+  const value = scriptContent.value;
+  scriptContent.value = `${value.slice(0, start)}  ${value.slice(end)}`;
+  requestAnimationFrame(() => {
+    target.selectionStart = target.selectionEnd = start + 2;
+  });
+};
+
+const copyViewingScript = async () => {
+  if (!viewingVersion.value?.script) return;
+  try {
+    await copyToClipboard(viewingVersion.value.script);
+    $q.notify({ type: 'positive', message: 'Script copied to clipboard', position: 'top' });
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to copy script', position: 'top' });
   }
 };
 
@@ -543,7 +662,8 @@ const updateDevice = async () => {
     await fetchDevice();
   } catch (error) {
     console.error('Error updating device:', error);
-    $q.notify({ type: 'negative', message: 'Failed to update device', position: 'top' });
+    const message = error instanceof Error ? error.message : 'Failed to update device';
+    $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
     saving.value = false;
   }
@@ -557,7 +677,8 @@ const deleteDevice = async () => {
     void router.push(`/projects/${projectId.value}`);
   } catch (error) {
     console.error('Error deleting device:', error);
-    $q.notify({ type: 'negative', message: 'Failed to delete device', position: 'top' });
+    const message = error instanceof Error ? error.message : 'Failed to delete device';
+    $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
     deleting.value = false;
   }
@@ -583,6 +704,10 @@ watch(() => route.params, (newParams) => {
 
 onMounted(() => {
   void fetchDevice();
+});
+
+onUnmounted(() => {
+  fetchController?.abort();
 });
 </script>
 
@@ -611,7 +736,7 @@ onMounted(() => {
     border-radius: var(--radius);
     overflow: hidden;
   }
-  
+
   :deep(textarea) {
     font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
     font-size: 0.8125rem;
@@ -620,5 +745,21 @@ onMounted(() => {
     color: hsl(0, 0%, 90%);
     padding: 1rem;
   }
+}
+
+.version-view {
+  height: calc(100vh - 100px);
+  overflow: auto;
+}
+
+.version-code {
+  margin: 0;
+  min-height: 100%;
+  background: hsl(240, 10%, 10%);
+  color: hsl(0, 0%, 90%);
+  // Preserve formatting but wrap long lines so the dialog never scrolls
+  // horizontally off-screen.
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

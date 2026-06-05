@@ -1,11 +1,13 @@
 <template>
   <div class="onboarding-wrapper">
+    <!-- No header-nav: steps advance via the in-step buttons only, so users
+         can't click ahead to "Next Steps" before a project exists (which would
+         leave "Go to Project" a dead no-op). -->
     <q-stepper
       v-model="currentStep"
       flat
       animated
       class="onboarding-stepper"
-      header-nav
     >
       <q-step :name="1" title="Welcome" icon="waving_hand" :done="currentStep > 1">
         <div class="step-content text-center">
@@ -291,9 +293,11 @@ const onCreateProject = async () => {
 };
 
 const goToProject = () => {
-  if (createdProject.value) {
-    void router.push(`/projects/${createdProject.value.project_slug}`);
-  }
+  void router.push(
+    createdProject.value
+      ? `/projects/${createdProject.value.project_slug}`
+      : '/projects',
+  );
 };
 </script>
 
@@ -432,7 +436,7 @@ const goToProject = () => {
   transition: border-color 0.2s ease;
 
   &:hover {
-    border-color: hsl(240, 6%, 70%);
+    border-color: var(--border-hover);
   }
 }
 

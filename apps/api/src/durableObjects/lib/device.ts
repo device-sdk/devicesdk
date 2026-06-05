@@ -129,6 +129,13 @@ export class BaseDevice extends DurableObject<Env> {
 	protected cachedUserWorker: {
 		workerId: string;
 		worker: IUserDeviceWorker;
+		// The WorkerStub handle returned by LOADER.get(). It owns the dynamic
+		// (child-isolate) worker; disposing it releases that isolate. Held here so
+		// the next invocation entry point can dispose the *previous* invocation's
+		// handle (see releaseCachedUserWorker) instead of leaking it to GC, which
+		// lags under per-minute alarm churn and trips "Too many concurrent dynamic
+		// workers". See PR for the dynamic-worker-leak fix + TROUBLESHOOT.md.
+		handle?: { [Symbol.dispose]?: () => void };
 	} | null = null;
 
 	// Diagnostic logging toggle for the alarm()/user-worker path. Gated behind the
@@ -479,6 +486,12 @@ export class BaseDevice extends DurableObject<Env> {
 		const r2DeviceKey = deviceSlug ?? deviceId;
 
 		const initStartedAt = Date.now();
+		// Tracked outside the try so the catch can dispose the dynamic-worker
+		// isolate if init fails *after* LOADER.get() created it (e.g. getTarget()
+		// throws). Without this, a failed init leaks the child isolate — under the
+		// per-minute alarm churn those pile up until LOADER.get() itself starts
+		// throwing "Too many concurrent dynamic workers", wedging every device.
+		let workerHandle: { [Symbol.dispose]?: () => void } | undefined;
 		try {
 			// Resolve a fresh worker for this invocation. The stub is stored in
 			// this.cachedUserWorker only for intra-invocation reuse (see above) —
@@ -534,6 +547,8 @@ export class BaseDevice extends DurableObject<Env> {
 				};
 			});
 
+			workerHandle = worker as unknown as { [Symbol.dispose]?: () => void };
+
 			const entrypointClass = worker.getEntrypoint("ProxyEntrypoint") as {
 				getTarget(): Promise<object>;
 			};
@@ -557,7 +572,11 @@ export class BaseDevice extends DurableObject<Env> {
 			}
 
 			const resolved = target as unknown as IUserDeviceWorker;
-			this.cachedUserWorker = { workerId, worker: resolved };
+			this.cachedUserWorker = {
+				workerId,
+				worker: resolved,
+				handle: workerHandle,
+			};
 			this._diagWorkerCachedAt = Date.now();
 			recordScriptInit(this.env.ANALYTICS, {
 				source: "runtime",
@@ -568,6 +587,14 @@ export class BaseDevice extends DurableObject<Env> {
 			});
 			return resolved;
 		} catch (error) {
+			// Dispose the child isolate if LOADER.get() created it before the
+			// failure (e.g. getTarget() threw). Ownership was never transferred to
+			// cachedUserWorker on this path, so without this the isolate leaks.
+			try {
+				workerHandle?.[Symbol.dispose]?.();
+			} catch {
+				// Best-effort: the isolate may already be gone.
+			}
 			// Preserve the inner message so callers can classify the failure
 			// (e.g. drainPendingUserWorkerEvents distinguishes transient vs
 			// persistent errors via TRANSIENT_ERROR_PATTERNS).
@@ -576,6 +603,36 @@ export class BaseDevice extends DurableObject<Env> {
 			throw new Error(
 				`Failed to initialize user worker: ${(error as Error).message}`,
 			);
+		}
+	}
+
+	/**
+	 * Release the dynamic-worker handle resolved by a *previous* DO invocation
+	 * and clear the intra-invocation cache.
+	 *
+	 * The WorkerStub returned by `env.LOADER.get()` owns a child isolate. Dropping
+	 * the JS reference relies on GC to dispose it, but GC lags badly under the
+	 * per-minute cron-alarm churn, so the isolates pile up until `LOADER.get()`
+	 * throws "Too many concurrent dynamic workers" — at which point every user-
+	 * worker init fails, `onCron`/`onDeviceConnect` never run, and the 60 s-wall
+	 * failed inits starve the device WebSocket into a reconnect loop. Disposing the
+	 * handle explicitly releases the isolate promptly and keeps at most one alive
+	 * per device between ticks.
+	 *
+	 * Called at every invocation entry point that resolves a worker (`alarm()`,
+	 * `handleRemoteCall()`), replacing the bare `cachedUserWorker = null`. It runs
+	 * on the *prior* invocation's handle, which is already stale — but disposal is
+	 * a local resource release in the parent, not an RPC into the child isolate,
+	 * so it is safe (unlike *calling a method* on a stale stub, which fans out
+	 * subrequests; see the cross-invocation-stub note above).
+	 */
+	protected releaseCachedUserWorker(): void {
+		const cached = this.cachedUserWorker;
+		this.cachedUserWorker = null;
+		try {
+			cached?.handle?.[Symbol.dispose]?.();
+		} catch {
+			// Best-effort: a handle from an already-recycled isolate may throw.
 		}
 	}
 
@@ -598,8 +655,9 @@ export class BaseDevice extends DurableObject<Env> {
 		// Drop any user-worker stub cached by a previous invocation — a cached
 		// getTarget() handle is an invocation-scoped child-isolate RPC stub and
 		// goes stale across calls (see the note in alarm() and the
-		// cloudflare-runtime-limitations skill). Re-resolve fresh for this call.
-		this.cachedUserWorker = null;
+		// cloudflare-runtime-limitations skill). Re-resolve fresh for this call,
+		// disposing the prior handle so its isolate doesn't leak.
+		this.releaseCachedUserWorker();
 
 		// Ensure deviceMeta is available (may not exist if device never connected via WS)
 		if (!this.deviceMeta) {
@@ -1195,7 +1253,10 @@ export class BaseDevice extends DurableObject<Env> {
 		// Clearing here forces a fresh resolve for this invocation; the resolved
 		// worker is still reused *within* this tick via the threaded `drainedWorker`
 		// (and the in-invocation cache), so we never resolve more than once a tick.
-		this.cachedUserWorker = null;
+		// Dispose (not just drop) the prior handle so its child isolate is released
+		// promptly — GC lag under per-minute churn otherwise piles them up until
+		// LOADER.get() throws "Too many concurrent dynamic workers".
+		this.releaseCachedUserWorker();
 
 		// Drain any queued onDeviceConnect / onMessage events first — they
 		// were deferred here from webSocketMessage because the Worker Loader

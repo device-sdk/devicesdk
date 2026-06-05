@@ -155,28 +155,36 @@ export class ClockDevice extends DeviceEntrypoint {
 			},
 		});
 
-		// onDeviceConnect is the first hook after a fresh (re)connect — the device
-		// just booted, so the OLED needs its one-time power-on init sequence. Draw
-		// immediately too, so the screen isn't blank until the first cron tick.
-		await this.updateDisplay({ init: true });
+		// Draw immediately so the screen isn't blank until the first cron tick.
+		await this.updateDisplay();
 	}
 
 	async onCron(_name: string) {
-		// The panel was already initialized on connect this session; just redraw.
-		await this.updateDisplay({ init: false });
+		await this.updateDisplay();
 	}
 
 	async onDeviceDisconnect() {
 		console.info("Clock disconnected");
 	}
 
-	private async updateDisplay({ init }: { init: boolean }) {
+	// Every cloud draw re-initializes the panel (init: true), it never assumes
+	// the controller is still in the state we last left it. This board's firmware
+	// shares this exact OLED: it paints "Server"/"Connected" status text on every
+	// WebSocket disconnect/reconnect, re-running the SSD1306 power-on sequence
+	// each time, and a brown-out or device reboot resets the controller too. If we
+	// sent a framebuffer without re-init (init: false), any of those events would
+	// leave the panel configured for the firmware's geometry — our pixels would
+	// write to an un-initialized controller and render nothing, so the clock would
+	// silently go dark until the next reboot. Re-initializing is idempotent and
+	// cheap on the SSD1306 (no visible flicker), so paying it once a minute buys
+	// guaranteed self-healing: the clock recovers within one tick of any glitch.
+	private async updateDisplay() {
 		const { time, date } = formatClock(TIMEZONE);
 		drawClockFace(this.display, time, date);
 		console.info(`Clock → ${time}  ${date}  (${TIMEZONE})`);
 
 		await this.env.DEVICE.sendCommand(
-			this.display.toDisplayCommand({ init, compress: false }),
+			this.display.toDisplayCommand({ init: true, compress: false }),
 		);
 	}
 }

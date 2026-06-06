@@ -1,6 +1,6 @@
 {
 	"name": "@devicesdk/api",
-	"version": "0.3.6",
+	"version": "0.3.7",
 	"description": "",
 	"type": "module",
 	"private": true,

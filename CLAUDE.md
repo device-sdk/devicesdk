@@ -111,6 +111,7 @@ const resp = await SELF.fetch("http://localhost/v1/...", {
 - `tests/setup-test-data.ts` — seeds users, projects, sessions (runs once per file via `beforeAll`)
 - `tests/vitest.config.mts` — `defineConfig` from `vitest/config` with `cloudflareTest()` plugin holding wrangler/miniflare bindings
 - **Coverage**: Istanbul provider configured; run `pnpm --filter @devicesdk/api test:coverage` for HTML/JSON reports in `apps/api/coverage/`. CI uploads coverage artifacts on every run.
+- **DO storage row-budget guardrails**: The `Device` DO is SQLite-backed, so every KV op and `device_logs` `sql.exec` bills as rows read/written. `tests/integration/storageRowBudget.test.ts` pins the row cost of the hot paths (pending user-event queue enqueue/drain, log persistence) so a regression that inflates per-op writes fails CI instead of becoming a quota bill. It uses `tests/helpers/meteredStorage.ts` — a counting Proxy around the real `DurableObjectStorage` (obtained via `runInDurableObject`) that tallies KV rows and per-`exec` `cursor.rowsRead`/`rowsWritten`. Reuse `meterStorage()` whenever asserting how many storage rows a code path touches. (Background + the per-log 3× write-amplification finding are in TROUBLESHOOT.md.)
 
 ### CLI Architecture (packages/cli)
 

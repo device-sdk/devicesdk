@@ -1,0 +1,5 @@
+---
+"@devicesdk/api": patch
+---
+
+Add Durable Object storage row-budget guardrail tests. The `Device` DO is SQLite-backed, so every KV op and `device_logs` SQL statement bills as rows read/written; a "rows written" quota spike is almost always a regression where a hot path starts writing O(N) rows where O(1) was intended. New `tests/integration/storageRowBudget.test.ts` (backed by a `tests/helpers/meteredStorage.ts` counting wrapper around the real `DurableObjectStorage`, obtained via `runInDurableObject`) pins the row cost of the known hot paths: the pending user-event queue enqueue/drain (must stay O(1) writes regardless of backlog; redundant `connect` coalesces to zero writes) and `device_logs` persistence (one insert costs a constant 3 row-writes — table + PK auto-index + `created_at` index — no per-write table scan; the overflow cleanup is wall-clock throttled and trims back to `LOG_MAX_STORED`). A future change that inflates per-operation row writes now fails CI instead of surfacing as a surprise bill.

@@ -371,8 +371,10 @@ export class BaseDevice extends DurableObject<Env> {
 			plan,
 		};
 
-		// Store deviceMeta in DO storage so it persists through hibernation
-		await this.ctx.storage.put("deviceMeta", this.deviceMeta);
+		// Store deviceMeta in DO storage so it persists through hibernation.
+		// Best-effort: a write-quota failure here must not fail the connection
+		// (deviceMeta is re-provided in every connect URL). See safeStoragePut.
+		await this.safeStoragePut("deviceMeta", this.deviceMeta);
 
 		const [client, server] = Object.values(new WebSocketPair());
 
@@ -381,7 +383,7 @@ export class BaseDevice extends DurableObject<Env> {
 		this._connectedSince = Date.now();
 		this._messageLimitNotified = false;
 
-		await this.ctx.storage.put(CONNECTED_SINCE_KEY, this._connectedSince);
+		await this.safeStoragePut(CONNECTED_SINCE_KEY, this._connectedSince);
 
 		// Notify watcher WebSockets of new connection
 		emitStatusEvent(this.ctx, {
@@ -389,12 +391,21 @@ export class BaseDevice extends DurableObject<Env> {
 			connectedSince: this._connectedSince,
 		});
 
-		// Cache connection status in D1 so getProject can read it without DO round-trips
-		await this.env.DB.prepare(
-			"UPDATE devices SET connected = 1, last_connected_at = ? WHERE id = ?",
-		)
-			.bind(Date.now(), this.deviceMeta.deviceId)
-			.run();
+		// Cache connection status in D1 so getProject can read it without DO
+		// round-trips. Best-effort: a D1 write failure must not fail the upgrade
+		// (the live socket is authoritative for connection state, not this flag).
+		try {
+			await this.env.DB.prepare(
+				"UPDATE devices SET connected = 1, last_connected_at = ? WHERE id = ?",
+			)
+				.bind(Date.now(), this.deviceMeta.deviceId)
+				.run();
+		} catch (err) {
+			logger.warn("Best-effort connected=1 D1 write failed (degraded)", {
+				deviceId: this.deviceMeta.deviceId,
+				error: (err as Error).message,
+			});
+		}
 
 		// Re-arm any per-device cron alarm from the persisted schedule now that a
 		// device socket is live again. alarm()'s cost guard cancels the alarm while
@@ -404,7 +415,15 @@ export class BaseDevice extends DurableObject<Env> {
 		// replaces) can re-establish the connection without that handshake being
 		// processed, which would otherwise leave the cron cancelled forever. This
 		// closes that gap. No-op on a first connect (no schedule stored yet).
-		await this.rearmCronAlarmFromStorage();
+		// Best-effort: a storage failure must not fail the upgrade.
+		try {
+			await this.rearmCronAlarmFromStorage();
+		} catch (err) {
+			logger.warn("Best-effort cron re-arm on connect failed (degraded)", {
+				deviceId: this.deviceMeta.deviceId,
+				error: (err as Error).message,
+			});
+		}
 
 		return new Response(null, {
 			status: 101,
@@ -629,10 +648,54 @@ export class BaseDevice extends DurableObject<Env> {
 	protected releaseCachedUserWorker(): void {
 		const cached = this.cachedUserWorker;
 		this.cachedUserWorker = null;
+		if (!cached) return;
+		// Dispose BOTH the WorkerStub handle and the getTarget() result stub. Each
+		// getTarget() call returns a fresh RPC stub into the child isolate; like the
+		// handle, dropping it relies on GC, which lags under the per-minute churn.
+		// Releasing both promptly is what actually keeps the live dynamic-worker
+		// count at ~1 per device (disposing only the handle left the per-invocation
+		// target stubs to accumulate, which still drifted toward the concurrency
+		// cap over ~an hour). Disposal is a local release, not an RPC, so it is safe
+		// on the now-stale stubs.
 		try {
-			cached?.handle?.[Symbol.dispose]?.();
+			(cached.worker as { [Symbol.dispose]?: () => void })?.[
+				Symbol.dispose
+			]?.();
+		} catch {
+			// Best-effort: a stub from an already-recycled isolate may throw.
+		}
+		try {
+			cached.handle?.[Symbol.dispose]?.();
 		} catch {
 			// Best-effort: a handle from an already-recycled isolate may throw.
+		}
+	}
+
+	/**
+	 * Best-effort Durable Object storage write. Swallows write failures (logging
+	 * once) instead of letting them propagate.
+	 *
+	 * Why this exists: under the Cloudflare free tier, the DO daily "rows written"
+	 * allowance can be exhausted (`Exceeded allowed rows written in Durable Objects
+	 * free tier`). When that happens every `storage.put` throws. If those throws
+	 * propagate out of the WebSocket-upgrade path, the *connection itself* fails
+	 * (503) even though the persisted value is non-critical (deviceMeta is re-sent
+	 * in every connect URL; connectedSince is a cosmetic uptime metric). The device
+	 * firmware then reconnects, which attempts the same writes, which fail again — a
+	 * tight reconnect loop that keeps the write quota pinned and the device dark.
+	 * Degrading these writes to best-effort keeps the socket alive and the clock
+	 * drawing (draws send WebSocket commands, not storage writes), and lets the
+	 * write quota recover instead of being hammered by reconnect churn.
+	 */
+	protected async safeStoragePut(key: string, value: unknown): Promise<void> {
+		try {
+			await this.ctx.storage.put(key, value);
+		} catch (err) {
+			logger.warn("Best-effort DO storage write failed (degraded)", {
+				key,
+				deviceId: this.deviceMeta?.deviceId,
+				error: (err as Error).message,
+			});
 		}
 	}
 

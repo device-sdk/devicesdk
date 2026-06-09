@@ -14,13 +14,13 @@
 				"public/**"
 			]
 		},
-		"@devicesdk/api#build": {
+		"@devicesdk/server#build": {
 			"dependsOn": ["^build"],
-			"inputs": ["$TURBO_DEFAULT$", ".env*", ".dev.vars*"],
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
 			"outputs": ["openapi.json"]
 		},
 		"@devicesdk/website#build": {
-			"dependsOn": ["^build", "@devicesdk/api#build"],
+			"dependsOn": ["^build", "@devicesdk/server#build"],
 			"inputs": ["$TURBO_DEFAULT$", ".env*"],
 			"outputs": ["public/**", "static/docs/api/openapi.json"]
 		},

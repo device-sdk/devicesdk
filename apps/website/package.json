@@ -1,26 +1,26 @@
 {
-  "name": "@devicesdk/website",
-  "version": "0.1.2",
-  "description": "",
-  "license": "SEE LICENSE IN LICENSE",
-  "author": "",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "build-tailwind": "npx @tailwindcss/cli -i ./src/input.css -o ./static/styles.css",
-    "build": "rm -rf public && mkdir -p static/docs/api && (test -f ../api/openapi.json || (echo 'ERROR: ../api/openapi.json missing. Run \"pnpm --filter @devicesdk/api build\" first, or use \"pnpm build\" from the monorepo root.' >&2 && exit 1)) && cp ../api/openapi.json static/docs/api/openapi.json && pnpm run build-tailwind && node generate-og.js && node generate-agent-skills.js && hugo",
-    "dev": "hugo server -D",
-    "deploy": "npx wrangler deploy",
-    "clean": "rm -rf public resources/_gen"
-  },
-  "dependencies": {
-    "wrangler": "catalog:"
-  },
-  "devDependencies": {
-    "@tailwindcss/cli": "^4.1.18",
-    "glob": "^13.0.0",
-    "gray-matter": "^4.0.3",
-    "playwright": "^1.57.0",
-    "tailwindcss": "catalog:tailwind4"
-  }
+	"name": "@devicesdk/website",
+	"version": "0.1.2",
+	"description": "",
+	"license": "AGPL-3.0-only",
+	"author": "",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"build-tailwind": "npx @tailwindcss/cli -i ./src/input.css -o ./static/styles.css",
+		"build": "rm -rf public && mkdir -p static/docs/api && (test -f ../server/openapi.json || (echo 'ERROR: ../server/openapi.json missing. Run \"pnpm --filter @devicesdk/server build\" first, or use \"pnpm build\" from the monorepo root.' >&2 && exit 1)) && cp ../server/openapi.json static/docs/api/openapi.json && pnpm run build-tailwind && node generate-og.js && node generate-agent-skills.js && hugo",
+		"dev": "hugo server -D",
+		"deploy": "npx wrangler deploy",
+		"clean": "rm -rf public resources/_gen"
+	},
+	"dependencies": {
+		"wrangler": "catalog:"
+	},
+	"devDependencies": {
+		"@tailwindcss/cli": "^4.1.18",
+		"glob": "^13.0.0",
+		"gray-matter": "^4.0.3",
+		"playwright": "^1.57.0",
+		"tailwindcss": "catalog:tailwind4"
+	}
 }

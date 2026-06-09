@@ -4,14 +4,14 @@
 	"scripts": {
 		"build": "turbo run build",
 		"dev": "turbo run dev",
-		"lint": "biome check --write apps/api apps/simulation packages/core packages/cli && turbo run lint",
+		"lint": "biome check --write apps/server apps/simulation packages/core packages/cli && turbo run lint",
 		"test": "turbo run test",
 		"check-types": "turbo run check-types",
 		"deploy": "turbo run deploy",
 		"clean": "turbo run clean",
-		"local": "pnpm --filter @devicesdk/api dev & pnpm --filter @devicesdk/dashboard dev",
-		"local:deploy": "DEVICESDK_API_URL=http://localhost:8787 pnpm --filter @devicesdk/example-basic run deploy",
-		"local:login": "DEVICESDK_API_URL=http://localhost:8787 npx devicesdk login",
+		"local": "pnpm --filter @devicesdk/server dev & pnpm --filter @devicesdk/dashboard dev",
+		"local:deploy": "DEVICESDK_API_URL=http://localhost:8080 pnpm --filter @devicesdk/example-basic run deploy",
+		"local:login": "DEVICESDK_API_URL=http://localhost:8080 npx devicesdk login",
 		"local:flash": "pnpm --filter @devicesdk/example-basic flash-local",
 		"changeset": "changeset",
 		"version-packages": "changeset version",
@@ -19,7 +19,7 @@
 		"prepare": "husky"
 	},
 	"lint-staged": {
-		"{apps/api,apps/simulation,packages/core,packages/cli}/**/*.{ts,tsx,js,mjs,cjs,json,jsonc}": [
+		"{apps/server,apps/simulation,packages/core,packages/cli}/**/*.{ts,tsx,js,mjs,cjs,json,jsonc}": [
 			"biome check --write --no-errors-on-unmatched"
 		],
 		"apps/dashboard/src*/**/*.{ts,js,cjs,mjs,vue}": [
@@ -41,5 +41,6 @@
 		"patchedDependencies": {
 			"chanfana@3.3.0": "patches/chanfana@3.3.0.patch"
 		}
-	}
+	},
+	"license": "AGPL-3.0-only"
 }

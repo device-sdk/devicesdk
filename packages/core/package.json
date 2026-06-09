@@ -3,7 +3,7 @@
 	"version": "1.4.2",
 	"description": "Core TypeScript types and device abstractions for DeviceSDK IoT applications.",
 	"author": "DeviceSDK <hello@devicesdk.com>",
-	"license": "SEE LICENSE IN LICENSE",
+	"license": "AGPL-3.0-only",
 	"homepage": "https://devicesdk.com/docs/",
 	"bugs": {
 		"url": "https://github.com/device-sdk/devicesdk-monorepo/issues"

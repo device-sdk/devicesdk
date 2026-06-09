@@ -97,40 +97,28 @@ jobs:
             firmware/pico/dist/devicesdk-pico2-w-client.uf2
           if-no-files-found: error
 
-  upload-to-r2:
-    name: Upload firmware to R2
+  publish-release:
+    name: Publish firmware to GitHub Release
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     needs: build
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
     steps:
-      # The artifact upload only needs wrangler, but this runner ships no
-      # Node — set it up the same way the ci.yml jobs do and install the
-      # workspace's pinned wrangler (apps/api → catalog) rather than letting
-      # `npx` pull an unpinned latest.
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: '.nvmrc'
-      - name: Install wrangler
-        run: pnpm install --frozen-lockfile --filter @devicesdk/api
 
       - uses: actions/download-artifact@v8
         with:
           name: devicesdk-pico-firmware
-          path: firmware/
+          path: firmware-dist/
 
-      # `pnpm --filter … exec` runs wrangler with CWD set to apps/api, so the
-      # --file path must be absolute — the artifact is downloaded to the
-      # workspace-root firmware/ dir, not apps/api/firmware/.
-      - name: Upload Pico W firmware to R2
-        run: pnpm --filter @devicesdk/api exec wrangler r2 object put devicesdk-firmwares/devicesdk-pico-w-client.uf2 --file="$GITHUB_WORKSPACE/firmware/devicesdk-pico-w-client.uf2" --remote
+      # Rolling release per firmware family — see firmware-esp32.yml.
+      - name: Upload binaries to the firmware-pico release
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df
-
-      - name: Upload Pico 2W firmware to R2
-        run: pnpm --filter @devicesdk/api exec wrangler r2 object put devicesdk-firmwares/devicesdk-pico2-w-client.uf2 --file="$GITHUB_WORKSPACE/firmware/devicesdk-pico2-w-client.uf2" --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view firmware-pico >/dev/null 2>&1 || \
+            gh release create firmware-pico --title "Pico firmware (rolling)" \
+              --notes "Latest Pico W / Pico 2 W client UF2s, updated on every firmware change." --latest=false
+          gh release upload firmware-pico "firmware-dist/devicesdk-pico-w-client.uf2" --clobber
+          gh release upload firmware-pico "firmware-dist/devicesdk-pico2-w-client.uf2" --clobber

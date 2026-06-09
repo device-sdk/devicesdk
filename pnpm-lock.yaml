@@ -12,12 +12,6 @@ catalogs:
     '@vitest/coverage-istanbul':
       specifier: ^4.1.5
       version: 4.1.5
-    '@vitest/runner':
-      specifier: ^4.1.5
-      version: 4.1.5
-    '@vitest/snapshot':
-      specifier: ^4.1.5
-      version: 4.1.5
     tsx:
       specifier: ^4.20.5
       version: 4.21.0
@@ -63,58 +57,6 @@ importers:
       turbo:
         specifier: ^2.9.16
         version: 2.9.16
-
-  apps/api:
-    dependencies:
-      '@devicesdk/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@hono/oauth-providers':
-        specifier: ^0.8.5
-        version: 0.8.5(hono@4.12.23)
-      '@sentry/cloudflare':
-        specifier: ^10.55.0
-        version: 10.55.0(@cloudflare/workers-types@4.20260501.1)
-      chanfana:
-        specifier: 3.3.0
-        version: 3.3.0(patch_hash=mwdcsktalhf2qc335xrgn4bizi)
-      hono:
-        specifier: ^4.12.23
-        version: 4.12.23
-      workers-qb:
-        specifier: ^1.11.2
-        version: 1.13.0
-      zod:
-        specifier: catalog:zod4
-        version: 4.3.6
-    devDependencies:
-      '@cloudflare/vitest-pool-workers':
-        specifier: ^0.15.2
-        version: 0.15.2(@cloudflare/workers-types@4.20260501.1)(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5)
-      '@cloudflare/workers-types':
-        specifier: ^4.20260501.1
-        version: 4.20260501.1
-      '@types/node':
-        specifier: 'catalog:'
-        version: 22.19.9
-      '@vitest/coverage-istanbul':
-        specifier: 'catalog:'
-        version: 4.1.5(vitest@4.1.5)
-      '@vitest/runner':
-        specifier: 'catalog:'
-        version: 4.1.5
-      '@vitest/snapshot':
-        specifier: 'catalog:'
-        version: 4.1.5
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-      vitest:
-        specifier: 'catalog:'
-        version: 4.1.5(@opentelemetry/api@1.9.1)(@types/node@22.19.9)(@vitest/coverage-istanbul@4.1.5)(happy-dom@15.11.7)(jsdom@28.1.0)(vite@7.3.1(@types/node@22.19.9)(jiti@2.6.1)(lightningcss@1.30.2)(sass-embedded@1.97.3)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.4))
-      wrangler:
-        specifier: 'catalog:'
-        version: 4.87.0(@cloudflare/workers-types@4.20260501.1)
 
   apps/dashboard:
     dependencies:
@@ -663,13 +605,6 @@ packages:
     peerDependenciesMeta:
       workerd:
         optional: true
-
-  '@cloudflare/vitest-pool-workers@0.15.2':
-    resolution: {integrity: sha512-zQ6H1sEIhApOJm08EuKUmRvpxiiploPnNmx4R+X8Slp76MRXyaNxYkA9TW/r0fiDu98SWqJwACkuHh3nKZvfUQ==}
-    peerDependencies:
-      '@vitest/runner': ^4.1.0
-      '@vitest/snapshot': ^4.1.0
-      vitest: ^4.1.0
 
   '@cloudflare/workerd-darwin-64@1.20260205.0':
     resolution: {integrity: sha512-ToOItqcirmWPwR+PtT+Q4bdjTn/63ZxhJKEfW4FNn7FxMTS1Tw5dml0T0mieOZbCpcvY8BdvPKFCSlJuI8IVHQ==}
@@ -1305,12 +1240,6 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@hono/oauth-providers@0.8.5':
-    resolution: {integrity: sha512-hgEDH/gUmB/opman9jvT8dLItZsSC9M9yFiaam0b6InK7WQkdzIcaRAkdda47QpixnK9S1Ah2vjDB2U16LkMnA==}
-    engines: {node: '>=18.4.0'}
-    peerDependencies:
-      hono: '>=3.0.0'
-
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
     engines: {node: '>=18.18.0'}
@@ -1842,19 +1771,6 @@ packages:
     resolution: {integrity: sha512-mxRFDdHIWRxg3UfIIAwCm6NzvxG0jDX/wBN6KsQFTvKFqqg9vTrWUE68qEjHt19A5wwx5X5aUi2zuZT7YR0jrA==}
     cpu: [x64]
     os: [win32]
-
-  '@sentry/cloudflare@10.55.0':
-    resolution: {integrity: sha512-1FcCtbQb60bKJGQuxtTzqicolRea9SK8DdwZKMKjBNjuqsSDf48jh//nE05/qX0NIj7NxsmsLeTtxchMIrz6AQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@cloudflare/workers-types': ^4.x
-    peerDependenciesMeta:
-      '@cloudflare/workers-types':
-        optional: true
-
-  '@sentry/core@10.55.0':
-    resolution: {integrity: sha512-XUyoNtDSYCvgJnoNzlh+YeAXfIPhCRIXbhWqqM3GQ3AFtZICi85lkyfsrwXEl9wzlPGYnU+Eg8F4tOfScx+FcQ==}
-    engines: {node: '>=18'}
 
   '@sindresorhus/is@7.2.0':
     resolution: {integrity: sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw==}
@@ -2530,9 +2446,6 @@ packages:
   ci-info@4.4.0:
     resolution: {integrity: sha512-77PSwercCZU2Fc4sX94eF8k8Pxte6JAwL4/ICZLFjJLqegs7kCuAsqqj/70NQF6TvDpgFjkubQB2FW2ZZddvQg==}
     engines: {node: '>=8'}
-
-  cjs-module-lexer@1.4.3:
-    resolution: {integrity: sha512-9z8TZaGM1pfswYeXrUpzPrkx8UnWYdhJclsiYMm6x/w5+nN+8Tf/LnAgfLGQCm59qAOxU8WwHEq2vNwF6i4j+Q==}
 
   clean-css@5.3.3:
     resolution: {integrity: sha512-D5J+kHaVb/wKSFcyyV75uCn8fiY4sV38XJoe4CUyGQ+mOU/fMVYUdH1hJC+CJQ5uY3EnW27SbJYS4X8BiLrAFg==}
@@ -5197,9 +5110,6 @@ packages:
     peerDependencies:
       zod: ^3.25.28 || ^4
 
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
-
   zod@4.3.6:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
@@ -5528,21 +5438,6 @@ snapshots:
     optionalDependencies:
       workerd: 1.20260430.1
 
-  '@cloudflare/vitest-pool-workers@0.15.2(@cloudflare/workers-types@4.20260501.1)(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5)':
-    dependencies:
-      '@vitest/runner': 4.1.5
-      '@vitest/snapshot': 4.1.5
-      cjs-module-lexer: 1.4.3
-      esbuild: 0.27.3
-      miniflare: 4.20260430.0
-      vitest: 4.1.5(@opentelemetry/api@1.9.1)(@types/node@22.19.9)(@vitest/coverage-istanbul@4.1.5)(happy-dom@15.11.7)(jsdom@28.1.0)(vite@7.3.1(@types/node@22.19.9)(jiti@2.6.1)(lightningcss@1.30.2)(sass-embedded@1.97.3)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.4))
-      wrangler: 4.87.0(@cloudflare/workers-types@4.20260501.1)
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - bufferutil
-      - utf-8-validate
-
   '@cloudflare/workerd-darwin-64@1.20260205.0':
     optional: true
 
@@ -5573,7 +5468,8 @@ snapshots:
   '@cloudflare/workerd-windows-64@1.20260430.1':
     optional: true
 
-  '@cloudflare/workers-types@4.20260501.1': {}
+  '@cloudflare/workers-types@4.20260501.1':
+    optional: true
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
@@ -5912,10 +5808,6 @@ snapshots:
     dependencies:
       hono: 4.12.23
 
-  '@hono/oauth-providers@0.8.5(hono@4.12.23)':
-    dependencies:
-      hono: 4.12.23
-
   '@humanfs/core@0.19.1': {}
 
   '@humanfs/node@0.16.7':
@@ -6130,7 +6022,8 @@ snapshots:
 
   '@one-ini/wasm@0.1.1': {}
 
-  '@opentelemetry/api@1.9.1': {}
+  '@opentelemetry/api@1.9.1':
+    optional: true
 
   '@parcel/watcher-android-arm64@2.5.6':
     optional: true
@@ -6384,15 +6277,6 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.57.1':
     optional: true
-
-  '@sentry/cloudflare@10.55.0(@cloudflare/workers-types@4.20260501.1)':
-    dependencies:
-      '@opentelemetry/api': 1.9.1
-      '@sentry/core': 10.55.0
-    optionalDependencies:
-      '@cloudflare/workers-types': 4.20260501.1
-
-  '@sentry/core@10.55.0': {}
 
   '@sindresorhus/is@7.2.0': {}
 
@@ -7180,8 +7064,6 @@ snapshots:
   ci-info@3.9.0: {}
 
   ci-info@4.4.0: {}
-
-  cjs-module-lexer@1.4.3: {}
 
   clean-css@5.3.3:
     dependencies:
@@ -9849,8 +9731,6 @@ snapshots:
   zod-to-json-schema@3.25.2(zod@4.3.6):
     dependencies:
       zod: 4.3.6
-
-  zod@3.25.76: {}
 
   zod@4.3.6: {}
 

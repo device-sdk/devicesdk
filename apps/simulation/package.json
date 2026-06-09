@@ -26,5 +26,6 @@
 		"vite": "^6.3.0",
 		"vitest": "catalog:",
 		"vue-tsc": "^3.0.7"
-	}
+	},
+	"license": "AGPL-3.0-only"
 }

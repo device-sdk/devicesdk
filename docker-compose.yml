@@ -1,0 +1,23 @@
+# Self-hosted DeviceSDK — single container serving the API, device
+# WebSockets, and the dashboard UI on one port.
+#
+#   docker compose up -d
+#   open http://localhost:8080  (first visit creates the admin account)
+#
+# Devices on your LAN connect to ws://<this-machine>:8080.
+services:
+  devicesdk:
+    image: ghcr.io/device-sdk/devicesdk:latest
+    # To build from source instead:
+    # build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      # All persistent state: SQLite database, device scripts, firmware images.
+      - ./data:/data
+    environment:
+      # Disable to stop new account sign-ups after yours is created.
+      ALLOW_REGISTRATION: "true"
+      # Enable if you serve this behind an HTTPS reverse proxy.
+      SECURE_COOKIES: "false"
+    restart: unless-stopped

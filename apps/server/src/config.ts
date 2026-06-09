@@ -42,6 +42,9 @@ export function loadConfig(
 		dbPath: join(dataDir, "devicesdk.sqlite"),
 		scriptsDir: join(dataDir, "scripts"),
 		firmwaresDir: join(dataDir, "firmwares"),
-		migrationsDir: new URL("../migrations", import.meta.url).pathname,
+		// Overridable because the Docker image runs a bundled server.js whose
+		// import.meta.url no longer sits next to the migrations directory.
+		migrationsDir:
+			env.MIGRATIONS_DIR || new URL("../migrations", import.meta.url).pathname,
 	};
 }

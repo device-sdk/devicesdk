@@ -5,7 +5,7 @@
 // auth flows. Keep this the single source of truth.
 
 const resolveApiHost = (): string => {
-  const envHost = import.meta.env.VITE_API_HOST as string | undefined;
+  const envHost: string | undefined = import.meta.env.VITE_API_HOST;
   if (envHost) return envHost.replace(/\/$/, '');
   // Production builds are served same-origin by the DeviceSDK server.
   if (import.meta.env.PROD) return window.location.origin;

@@ -32,7 +32,7 @@ export class FsBlobStore {
 	}
 
 	/** Resolves a key to an absolute path, rejecting traversal outside root. */
-	private pathFor(key: string): string {
+	filePath(key: string): string {
 		const abs = resolve(this.root, key);
 		if (abs !== this.root && !abs.startsWith(this.root + sep)) {
 			throw new Error(`Invalid blob key: ${key}`);
@@ -41,7 +41,7 @@ export class FsBlobStore {
 	}
 
 	async get(key: string): Promise<BlobObject | null> {
-		const path = this.pathFor(key);
+		const path = this.filePath(key);
 		const file = Bun.file(path);
 		if (!(await file.exists())) return null;
 		return {
@@ -58,7 +58,7 @@ export class FsBlobStore {
 		key: string,
 		value: string | ArrayBuffer | ArrayBufferView | Uint8Array,
 	): Promise<void> {
-		const path = this.pathFor(key);
+		const path = this.filePath(key);
 		await mkdir(dirname(path), { recursive: true });
 		if (typeof value === "string") {
 			await writeFile(path, value, "utf-8");
@@ -73,7 +73,7 @@ export class FsBlobStore {
 	}
 
 	async delete(key: string): Promise<void> {
-		await rm(this.pathFor(key), { force: true });
+		await rm(this.filePath(key), { force: true });
 	}
 
 	async list(options?: {
@@ -94,7 +94,7 @@ export class FsBlobStore {
 		const objects = await Promise.all(
 			page.map(async (key) => ({
 				key,
-				size: (await stat(this.pathFor(key))).size,
+				size: (await stat(this.filePath(key))).size,
 			})),
 		);
 		const truncated = offset + limit < keys.length;

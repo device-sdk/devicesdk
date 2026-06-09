@@ -1,5 +1,15 @@
 type LogContext = Record<string, unknown>;
 
+// Bind the real console functions at module load — before consoleCapture
+// patches them — so server-side logs are never captured into device logs
+// (and a failure inside the log-capture path can't recurse).
+const raw = {
+	log: console.log.bind(console),
+	info: console.info.bind(console),
+	warn: console.warn.bind(console),
+	error: console.error.bind(console),
+};
+
 function emit(
 	level: "debug" | "info" | "warn" | "error",
 	message: string,
@@ -12,7 +22,7 @@ function emit(
 		...context,
 	};
 	// One JSON object per line — easy to grep and to ship to any collector.
-	console[level === "debug" ? "log" : level](JSON.stringify(line));
+	raw[level === "debug" ? "log" : level](JSON.stringify(line));
 }
 
 export const logger = {

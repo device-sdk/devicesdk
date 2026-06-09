@@ -18,6 +18,7 @@ import {
 	cliAuthRouterPreAuth,
 } from "./endpoints/cli-auth/router";
 import { devicesRouter } from "./endpoints/devices/router";
+import { registerDeviceWsRoutes } from "./endpoints/devices/wsRoutes";
 import { envVarsRouter } from "./endpoints/env-vars/router";
 import { logsRouter } from "./endpoints/logs/router";
 import { projectsRouter } from "./endpoints/projects/router";
@@ -137,6 +138,7 @@ app.post("/cli/auth", cliAuthUser, handleApproval);
 app.use("/v1/*", authenticateUser);
 
 // 3. Endpoints that require auth
+registerDeviceWsRoutes(app);
 app.route("/v1/cli/auth", cliAuthRouterPostAuth);
 app.post("/v1/auth/logout", handleLogout);
 app.route("/v1/user", userRouter);

@@ -1,12 +1,12 @@
+import type { Database } from "bun:sqlite";
 import type { DeviceCommand } from "@devicesdk/core";
-import type { BunSqliteQB } from "../db/bunSqliteQB";
 import type { FsBlobStore } from "../storage/fsBlobStore";
+import { DeviceSession } from "./deviceSession";
+import { makeBridge } from "./devicesBridge";
 
 /**
  * The per-device surface the REST endpoints call — the same method names the
  * Durable Object stub used to expose, so endpoint call sites are unchanged.
- * Phase 2 backs this with live DeviceSession WebSocket state; until then the
- * hub answers as "device not connected".
  */
 export interface DeviceHandle {
 	getConnectionStatus(): Promise<{
@@ -20,17 +20,20 @@ export interface DeviceHandle {
 }
 
 export interface DeviceHubDeps {
-	qb: BunSqliteQB;
+	db: Database;
 	scripts: FsBlobStore;
 }
 
 /**
- * Registry of live device sessions, keyed `${projectId}:${deviceId}` — the
- * same identity the Durable Object namespace used. Replaces the DO: instead
- * of resolving a stub, callers get an in-process handle.
+ * Registry of device sessions, keyed `${projectId}:${deviceId}` (the same
+ * identity the Durable Object namespace used). Replaces the DO: instead of
+ * resolving a stub, callers get the in-process DeviceSession. Sessions are
+ * created lazily on first touch and live for the process lifetime — they're
+ * small, and a session with no live socket still serves watchers and RPC.
  */
 export class DeviceHub {
 	private deps: DeviceHubDeps;
+	private sessions = new Map<string, DeviceSession>();
 
 	constructor(deps: DeviceHubDeps) {
 		this.deps = deps;
@@ -38,24 +41,27 @@ export class DeviceHub {
 
 	/** Mark all devices disconnected — sessions don't survive a restart. */
 	resetConnectionState(): void {
-		this.deps.qb.db.query("UPDATE devices SET connected = 0").run();
+		this.deps.db.query("UPDATE devices SET connected = 0").run();
 	}
 
-	get(projectId: string, deviceId: string): DeviceHandle {
-		// Phase 1: no live sessions yet — every device reports disconnected.
-		// Phase 2 returns the live DeviceSession when one is registered.
-		void projectId;
-		void deviceId;
-		return {
-			async getConnectionStatus() {
-				return { connected: false, connectedSince: null };
-			},
-			async handleCommand() {
-				return { status: 503, body: "Device not connected" };
-			},
-			async triggerRebootForDeploy() {
-				return { rebooted: false, reason: "Device not connected" };
-			},
-		};
+	get(projectId: string, deviceId: string): DeviceSession {
+		const key = `${projectId}:${deviceId}`;
+		let session = this.sessions.get(key);
+		if (!session) {
+			session = new DeviceSession(projectId, deviceId, {
+				db: this.deps.db,
+				scripts: this.deps.scripts,
+				makeBridge: (meta) =>
+					makeBridge(
+						{
+							db: this.deps.db,
+							getSession: (pid, did) => this.get(pid, did),
+						},
+						meta,
+					),
+			});
+			this.sessions.set(key, session);
+		}
+		return session;
 	}
 }

@@ -7,9 +7,11 @@ import { applyMigrations } from "./db/migrate";
 import { logger } from "./foundation/logger";
 import { app } from "./index";
 import { startJanitor } from "./janitor";
+import { installConsoleCapture } from "./runtime/consoleCapture";
 import { DeviceHub } from "./runtime/deviceHub";
 import { FsBlobStore } from "./storage/fsBlobStore";
 import type { Env } from "./types";
+import { websocket } from "./ws";
 
 const config = loadConfig();
 
@@ -39,7 +41,7 @@ if (config.firmwaresDistDir && existsSync(config.firmwaresDistDir)) {
 }
 
 // --- device runtime ---
-const hub = new DeviceHub({ qb, scripts });
+const hub = new DeviceHub({ db, scripts });
 hub.resetConnectionState();
 
 const services: Env = {
@@ -53,17 +55,13 @@ const services: Env = {
 	server: undefined,
 };
 
+installConsoleCapture();
 startJanitor(qb);
 
 const server = Bun.serve({
 	port: config.port,
 	fetch: (req) => app.fetch(req, services),
-	// Populated in Phase 2 by createBunWebSocket's handler (device + watcher sockets).
-	websocket: {
-		message() {},
-		open() {},
-		close() {},
-	},
+	websocket,
 });
 // hono's bun adapter resolves the server from c.env.server for WS upgrades.
 services.server = server;

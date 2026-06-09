@@ -2,7 +2,6 @@ import { fromHono } from "chanfana";
 import { Hono } from "hono";
 import { CreateDevice } from "./createDevice";
 import { DeleteDevice } from "./deleteDevice";
-import { DeviceConnect } from "./deviceConnect";
 import { DownloadFirmware } from "./downloadFirmware";
 import { GetDevice } from "./getDevice";
 import { GetDeviceEntities } from "./getDeviceEntities";
@@ -11,7 +10,6 @@ import { ListDevices } from "./listDevices";
 import { SendDeviceCommand } from "./sendCommand";
 import { UpdateDevice } from "./updateDevice";
 import { UpsertDeviceEntities } from "./upsertDeviceEntities";
-import { WatchDevice } from "./watchDevice";
 
 export const devicesRouter = fromHono(new Hono());
 
@@ -21,8 +19,6 @@ devicesRouter.get("/:deviceId", GetDevice);
 devicesRouter.put("/:deviceId", UpdateDevice);
 devicesRouter.delete("/:deviceId", DeleteDevice);
 devicesRouter.get("/:deviceId/status", GetDeviceStatus);
-devicesRouter.get("/:deviceId/connect/websocket", DeviceConnect);
-devicesRouter.get("/:deviceId/watch", WatchDevice);
 devicesRouter.get("/:deviceId/entities", GetDeviceEntities);
 devicesRouter.put("/:deviceId/entities", UpsertDeviceEntities);
 devicesRouter.post("/:deviceId/firmware", DownloadFirmware);

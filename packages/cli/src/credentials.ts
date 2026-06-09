@@ -10,6 +10,8 @@ export interface Credentials {
 	refreshToken: string;
 	expiresAt: number;
 	email: string;
+	/** Base URL of the self-hosted server this login belongs to. */
+	host?: string;
 }
 
 // Internal sentinel returned by getToken() when the refresh attempt is

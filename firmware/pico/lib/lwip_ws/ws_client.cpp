@@ -2,6 +2,7 @@
 #include "pico/cyw43_arch.h"
 #include "pico/rand.h"
 #include "lwip/dns.h"
+#include "lwip/altcp_tcp.h"
 #include <cstring>
 #include <algorithm>
 #include "picojson.h"
@@ -16,7 +17,7 @@
 #define MAX_RX_BUFFER_SIZE 16384
 #define MAX_TX_QUEUE_SIZE 10
 
-WebsocketClient::WebsocketClient() : tls_pcb(nullptr), tls_config(nullptr), port(443), connected_state(0), http_response_complete(false), in_callback(false) {}
+WebsocketClient::WebsocketClient() : tls_pcb(nullptr), tls_config(nullptr), use_tls(true), port(443), connected_state(0), http_response_complete(false), in_callback(false) {}
 
 WebsocketClient::~WebsocketClient() {
     if (tls_pcb) {
@@ -34,15 +35,19 @@ bool WebsocketClient::connect(const char* host, const char* path, const char* to
         close_connection();
     }
 
-    // Parse port from host if present (e.g. "localhost:8787")
+    // Parse port from host if present (e.g. "192.168.1.10:8080").
+    // An explicit port means a self-hosted server on the LAN -> plain WS;
+    // a bare hostname means TLS on 443 (same heuristic as the ESP32 client).
     std::string host_str(host);
     auto colon = host_str.find(':');
     if (colon != std::string::npos) {
         this->port = std::stoi(host_str.substr(colon + 1));
         this->host = host_str.substr(0, colon);
+        this->use_tls = false;
     } else {
         this->port = 443;
         this->host = host_str;
+        this->use_tls = true;
     }
 
     this->path = path;
@@ -127,17 +132,25 @@ void WebsocketClient::on_dns_found(const ip_addr_t *ipaddr) {
     if (ipaddr) {
         remote_addr = *ipaddr;
 
-        // Create TLS config with embedded root CA for server certificate verification
-        tls_config = altcp_tls_create_config_client(ca_cert_pem, ca_cert_pem_len);
-        if (!tls_config) {
-            return;
-        }
+        if (use_tls) {
+            // Create TLS config with embedded root CA for server certificate verification
+            tls_config = altcp_tls_create_config_client(ca_cert_pem, ca_cert_pem_len);
+            if (!tls_config) {
+                return;
+            }
 
-        tls_pcb = altcp_tls_new(tls_config, IPADDR_TYPE_ANY);
-        if (!tls_pcb) {
-            altcp_tls_free_config(tls_config);
-            tls_config = nullptr;
-            return;
+            tls_pcb = altcp_tls_new(tls_config, IPADDR_TYPE_ANY);
+            if (!tls_pcb) {
+                altcp_tls_free_config(tls_config);
+                tls_config = nullptr;
+                return;
+            }
+        } else {
+            // Plain TCP for self-hosted servers without TLS (host had a port).
+            tls_pcb = altcp_tcp_new_ip_type(IPADDR_TYPE_ANY);
+            if (!tls_pcb) {
+                return;
+            }
         }
 
         altcp_arg(tls_pcb, this);

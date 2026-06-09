@@ -29,15 +29,6 @@ export function formatBytes(n: number): string {
   return `${value.toFixed(1)} ${units[i]}`;
 }
 
-/**
- * Format an estimated USD amount. Sub-cent values keep more precision so tiny
- * usage doesn't read as "$0.00".
- */
-export function formatUsd(n: number): string {
-  if (n === 0) return '$0.00';
-  if (n < 0.01) return `$${n.toFixed(4)}`;
-  return `$${n.toFixed(2)}`;
-}
 
 /** Format seconds as a coarse duration: 3600 → "1.0h", 90 → "1.5m". */
 export function formatDuration(seconds: number): string {
@@ -106,27 +97,3 @@ export function buildProjectMessagesOption(
   };
 }
 
-/** 30-day daily estimated-spend area chart. */
-export function buildBillingOption(
-  daily: { ts: number; estimated_cost_usd: number }[],
-): EChartsOption {
-  return {
-    grid: { top: 24, right: 16, bottom: 32, left: 64 },
-    tooltip: {
-      trigger: 'axis',
-      valueFormatter: (v) => formatUsd(Number(v)),
-    },
-    xAxis: { type: 'time' },
-    yAxis: {
-      type: 'value',
-      axisLabel: { formatter: (v: number) => formatUsd(v) },
-    },
-    series: [
-      {
-        name: 'Estimated spend',
-        type: 'bar',
-        data: daily.map((d) => [d.ts, d.estimated_cost_usd]),
-      },
-    ],
-  };
-}

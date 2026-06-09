@@ -39,14 +39,18 @@ Set DEVICESDK_OUTPUT=json to make every read command emit machine-readable JSON.
 // Auth commands
 program
 	.command("login")
-	.description("Authenticate the CLI with the DeviceSDK API")
+	.description("Authenticate the CLI with your self-hosted DeviceSDK server")
+	.option(
+		"-H, --host <url>",
+		"Server URL (e.g. http://raspberrypi.local:8080); stored for later commands",
+	)
 	.option("-v, --verbose", "Enable verbose output")
 	.addHelpText(
 		"after",
 		`
 Examples:
+  $ devicesdk login --host http://raspberrypi.local:8080
   $ devicesdk login
-  $ devicesdk login --verbose
 
 More: https://devicesdk.com/docs/cli/login/`,
 	)

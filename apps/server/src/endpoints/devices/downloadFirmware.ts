@@ -39,7 +39,7 @@ export class DownloadFirmware extends BaseRoute {
 						schema: z.object({
 							ssid: z.string().max(32).optional(),
 							pass: z.string().max(63).optional(),
-							host: z.string().optional().default("api.devicesdk.com"),
+							host: z.string().optional(),
 							device_type: z.enum([
 								"pico-w",
 								"pico2-w",
@@ -67,7 +67,11 @@ export class DownloadFirmware extends BaseRoute {
 		const qb = c.get("qb");
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { projectId, deviceId } = data.params;
-		const { ssid = "", pass = "", host } = data.body;
+		const { ssid = "", pass = "" } = data.body;
+		// Default to the host that served this request — the device should call
+		// back to this self-hosted server. An explicit override still wins
+		// (e.g. flashing for a different LAN address than the one the CLI used).
+		const host = data.body.host ?? new URL(c.req.url).host;
 
 		// Validate project exists and belongs to user
 		const project = await qb

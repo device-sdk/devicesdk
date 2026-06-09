@@ -41,8 +41,8 @@
       <div class="col-6 col-md-3">
         <div class="stat-card">
           <q-icon name="payments" size="28px" color="positive" />
-          <div class="stat-value">{{ formatUsd(totals.estimated_cost_usd) }}</div>
-          <div class="stat-label">Est. cost</div>
+          <div class="stat-value">{{ formatCount(totals.cron_fires) }}</div>
+          <div class="stat-label">Cron fires</div>
         </div>
       </div>
     </div>
@@ -69,7 +69,6 @@ import {
   buildDeviceMessagesOption,
   formatCount,
   formatDuration,
-  formatUsd,
 } from '@/lib/metricsFormat';
 import {
   metricsService,
@@ -95,7 +94,6 @@ const EMPTY_TOTALS: UsageTotals = {
   bytes_out: 0,
   cron_fires: 0,
   connected_seconds: 0,
-  estimated_cost_usd: 0,
 };
 
 const window = ref<MetricsWindow>('1h');

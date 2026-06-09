@@ -4,6 +4,11 @@ export default defineConfig({
 	test: {
 		environment: "node",
 		globals: true,
+		// The CLI has no default server URL (self-hosted); give tests one so
+		// getApiUrl() never hits the "no server configured" exit path.
+		env: {
+			DEVICESDK_API_URL: "http://localhost:8787",
+		},
 		include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
 		coverage: {
 			provider: "istanbul",

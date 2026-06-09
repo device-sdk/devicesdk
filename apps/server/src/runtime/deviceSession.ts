@@ -11,6 +11,7 @@ import {
 	WS_CLOSE_REPLACED,
 } from "../foundation/consts";
 import { logger } from "../foundation/logger";
+import { recordDeviceUsage } from "../foundation/usageMetrics";
 import type { FsBlobStore } from "../storage/fsBlobStore";
 import { runWithLogCapture } from "./consoleCapture";
 import { type CronStorage, resolveDueCrons } from "./cronDispatch";
@@ -184,9 +185,11 @@ export class DeviceSession {
 			logger.warn("Invalid device message", { error: parsed.error.message });
 			return;
 		}
-		// Keepalive — never wakes user code.
+		// Keepalive — never wakes user code (and never counts as usage).
 		if (parsed.data.type === "ping") return;
 		const message = parsed.data as DeviceResponse;
+
+		this.recordUsage({ messagesIn: 1, bytesIn: data.length });
 
 		try {
 			if (message.type === "device_connected") {
@@ -240,7 +243,14 @@ export class DeviceSession {
 
 	private handleConnectionLost(reason: string): void {
 		const connectedSince = this.connectedSince;
-		void connectedSince;
+		if (connectedSince) {
+			this.recordUsage({
+				connectedSeconds: Math.max(
+					0,
+					Math.round((Date.now() - connectedSince) / 1000),
+				),
+			});
+		}
 
 		for (const [, command] of this.pendingCommands) {
 			clearTimeout(command.timeoutId);
@@ -271,6 +281,19 @@ export class DeviceSession {
 			const worker = await this.getWorker();
 			await worker.onDeviceDisconnect();
 		}, "onDeviceDisconnect");
+	}
+
+	private recordUsage(
+		delta: Omit<
+			Parameters<typeof recordDeviceUsage>[1],
+			"deviceId" | "projectId"
+		>,
+	): void {
+		recordDeviceUsage(this.deps.db, {
+			deviceId: this.deviceId,
+			projectId: this.projectId,
+			...delta,
+		});
 	}
 
 	// -------------------------------------------------------------- dispatching
@@ -341,7 +364,9 @@ export class DeviceSession {
 		if (!this.deviceWs) {
 			throw new Error("Device not connected");
 		}
-		this.deviceWs.send(JSON.stringify(command));
+		const serialized = JSON.stringify(command);
+		this.deviceWs.send(serialized);
+		this.recordUsage({ messagesOut: 1, bytesOut: serialized.length });
 	}
 
 	sendCommandAndWaitForResponse<C extends DeviceCommand>(
@@ -374,7 +399,9 @@ export class DeviceSession {
 			});
 
 			try {
-				this.deviceWs.send(JSON.stringify(command));
+				const serialized = JSON.stringify(command);
+				this.deviceWs.send(serialized);
+				this.recordUsage({ messagesOut: 1, bytesOut: serialized.length });
 			} catch (error) {
 				clearTimeout(timeoutId);
 				this.pendingCommands.delete(command.id);
@@ -742,6 +769,10 @@ export class DeviceSession {
 				});
 				this.armCronTimer(Math.max(now + 60_000, earliestFireTime(schedules)));
 				return;
+			}
+
+			if (due.length > 0) {
+				this.recordUsage({ cronFires: due.length });
 			}
 
 			for (const name of due) {

@@ -1,4 +1,6 @@
-const DEFAULT_API_URL = "https://api.devicesdk.com";
+import { readFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 let verboseLogging = false;
 
@@ -6,8 +8,52 @@ export function setVerbose(verbose: boolean): void {
 	verboseLogging = verbose;
 }
 
+// DeviceSDK is self-hosted: there is no default cloud endpoint. The server
+// URL comes from (in precedence order) the DEVICESDK_API_URL env var, an
+// explicit `--host` flag (setApiUrl), or the host stored in
+// ~/.devicesdk/credentials.json by `devicesdk login --host <url>`.
+let apiUrlOverride: string | null = null;
+let storedHostCache: string | null | undefined;
+
+/** Normalizes a user-supplied host: adds http:// when no scheme is given. */
+export function normalizeHost(host: string): string {
+	const trimmed = host.trim().replace(/\/+$/, "");
+	if (/^https?:\/\//.test(trimmed)) return trimmed;
+	return `http://${trimmed}`;
+}
+
+export function setApiUrl(url: string): void {
+	apiUrlOverride = normalizeHost(url);
+}
+
+function readStoredHost(): string | null {
+	try {
+		const raw = readFileSync(
+			path.join(os.homedir(), ".devicesdk", "credentials.json"),
+			"utf-8",
+		);
+		const parsed = JSON.parse(raw) as { host?: unknown };
+		return typeof parsed.host === "string" && parsed.host ? parsed.host : null;
+	} catch {
+		return null;
+	}
+}
+
 export function getApiUrl(): string {
-	return process.env.DEVICESDK_API_URL || DEFAULT_API_URL;
+	if (process.env.DEVICESDK_API_URL) {
+		return process.env.DEVICESDK_API_URL.replace(/\/+$/, "");
+	}
+	if (apiUrlOverride) return apiUrlOverride;
+	if (storedHostCache === undefined) storedHostCache = readStoredHost();
+	if (storedHostCache) return storedHostCache;
+
+	console.error("✗ Error: No DeviceSDK server configured.\n");
+	console.error(
+		"  Connect this CLI to your self-hosted server with:\n" +
+			"    devicesdk login --host http://<server>:8080\n\n" +
+			"  Or set the DEVICESDK_API_URL environment variable.",
+	);
+	process.exit(1);
 }
 
 export interface ApiResponse<T> {

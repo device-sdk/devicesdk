@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildBillingOption,
   buildDeviceMessagesOption,
   buildProjectMessagesOption,
   formatBytes,
   formatCount,
   formatDuration,
-  formatUsd,
 } from '@/lib/metricsFormat';
 import type {
   ProjectDeviceMetrics,
@@ -21,7 +19,6 @@ const bucket = (over: Partial<UsageBucket>): UsageBucket => ({
   bytes_out: 0,
   cron_fires: 0,
   connected_seconds: 0,
-  estimated_cost_usd: 0,
   ...over,
 });
 
@@ -37,12 +34,6 @@ describe('metrics formatting', () => {
     expect(formatBytes(512)).toBe('512 B');
     expect(formatBytes(1500)).toBe('1.5 KB');
     expect(formatBytes(2_500_000)).toBe('2.5 MB');
-  });
-
-  it('formatUsd keeps sub-cent precision', () => {
-    expect(formatUsd(0)).toBe('$0.00');
-    expect(formatUsd(0.0042)).toBe('$0.0042');
-    expect(formatUsd(1.235)).toBe('$1.24');
   });
 
   it('formatDuration picks a coarse unit', () => {
@@ -85,12 +76,5 @@ describe('chart option builders', () => {
     // Falls back to device_id when name is null.
     expect(series.map((s) => s.name)).toEqual(['Sensor A', 'dev-b']);
     expect(series[0]!.data).toEqual([[1000, 7]]);
-  });
-
-  it('billing chart maps daily cost to a bar series', () => {
-    const option = buildBillingOption([{ ts: 5000, estimated_cost_usd: 1.5 }]);
-    const series = option.series as Array<{ type: string; data: number[][] }>;
-    expect(series[0]!.type).toBe('bar');
-    expect(series[0]!.data).toEqual([[5000, 1.5]]);
   });
 });

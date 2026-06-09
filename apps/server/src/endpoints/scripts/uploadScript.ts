@@ -1,0 +1,227 @@
+import { contentJson } from "chanfana";
+import { z } from "zod";
+import { BaseRoute } from "../../foundation/baseRoute";
+import {
+	JS_IDENTIFIER_REGEX,
+	MAX_SCRIPT_SIZE_BYTES,
+	RESOURCE_LIMITS,
+} from "../../foundation/consts";
+import { triggerDeviceReboot } from "../../foundation/deviceReboot";
+import { logger } from "../../foundation/logger";
+import { pruneOldVersions } from "../../foundation/scriptPruning";
+import { validateUserScript } from "../../foundation/scriptValidator";
+import type {
+	AppContext,
+	tableDeviceScripts,
+	tableDevices,
+	tableProjects,
+} from "../../types";
+
+export class UploadScript extends BaseRoute {
+	public schema = {
+		tags: ["Scripts"],
+		summary: "Upload a new script version for a device",
+		operationId: "scripts-upload",
+		request: {
+			params: z.object({
+				projectId: z.string().min(1).max(36),
+				deviceId: z.string().min(1).max(36),
+			}),
+			body: contentJson(
+				z.object({
+					script: z.string().max(MAX_SCRIPT_SIZE_BYTES),
+					entrypoint: z
+						.string()
+						.min(1)
+						.max(255)
+						.regex(
+							JS_IDENTIFIER_REGEX,
+							"Entrypoint must be a valid JavaScript identifier",
+						),
+					message: z.string().max(500).optional(),
+				}),
+			),
+		},
+		responses: {
+			"201": {
+				description: "Returns the created script version",
+				...contentJson(
+					z.object({
+						success: z.boolean(),
+						result: z.object({
+							version_id: z.string(),
+							device_id: z.string(),
+							entrypoint: z.string(),
+							message: z.string().nullable(),
+							created_at: z.number(),
+							device_rebooted: z.boolean(),
+							reboot_reason: z.string(),
+						}),
+					}),
+				),
+			},
+			"400": {
+				description: "Bad request - script validation failed",
+			},
+			"404": {
+				description: "Project or device not found",
+			},
+		},
+	};
+
+	public async handle(c: AppContext) {
+		const user = c.get("user");
+		const qb = c.get("qb");
+		const data = await this.getValidatedData<typeof this.schema>();
+		const { projectId, deviceId } = data.params;
+
+		const script = data.body.script;
+		const entrypoint = data.body.entrypoint;
+
+		const message = data.body.message || null;
+
+		// Validate the user script before saving
+		let validation: Awaited<ReturnType<typeof validateUserScript>>;
+		try {
+			validation = await validateUserScript(script, entrypoint);
+		} catch (err) {
+			logger.error(err as Error, "Unhandled error");
+			return c.json(
+				{ success: false, error: "Script validation service unavailable" },
+				503,
+			);
+		}
+		if (!validation.valid) {
+			return c.json(
+				{
+					success: false,
+					// `error` is the canonical contract field the CLI surfaces to
+					// users; `errors`/`warnings` keep the structured detail.
+					error: `Script validation failed: ${validation.errors.join("; ")}`,
+					errors: validation.errors.map((e) => ({ message: e })),
+					warnings: validation.warnings,
+				},
+				400,
+			);
+		}
+
+		// Find the project
+		const project = await qb
+			.fetchOne<tableProjects>({
+				tableName: "projects",
+				where: {
+					conditions: ["user_id = ?1", "project_slug = ?2"],
+					params: [user.id, projectId],
+				},
+			})
+			.execute()
+			.then((p) => p.results);
+
+		if (!project) {
+			return c.json({ success: false, error: "Project not found" }, 404);
+		}
+
+		// Find the device
+		const device = await qb
+			.fetchOne<tableDevices>({
+				tableName: "devices",
+				where: {
+					conditions: ["project_id = ?1", "device_slug = ?2"],
+					params: [project.id, deviceId],
+				},
+			})
+			.execute()
+			.then((d) => d.results);
+
+		if (!device) {
+			return c.json({ success: false, error: "Device not found" }, 404);
+		}
+
+		// Prune oldest non-current versions if at the limit (FIFO), then insert.
+		// This keeps the count at the limit rather than blocking uploads — the
+		// FIFO pruning IS the enforcement mechanism for script version limits.
+		await pruneOldVersions(
+			c.env.DB,
+			c.env.SCRIPTS,
+			device,
+			user.id,
+			projectId,
+			deviceId,
+			RESOURCE_LIMITS.maxScriptVersionsPerDevice,
+		);
+
+		const versionId = crypto.randomUUID();
+		const r2 = c.env.SCRIPTS;
+
+		// Store the script in R2 using slug-based paths to match the reading
+		// endpoints (getScript, getVersion, deployVersion) which use URL slugs.
+		// /{userId}/{projectSlug}/{deviceSlug}/{versionId}.js
+		try {
+			await r2.put(
+				`${user.id}/${projectId}/${deviceId}/${versionId}.js`,
+				script,
+			);
+			// Write latest.js so getScript can return the currently deployed script.
+			await r2.put(`${user.id}/${projectId}/${deviceId}/latest.js`, script);
+		} catch (err) {
+			logger.error(err as Error, "Unhandled error");
+			return c.json({ success: false, error: "Failed to store script" }, 500);
+		}
+
+		const now = Date.now();
+
+		// Create the script version record
+		await qb
+			.insert<tableDeviceScripts>({
+				tableName: "device_scripts",
+				data: {
+					id: versionId,
+					device_id: device.id,
+					version_id: versionId,
+					entrypoint: entrypoint,
+					message: message,
+					created_at: now,
+				},
+			})
+			.execute();
+
+		// Update the device's current_version_id
+		await qb
+			.update({
+				tableName: "devices",
+				data: {
+					current_version_id: versionId,
+					updated_at: now,
+				},
+				where: {
+					conditions: ["id = ?1"],
+					params: [device.id],
+				},
+			})
+			.execute();
+
+		// Trigger device reboot so it loads the new script
+		const rebootResult = await triggerDeviceReboot(
+			c.env,
+			project.id,
+			device.id,
+		);
+
+		return c.json(
+			{
+				success: true,
+				result: {
+					version_id: versionId,
+					device_id: deviceId,
+					entrypoint: entrypoint,
+					message: message,
+					created_at: now,
+					device_rebooted: rebootResult.rebooted,
+					reboot_reason: rebootResult.reason,
+				},
+				warnings: validation.warnings,
+			},
+			201,
+		);
+	}
+}

@@ -167,42 +167,32 @@ jobs:
             firmware/esp32/dist/esp32c3-client.bin
           if-no-files-found: error
 
-  upload-to-r2:
-    name: Upload firmware to R2
+  publish-release:
+    name: Publish firmware to GitHub Release
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     needs: build
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
     steps:
-      # The artifact upload only needs wrangler, but this runner ships no
-      # Node — set it up the same way the ci.yml jobs do and install the
-      # workspace's pinned wrangler (apps/api → catalog) rather than letting
-      # `npx` pull an unpinned latest.
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: '.nvmrc'
-      - name: Install wrangler
-        run: pnpm install --frozen-lockfile --filter @devicesdk/api
 
       - uses: actions/download-artifact@v8
         with:
           name: devicesdk-esp32-firmware
-          path: firmware/
+          path: firmware-dist/
 
-      - name: Upload firmware to R2
-        # `pnpm --filter … exec` runs wrangler with CWD set to apps/api, so the
-        # --file path must be absolute — the artifact is downloaded to the
-        # workspace-root firmware/ dir, not apps/api/firmware/.
-        run: |
-          for target in esp32 esp32c61 esp32c3; do
-            pnpm --filter @devicesdk/api exec wrangler r2 object put \
-              "devicesdk-firmwares/${target}-client.bin" \
-              --file="$GITHUB_WORKSPACE/firmware/${target}-client.bin" --remote
-          done
+      # Rolling release per firmware family: the `firmware-esp32` tag always
+      # carries the latest binaries. The self-hosted server image bundles
+      # these at build time (see Dockerfile), and users can download them
+      # manually for local flashing.
+      - name: Upload binaries to the firmware-esp32 release
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          # Account-owned API tokens cannot call /memberships; supplying the
-          # account id directly lets wrangler skip that lookup and go straight
-          # to R2.
-          CLOUDFLARE_ACCOUNT_ID: 888e736867edd3b81b49b17c9067d5df
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view firmware-esp32 >/dev/null 2>&1 || \
+            gh release create firmware-esp32 --title "ESP32 firmware (rolling)" \
+              --notes "Latest ESP32/C3/C61 client binaries, updated on every firmware change." --latest=false
+          for target in esp32 esp32c61 esp32c3; do
+            gh release upload firmware-esp32 "firmware-dist/${target}-client.bin" --clobber
+          done

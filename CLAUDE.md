@@ -2,302 +2,152 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## What this is
+
+DeviceSDK is a **self-hosted, open-source (AGPL-3.0)** IoT platform: users write TypeScript device scripts, deploy them via CLI to a server they run themselves (Raspberry Pi, NUC, Docker), and microcontrollers (ESP32/Pico) connect to that server over WebSocket. Distributed as a Docker image containing the Bun server + dashboard UI. There is no cloud/SaaS component — the Cloudflare-hosted era ended with the self-host refactor (see ROADMAP.md for direction; the old Workers implementation is preserved in pre-refactor git history).
+
 ## Build & Development Commands
 
 ```bash
-# Build everything (Turbo handles dependency order: core → cli/api/simulation → dashboard/website)
+# Build everything (Turbo handles dependency order: core → cli/server/simulation → dashboard/website)
 pnpm build
 
-# Build a single package
-pnpm build --filter @devicesdk/api
-
 # Dev servers
-pnpm dev --filter @devicesdk/api          # Wrangler dev on port 8787
-pnpm dev --filter @devicesdk/dashboard    # Quasar dev server
-pnpm dev --filter @devicesdk/simulation   # Vite dev on port 9002
+pnpm dev --filter @devicesdk/server      # Bun server on port 8080 (bun run --watch)
+pnpm dev --filter @devicesdk/dashboard   # Quasar dev server on port 9000
+pnpm dev --filter @devicesdk/simulation  # Vite dev on port 9002
+pnpm local                               # server + dashboard concurrently
+
+# Server checks
+pnpm check-types --filter @devicesdk/server   # tsc
+pnpm lint --filter @devicesdk/server          # Biome
+cd apps/server && bun run scripts/generate-openapi.ts   # regen openapi.json
 
 # Tests
-pnpm test --filter @devicesdk/api         # integration tests (vitest + cloudflare workers pool)
+pnpm test --filter @devicesdk/cli             # CLI unit tests (vitest)
+pnpm test:unit --filter @devicesdk/dashboard  # Vitest component tests
+pnpm test:e2e --filter @devicesdk/dashboard   # Playwright E2E
 
-# Run a single API test file or test name
-cd apps/api && npx vitest run --config tests/vitest.config.mts tests/integration/devices.test.ts
-cd apps/api && npx vitest run --config tests/vitest.config.mts -t "should create a new device"
-
-# Dashboard UI tests
-pnpm test:unit --filter @devicesdk/dashboard  # Vitest component tests (~2s)
-pnpm test:e2e --filter @devicesdk/dashboard   # Playwright E2E tests (62 tests, ~90s, starts API + dashboard servers)
-pnpm test --filter @devicesdk/dashboard        # Both component + E2E
-
-# Type checking
-pnpm check-types --filter @devicesdk/api
-pnpm check-types --filter @devicesdk/simulation   # uses vue-tsc
-pnpm check-types --filter @devicesdk/dashboard     # uses vue-tsc
-
-# Linting
-pnpm lint --filter @devicesdk/api         # Biome
-pnpm lint --filter @devicesdk/simulation  # Biome
-pnpm lint --filter @devicesdk/dashboard   # ESLint
-
-# D1 database migrations
-cd apps/api && npx wrangler d1 migrations apply DB --local
-cd apps/api && npx wrangler d1 migrations apply DB --remote
+# Docker
+docker build -t devicesdk .
+docker compose up -d                          # serves everything on :8080
 ```
+
+The server stores ALL state under `DATA_DIR` (default `./data`, `/data` in Docker): `devicesdk.sqlite` (WAL), `scripts/{userId}/{projectSlug}/{deviceSlug}/{versionId}.js`, `firmwares/`.
 
 ## Monorepo Architecture
 
-This is a pnpm + Turborepo monorepo for the DeviceSDK IoT platform. The platform lets users write TypeScript device scripts, deploy them to the cloud, and flash firmware onto microcontrollers that connect via WebSocket.
+pnpm + Turborepo. Bun is the **server runtime only** — the CLI/MCP run on plain Node for npm users.
 
-### Workspace Packages (12 total)
+**`apps/server`** (`@devicesdk/server`) — THE backend. Bun + Hono + Chanfana (OpenAPI) + Zod + bun:sqlite. One process, one port (8080): REST API under `/v1/*`, device + watcher WebSockets, dashboard SPA static serving, OpenAPI docs at `/api-docs`.
 
-**`packages/core`** (`@devicesdk/core`) — Shared TypeScript types and device abstractions. Published to npm. Exports `"."`, `"./i2c"`, `"./devices/pico"`. Has no runtime dependencies — pure type definitions.
+**`apps/dashboard`** — Vue 3 + Quasar SPA. Local email/password auth (register/login). Built `dist/spa` is served same-origin by the server; `VITE_API_HOST` only matters for `quasar dev`.
 
-**`packages/cli`** (`@devicesdk/cli`) — CLI tool (`devicesdk` binary). Commands: `login`, `logout`, `whoami`, `init`, `build`, `dev`, `deploy`, `flash`, `logs` (with `--tail`), `status`, `inspect`. Uses esbuild to bundle user device scripts, workerd for local simulation. Build copies Vite build output from `apps/simulation/dist` into `dist/simulator/assets/`.
+**`packages/core`** — published types + `DeviceEntrypoint` base class (user script surface). No runtime deps.
 
-**`packages/mcp`** (`@devicesdk/mcp`) — Model Context Protocol server (`devicesdk-mcp` binary). Published to npm. Wraps `@devicesdk/cli` (`workspace:*` dep) to expose DeviceSDK as tools for AI coding agents (Claude, Cursor, Copilot): `devicesdk_whoami`, `devicesdk_status`, `devicesdk_logs_tail`, `devicesdk_env_list`/`_set`, `devicesdk_deploy`, `devicesdk_docs_search`. Inherits CLI auth from `~/.devicesdk/auth.json`, with `DEVICESDK_TOKEN` env taking precedence. `devicesdk init` writes the `.mcp.json` entry that launches it. Single source file: `src/index.ts`.
+**`packages/cli`** — `devicesdk` binary: login/build/deploy/flash/logs/status/dev. No default API URL: precedence is `DEVICESDK_API_URL` env → `--host` flag → host stored in `~/.devicesdk/credentials.json` by `devicesdk login --host <url>`. `devicesdk dev` still uses the workerd simulator (convergence on the server runtime is a roadmap item).
 
-**`packages/typescript-config`** (`@repo/typescript-config`) — Shared `base.json` tsconfig extended by `core` and `cli`.
+**`packages/mcp`** — MCP server wrapping the CLI for AI agents.
 
-**`apps/api`** (`@devicesdk/api`) — Cloudflare Workers API using Hono + Chanfana (auto-generates OpenAPI schema). Uses D1 (SQLite) via `workers-qb`, R2 for script/firmware storage, Durable Objects for WebSocket device connections. Depends on `@devicesdk/core` via `workspace:*`.
+**`apps/simulation`** — Vue UI for the CLI dev simulator (built dist embedded in CLI).
 
-**`apps/dashboard`** (`@devicesdk/dashboard`) — Vue 3 + Quasar SPA. Google OAuth login, project/device/token management. Deployed to `dash.devicesdk.com`. Requires `shamefully-hoist=true` in `.npmrc` for Quasar compatibility. Runs `quasar prepare` on postinstall. Key composables: `useAuth` (auth state), `useDeviceStream` (WebSocket-based real-time stream of `status`/`log`/`state` frames with exponential-backoff reconnect).
+**`apps/website`** + **`docs/public`** — Hugo site. Website build consumes `apps/server/openapi.json`.
 
-**`apps/simulation`** (`@devicesdk/simulation`) — Vue 3 + Vite app for device simulation UI. Builds to `dist/` which is consumed by the CLI package at build time. Uses Tailwind CSS v4, `@floating-ui/vue` for popovers, and Biome for linting.
+**`firmware/esp32`, `firmware/pico`** — C/C++ WS clients. Both select **plain `ws://` when the configured host contains an explicit port** (self-hosted LAN) and TLS-on-443 for bare hostnames. Binaries are published to rolling GitHub Releases (`firmware-esp32`, `firmware-pico` tags) and bundled into the Docker image.
 
-**`apps/website`** (`@devicesdk/website`) — Hugo + Tailwind static site. Build requires Playwright browsers for OG image generation (`pnpm exec playwright install`).
+### Server architecture (apps/server)
 
-**`firmware/esp32`**, **`firmware/pico`** — C/C++ firmware for ESP32 (ESP-IDF) and Raspberry Pi Pico (Pico SDK + CMake). Wrapper `package.json` files gracefully skip builds when toolchains aren't installed.
-
-**`examples/basic`**, **`examples/temperature-to-discord`** — Example projects using `@devicesdk/cli` and `@devicesdk/core`.
-
-### Dependency Graph
-
-```
-@repo/typescript-config
-  ↓ (extends tsconfig)
-@devicesdk/core ──────────→ @devicesdk/api
-  ↓                              ↓
-@devicesdk/cli ←── @devicesdk/simulation
-  ↓        ↓
-examples/* @devicesdk/mcp
-```
-
-### API Architecture (apps/api)
-
-- **Router**: `src/index.ts` — Hono app with chanfana OpenAPI wrapper. Pre-auth routes (OAuth, CLI auth start) are mounted before `authenticateUser` middleware; everything else requires auth.
-- **Endpoints**: `src/endpoints/{resource}/router.ts` defines routes, individual files extend `OpenAPIRoute` with Zod schemas.
-- **Auth**: `src/foundation/auth.ts` — checks Bearer token → session cookie → API token (prefix `dsdk_`). User available via `c.get("user")`, query builder via `c.get("qb")`.
-- **Durable Objects**: `src/durableObjects/lib/device.ts` — `BaseDevice` handles WebSocket device connections. Uses the Hibernation API (`webSocketMessage`, `webSocketClose`, `webSocketError`). Both `webSocketClose` and `webSocketError` must be implemented — abrupt TCP drops (e.g. device hard reboot) fire `webSocketError`, not `webSocketClose`. Never send a WebSocket close frame immediately after a command that triggers a device reboot; let the connection drop naturally.
-- **Real-time streaming**: `GET /v1/projects/:projectId/devices/:deviceId/watch` — WebSocket endpoint that streams `log`, `status`, and `state` frames to dashboard / Home Assistant clients. Uses Hibernation API watcher sockets in `device.ts` (`handleWatcherUpgrade`, `broadcastToWatchers`, `broadcastStateFromMessage`). The legacy `/logs/stream` SSE endpoint was removed in favour of this.
-- **Bindings**: `DB` (D1), `SCRIPTS`/`FIRMWARES` (R2), `DEVICE` (Durable Object), `LOADER` (Worker Loader for sandboxed user scripts).
-- **Cron**: Two distinct mechanisms. (1) The Worker-level hourly trigger (`"0 * * * *"` in `wrangler.jsonc`) — system cleanup, handler in `src/scheduled.ts` (or routed via `src/index.ts`'s `scheduled` export). See `tests/integration/cronDispatch.test.ts`. (2) Per-device cron schedules (a user script's `crons` map) run off **Durable Object alarms** in `device.ts`'s `alarm()` — one alarm per device DO. These are **connection-gated**: `alarm()` cancels the alarm (via `deleteAlarm()`) when `getWebSockets("device")` is empty so a frequent cron (e.g. `*/1 * * * *`) on a disconnected device doesn't wake the DO and re-invoke the user Worker forever. The schedule stays in storage and is re-armed on reconnect by **two** paths: the device-connect handler calls `rearmCronAlarmFromStorage()` on every `"device"` WebSocket accept (handshake-independent, so a transport-level reconnect that doesn't re-send `device_connected` still resumes crons), and `initializeCrons()` re-arms again after the `device_connected` handshake is drained. Both preserve each cron's `nextFireAt` and recompute a fire time that elapsed while offline to the next occurrence (a missed slot is skipped, never caught up). If you ever see "crons don't fire while offline," that's intentional — not a bug. Covered by `tests/integration/alarm.test.ts`. `alarm()` also drains deferred user-worker events (`onDeviceConnect`/`onMessage`, queued in `userEventQueue.ts` because the Worker Loader hangs from Hibernation-API handlers) **before** dispatching crons — and that drain is **bounded** (`MAX_DRAIN_BATCH` events per invocation, remainder re-queued + a follow-up alarm armed). The bound is load-bearing: an unbounded drain of a large backlog blows the per-invocation subrequest cap, which aborts the invocation before it can trim the queue or run `onCron`, wedging the device forever. `enqueueUserWorkerEvent` coalesces redundant `connect` events and caps the queue at `MAX_PENDING_EVENTS`. Covered by `tests/unit/userEventQueue.test.ts`. The user-worker stub returned by `getOrCreateUserWorker` (`getTarget()` handle) is **invocation-scoped** — it is a child-isolate RPC handle that goes stale the instant the invocation that resolved it ends. `cachedUserWorker` therefore must only serve *intra-invocation* reuse and is cleared at every invocation entry point that resolves a worker (`alarm()`, `handleRemoteCall()`). Reusing it across invocations fans out subrequests that never resolve → blows the per-invocation subrequest cap (`wallTime≈60000`, `cpuTime 0`) → freezes the single-threaded DO → starves the device PING/PONG into a reconnect loop. This was the "device reconnects every few minutes" wedge (PR #140; see TROUBLESHOOT.md + `.claude/skills/cloudflare-runtime-limitations`). Never cache a Worker-Loader stub across invocations.
+- **Boot**: `src/server.ts` — loadConfig → open SQLite (WAL) → `applyMigrations` → construct services → `Bun.serve` → janitor interval. Services object is passed as `c.env` to Hono and **keeps the old Cloudflare binding names** (`SCRIPTS`, `FIRMWARES`, `DEVICE`, `DB`) so ported endpoint code reads naturally.
+- **DB layer**: `src/db/bunSqliteQB.ts` (workers-qb QueryBuilder over bun:sqlite, D1-shaped results) for `c.get("qb")`; `src/db/d1Compat.ts` (prepare/bind/first/all/run/batch facade) for `c.env.DB` call sites; `src/db/migrate.ts` runs `migrations/*.sql` sequentially. **Never run migration SQL through workers-qb Query objects** — `trimQuery()` collapses newlines so `--` comments swallow SQL (see TROUBLESHOOT.md).
+- **Auth**: `src/foundation/auth.ts` — Bearer token → session cookie → `dsdk_` CLI token → API token hash. Local accounts via `Bun.password` (argon2id) in `src/endpoints/auth/localAuth.ts`; CLI device-code flow in `src/endpoints/cli-auth/`. First registered user is always allowed; `ALLOW_REGISTRATION=false` closes signups after that.
+- **Device runtime**: `src/runtime/` — replaces the old per-device Durable Object:
+  - `deviceHub.ts` — session registry keyed `${projectId}:${deviceId}` (UUIDs); sessions live for the process lifetime and serve watchers/RPC even while the device is offline.
+  - `deviceSession.ts` — WS lifecycle, `pendingCommands` ack map (5s timeout), **per-session FIFO promise chain** serializing user-handler dispatch, connection-gated crons (missed slots are skipped, never caught up — documented contract), `device_kv` storage with the `__internal:` prefix reserved, usage recording.
+  - `scriptHost.ts` — dynamic `import()` of version-keyed bundle files + direct class instantiation; replicates the old classProxy contract (DEVICES bridge with call-depth threading, VARS, BLOCKED_METHODS + own-prototype check for RPC).
+  - `consoleCapture.ts` — AsyncLocalStorage-scoped console patch: user `console.*` lands in device logs + watcher stream. `logger.ts` binds the raw console at module load so server logs are never captured.
+  - `devicesBridge.ts` — inter-device RPC (same-project trust model, `MAX_CALL_DEPTH` 3).
+  - WS routes: `src/endpoints/devices/wsRoutes.ts` via the shared `src/ws.ts` `createBunWebSocket` singleton — the same instance must feed both route handlers and `Bun.serve({ websocket })`, and the services object must carry the Bun `server` handle for upgrades.
+- **Watch protocol** (unchanged from the cloud era, dashboard + CLI depend on it): frames `{event: "log"|"status"|"state"|"history_complete", data, replay?}`; `?backfillLimit=N&backfillLevel=warn` replays history oldest-first then `history_complete`.
+- **Metrics**: `src/foundation/usageMetrics.ts` — 5-minute SQLite buckets in `device_usage`; windows 1h/12h/7d. No cost estimation (that was a cloud-billing concept).
+- **Janitor**: `src/janitor.ts` hourly — expired sessions/CLI codes, old logs/usage.
 - **Response format**: `{ "success": true, "result": ... }` or `{ "success": false, "error": "..." }`.
 
-### API Testing
+### Device script contract (user-facing, do not break)
 
-Tests use `@cloudflare/vitest-pool-workers` (≥ 0.15) on `vitest@4`. Pool-workers ships as a Vite plugin (`cloudflareTest`) rather than a `defineWorkersConfig` wrapper, and the legacy `isolatedStorage: true` option is gone — bindings persist between `it()` blocks within a file, so suites that mutate D1/KV/Cache must clean up after themselves (see `beforeEach` cleanups in `devices.test.ts`, `scripts.test.ts`, `tokens.test.ts`).
-
-`TieredCache` writes go to both KV and `caches.default`, so test cleanups that delete from KV must also delete the matching `caches.default` Request — see `blockList.test.ts` and `rateLimitBlock.test.ts` for the pattern (URL must match `TieredCache.cacheRequest`'s `encodeURIComponent` layout).
-
-```typescript
-import { SELF, env } from "cloudflare:test";
-import { TEST_SESSION_TOKEN } from "../setup-test-data";
-
-const resp = await SELF.fetch("http://localhost/v1/...", {
-  headers: { Authorization: `Bearer ${TEST_SESSION_TOKEN}` }
-});
-```
-
-- `tests/apply-migrations.ts` — applies D1 migrations before tests
-- `tests/setup-test-data.ts` — seeds users, projects, sessions (runs once per file via `beforeAll`)
-- `tests/vitest.config.mts` — `defineConfig` from `vitest/config` with `cloudflareTest()` plugin holding wrangler/miniflare bindings
-- **Coverage**: Istanbul provider configured; run `pnpm --filter @devicesdk/api test:coverage` for HTML/JSON reports in `apps/api/coverage/`. CI uploads coverage artifacts on every run.
-- **DO storage row-budget guardrails**: The `Device` DO is SQLite-backed, so every KV op and `device_logs` `sql.exec` bills as rows read/written. `tests/integration/storageRowBudget.test.ts` pins the row cost of the hot paths (pending user-event queue enqueue/drain, log persistence) so a regression that inflates per-op writes fails CI instead of becoming a quota bill. It uses `tests/helpers/meteredStorage.ts` — a counting Proxy around the real `DurableObjectStorage` (obtained via `runInDurableObject`) that tallies KV rows and per-`exec` `cursor.rowsRead`/`rowsWritten`. Reuse `meterStorage()` whenever asserting how many storage rows a code path touches. (Background + the per-log 3× write-amplification finding are in TROUBLESHOOT.md.)
-
-### CLI Architecture (packages/cli)
-
-- **Commands**: `src/commands/{build,dev,deploy,flash,login,logout,init,whoami}.ts`
-- **Config**: `src/config.ts` — parses `devicesdk.ts` project config
-- **Build**: Uses esbuild (ESM, es2022) to bundle user device scripts into `.devicesdk/build`
-- **Dev**: Starts workerd-based local simulator with live reload
-- **Flash**: Downloads firmware UF2, copies to Pico in BOOTSEL mode (looks for `RPI-RP2` or `RP2350` volumes)
-
-### Firmware (firmware/pico, firmware/esp32)
-
-- **Pico**: C++ with lwIP raw TCP WebSocket client. Single-threaded polling loop. HAL for GPIO/PWM/ADC/I2C. Virtual pin 99 = onboard LED.
-- **ESP32**: ESP-IDF v5.5.1 based. Similar WebSocket architecture. HAL functions prefixed `iotkit_hal_`. Supports addressable LEDs (WS2812) via `espressif/led_strip` component — guarded by `CONFIG_IOTKIT_LED_IS_ADDRESSABLE` Kconfig option.
-- **ESP32-C61 specifics**: No RMT peripheral — uses SPI backend for led_strip. DevKitC-1 onboard LED is WS2812 on GPIO 5. Config in `firmware/esp32/main/Kconfig.projbuild`.
-- **ESP32-C3 specifics**: RISC-V single-core, has RMT — `hal.c` branches on `SOC_RMT_SUPPORTED` and uses the RMT backend for led_strip on C3. DevKitM-1 onboard LED is WS2812 on GPIO 8. Bootloader offset is `0x0` (same as C61). Pre-built target produces `esp32c3-client.bin`.
-- Both embed Wi-Fi credentials and API tokens at compile-time via placeholder strings in `config.h` (replaced at build time or via binary patching).
-- **Binary patching limitation**: The API's firmware download endpoint patches credentials in merged binaries, but this invalidates ESP-IDF image checksums. For local dev, build from source instead (see TROUBLESHOOT.md).
-
-## Key Configuration Details
-
-- `shamefully-hoist=true` in root `.npmrc` is **required** by Quasar's `@quasar/app-vite`
-- `packageManager: pnpm@9.15.4` in root `package.json`
-- Node >= 20 required (using v24 via nvm)
-- Turbo `^build` ensures dependency-ordered builds
-- **Dependency versions are pinned via pnpm catalogs** in `pnpm-workspace.yaml`, not per-package. Shared pins use `catalog:` (`typescript`, `vitest`, `wrangler`, `tsx`, `@types/node`). Named catalogs hold parallel majors for staged migrations: `catalog:zod4`/`catalog:zod3` and `catalog:tailwind4`/`catalog:tailwind3`. Everything is on zod 4 + tailwind 4 today (the v3 catalogs are unused). When adding a shared dep, reference a catalog rather than hardcoding a version.
-
-## Local Development Workflow
-
-To run the full stack locally (API + dashboard + device):
-
-```bash
-# 1. Start the API server (port 8787)
-pnpm dev --filter @devicesdk/api
-
-# 2. Start the dashboard (separate terminal)
-pnpm dev --filter @devicesdk/dashboard
-
-# 3. Deploy a device script to the local API
-DEVICESDK_API_URL=http://localhost:8787 pnpm --filter @devicesdk/example-basic deploy
-
-# 4. Flash a device pointing to the local server
-pnpm --filter @devicesdk/example-basic flash-local
-```
-
-Root-level convenience scripts (defined in the root `package.json`) wrap the same workflow:
-
-```bash
-pnpm local          # Run API + dashboard concurrently
-pnpm local:login    # devicesdk login against http://localhost:8787
-pnpm local:deploy   # Deploy examples/basic to the local API
-pnpm local:flash    # Flash a Pico pointing at the local API
-```
-
-- **ESP32 local flash** (build from source to avoid checksum issues):
-  ```bash
-  # 5a. Edit firmware/esp32/main/config.h with real WiFi/token/host credentials
-  # 5b. Build and flash
-  cd firmware/esp32
-  source ~/esp/esp-idf/export.sh
-  idf.py build
-  python -m esptool --chip esp32c61 -b 460800 --before default_reset --after hard_reset \
-    write_flash 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin
-  # 5c. Restore config.h to placeholder values after flashing
-  ```
-- `DEVICESDK_API_URL` overrides the CLI's default API endpoint (`https://api.devicesdk.com`). Set it whenever using CLI commands (`deploy`, `dev`, `login`, etc.) against the local server.
-- `flash-local` is a convenience script in `examples/basic/package.json` that runs `devicesdk flash device --host 192.168.1.238:8787`.
-- Ensure `apps/api/.dev.vars` contains `ENV=local` so local auth code paths activate.
-
-## Public-Facing Content Guidelines
-
-- **Never mention Cloudflare, Cloudflare Workers, or any Cloudflare product names** (D1, R2, Durable Objects, KV as "Cloudflare KV", Wrangler, Cloudflare Pages) in any public-facing content — this includes the website (`apps/website/layouts/`, `apps/website/content/`), public documentation (`docs/public/`), and any user-visible strings.
-- DeviceSDK is a **managed platform**. Use generic infrastructure terms instead: "globally distributed runtime", "serverless runtime", "edge infrastructure", "managed platform".
-- Internal code, configs, and developer-only files (e.g., `wrangler.jsonc`, API source code, CLAUDE.md itself, **`docs/internal/`**) may reference Cloudflare as needed. The Hugo build mounts `docs/public/` only; nothing under `docs/internal/` is ever shipped to the public docs site.
-
-## Anti-Redundancy Rules
-
-- **Search before creating**: Before writing a new utility, helper, type, or abstraction, search the codebase for existing implementations. Check `packages/core`, `apps/api/src/foundation/`, and existing endpoint patterns.
-- **Import from canonical sources**: Types come from `@devicesdk/core`, auth/middleware from `src/foundation/`, query patterns from `workers-qb`. Never duplicate these locally.
-- **One source of truth**: If the same logic exists in multiple places, refactor into a shared location. Do not create "V2" copies.
+A script is a class with optional `onDeviceConnect/onDeviceDisconnect/onMessage/onCron` and a `crons` map; env exposes `DEVICE` (command sender + `kv`), `DEVICES` (same-project RPC), `VARS` (env vars). Public methods on the class are callable cross-device; lifecycle methods are blocked from RPC. User scripts run **in-process** (user-owned code on the user's own server — that's the trust model).
 
 ## Source-of-Truth Locations
 
 | Concern | Canonical Location |
 |---------|-------------------|
 | Shared types and device abstractions | `packages/core` |
-| Auth middleware, session handling, OAuth | `apps/api/src/foundation/auth.ts` |
-| Auth caching (TieredCache) | `apps/api/src/foundation/authCache.ts` |
-| Tiered cache (caches.default + KV) | `apps/api/src/foundation/tieredCache.ts` |
-| Cross-route block list middleware | `apps/api/src/foundation/userBlockList.ts` |
-| Edge rate-limit rule (Cloudflare WAF) | `docs/internal/operations/cloudflare-waf.md` |
-| Session constants | `apps/api/src/foundation/consts.ts` |
-| Script validation | `apps/api/src/foundation/scriptValidator.ts` |
-| Device reboot trigger | `apps/api/src/foundation/deviceReboot.ts` |
-| ESP32 image checksum recalculation | `apps/api/src/foundation/esp32ImageChecksum.ts` |
-| Endpoint patterns | `apps/api/src/endpoints/` (follow existing resource structure) |
-| Database schema | `apps/api/migrations/` (sequential SQL files) |
-| Table type definitions | `apps/api/src/types.d.ts` |
-| Query builder patterns | Existing endpoints + `.claude/skills/write-sql-queries/SKILL.md` |
-| Inter-device RPC types | `packages/core/src/index.ts` (`RemoteDevice`, `GetEnv`) |
-| DevicesBridge (inter-device RPC) | `apps/api/src/durableObjects/lib/devicesBridge.ts` |
-| CLI type generation | `packages/cli/src/commands/build.ts` (`generateDeviceTypes`) |
-| MCP server (AI-agent tools) | `packages/mcp/src/index.ts` |
-| Real-time watch WebSocket (canonical) | `apps/api/src/endpoints/devices/watchDevice.ts`, `apps/api/src/durableObjects/lib/device.ts` (`handleWatcherUpgrade`, `broadcastToWatchers`, `broadcastStateFromMessage`) |
-| Dashboard watch WebSocket composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
-| HA entity declaration types | `packages/core/src/index.ts` (`HaEntityDeclaration`, `HaEntityType`, `HaEntitySource`) |
-| HA entity persistence | `apps/api/src/endpoints/devices/getDeviceEntities.ts`, `apps/api/src/endpoints/devices/upsertDeviceEntities.ts`, `device_entity_configs` table |
-| Usage metric recording (write) | `apps/api/src/foundation/analytics.ts` (`recordDeviceUsage` → `devicesdk_usage` AE dataset, indexed by deviceId; instrumented in `device.ts`) |
-| Usage metric reads (AE SQL API) | `apps/api/src/foundation/metricsClient.ts` (sampling-aware query builders + graceful degradation) |
-| Usage→USD cost estimation | `apps/api/src/foundation/pricing.ts` (`estimateCostUsd`, placeholder rates — single source of truth) |
-| Metrics endpoints | `apps/api/src/endpoints/metrics/` (`GET .../devices/:deviceId/metrics`, `GET /projects/:projectId/metrics`) |
-| Dashboard metrics UI | `apps/dashboard/src/components/metrics/`, `apps/dashboard/src/lib/metricsFormat.ts` (chart builders), `apps/dashboard/src/lib/echarts.ts` (tree-shaken ECharts), `metricsService` in `api.service.ts` |
-| License | `LICENSE` (proprietary, all rights reserved) |
+| Auth middleware + sessions | `apps/server/src/foundation/auth.ts` |
+| Local account endpoints | `apps/server/src/endpoints/auth/localAuth.ts` |
+| Server config/env vars | `apps/server/src/config.ts` |
+| DB adapters + migration runner | `apps/server/src/db/` |
+| Database schema | `apps/server/migrations/` (sequential SQL files) |
+| Table type definitions | `apps/server/src/types.d.ts` |
+| Device runtime (sessions/crons/RPC/logs) | `apps/server/src/runtime/` |
+| Script validation (static, Bun.Transpiler) | `apps/server/src/foundation/scriptValidator.ts` |
+| Blob storage (scripts/firmwares) | `apps/server/src/storage/fsBlobStore.ts` |
+| Usage metrics | `apps/server/src/foundation/usageMetrics.ts` |
+| Watch WebSocket routes | `apps/server/src/endpoints/devices/wsRoutes.ts` |
+| Dashboard watch composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
+| HA entity types/persistence | `packages/core` + `apps/server/src/endpoints/devices/{get,upsert}DeviceEntities.ts` |
+| ESP32/Pico image checksum patching | `apps/server/src/foundation/{esp32ImageChecksum,picoUf2Checksum}.ts` |
+| Endpoint patterns | `apps/server/src/endpoints/` (Hono + Chanfana + Zod) |
+| License | `LICENSE` (AGPL-3.0-only) |
 
-## Audit-finding sanity-check
+## Open-source discipline
 
-When an audit (security, code-quality, etc.) flags something in this codebase, **trace the actual call path before acting**. The May 2026 audit follow-up flagged 4 "security" issues; 3 were false alarms because the audit agent didn't follow the chain through to where authorization actually happens. Common patterns that *look* like vulnerabilities but aren't:
+- The repo is destined to be public; **tests are proprietary** (SQLite model) and will live in a private `devicesdk-tests` repo mounted as a `tests-private/` submodule. Until that split lands, don't grow public test surface beyond what exists.
+- No telemetry/phone-home in the server. Optional integrations must be opt-in env config.
+- Never commit secrets; `client_secret*.json` and `.dev.vars` are gitignored.
 
-- **Durable Object query params look untrusted, but they aren't.** `apps/api/src/durableObjects/lib/device.ts` reads `userId` / `projectId` / `deviceId` from the WebSocket upgrade URL. These come from the authenticated server route (`apps/api/src/endpoints/devices/deviceConnect.ts:41–151`) which authenticates the user, looks up `project.id` / `device.id` from D1 with a `user_id = ?` constraint, and passes the *server-derived* IDs to the DO. The client cannot forge them. The watcher endpoint (`watchDevice.ts` → `foundation/projectDeviceResolve.ts:18–56`) follows the same pattern.
-- **DO `fetch()` handlers don't re-authenticate, and they don't need to.** Durable Objects are only reachable through their bindings; there is no public route to a DO. Authentication happens on the API route that resolves the stub. Adding "auth checks inside the DO" duplicates the gate without adding security.
-- **`Sentry.withSentry()` wraps both `fetch` and `scheduled`.** `apps/api/src/index.ts:218–228`. Unhandled exceptions in `handleScheduled` are captured by the Sentry integration; you don't need an explicit top-level try/catch for cron failures to land in Sentry.
+## Anti-Redundancy Rules
 
-When in doubt, grep for the entry point (`grep -rn 'env.DEVICE.idFromName' apps/api/src/`, `grep -rn 'authenticateUser' apps/api/src/`) and trace to the DO before assuming the DO is reachable from the public internet.
+- **Search before creating**: check `packages/core`, `apps/server/src/foundation/`, and existing endpoint patterns before writing new helpers.
+- **Import from canonical sources**: types from `@devicesdk/core`, auth from `foundation/auth.ts`, queries via `c.get("qb")` / `c.env.DB`.
+- **One source of truth**: no "V2" copies.
 
 ## Multi-Agent Safety
 
-- **Multi-agent safety:** do **not** create/apply/drop `git stash` entries unless explicitly requested. Assume other agents may be working; keep unrelated WIP untouched.
-- **Multi-agent safety:** when the user says "push", you may `git pull --rebase` to integrate latest changes (never discard other agents' work). When the user says "commit", scope to your changes only.
-- **Multi-agent safety:** create your **own** worktree per change (named after the change — see Git Workflow). Never create, remove, or modify a worktree or branch you didn't create — other agents may be using it.
-- **Multi-agent safety:** do **not** switch branches unless explicitly requested.
-- **Multi-agent safety:** running multiple agents is OK as long as each agent has its own session.
-- **Multi-agent safety:** when you see unrecognized files, keep going; focus on your changes and commit only those.
+- Do **not** create/apply/drop `git stash` entries unless explicitly requested. Assume other agents may be working; keep unrelated WIP untouched.
+- When the user says "push", you may `git pull --rebase` to integrate latest changes (never discard other agents' work). When the user says "commit", scope to your changes only.
+- Create your **own** worktree per change (named after the change — see Git Workflow). Never create, remove, or modify a worktree or branch you didn't create.
+- Do **not** switch branches unless explicitly requested.
+- When you see unrecognized files, keep going; focus on your changes and commit only those.
 
 ## Git Workflow
 
-- **Never commit directly to `main`, and never work in the main checkout.** Do every change in its own dedicated git worktree. Choose one kebab-case **change name** (the same slug you'll use for the changeset, e.g. `per-page-og-images`) and use it verbatim for **both** the worktree directory and the branch:
+- **Never commit directly to `main`, and never work in the main checkout.** Do every change in its own worktree:
 
   ```bash
   git worktree add .worktrees/<change-name> -b <change-name>
   ```
 
-  `.worktrees/` is gitignored — reserve `.claude/worktrees/` for harness-managed isolated agents and `.worktrees/pr-*` for PR-review checkouts. After the change merges, clean up with `git worktree remove .worktrees/<change-name>`.
-- **Before every commit**, run `pnpm lint` to fix lint issues. Do not commit if linting fails.
-- **Every PR must include a changeset**. Before opening or updating a PR, create a `.changeset/<descriptive-name>.md` file using the format in any prior PR's changeset entry (or `.changeset/README.md` for the format reference). Use `patch` for bug fixes, `minor` for new features. Reference every workspace package the change touches — this covers both the npm-published packages (`@devicesdk/api`, `@devicesdk/core`, `@devicesdk/cli`, `@devicesdk/mcp`) **and the private apps that maintain their own changelog** (`@devicesdk/website`, `@devicesdk/dashboard`, `@devicesdk/simulation`). Examples and shared configs are not versioned and do not need changeset entries.
-- **Firmware changes MUST include a changeset.** The firmware packages are versioned (`@devicesdk/firmware-esp32`, `@devicesdk/firmware-pico`, both private). Any change under `firmware/esp32/**` or `firmware/pico/**` that should reach real devices has to bump its package via a changeset (`patch` for fixes, `minor` for new capabilities) — **the version bump is what triggers a new firmware build and a fresh prod firmware deploy to R2** (`firmware-esp32.yml` / `firmware-pico.yml` → `upload-to-r2`). A firmware fix with no changeset will not ship. Reference `@devicesdk/firmware-esp32` and/or `@devicesdk/firmware-pico` depending on which firmware you touched.
-- **Never set a `major` bump in a changeset without explicit user consent.** When a change is genuinely breaking, surface that explicitly and ask before writing the changeset. Do **not** soften the change with back-compat aliases unless the user asks — declining a major bump is not a request for back-compat, it just means ship without the major-bump ceremony.
-- **Finish the change by opening a PR.** Once the feature is complete in its worktree — committed, `pnpm lint` clean, and (where required) a changeset added — push the branch and open a PR with `gh pr create --base main` before reporting back. Don't leave the work sitting on an un-pushed local branch. Summarize what landed and link the PR. (Exception: only skip the PR if the user explicitly asked to stop before pushing.)
+- **Before every commit**, run `pnpm lint`. Do not commit if linting fails.
+- **Every PR must include a changeset** referencing every workspace package touched (npm-published: `@devicesdk/core`, `@devicesdk/cli`, `@devicesdk/mcp`; private-with-changelog: `@devicesdk/server`, `@devicesdk/dashboard`, `@devicesdk/simulation`, `@devicesdk/website`).
+- **Firmware changes MUST include a changeset** (`@devicesdk/firmware-esp32` / `@devicesdk/firmware-pico`) — the version bump triggers the firmware build + rolling-release publish (`firmware-*.yml`). No changeset = won't ship.
+- **Never set a `major` bump without explicit user consent.**
+- **Finish the change by opening a PR** (`gh pr create --base main`) unless the user said to stop before pushing.
 
 ## CI Runner Image
 
-CI jobs labelled `[self-hosted, linux, proxmox-ephemeral]` run on a Proxmox VM image the user maintains out-of-band. If a workflow needs a system package that isn't present (e.g. `libusb-1.0-0` for ESP-IDF's `openocd-esp32` post-install verify), **ask the user to add it to the base build image** — do **not** patch the workflow with a userspace `apt-get download` / `LD_LIBRARY_PATH` workaround unless the user explicitly opts for that. The runner has no passwordless sudo, so workflow-side `sudo apt-get install` won't work either. When you do need to ask, name the specific package and which workflow step requires it. The build job in `firmware-esp32.yml` keeps a comment near `runs-on:` listing currently-required system libs — update it whenever a new prereq is added to the image.
+CI jobs labelled `[self-hosted, linux, proxmox-ephemeral]` run on a Proxmox VM image the user maintains out-of-band. If a workflow needs a missing system package, **ask the user to add it to the base image** — no passwordless sudo, no userspace workarounds unless explicitly chosen. `firmware-esp32.yml` keeps a comment near `runs-on:` listing required libs.
 
 ## Coding Standards
 
-- **Strict types**: Do not use `any` in implementation code. Use `unknown` and narrow with type guards when needed.
-- **Validate at boundaries**: All external input (API request bodies, CLI args, environment variables, WebSocket messages) must be validated with Zod or explicit checks.
-- **File size**: Keep files under ~700 LOC. Split large files into focused modules.
-- **Response format**: Always use `{ success: true, result: ... }` or `{ success: false, error: "..." }` in API responses.
-- **IDs**: Use `crypto.randomUUID()` for new record IDs. Timestamps use `Date.now()` (epoch milliseconds).
+- **Strict types**: no `any` in implementation code; use `unknown` + narrowing.
+- **Validate at boundaries**: all external input (request bodies, CLI args, env vars, WebSocket messages) via Zod or explicit checks.
+- **File size**: keep files under ~700 LOC.
+- **IDs**: `crypto.randomUUID()`; timestamps `Date.now()` (epoch ms).
+- Bun-specific APIs (`bun:sqlite`, `Bun.password`, `Bun.serve`, `Bun.Transpiler`) belong in `apps/server` only — never in `packages/*` (those run on Node).
 
 ## Troubleshooting Log
 
-Maintain a `TROUBLESHOOT.md` file at the repository root. This file serves as a persistent knowledge base of problems encountered and their solutions.
-
-### Rules
-
-- **Consult first**: When you feel stuck, encounter an error you don't immediately understand, or hit a recurring issue, **read `TROUBLESHOOT.md` before trying other approaches**. The answer may already be there.
-- **Record mistakes**: Whenever you make a mistake, misunderstand something, or discover a non-obvious solution, add an entry to `TROUBLESHOOT.md`.
-- **Record questions and answers**: If you had to investigate or ask the user to resolve an issue, document the question and the answer.
-- **Format**: Each entry should follow this structure:
-  ```markdown
-  ### <Short description of the problem>
-  **Date**: YYYY-MM-DD
-  **Question/Problem**: What went wrong or what was confusing?
-  **Root Cause**: Why did it happen?
-  **Solution**: How was it fixed?
-  ```
-- **Keep it actionable**: Write entries so that a future agent (or yourself in a new session) can immediately apply the solution without re-investigating.
-- **Don't duplicate**: Before adding a new entry, check if a similar one already exists. Update the existing entry instead if needed.
+Maintain `TROUBLESHOOT.md` at the repo root. **Consult it first** when stuck; record mistakes, non-obvious solutions, and Q&A using the established entry format. Don't duplicate entries.
 
 ## Knowledge Capture
 
-After completing any significant task (feature, bugfix, architectural change), **stop and evaluate** whether the work produced knowledge worth persisting:
-
-- **CLAUDE.md**: Update if new canonical file paths, build commands, architectural patterns, or conventions were established.
-- **TROUBLESHOOT.md**: Add entries for any non-obvious problems encountered, debugging dead-ends, or workarounds discovered.
-- **Claude Skills** (`.claude/skills/`): Create or update a skill if a repeatable workflow or domain-specific pattern emerged that future sessions would benefit from.
-- **Auto-memory** (`~/.claude/projects/.../memory/MEMORY.md`): Record hardware-specific findings, environment quirks, or user preferences.
-
-This is not optional — treat it as the final step of every significant task, before reporting completion to the user.
+After completing any significant task, evaluate whether the work produced knowledge worth persisting (CLAUDE.md, TROUBLESHOOT.md, `.claude/skills/`, auto-memory). Treat it as the final step before reporting completion.

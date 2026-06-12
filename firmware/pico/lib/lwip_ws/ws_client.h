@@ -25,6 +25,10 @@ public:
 private:
     struct altcp_pcb* tls_pcb;
     struct altcp_tls_config* tls_config;
+    // Plain-WS support for self-hosted servers: an explicit port in the host
+    // (e.g. "192.168.1.10:8080") selects plain TCP; a bare hostname uses TLS
+    // on 443 with the embedded CA bundle (same heuristic as the ESP32 client).
+    bool use_tls;
     ip_addr_t remote_addr;
     std::string host;
     uint16_t port;

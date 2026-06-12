@@ -50,14 +50,7 @@
         <q-card class="modern-card" flat bordered>
           <q-card-section>
             <div class="row items-center q-mb-md">
-              <div class="text-subtitle1 text-weight-bold q-mr-md">Plan & Usage</div>
-              <q-chip
-                :color="user.plan === 'paid' ? 'primary' : 'positive'"
-                text-color="white"
-                size="sm"
-              >
-                {{ user.plan === 'paid' ? 'Paid' : 'Free' }}
-              </q-chip>
+              <div class="text-subtitle1 text-weight-bold q-mr-md">Usage & Limits</div>
             </div>
 
             <div class="row q-col-gutter-lg">
@@ -89,7 +82,7 @@
               </div>
 
               <div class="col-12 col-md-6">
-                <div class="text-body2 text-weight-medium q-mb-sm">Tier Limits</div>
+                <div class="text-body2 text-weight-medium q-mb-sm">Server Limits</div>
                 <div
                   v-for="item in tierLimits"
                   :key="item.label"
@@ -101,13 +94,6 @@
               </div>
             </div>
 
-            <q-separator class="q-my-md" />
-
-            <div class="text-caption text-grey-6">
-              Need more? Contact
-              <a href="mailto:support@devicesdk.com" class="text-primary">support@devicesdk.com</a>
-              for plan upgrades.
-            </div>
           </q-card-section>
         </q-card>
       </div>
@@ -214,7 +200,6 @@ const tierLimits = computed(() => {
   return [
     { label: 'Max devices per project', value: limits.max_devices_per_project },
     { label: 'Max script versions per device', value: limits.max_script_versions_per_device },
-    { label: 'Max messages per device per day', value: limits.max_messages_per_device_per_day.toLocaleString() },
     { label: 'Max env vars per project', value: limits.max_env_vars_per_project },
   ];
 });
@@ -222,11 +207,10 @@ const tierLimits = computed(() => {
 const deleteAccount = async () => {
   try {
     deleting.value = true;
-    const result = await userService.deleteAccount();
-    const scheduledDate = formatDate(result.deletion_scheduled_at);
+    await userService.deleteAccount();
     $q.notify({
       type: 'warning',
-      message: `Account deletion scheduled for ${scheduledDate}. Contact support@devicesdk.com to cancel.`,
+      message: 'Account and all its data deleted.',
       position: 'top',
       timeout: 5000,
     });

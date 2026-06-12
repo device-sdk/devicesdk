@@ -285,3 +285,27 @@ uint8_t com_pins = (height == 32) ? 0x02 : 0x12;
 - **Diagnosis method:** `wrangler tail --env production --format json`. Decode `event.exceptions[].message` + `.stack` — the exact CF limit string (`Too many concurrent dynamic workers` vs `Exceeded allowed rows written…`) tells you which cap you hit. `connect-fetch` outcomes of `503`/`exception` with a tight ~6s reconnect cadence = the DO can't service upgrades (jammed or quota-exhausted). A frozen `Date.now()` + ~60s wall = subrequest fan-out (stale stub). See `.claude/skills/debug-prod-worker-wedge`.
 - **`connected=1`/`=0` in D1 is a cosmetic cache, not authoritative** — a stale flag can disagree with reality; `getWebSockets("device")` (and whether cron draws are flowing in `tail`) is the truth.
 - Connect-path DO writes (`deviceMeta`, `connectedSince`, the `connected=1` D1 cache) are now **best-effort** (`safeStoragePut` + try/catch) so a transient/quota write error degrades instead of failing the upgrade and amplifying churn (PR #150). This does *not* let a fully quota-exhausted DO connect (acceptWebSocket still writes) — it only reduces blast radius.
+
+### workers-qb `trimQuery` corrupts SQL containing `--` comments
+**Date**: 2026-06-09
+**Question/Problem**: Applying the migration files through workers-qb's `asyncMigrationsBuilder` failed with `near ")": syntax error`, but every file ran fine via `db.exec()` directly.
+**Root Cause**: Every workers-qb `Query` runs `trimQuery()` (`query.replace(/\s\s+/g, " ")`). A line like `-- comment` followed by an indented line collapses `newline+indent` into one space, so the comment swallows the SQL after it; whatever survives is syntactically broken. Any SQL containing `--` comments is unsafe to route through a workers-qb Query object.
+**Solution**: `apps/server/src/db/migrate.ts` is a custom runner that calls `db.exec(rawSql)` per file (multi-statement capable, preserves bytes) and tracks applied names in a `migrations` table. Never feed migration files (or any commented SQL) through `qb.raw(...)`.
+
+### bun:sqlite: `db.query()` prepares ONE statement; use `db.exec()` for multi-statement SQL
+**Date**: 2026-06-09
+**Question/Problem**: Multi-statement strings (e.g. `CREATE TABLE ...; CREATE INDEX ...;`) failed or silently truncated when run through `db.query(...).run()`.
+**Root Cause**: `Database.query()` compiles a single statement (sqlite3_prepare semantics). `db.exec()` executes the whole string.
+**Solution**: `BunSqliteQB` routes argument-less non-SELECT queries through `db.exec`; anything with bound args uses a prepared statement (single statement is fine there — app queries are single statements).
+
+### hono `createBunWebSocket` upgrades silently fail without the server handle in c.env
+**Date**: 2026-06-09
+**Question/Problem**: `upgradeWebSocket` threw `'server.upgrade' is undefined` when `Bun.serve`'s fetch passed a custom services object as Hono's env.
+**Root Cause**: hono's bun adapter resolves the Bun server from `c.env.server` (or `c.env` itself) to call `server.upgrade()`. Passing an arbitrary services object hides it. Also, the `upgradeWebSocket`/`websocket` pair must come from ONE `createBunWebSocket()` call shared between route registration and `Bun.serve` — two instances never connect.
+**Solution**: `apps/server/src/ws.ts` exports the singleton; `server.ts` assigns `services.server = server` right after `Bun.serve()` returns (`Env.server` field).
+
+### Per-device console capture without isolation: AsyncLocalStorage
+**Date**: 2026-06-09
+**Question/Problem**: User scripts share the server process, but their `console.log` output must land in per-device logs (the old sandboxed worker overrode console per isolate).
+**Root Cause**: One global console, many devices — the only per-call routing signal is async context.
+**Solution**: `runtime/consoleCapture.ts` patches console once and reads the active sink from `AsyncLocalStorage`; every user-handler dispatch runs inside `runWithLogCapture(session, fn)`. Critical detail: `foundation/logger.ts` binds the ORIGINAL console functions at module load (before the patch installs) so server-side logs are never captured into device logs and the capture path can't recurse.

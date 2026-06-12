@@ -6,7 +6,7 @@
           <img src="/favicon.svg" alt="DeviceSDK" class="logo-icon" />
           <span class="logo-text">DeviceSDK</span>
         </div>
-        <p class="tagline">IoT Device Management Platform</p>
+        <p class="tagline">Self-Hosted IoT Platform</p>
       </div>
 
       <div class="login-content">
@@ -17,33 +17,84 @@
           Your session has expired. Please sign in again.
         </q-banner>
 
-        <h1 class="welcome-title">Welcome back</h1>
-        <p class="welcome-subtitle">Sign in to your account to continue</p>
+        <h1 class="welcome-title">{{ isRegisterMode ? 'Create your account' : 'Welcome back' }}</h1>
+        <p class="welcome-subtitle">
+          {{
+            isRegisterMode
+              ? firstRun
+                ? 'Set up the first account for this server'
+                : 'Register a new account on this server'
+              : 'Sign in to your account to continue'
+          }}
+        </p>
 
-        <q-btn
-          unelevated
-          class="full-width google-btn"
-          @click="handleSignIn"
-          :loading="loading"
-        >
-          <svg class="google-icon" viewBox="0 0 48 48">
-            <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039L38.804 12.8C34.782 9.244 29.732 7 24 7 12.955 7 4 15.955 4 27s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path>
-            <path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.655 15.108 18.961 13 24 13c3.059 0 5.842 1.154 7.961 3.039L38.804 12.8C34.782 9.244 29.732 7 24 7 16.318 7 9.656 10.337 6.306 14.691z"></path>
-            <path fill="#4CAF50" d="M24 47c5.732 0 10.782-2.244 14.804-5.804l-6.571-4.819C29.961 38.846 27.245 40 24 40c-5.039 0-9.345-2.108-11.124-5.491l-6.571 4.819C9.656 43.663 16.318 47 24 47z"></path>
-            <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.16-4.082 5.571l6.571 4.819C42.871 35.438 45.425 29.613 45.425 23c0-1.341-.138-2.65-.389-3.917z"></path>
-          </svg>
-          Continue with Google
-        </q-btn>
+        <q-form @submit.prevent="handleSubmit">
+          <q-input
+            v-if="isRegisterMode"
+            v-model="name"
+            label="Name"
+            outlined
+            dense
+            class="q-mb-sm"
+            autocomplete="name"
+          />
+          <q-input
+            v-model="email"
+            label="Email"
+            type="email"
+            outlined
+            dense
+            class="q-mb-sm"
+            autocomplete="email"
+            :rules="[(v) => !!v || 'Email is required']"
+          />
+          <q-input
+            v-model="password"
+            label="Password"
+            :type="showPassword ? 'text' : 'password'"
+            outlined
+            dense
+            class="q-mb-md"
+            :autocomplete="isRegisterMode ? 'new-password' : 'current-password'"
+            :rules="[
+              (v) => !!v || 'Password is required',
+              (v) => !isRegisterMode || v.length >= 8 || 'At least 8 characters',
+            ]"
+          >
+            <template v-slot:append>
+              <q-icon
+                :name="showPassword ? 'visibility_off' : 'visibility'"
+                class="cursor-pointer"
+                @click="showPassword = !showPassword"
+              />
+            </template>
+          </q-input>
 
-        <p class="terms-text">
-          By signing in, you agree to our
-          <router-link to="/terms" class="terms-link">Terms of Service</router-link>
+          <q-btn
+            unelevated
+            type="submit"
+            color="primary"
+            class="full-width submit-btn"
+            :loading="loading"
+            :label="isRegisterMode ? 'Create account' : 'Sign in'"
+          />
+        </q-form>
+
+        <p v-if="registrationEnabled || isRegisterMode" class="toggle-text">
+          <template v-if="isRegisterMode">
+            Already have an account?
+            <a href="#" class="toggle-link" @click.prevent="isRegisterMode = false">Sign in</a>
+          </template>
+          <template v-else>
+            New to this server?
+            <a href="#" class="toggle-link" @click.prevent="isRegisterMode = true">Create an account</a>
+          </template>
         </p>
       </div>
 
       <div class="login-footer">
-        <q-icon name="lock" size="14px" />
-        <span>Secured with OAuth 2.0</span>
+        <q-icon name="home" size="14px" />
+        <span>Self-hosted on your own hardware</span>
       </div>
     </div>
   </div>
@@ -55,38 +106,66 @@ import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuth } from '@/composables/useAuth';
 import { isAllowedRedirectUrl } from '@/lib/redirect';
+import { authService } from '@/services/api.service';
 
 const router = useRouter();
 const $q = useQuasar();
 const auth = useAuth();
+
 const loading = ref(false);
 const sessionExpired = ref(new URLSearchParams(window.location.search).has('expired'));
+const isRegisterMode = ref(false);
+const registrationEnabled = ref(true);
+const firstRun = ref(false);
+const name = ref('');
+const email = ref('');
+const password = ref('');
+const showPassword = ref(false);
 
-onMounted(() => {
+onMounted(async () => {
   if (auth.isAuthenticated) {
     void router.push('/');
   }
-  
+
   const redirectUri = new URLSearchParams(window.location.search).get('redirect_uri');
   if (redirectUri && isAllowedRedirectUrl(redirectUri)) {
     sessionStorage.setItem('auth_redirect_uri', redirectUri);
   }
+
+  // First run (no accounts yet) jumps straight into registration.
+  try {
+    const status = await authService.status();
+    registrationEnabled.value = status.registration_enabled;
+    if (!status.has_users) {
+      firstRun.value = true;
+      isRegisterMode.value = true;
+    }
+  } catch {
+    // Server unreachable — the sign-in attempt will surface the error.
+  }
 });
 
-const handleSignIn = () => {
+const handleSubmit = async () => {
   loading.value = true;
   try {
-    // Redirects away to the OAuth provider; if it throws (or doesn't redirect),
-    // clear the spinner and tell the user instead of spinning forever.
-    auth.signIn();
+    if (isRegisterMode.value) {
+      await auth.register(email.value, password.value, name.value || undefined);
+    } else {
+      await auth.signIn(email.value, password.value);
+    }
+    const redirectUri = sessionStorage.getItem('auth_redirect_uri');
+    sessionStorage.removeItem('auth_redirect_uri');
+    if (redirectUri && isAllowedRedirectUrl(redirectUri)) {
+      window.location.href = redirectUri;
+    } else {
+      void router.push('/');
+    }
   } catch (error) {
-    console.error('Sign-in failed:', error);
+    const message =
+      error instanceof Error ? error.message : 'Sign-in failed. Please try again.';
+    $q.notify({ type: 'negative', message, position: 'top' });
+  } finally {
     loading.value = false;
-    $q.notify({
-      type: 'negative',
-      message: 'Could not start sign-in. Please try again.',
-      position: 'top',
-    });
   }
 };
 </script>
@@ -163,35 +242,20 @@ const handleSignIn = () => {
   margin: 0 0 1.5rem;
 }
 
-.google-btn {
-  background: var(--background) !important;
-  color: var(--foreground) !important;
-  border: 1px solid var(--border) !important;
+.submit-btn {
   font-weight: 500;
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 1rem;
   font-size: 0.875rem;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: var(--accent) !important;
-    border-color: var(--border-hover) !important;
-  }
 }
 
-.google-icon {
-  width: 18px;
-  height: 18px;
-  margin-right: 0.625rem;
-}
-
-.terms-text {
-  font-size: 0.75rem;
+.toggle-text {
+  font-size: 0.8125rem;
   color: var(--foreground-muted);
   text-align: center;
-  margin: 1.5rem 0 0;
+  margin: 1.25rem 0 0;
 }
 
-.terms-link {
+.toggle-link {
   color: var(--foreground);
   text-decoration: underline;
   text-underline-offset: 2px;

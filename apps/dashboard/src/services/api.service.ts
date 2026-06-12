@@ -54,13 +54,11 @@ export interface User {
   verified_email: number;
   created_at: number;
   onboarding_completed: number;
-  plan: 'free' | 'paid';
   limits: {
     max_projects: number;
     max_devices_per_project: number;
     max_script_versions_per_device: number;
     max_api_tokens: number;
-    max_messages_per_device_per_day: number;
     max_env_vars_per_project: number;
   };
   usage: {
@@ -146,6 +144,47 @@ export type ApiResponse<T> =
 // User Endpoints
 // ============================================================================
 
+export interface AuthStatus {
+  has_users: boolean;
+  registration_enabled: boolean;
+}
+
+export const authService = {
+  async status(): Promise<AuthStatus> {
+    const data = await api.call<ApiResponse<AuthStatus>>('/v1/auth/status', {
+      suppressAuthRedirect: true,
+    });
+    if (!data || !data.success) {
+      throw new Error('Failed to fetch auth status');
+    }
+    return data.result;
+  },
+
+  async login(email: string, password: string): Promise<User> {
+    const data = await api.call<ApiResponse<User>>('/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+      suppressAuthRedirect: true,
+    });
+    if (!data || !data.success) {
+      throw new Error('Invalid email or password.');
+    }
+    return data.result;
+  },
+
+  async register(email: string, password: string, name?: string): Promise<User> {
+    const data = await api.call<ApiResponse<User>>('/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name }),
+      suppressAuthRedirect: true,
+    });
+    if (!data || !data.success) {
+      throw new Error('Registration failed.');
+    }
+    return data.result;
+  },
+};
+
 export const userService = {
   async getMe(): Promise<User> {
     const data = await api.call<ApiResponse<User>>('/v1/user/me', {
@@ -167,8 +206,8 @@ export const userService = {
     }
   },
 
-  async deleteAccount(): Promise<{ deletion_scheduled_at: number }> {
-    const data = await api.call<ApiResponse<{ deletion_scheduled_at: number }>>('/v1/user/me', {
+  async deleteAccount(): Promise<{ deleted: boolean }> {
+    const data = await api.call<ApiResponse<{ deleted: boolean }>>('/v1/user/me', {
       method: 'DELETE',
     });
     if (!data || !data.success) {
@@ -496,7 +535,6 @@ export interface UsageBucket {
   bytes_out: number;
   cron_fires: number;
   connected_seconds: number;
-  estimated_cost_usd: number;
 }
 
 export type UsageTotals = Omit<UsageBucket, 'ts'>;
@@ -520,11 +558,6 @@ export interface ProjectMetrics {
   bucket_seconds: number;
   devices: ProjectDeviceMetrics[];
   totals: UsageTotals;
-  billing: {
-    window: string;
-    daily: { ts: number; estimated_cost_usd: number }[];
-    total_usd: number;
-  };
 }
 
 export const metricsService = {

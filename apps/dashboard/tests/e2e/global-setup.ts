@@ -5,10 +5,17 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
-const API_PORT = 8787;
+// The Bun server defaults to 8080 (which is also the dashboard's dev API-host
+// default). Override with E2E_API_PORT when 8080 is taken locally; the explicit
+// VITE_API_HOST below keeps the dashboard pointed at whichever port we pick.
+const API_PORT = Number(process.env.E2E_API_PORT) || 8080;
+const API_HOST = `http://localhost:${API_PORT}`;
 const DASHBOARD_PORT = 9000;
-const API_DIR = path.resolve(__dirname, "../../../api");
-const DASHBOARD_DIR = path.resolve(__dirname, "../..");
+const SERVER_DIR = path.resolve(__dirname, "../../../server"); // apps/server
+const DASHBOARD_DIR = path.resolve(__dirname, "../.."); // apps/dashboard
+const DATA_DIR = path.resolve(__dirname, ".data"); // throwaway server state
+const DB_PATH = path.join(DATA_DIR, "devicesdk.sqlite");
+const SEED_SCRIPT = path.resolve(__dirname, "seed.ts");
 const PID_FILE = path.resolve(__dirname, ".pids.json");
 
 async function waitForServer(
@@ -49,32 +56,38 @@ export default async function globalSetup() {
   // Kill any leftover servers from previous runs
   killExistingServers();
 
-  // 1. Apply D1 migrations (idempotent)
-  execSync("npx wrangler d1 migrations apply DB --local", {
-    cwd: API_DIR,
-    stdio: "pipe",
-  });
+  // Start from a clean data dir so the seed is deterministic. The server
+  // recreates it and applies all migrations on boot.
+  fs.rmSync(DATA_DIR, { recursive: true, force: true });
 
-  // 2. Start API server
-  // stdio: inherit forwards wrangler's output to the parent process so CI logs
-  // show startup errors. Using "pipe" without consuming the streams causes the
-  // child to block when the pipe buffer fills.
-  const apiProcess = spawn(
-    "npx",
-    ["wrangler", "dev", "--port", String(API_PORT)],
-    { cwd: API_DIR, stdio: ["ignore", "inherit", "inherit"], detached: true },
-  );
+  // 1. Start the Bun server (creates the SQLite DB + applies migrations on boot).
+  // stdio: inherit forwards the server's output to the parent process so CI
+  // logs show startup errors. Using "pipe" without consuming the streams would
+  // block the child once the pipe buffer fills.
+  const apiProcess = spawn("bun", ["run", "src/server.ts"], {
+    cwd: SERVER_DIR,
+    stdio: ["ignore", "inherit", "inherit"],
+    detached: true,
+    env: {
+      ...process.env,
+      PORT: String(API_PORT),
+      DATA_DIR,
+      ENV: "local",
+      ALLOW_REGISTRATION: "true",
+    },
+  });
   apiProcess.on("exit", (code, signal) => {
     console.error(
-      `[e2e] wrangler dev exited unexpectedly code=${code} signal=${signal}`,
+      `[e2e] bun server exited unexpectedly code=${code} signal=${signal}`,
     );
   });
 
-  // 3. Start dashboard dev server
+  // 2. Start dashboard dev server. VITE_API_HOST points it at our Bun server;
+  // Vite's loadEnv picks up prefixed vars already present in process.env.
   const dashProcess = spawn("npx", ["quasar", "dev"], {
     cwd: DASHBOARD_DIR,
     stdio: ["ignore", "inherit", "inherit"],
-    env: { ...process.env, BROWSER: "none" },
+    env: { ...process.env, BROWSER: "none", VITE_API_HOST: API_HOST },
     detached: true,
   });
   dashProcess.on("exit", (code, signal) => {
@@ -89,55 +102,28 @@ export default async function globalSetup() {
     JSON.stringify({ api: apiProcess.pid, dashboard: dashProcess.pid }),
   );
 
-  // 4. Wait for API server to be ready
-  await waitForServer(`http://localhost:${API_PORT}/v1/user/me`);
+  // 3. Wait for the API server to be ready (auth/status is a public endpoint).
+  await waitForServer(`${API_HOST}/v1/auth/status`);
 
-  // 5. Seed test data AFTER API server starts (ensures same DB instance)
-  const now = Date.now();
-  const expires = now + 86400000;
-  const seedSQL = [
-    "DELETE FROM rate_limits;",
-    "DELETE FROM device_scripts;",
-    "DELETE FROM devices;",
-    "DELETE FROM tokens;",
-    "DELETE FROM user_sessions;",
-    "DELETE FROM projects;",
-    "DELETE FROM user;",
-    "",
-    `INSERT INTO user (id, name, email, verified_email, picture, created_at, plan) VALUES ('user-1', 'Alice Johnson', 'alice@example.com', 1, 'https://example.com/alice.jpg', ${now}, 'paid');`,
-    `INSERT INTO user_sessions (user_id, token, created_at, expires_at) VALUES ('user-1', 'test-session-token', ${now}, ${expires});`,
-    `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-1', 'user-1', 'smart-home', 'Smart Home', 'IoT smart home automation project', ${now});`,
-    `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-2', 'user-1', 'weather-station', 'Weather Station', 'IoT weather monitoring system', ${now});`,
-
-    // Devices for proj-1 (smart-home)
-    `INSERT INTO devices (id, project_id, device_slug, name, description, current_version_id, last_connected_at, created_at, updated_at) VALUES ('dev-1', 'proj-1', 'temp-sensor', 'Temperature Sensor', 'Living room temperature monitor', NULL, NULL, ${now}, ${now});`,
-    `INSERT INTO devices (id, project_id, device_slug, name, description, current_version_id, last_connected_at, created_at, updated_at) VALUES ('dev-2', 'proj-1', 'led-controller', 'LED Controller', 'Kitchen LED strip controller', NULL, NULL, ${now}, ${now});`,
-
-    // Deletable project with a device
-    `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-3', 'user-1', 'deletable-project', 'Deletable Project', 'Project for delete testing', ${now});`,
-    `INSERT INTO devices (id, project_id, device_slug, name, description, current_version_id, last_connected_at, created_at, updated_at) VALUES ('dev-3', 'proj-3', 'deletable-device', 'Deletable Device', 'Device for delete testing', NULL, NULL, ${now}, ${now});`,
-
-    // Token for delete testing
-    `INSERT INTO tokens (id, user_id, token, created_at, description, managed) VALUES ('tok-1', 'user-1', 'dsdk_testtoken1234567890abcdef', ${now}, 'Test token for E2E', 0);`,
-  ].join("\n");
-
-  const sqlFile = path.resolve(__dirname, ".seed.sql");
-  fs.writeFileSync(sqlFile, seedSQL);
+  // 4. Seed test data AFTER the server has migrated the DB. The seed runs in a
+  // short-lived Bun process so it can open the same bun:sqlite database file.
   try {
-    execSync(`npx wrangler d1 execute DB --local --file="${sqlFile}"`, {
-      cwd: API_DIR,
+    execSync(`bun run "${SEED_SCRIPT}"`, {
+      cwd: SERVER_DIR,
       stdio: "pipe",
+      env: { ...process.env, DSDK_E2E_DB: DB_PATH },
     });
   } catch (err: unknown) {
-    const error = err as { stderr?: string; stdout?: string };
-    console.error("[e2e] Seed failed:", error.stderr || error.stdout);
+    const error = err as { stderr?: Buffer; stdout?: Buffer };
+    console.error(
+      "[e2e] Seed failed:",
+      error.stderr?.toString() || error.stdout?.toString(),
+    );
     throw err;
-  } finally {
-    fs.unlinkSync(sqlFile);
   }
 
-  // 6. Verify seed data is accessible through the API
-  const verifyResp = await fetch(`http://localhost:${API_PORT}/v1/projects`, {
+  // 5. Verify seed data is accessible through the API (Bearer = session token).
+  const verifyResp = await fetch(`${API_HOST}/v1/projects`, {
     headers: { Authorization: "Bearer test-session-token" },
   });
   if (!verifyResp.ok) {
@@ -147,6 +133,6 @@ export default async function globalSetup() {
     );
   }
 
-  // 7. Wait for dashboard
+  // 6. Wait for dashboard
   await waitForServer(`http://localhost:${DASHBOARD_PORT}`);
 }

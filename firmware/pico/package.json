@@ -1,17 +1,18 @@
 {
-  "name": "@devicesdk/firmware-pico",
-  "version": "0.0.5",
-  "private": true,
-  "scripts": {
-    "build": "command -v cmake >/dev/null 2>&1 && make build || echo 'Skipping Pico build (cmake not found)'",
-    "build:all": "rm -rf dist && mkdir -p dist && IOTKIT_BOARD=pico_w make build && cp build/devicesdk-client.uf2 dist/devicesdk-pico-w-client.uf2 && IOTKIT_BOARD=pico2_w make build && cp build/devicesdk-client.uf2 dist/devicesdk-pico2-w-client.uf2",
-    "publish": "pnpm build:all && wrangler r2 object put devicesdk-firmwares/devicesdk-pico-w-client.uf2 --file dist/devicesdk-pico-w-client.uf2 --remote && wrangler r2 object put devicesdk-firmwares/devicesdk-pico2-w-client.uf2 --file dist/devicesdk-pico2-w-client.uf2 --remote",
-    "flash": "make flash",
-    "build-and-flash": "make build-and-flash",
-    "test": "command -v cmake >/dev/null 2>&1 && (cd test && cmake -B build && cmake --build build && ./build/run_tests) || echo 'Skipping Pico host tests (cmake not found)'",
-    "clean": "make clean"
-  },
-  "dependencies": {
-    "wrangler": "catalog:"
-  }
+	"name": "@devicesdk/firmware-pico",
+	"version": "0.0.5",
+	"private": true,
+	"scripts": {
+		"build": "command -v cmake >/dev/null 2>&1 && make build || echo 'Skipping Pico build (cmake not found)'",
+		"build:all": "rm -rf dist && mkdir -p dist && IOTKIT_BOARD=pico_w make build && cp build/devicesdk-client.uf2 dist/devicesdk-pico-w-client.uf2 && IOTKIT_BOARD=pico2_w make build && cp build/devicesdk-client.uf2 dist/devicesdk-pico2-w-client.uf2",
+		"publish": "pnpm build:all && wrangler r2 object put devicesdk-firmwares/devicesdk-pico-w-client.uf2 --file dist/devicesdk-pico-w-client.uf2 --remote && wrangler r2 object put devicesdk-firmwares/devicesdk-pico2-w-client.uf2 --file dist/devicesdk-pico2-w-client.uf2 --remote",
+		"flash": "make flash",
+		"build-and-flash": "make build-and-flash",
+		"test": "command -v cmake >/dev/null 2>&1 && (cd test && cmake -B build && cmake --build build && ./build/run_tests) || echo 'Skipping Pico host tests (cmake not found)'",
+		"clean": "make clean"
+	},
+	"dependencies": {
+		"wrangler": "catalog:"
+	},
+	"license": "AGPL-3.0-only"
 }

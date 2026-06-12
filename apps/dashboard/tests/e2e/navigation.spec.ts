@@ -49,7 +49,9 @@ test.describe("Navigation", () => {
     await context.close();
   });
 
-  test("login page shows Google sign-in button", async ({ browser }) => {
+  test("login page shows the local email/password form", async ({
+    browser,
+  }) => {
     const context = await browser.newContext({
       storageState: { cookies: [], origins: [] },
     });
@@ -57,7 +59,12 @@ test.describe("Navigation", () => {
 
     await page.goto("http://localhost:9000/login");
 
-    await expect(page.getByText("Continue with Google")).toBeVisible();
+    // Local auth replaced Google OAuth: email + password fields and a
+    // "Sign in" button, under the DeviceSDK brand.
+    await expect(page.getByText("Welcome back")).toBeVisible();
+    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
     await expect(page.getByText("DeviceSDK").first()).toBeVisible();
 
     await context.close();

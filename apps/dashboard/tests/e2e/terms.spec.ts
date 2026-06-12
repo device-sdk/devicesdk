@@ -13,7 +13,8 @@ test.describe("Terms page", () => {
     await expect(
       page.getByRole("heading", { name: "Terms of Service" }),
     ).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText("Last updated: June 2026")).toBeVisible();
+    // Match the label + any date so bumping LAST_UPDATED doesn't break this.
+    await expect(page.getByText(/Last updated:\s*\S+/)).toBeVisible();
 
     await context.close();
   });

@@ -36,7 +36,7 @@ jobs:
             turbo-${{ github.job }}-${{ github.ref_name }}-
             turbo-${{ github.job }}-
       - name: Biome
-        run: pnpm exec biome ci apps/api apps/simulation packages/core packages/cli
+        run: pnpm exec biome ci apps/server apps/simulation packages/core packages/cli
       - name: ESLint (dashboard)
         run: pnpm exec turbo run lint
 
@@ -82,15 +82,6 @@ jobs:
             turbo-${{ github.job }}-${{ github.ref_name }}-
             turbo-${{ github.job }}-
       - run: pnpm exec turbo run test --filter='!@devicesdk/dashboard'
-      - name: API Coverage Report
-        run: pnpm --filter @devicesdk/api test:coverage
-      - name: Upload coverage
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: api-coverage
-          path: apps/api/coverage/
-          retention-days: 14
 
   component-tests:
     name: Component Tests
@@ -121,6 +112,10 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
+      # The E2E harness boots the real Bun server (apps/server) as the backend.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.3.14'
       - run: pnpm install --frozen-lockfile
       - name: Restore Turbo cache
         uses: actions/cache@v5
@@ -144,8 +139,6 @@ jobs:
         # which requires passwordless sudo. Browser binaries still cache to ~/.cache.
         run: npx playwright install chromium
         working-directory: apps/dashboard
-      - name: Create API dev vars
-        run: echo "ENV=local" > apps/api/.dev.vars
       - name: Run E2E tests
         run: npx playwright test --config tests/e2e/playwright.config.ts
         working-directory: apps/dashboard

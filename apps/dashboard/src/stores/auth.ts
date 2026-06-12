@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { API_HOST } from '@/config/apiHost';
 import { ApiError } from '@/lib/api';
-import { userService, type User } from '@/services/api.service';
+import { authService, userService, type User } from '@/services/api.service';
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
@@ -35,14 +34,22 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  const signIn = () => {
-    const params = new URLSearchParams();
-    const redirectUri = sessionStorage.getItem('auth_redirect_uri');
-    if (redirectUri) {
-      params.append('redirect_uri', redirectUri);
-    }
-    const queryString = params.toString();
-    window.location.href = `${API_HOST}/v1/auth/google${queryString ? '?' + queryString : ''}`;
+  const signIn = async (email: string, password: string): Promise<User> => {
+    const signedIn = await authService.login(email, password);
+    user.value = signedIn;
+    networkError.value = false;
+    return signedIn;
+  };
+
+  const register = async (
+    email: string,
+    password: string,
+    name?: string,
+  ): Promise<User> => {
+    const created = await authService.register(email, password, name);
+    user.value = created;
+    networkError.value = false;
+    return created;
   };
 
   const signOut = async () => {
@@ -63,6 +70,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     fetchUser,
     signIn,
+    register,
     signOut,
   };
 });

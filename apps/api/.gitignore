@@ -1,6 +1,0 @@
-.wrangler
-.idea
-.dev.vars
-node_modules
-.env
-openapi.json

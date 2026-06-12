@@ -1,5 +1,13 @@
 import open from "open";
-import { getMe, pollAuth, setVerbose, startAuth } from "../api.js";
+import {
+	getApiUrl,
+	getMe,
+	normalizeHost,
+	pollAuth,
+	setApiUrl,
+	setVerbose,
+	startAuth,
+} from "../api.js";
 import { type Credentials, saveCredentials } from "../credentials.js";
 import { EXIT } from "../exitCodes.js";
 
@@ -10,10 +18,15 @@ let isVerbose = false;
 
 export default async function login(options?: {
 	verbose?: boolean;
+	host?: string;
 }): Promise<void> {
 	if (options?.verbose) {
 		setVerbose(true);
 		isVerbose = true;
+	}
+
+	if (options?.host) {
+		setApiUrl(options.host);
 	}
 
 	console.log("Starting authentication...\n");
@@ -83,6 +96,8 @@ export default async function login(options?: {
 			refreshToken: authResult.refresh_token,
 			expiresAt: Date.now() + authResult.expires_in * 1000,
 			email: user.email,
+			// Persist the server URL so every later command targets it.
+			host: options?.host ? normalizeHost(options.host) : getApiUrl(),
 		};
 
 		await saveCredentials(credentials);

@@ -26,16 +26,9 @@
       </div>
       <div class="col-6 col-md-4">
         <div class="stat-card">
-          <q-icon name="payments" size="28px" color="secondary" />
-          <div class="stat-value">{{ formatUsd(totals.estimated_cost_usd) }}</div>
-          <div class="stat-label">Est. cost ({{ window }})</div>
-        </div>
-      </div>
-      <div class="col-12 col-md-4">
-        <div class="stat-card">
-          <q-icon name="calendar_month" size="28px" color="positive" />
-          <div class="stat-value">{{ formatUsd(billingTotal) }}</div>
-          <div class="stat-label">Est. spend (last 30d)</div>
+          <q-icon name="schedule" size="28px" color="secondary" />
+          <div class="stat-value">{{ formatCount(totals.cron_fires) }}</div>
+          <div class="stat-label">Cron fires ({{ window }})</div>
         </div>
       </div>
     </div>
@@ -50,21 +43,6 @@
       :empty="!loading && !error && noDeviceUsage"
       empty-label="No device usage for this period yet"
       :aria-label="`Messages per device over the ${window} window: ${formatCount(totalMessages)} total.`"
-    />
-
-    <q-separator class="q-my-lg" />
-
-    <div class="text-subtitle2 text-weight-bold q-mb-sm">
-      Estimated spend — last 30 days
-    </div>
-    <MetricsChart
-      :option="billingOption"
-      :loading="loading"
-      :error="!loading && error"
-      :empty="!loading && !error && billingDaily.length === 0"
-      empty-label="No billable usage in the last 30 days"
-      :aria-label="`Estimated spend over the last 30 days: ${formatUsd(billingTotal)} total.`"
-      :height="220"
     />
 
     <div v-if="rankedDevices.length" class="q-mt-lg">
@@ -82,9 +60,6 @@
       />
     </div>
 
-    <p class="text-caption text-grey-6 q-mt-md">
-      Estimated from sampled metrics — not an exact bill.
-    </p>
   </div>
 </template>
 
@@ -93,16 +68,13 @@ import { computed, onMounted, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import MetricsChart from '@/components/metrics/MetricsChart.vue';
 import {
-  buildBillingOption,
   buildProjectMessagesOption,
   formatCount,
-  formatUsd,
 } from '@/lib/metricsFormat';
 import {
   metricsService,
   type MetricsWindow,
   type ProjectDeviceMetrics,
-  type ProjectMetrics,
   type UsageTotals,
 } from '@/services/api.service';
 
@@ -123,7 +95,6 @@ const EMPTY_TOTALS: UsageTotals = {
   bytes_out: 0,
   cron_fires: 0,
   connected_seconds: 0,
-  estimated_cost_usd: 0,
 };
 
 const columns = [
@@ -138,11 +109,11 @@ const columns = [
     sortable: true,
   },
   {
-    name: 'cost',
-    label: 'Est. cost',
+    name: 'cron_fires',
+    label: 'Cron fires',
     align: 'right' as const,
-    field: (r: ProjectDeviceMetrics) => r.totals.estimated_cost_usd,
-    format: (v: number) => formatUsd(v),
+    field: (r: ProjectDeviceMetrics) => r.totals.cron_fires,
+    format: (v: number) => formatCount(v),
     sortable: true,
   },
 ];
@@ -152,8 +123,6 @@ const loading = ref(true);
 const error = ref(false);
 const devices = ref<ProjectDeviceMetrics[]>([]);
 const totals = ref<UsageTotals>({ ...EMPTY_TOTALS });
-const billingDaily = ref<ProjectMetrics['billing']['daily']>([]);
-const billingTotal = ref(0);
 
 const totalMessages = computed(
   () => totals.value.messages_in + totals.value.messages_out,
@@ -162,7 +131,6 @@ const noDeviceUsage = computed(() =>
   devices.value.every((d) => d.series.length === 0),
 );
 const messagesOption = computed(() => buildProjectMessagesOption(devices.value));
-const billingOption = computed(() => buildBillingOption(billingDaily.value));
 
 // Highest-usage devices first, dropping those with no usage in the window.
 const rankedDevices = computed(() =>
@@ -184,8 +152,6 @@ const fetchMetrics = async () => {
     const data = await metricsService.getProject(props.projectId, window.value);
     devices.value = data.devices ?? [];
     totals.value = data.totals ?? { ...EMPTY_TOTALS };
-    billingDaily.value = data.billing?.daily ?? [];
-    billingTotal.value = data.billing?.total_usd ?? 0;
   } catch (err) {
     console.error('Error fetching project metrics:', err);
     error.value = true;

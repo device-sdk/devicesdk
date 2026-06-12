@@ -6,10 +6,32 @@ social_image: /og-images/docs/quickstart.png
 
 ## Prerequisites
 
-- **Node.js 22 or newer** - [Download Node.js](https://nodejs.org/)
-- A DeviceSDK account - [Sign up free](https://dash.devicesdk.com)
+- **A running DeviceSDK server** — you host it yourself. [Step 1](#step-1-run-the-server) below stands one up with Docker Compose in a couple of minutes.
+- **Node.js 22 or newer** - [Download Node.js](https://nodejs.org/) — for the CLI.
 
-## Step 1: Create Your First Project
+## Step 1: Run the Server
+
+DeviceSDK is self-hosted: you run the server, and everything (API, dashboard, device WebSockets) lives in one process on one port. The quickest path is Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Open `http://localhost:8080` in your browser and **create the first account** — the first registered user becomes the admin. After that you can set `ALLOW_REGISTRATION=false` to close signups.
+
+The server runs anywhere Docker does — Raspberry Pi, NUC, or NAS. Behind an HTTPS reverse proxy, also set `SECURE_COOKIES=true`. State persists under `DATA_DIR` (`/data` in the container).
+
+## Step 2: Connect the CLI to Your Server
+
+Point the CLI at the server you just started and authenticate:
+
+```bash
+npx @devicesdk/cli login --host http://localhost:8080
+```
+
+This runs a browser device-code flow against **your** server and saves an access/refresh token plus the host to `~/.devicesdk/credentials.json`. Replace `localhost` with the server's hostname or LAN IP when the CLI runs on a different machine.
+
+## Step 3: Create Your First Project
 
 Initialize a new project:
 
@@ -28,17 +50,17 @@ Navigate into your project:
 cd hello-world
 ```
 
-## Step 2: Deploy
+## Step 4: Deploy
 
-Deploy your code to the edge:
+Deploy your code to your server:
 
 ```bash
 npx @devicesdk/cli deploy
 ```
 
-Your code is now running on DeviceSDK network, ready to handle real device connections.
+Your scripts are uploaded to your server as a new immutable version, and connected devices reconnect to it.
 
-## Step 3: Stream Logs
+## Step 5: Stream Logs
 
 Tail device output directly from the terminal — the recommended debugging workflow after deploying:
 
@@ -48,16 +70,16 @@ npx @devicesdk/cli logs <project-id> <device-id> --tail
 
 New log entries stream in as they arrive. Press **Ctrl-C** to stop. See [`devicesdk logs`](/docs/cli/logs/) for filtering by level and other options.
 
-## Step 4: View in Dashboard
+## Step 6: View in Dashboard
 
-Visit your [dashboard](https://dash.devicesdk.com) to:
+Open your server's URL — `http://localhost:8080` (or your server's hostname) — to reach the dashboard your server serves. From there you can:
 - See your deployed projects
 - Monitor device connections
 - View message logs
-- Manage device credentials
+- Manage device credentials and API tokens
 - Track version history
 
-## Step 5: Store Secrets with Environment Variables
+## Step 7: Store Secrets with Environment Variables
 
 Keep API keys and credentials out of your source code using project-scoped environment variables:
 

@@ -25,7 +25,7 @@ The `status` command shows the live connection status of all devices in your pro
 - **VERSION** — the first 8 characters of the deployed script version ID
 - **LAST SEEN** — how long ago the device last connected (or "never" if it has never connected)
 
-Device status is read in real time from the edge — there is no caching.
+Device status is read in real time from your server — there is no caching.
 
 ## Examples
 

@@ -41,10 +41,10 @@ DeviceSDK automatically assigns version identifiers:
 When you deploy:
 
 1. **Build** - Code compiled and bundled
-2. **Upload** - Sent to DeviceSDK
+2. **Upload** - Sent to your DeviceSDK server
 3. **Validate** - Checked for errors
-4. **Activate** - Made available globally
-5. **Notify** - Devices informed of new version
+4. **Activate** - Stored as the new active version on the server
+5. **Notify** - Connected devices are sent a reboot and pick up the new version on reconnect
 
 Deployment typically completes in 10-30 seconds.
 
@@ -52,7 +52,7 @@ Deployment typically completes in 10-30 seconds.
 
 ### All Devices (Default)
 
-All devices get new version immediately:
+All devices get the new version on their next reconnect:
 ```bash
 devicesdk deploy
 ```

@@ -48,6 +48,6 @@ devicesdk build --outdir dist/ --sourcemap
 
 ## Related
 
-- [`devicesdk deploy`](/docs/cli/deploy/) — push the build to production.
+- [`devicesdk deploy`](/docs/cli/deploy/) — push the build to your server.
 - [`devicesdk dev`](/docs/cli/dev/) — run the simulator (calls `build` internally).
 - [Device entrypoints](/docs/concepts/entrypoints/) — what your `main` file should look like.

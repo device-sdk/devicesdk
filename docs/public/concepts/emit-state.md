@@ -86,6 +86,6 @@ Use `emitState` when:
 - Exposing KV state (last-known device setting, last reboot reason)
 - Anything else that isn't one of the built-in hardware sources
 
-## Cost
+## Overhead
 
-`emitState` is cheap. Every call is a single function invocation inside the device's worker — no extra round-trips to storage or to the device hardware. The state event is only broadcast to active watchers; if no one is subscribed, the call is effectively free.
+`emitState` is cheap. Every call is a single function invocation inside the device's session on the server — no extra round-trips to storage or to the device hardware. The state event is only broadcast to active watchers; if no one is subscribed, the call does almost nothing.

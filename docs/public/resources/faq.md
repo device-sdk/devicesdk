@@ -8,71 +8,98 @@ social_image: /og-images/docs/resources/faq.png
 
 ### What is DeviceSDK?
 
-DeviceSDK is a platform for building IoT applications with TypeScript. It runs your code on a globally distributed runtime, providing low-latency communication with devices worldwide.
+DeviceSDK is a self-hosted, open-source platform for building IoT applications with TypeScript. You write device scripts, deploy them to a server you run yourself, and your microcontrollers (ESP32/Pico) connect to that server over WebSocket. The whole stack ships as a single Docker image.
 
 ### How is this different from other IoT platforms?
 
 - **TypeScript-first** - Full TypeScript support, not just configuration
-- **Distributed execution** - Code runs globally, near your devices
+- **Self-hosted** - One Bun server on your hardware; no cloud account, no vendor lock-in
+- **Open source** - AGPL-3.0; read, modify, and run the code yourself
 - **Developer-friendly** - Built-in simulator, modern tooling
-- **Pay per message** - No uptime charges
-- **Simple integration** - Use your preferred APIs and services
+- **Your data stays yours** - everything lives under `DATA_DIR` on your machine
+
+### Is DeviceSDK free?
+
+Yes. DeviceSDK is free and open source under the **AGPL-3.0** license. There are no plans, tiers, message quotas, or usage billing — you run the server on your own hardware and it's yours.
 
 ### Do I need to know any specific cloud platform?
 
-No. DeviceSDK provides a simple API and does not require provider-specific knowledge.
+No. DeviceSDK runs anywhere Docker (or Bun) runs: a Raspberry Pi, a NUC, a NAS, or any Linux box.
 
-## Pricing
+## Running the server
 
-### How much does it cost?
+### Where does it run?
 
-- **Free tier**: 500 messages/day free
-- **Paid tier**: Starting at $5/month, includes 5 million messages/month. Additional messages at $3 per million.
+Anywhere you can run the Docker image `ghcr.io/device-sdk/devicesdk` — Raspberry Pi, NUC, NAS, or a plain Docker host. It's a single Bun process listening on one port (default **8080**).
 
-See [pricing page](/pricing/) for details.
+### How do I start it?
 
-### What counts as a message?
+```bash
+docker compose up -d
+```
 
-Any communication between your code and device:
-- Commands sent to device (1 message)
-- Data received from device (1 message)
+The server then serves the REST API, the device and watcher WebSockets, and the dashboard UI all on `http://<server>:8080`.
 
-### Do I pay for offline devices?
+### Where is my data stored?
 
-No. You only pay for messages sent and received. Offline devices cost nothing.
+All state lives under `DATA_DIR` (default `./data`, `/data` inside Docker):
 
-### Can I set spending limits?
+- `devicesdk.sqlite` — the SQLite database (WAL mode)
+- `scripts/` — your deployed device script bundles
+- `firmwares/` — cached firmware images
 
-Yes. Configure daily and monthly limits in the dashboard to avoid surprises.
+Back up that directory and you've backed up everything.
+
+### Does the server phone home?
+
+No. There is no telemetry and no phone-home in the server. Any optional integration is opt-in via environment config.
+
+## Accounts & access
+
+### How do I sign in?
+
+The server uses local email/password accounts (hashed with argon2id). Open the dashboard at `http://<server>:8080` and register. The **first account you create becomes the admin**.
+
+### How do I stop others from registering?
+
+Set `ALLOW_REGISTRATION=false`. After the first admin account exists, this closes signups so no one else can register on your server.
+
+### How does the CLI authenticate?
+
+Point the CLI at your server and log in:
+
+```bash
+devicesdk login --host http://<server>:8080
+```
+
+Credentials are stored at `~/.devicesdk/credentials.json`. For CI, set `DEVICESDK_TOKEN` (and `DEVICESDK_API_URL` to your server).
 
 ## Supported Hardware
 
 ### What devices are supported?
 
-Currently supported:
 - Raspberry Pi Pico W
 - Raspberry Pi Pico 2W
+- ESP32 (classic)
+- ESP32-C3
+- ESP32-C61
 
-Coming soon:
-- ESP32 series
+See the [Hardware Compatibility](/docs/hardware/) pages for per-board details.
 
 ### Can I use Raspberry Pi (full computer)?
 
-Not yet. DeviceSDK targets microcontrollers, not Linux computers.
-
-### Will you support ESP32?
-
-Yes! ESP32 support is in development.
+The Pi (or any Linux box) is what you run the **server** on. The device scripts target microcontrollers, not Linux computers.
 
 ### Can I request hardware support?
 
-Yes! Join our [Discord](https://discord.gg/WuNhbXGsBy) and let us know what you need.
+Yes! Join our [Discord](https://discord.gg/WuNhbXGsBy) or open an issue on [GitHub](https://github.com/device-sdk).
 
 ## Development
 
 ### Do I need physical hardware to get started?
 
 No. The built-in simulator lets you test without hardware:
+
 ```bash
 devicesdk dev
 ```
@@ -83,75 +110,63 @@ Yes, but TypeScript is recommended for better type safety and developer experien
 
 ### What libraries can I use?
 
-Most npm packages work. Runtime restrictions:
-- No Node.js-specific APIs (fs, child_process, etc.)
-- No native bindings
-- No heavy computation (execution limits apply)
+Device scripts run **in-process** on your server (Bun). Most JavaScript/TypeScript libraries work. Keep scripts lightweight — they handle device events, not heavy batch computation.
 
 ### Can I use external APIs?
 
 Yes! Call any HTTP API from your device scripts:
+
 ```typescript
 await fetch('https://api.example.com/data');
 ```
 
 ## Deployment
 
-### How long does deployment take?
+### How do I deploy a script?
 
-Typically 10-30 seconds to deploy globally.
+```bash
+devicesdk deploy
+```
+
+This uploads your built script bundle to your server, which stores it under `DATA_DIR/scripts/` as a new immutable version.
 
 ### Can I rollback a deployment?
 
-Yes. Rollback to any previous version instantly via the dashboard.
+Yes. Rollback to any previous version via the dashboard.
 
 ### How many devices can I have?
 
-No limit on device count in any tier.
+There's no built-in limit — you're bound only by your own hardware.
 
 ### Can I deploy from CI/CD?
 
-Yes. Use the CLI with a token:
+Yes. Point the CLI at your server and use a token:
+
 ```bash
-DEVICESDK_TOKEN=xxx devicesdk deploy
+DEVICESDK_API_URL=http://<server>:8080 DEVICESDK_TOKEN=xxx devicesdk deploy
 ```
 
 ## Security
 
-### How is data encrypted?
+### How do connections work?
 
-- All WebSocket connections use TLS 1.3
-- Device credentials are unique per device
-- API access requires authentication tokens
-
-### Where is my data stored?
-
-- Code runs on a globally distributed runtime
-- Logs stored per your retention settings
-- Device state in KV storage
-
-### Can I use custom domains?
-
-Not yet for device connections, but you can build web UIs on custom domains.
+- Devices connect to your server over WebSocket. When the configured host includes an explicit port (e.g. `ws://<server>:8080`), firmware uses plain `ws://` — typical for a LAN install. For a bare hostname behind a TLS terminator, it uses TLS on 443.
+- API access requires authentication tokens.
+- Device credentials are unique per device, embedded at flash time.
 
 ### Is my code isolated from other users?
 
-Yes. Each project runs in isolated execution contexts.
+Device scripts are **your** code running on **your** server — there are no other tenants. The trust model is single-operator: user-owned code on user-owned hardware. Within a project, devices can call each other's public methods (same-project RPC).
+
+### Can I expose the server beyond my LAN?
+
+Yes, but put it behind a reverse proxy or TLS terminator (or wait for the planned optional-HTTPS support — see the [roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md)). The server itself speaks HTTP on one port by default.
 
 ## Connectivity
 
 ### Does my network need special configuration?
 
-Most networks work out-of-box. Requirements:
-- Allow outbound WebSocket (port 443)
-- No captive portal blocking connections
-
-### What's the expected latency?
-
-Typically 50-200ms round-trip, depending on:
-- Geographic distance
-- Network quality
-- Edge routing
+For a LAN install, devices just need to reach your server's host and port over WiFi. Make sure your WiFi is 2.4GHz (5GHz is not supported) and that nothing on the network blocks the server's port.
 
 ### What if my device loses connection?
 
@@ -179,93 +194,58 @@ The CLI generates `devicesdk-env.d.ts` with types for all devices in your projec
 
 ### Can I send notifications?
 
-Yes. Use any notification service:
+Yes. Call any notification service from your device scripts:
+
 - Email (Resend, SendGrid, etc.)
 - SMS (Twilio)
 - Push notifications
 - Discord/Slack webhooks
 
-### Can I build a dashboard?
+### Can I integrate with Home Assistant?
 
-Yes. Build web UIs with any frontend framework and host where you prefer.
+Home Assistant integration is the flagship item on the [roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md). The server already persists Home Assistant entity declarations per device and streams `state` frames over the watch WebSocket.
 
 ### Is there a mobile app?
 
 Not yet. The web dashboard is mobile-friendly.
 
-## Limitations
-
-### What are the execution limits?
-
-- Script execution: 50ms CPU time recommended
-- Message size: 64 KB max
-- WebSocket connection: Persistent
-
-### Can I run long computations?
-
-For heavy computation:
-- Offload to separate services/queues
-- Keep device scripts lightweight
-
-### Maximum message rate?
-
-No hard limit, but billing increases with messages. Optimize for efficiency.
-
 ## Support
 
 ### How do I get help?
 
-1. Check this FAQ and [documentation](/docs/)
-2. Join [Discord community](https://discord.gg/WuNhbXGsBy)
-3. Email support@devicesdk.com
-
-### Is there paid support?
-
-Enterprise plans include priority support. Contact sales for details.
+1. Check this FAQ and the [documentation](/docs/)
+2. Join the [Discord community](https://discord.gg/WuNhbXGsBy)
+3. Open an issue on [GitHub](https://github.com/device-sdk)
 
 ### Where do I report bugs?
 
-- GitHub issues for open source components
+- GitHub issues for bugs and feature requests
 - Discord for community help
-- Email for account/billing issues
 
 ## Roadmap
 
 ### What's coming next?
 
-- ESP32 support
-- More hardware platforms
-- Enhanced simulator
-- Mobile device apps
-- Advanced analytics
+- **Home Assistant integration** (flagship): a HACS custom integration and, later, an official add-on.
+- mDNS/zeroconf discovery so the CLI and HA can find your server without typing an IP.
+- Backup/restore for `/data`.
+- Optional HTTPS for installs exposed beyond the LAN.
+- Firmware OTA updates.
+
+See the full [roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md) for details.
 
 ### Can I influence the roadmap?
 
-Yes! Share feedback in Discord or via email. We prioritize user-requested features.
+Yes! Share feedback in Discord or via GitHub issues. It's open source — pull requests welcome.
 
 ### Is DeviceSDK open source?
 
-Some components are open source. Check our [GitHub](https://github.com/device-sdk).
-
-## Migration
-
-### Can I migrate from another platform?
-
-Yes. We have migration guides for:
-- AWS IoT Core
-- Google Cloud IoT
-- Azure IoT Hub
-
-### Will you support MQTT?
-
-We use WebSockets for performance on the distributed runtime. MQTT compatibility is being evaluated.
-
-### Can I export my data?
-
-Yes. All data can be exported via API or dashboard.
+Yes — the entire platform is open source under AGPL-3.0. See our [GitHub](https://github.com/device-sdk).
 
 ## Still Have Questions?
 
 - [Join Discord](https://discord.gg/WuNhbXGsBy) for community help
-- [Email support](mailto:support@devicesdk.com) for specific issues
+- [Open a GitHub issue](https://github.com/device-sdk) for bugs or features
 - Check our [troubleshooting guide](/docs/resources/troubleshooting/)
+</content>
+</invoke>

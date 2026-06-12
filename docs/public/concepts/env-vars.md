@@ -92,7 +92,7 @@ export class MySensor extends DeviceSender {
 
 ## When do changes take effect?
 
-Environment variables are injected once when the device worker is created. Changes take effect on the **next device reconnect or reboot**.
+Environment variables are injected once when the device session is created on the server. Changes take effect on the **next device reconnect or reboot**.
 
 Running `devicesdk deploy` triggers a reboot, so a deploy automatically picks up any new or updated variables.
 
@@ -100,6 +100,6 @@ To update variables without redeploying your script, update them with the CLI an
 
 ## Security notes
 
-- Variable **values are never returned** by the list API — they are only accessible inside the device runtime.
+- Variable **values are never returned** by the list API — they are only accessible inside the device script running on the server.
 - Variables are stored at the project level; all devices in a project share the same set of variables.
 - Device-level overrides (different values per device) are not supported in the current version.

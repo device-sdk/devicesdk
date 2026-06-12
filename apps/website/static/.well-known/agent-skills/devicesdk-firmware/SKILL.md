@@ -1,7 +1,10 @@
 ---
 name: devicesdk-firmware
-description: DeviceSDK firmware runs on Raspberry Pi Pico W (RP2040) and the ESP32 family (including ESP32-C61). Devices open a raw WebSocket to the managed runtime, receive commands, and stream status/log/state events back. Flashing is typically a one-time operation; subsequent updates are delivered over the air.
+description: DeviceSDK firmware runs on Raspberry Pi Pico W (RP2040) and the ESP32 family (including ESP32-C61). Devices open a raw WebSocket to the server you self-host (ws://<server>:8080), receive commands, and stream status/log/state events back. Flashing is typically a one-time operation; subsequent updates are delivered over the air.
 ---
+
+## Connecting to your server
+Firmware connects to the server you run yourself. It selects **plain `ws://`** when the configured host contains an explicit port (e.g. `192.168.1.10:8080` — the typical self-hosted LAN case) and **`wss://` on 443** for a bare hostname. There is no managed cloud endpoint; point the device at your own server's host:port.
 
 ## Supported hardware
 - **Raspberry Pi Pico W** — RP2040 dual Cortex-M0+, 264 KB RAM, 2 MB flash, Wi-Fi via CYW43439. Full HAL: GPIO, PWM, ADC, I2C, SPI, UART. Virtual pin `99` is the onboard LED.

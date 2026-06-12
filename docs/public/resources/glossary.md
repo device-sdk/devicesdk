@@ -10,7 +10,7 @@ social_image: /og-images/docs/resources/glossary.png
 Hardware that converts analog voltage signals (0-3.3V) to digital values. Used for reading sensors like temperature, light, and pressure.
 
 ### API Token
-Authentication credential for accessing the DeviceSDK API programmatically. Generated in the dashboard for CI/CD and automation.
+Authentication credential for accessing the DeviceSDK API programmatically. Generated in your server's dashboard for CI/CD and automation.
 
 ## B
 
@@ -20,15 +20,12 @@ Special mode on Raspberry Pi Pico that allows firmware flashing. Entered by hold
 ## C
 
 ### CLI (Command-Line Interface)
-The `@devicesdk/cli` tool for developing, building, and deploying device applications from the terminal.
-
-### Serverless Runtime
-The globally distributed platform that runs DeviceSDK device scripts.
+The `@devicesdk/cli` tool for developing, building, and deploying device applications from the terminal. Point it at your server with `devicesdk login --host http://<server>:8080`.
 
 ## D
 
 ### Dashboard
-Web interface at dash.devicesdk.com for managing projects, devices, deployments, and viewing logs.
+Web interface served by your DeviceSDK server (same origin, default `http://<server>:8080`) for managing projects, devices, deployments, and viewing logs.
 
 ### Device
 A physical microcontroller (like Raspberry Pi Pico W) running DeviceSDK firmware and connected to your project.
@@ -43,15 +40,12 @@ A TypeScript class that handles device communication. Contains lifecycle methods
 Unique identifier for each device in your project. Set during firmware flashing.
 
 ### Deployment
-The process of uploading and activating device scripts to the edge network. Creates a new immutable version.
+The process of uploading and activating device scripts on your server. Creates a new immutable version, stored under `DATA_DIR/scripts/`.
 
 ## E
 
-### Distributed Network
-A global network of locations where device scripts execute close to users and devices.
-
 ### Runtime
-The serverless JavaScript runtime environment where device scripts execute.
+The in-process JavaScript runtime where device scripts execute — they run inside the Bun server process on your own hardware, not in a sandboxed or serverless environment.
 
 ### Environment Bindings
 Objects accessible in device entrypoints like `this.env.DEVICE`, providing access to platform features. Standard `console` methods are also available for logging.
@@ -95,7 +89,7 @@ Functions in device entrypoints called at specific points: `onDeviceConnect`, `o
 ## M
 
 ### Message
-A unit of communication between device and cloud, sent via WebSocket. Billing is based on message count.
+A unit of communication between a device and your server, sent via WebSocket.
 
 ### Microcontroller
 A small computer on a single chip, like Raspberry Pi Pico, that runs embedded firmware.
@@ -109,7 +103,7 @@ Lifecycle method called when a device establishes a WebSocket connection.
 Lifecycle method called when a device's WebSocket connection closes.
 
 ### onMessage
-Lifecycle method called when a device sends a message to the cloud.
+Lifecycle method called when a device sends a message to your server.
 
 ## P
 
@@ -133,7 +127,7 @@ The microcontroller chip used in Raspberry Pi Pico, featuring dual ARM Cortex-M0
 ## S
 
 ### Script
-Compiled JavaScript code running on the runtime that handles device communication. Built from TypeScript entrypoints.
+Compiled JavaScript code running in the server's in-process runtime that handles device communication. Built from TypeScript entrypoints.
 
 ### Simulator
 Local development environment (`devicesdk dev`) that emulates device connections without physical hardware.
@@ -147,7 +141,7 @@ Environment for testing deployments before production. Implemented using separat
 ## T
 
 ### TLS (Transport Layer Security)
-Encryption protocol securing WebSocket connections between devices and runtime.
+Encryption protocol for WebSocket connections. On a LAN install the server speaks plain HTTP/`ws://`; for installs exposed beyond the LAN you put it behind a reverse proxy or TLS terminator (optional built-in HTTPS is on the roadmap).
 
 ### TypeScript
 Primary programming language for DeviceSDK device entrypoints, providing type safety and modern features.
@@ -163,10 +157,10 @@ Record of all deployments in a project, including timestamps, authors, and deplo
 ## W
 
 ### WebSocket
-Persistent, bidirectional communication protocol connecting devices to the runtime.
+Persistent, bidirectional communication protocol connecting devices to your server.
 
 ### WiFi
-Wireless networking technology used by devices to connect to the internet. Currently supports 2.4GHz 802.11n.
+Wireless networking technology used by devices to reach your DeviceSDK server. Currently supports 2.4GHz 802.11n.
 
 ## Common Acronyms
 

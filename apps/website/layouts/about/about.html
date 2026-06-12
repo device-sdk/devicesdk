@@ -16,13 +16,13 @@
         <h2 class="text-2xl font-bold text-zinc-900 tracking-tight mb-6">Why we built DeviceSDK</h2>
         <div class="space-y-4 text-zinc-600 leading-relaxed">
             <p>
-                Building IoT shouldn't require learning C firmware, wrestling with MQTT brokers, or managing your own WebSocket infrastructure. But that's exactly what developers face today.
+                Building IoT shouldn't require learning C firmware, wrestling with MQTT brokers, or renting a cloud you can't inspect. But that's exactly what developers face today.
             </p>
             <p>
-                We built DeviceSDK because we believe the best way to program hardware is with the tools you already know. TypeScript gives you type safety, autocomplete, and a massive ecosystem. Our globally distributed runtime gives you low-latency infrastructure without managing servers.
+                We built DeviceSDK because we believe the best way to program hardware is with the tools you already know — and on infrastructure you actually own. TypeScript gives you type safety, autocomplete, and a massive ecosystem. The DeviceSDK server is open source (AGPL-3.0) and runs on your own hardware: a Raspberry Pi, a NUC, a NAS, or any Docker host. No cloud account, no per-message billing, no vendor lock-in.
             </p>
             <p>
-                The result is a platform where you write a single TypeScript class, deploy it with one command, and it runs on real hardware — with built-in state management, display APIs, and sensor integration.
+                The result is a platform where you write a single TypeScript class, deploy it with one command to a server you run yourself, and it runs on real hardware — with built-in state management, display APIs, and sensor integration.
             </p>
         </div>
     </div>
@@ -61,7 +61,7 @@
                     </li>
                     <li class="flex items-start gap-2 text-zinc-300">
                         <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Runs globally with low-latency edge infrastructure
+                        Runs on your own hardware — your data never leaves your network
                     </li>
                     <li class="flex items-start gap-2 text-zinc-300">
                         <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -91,12 +91,12 @@
                 <span class="text-zinc-300">hello@devicesdk.com</span>
             </div>
             <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
-                <span class="text-zinc-400">Support</span>
-                <span class="text-zinc-300">support@devicesdk.com</span>
+                <span class="text-zinc-400">Issues &amp; contributions</span>
+                <span class="text-zinc-300">github.com/device-sdk</span>
             </div>
             <div class="flex items-center justify-between">
-                <span class="text-zinc-400">Sales</span>
-                <span class="text-zinc-300">sales@devicesdk.com</span>
+                <span class="text-zinc-400">Community</span>
+                <span class="text-zinc-300">Discord</span>
             </div>
         </div>
     </div>
@@ -106,7 +106,7 @@
 <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
     <div class="max-w-3xl mx-auto text-center fade-up">
         <h2 class="text-3xl font-bold tracking-tight">Start building with DeviceSDK</h2>
-        <p class="mt-4 text-zinc-400 text-lg">Free for hobbyists. No credit card required.</p>
+        <p class="mt-4 text-zinc-400 text-lg">Free and open source. No account, no cloud — run it yourself.</p>
         <div class="mt-8">
             <a href="{{ .Site.Params.dashboardUrl }}" class="btn-primary h-11 px-8">Get started</a>
         </div>

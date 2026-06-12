@@ -11,13 +11,13 @@ social_image: /og-images/docs/resources/troubleshooting.png
 **Symptom**: `devicesdk login` fails or shows "Unauthorized"
 
 **Solutions**:
-1. Clear existing credentials:
+1. Clear existing credentials and log in again, pointing at your server:
    ```bash
    devicesdk logout
-   devicesdk login
+   devicesdk login --host http://<server>:8080
    ```
 
-2. Check your internet connection
+2. Check that your server is reachable (e.g. open `http://<server>:8080` in a browser, or `curl http://<server>:8080/health`)
 
 3. Verify you're using the latest CLI:
    ```bash

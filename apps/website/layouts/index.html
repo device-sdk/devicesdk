@@ -11,22 +11,22 @@
                         <span class="pulse-soft absolute inset-0 rounded-full text-emerald-400"></span>
                         <span class="relative inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                     </span>
-                    Private Beta
+                    Free &amp; open source · AGPL-3.0
                 </div>
                 <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
-                    Build IoT devices<br/>
-                    <span class="gradient-pan">with TypeScript</span>
+                    Self-hosted IoT<br/>
+                    <span class="gradient-pan">in TypeScript</span>
                 </h1>
                 <p class="mt-6 text-lg text-zinc-400 max-w-xl leading-relaxed">
-                    Write device firmware in TypeScript. Test locally with a simulator. Deploy to real hardware over-the-air. All from one CLI.
+                    Write TypeScript device scripts, run the open-source DeviceSDK server yourself — Raspberry Pi, NUC, NAS, any Docker host — and connect your ESP32 and Pico over WebSocket. Your hardware, your data, no cloud.
                 </p>
                 <div class="mt-8 flex flex-col sm:flex-row gap-3">
-                    <a href="{{ .Site.Params.dashboardUrl }}" class="btn-primary nudge h-11 px-6">
-                        <span>Start Building</span>
+                    <a href="/docs/quickstart/" class="btn-primary nudge h-11 px-6">
+                        <span>Get Started</span>
                         <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                     </a>
-                    <a href="{{ .Site.Params.docsUrl }}" class="btn-secondary h-11 px-6">
-                        Documentation
+                    <a href="{{ .Site.Params.githubUrl }}" class="btn-secondary h-11 px-6">
+                        View on GitHub
                     </a>
                 </div>
             </div>
@@ -76,7 +76,7 @@
             <p class="assembly-caption-eyebrow">Watch it come together</p>
             <h2 class="assembly-caption-title">
                 <span data-caption="0">Your TypeScript</span>
-                <span data-caption="1">runs on the edge</span>
+                <span data-caption="1">runs on your server</span>
                 <span data-caption="2">streams to your hardware</span>
                 <span data-caption="3">— live.</span>
             </h2>
@@ -95,11 +95,11 @@
                 </defs>
                 <!-- editor → cli -->
                 <path class="line line-1" d="M 280 250 C 280 320, 320 360, 380 380" />
-                <!-- cli → cloud -->
+                <!-- cli → server -->
                 <path class="line line-2" d="M 500 380 C 580 360, 640 300, 680 220" />
-                <!-- cloud → device (websocket) -->
+                <!-- server → device (websocket) -->
                 <path class="line line-3" d="M 720 220 C 800 240, 850 320, 820 420" />
-                <!-- packet dot travelling cloud → device -->
+                <!-- packet dot travelling server → device -->
                 <circle class="packet" r="4" fill="#34d399"/>
             </svg>
 
@@ -134,8 +134,8 @@
                         <path d="M7 18a5 5 0 010-10 6 6 0 0111.5 1.5A4 4 0 0119 18H7z" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <div class="cloud-label">Edge runtime</div>
-                <div class="cloud-region">us-east · eu-west · ap-south</div>
+                <div class="cloud-label">Your server</div>
+                <div class="cloud-region">Raspberry Pi · NUC · Docker</div>
             </div>
 
             <!-- Piece: Device -->
@@ -161,7 +161,7 @@
     <div class="max-w-7xl mx-auto">
         <div class="text-center mb-16 fade-up">
             <h2 class="text-3xl sm:text-4xl font-bold text-zinc-900 tracking-tight">How it works</h2>
-            <p class="mt-3 text-zinc-500 text-lg">Four steps from idea to running hardware</p>
+            <p class="mt-3 text-zinc-500 text-lg">From your own server to running hardware in four steps</p>
         </div>
 
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 reveal-stagger">
@@ -189,7 +189,7 @@
             <div class="card-lift bg-white border border-zinc-200 rounded-xl p-6">
                 <div class="text-xs font-mono text-emerald-600 font-medium mb-3">03</div>
                 <h3 class="text-base font-semibold text-zinc-900 mb-2">Deploy</h3>
-                <p class="text-sm text-zinc-500 mb-4">One command pushes your code to the cloud</p>
+                <p class="text-sm text-zinc-500 mb-4">One command pushes your code to your own server</p>
                 <div class="bg-zinc-900 rounded-lg p-3 font-mono text-xs text-zinc-300">
                     <span class="text-zinc-500">$</span> devicesdk deploy
                 </div>
@@ -278,9 +278,9 @@
         <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center fade-up">
             <div>
                 <div class="badge badge-emerald mb-4">Persistent state</div>
-                <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Cloud KV storage</h2>
+                <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Built-in KV storage</h2>
                 <p class="mt-4 text-zinc-400 text-lg leading-relaxed">
-                    Every device gets a key-value store that persists across reboots and deployments. Store sensor readings, configuration, or device state — accessible from your code and the dashboard.
+                    Every device gets a key-value store that persists across reboots and deployments — backed by SQLite on your own server. Store sensor readings, configuration, or device state, accessible from your code and the dashboard.
                 </p>
             </div>
             <div class="code-window">
@@ -336,17 +336,28 @@
     </div>
 </section>
 
-<!-- Pricing Teaser -->
-<section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+<!-- Run it anywhere -->
+<section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
     <div class="max-w-3xl mx-auto text-center fade-up">
-        <p class="text-zinc-500 text-sm font-mono uppercase tracking-wider mb-4">Pricing</p>
+        <p class="text-zinc-500 text-sm font-mono uppercase tracking-wider mb-4">Self-hosted</p>
         <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">
-            Free for hobbyists.<br/>
-            <span class="text-zinc-400">$3 per million messages.</span>
+            Run it anywhere.<br/>
+            <span class="text-zinc-400">One container, one port.</span>
         </h2>
-        <p class="mt-6 text-zinc-500">No uptime charges. No hidden fees. 500 free messages daily.</p>
-        <a href="/pricing/" class="mt-6 nudge inline-flex items-center text-emerald-500 font-medium hover:text-emerald-400 transition-colors text-sm">
-            <span class="link-underline">View full pricing</span>
+        <p class="mt-6 text-zinc-500 max-w-xl mx-auto">
+            DeviceSDK ships as a single Docker image — server, dashboard, and firmware in one. Bring it up on a Raspberry Pi, a NUC, a NAS, or any Docker host. The first account you create becomes the admin.
+        </p>
+        <div class="code-window terminal text-left mt-8 max-w-xl mx-auto">
+            <div class="code-window-bar">
+                <div class="code-window-dots"><span></span><span></span><span></span></div>
+                <span class="code-window-title">Terminal</span>
+            </div>
+            <pre><code><span class="text-zinc-500">$</span> docker compose up -d
+<span class="text-emerald-400">&#10003;</span> DeviceSDK running at <span class="text-zinc-300">http://localhost:8080</span>
+<span class="text-zinc-500"># open it, create the first account → you're admin</span></code></pre>
+        </div>
+        <a href="/docs/quickstart/" class="mt-8 nudge inline-flex items-center text-emerald-500 font-medium hover:text-emerald-400 transition-colors text-sm">
+            <span class="link-underline">Read the quickstart</span>
             <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </a>
     </div>
@@ -356,12 +367,13 @@
 <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
     <div class="max-w-3xl mx-auto text-center fade-up">
         <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Start building.</h2>
-        <p class="mt-4 text-zinc-400 text-lg">From npm install to running hardware in minutes.</p>
-        <div class="mt-8">
-            <a href="{{ .Site.Params.dashboardUrl }}" class="btn-primary nudge h-11 px-8">
+        <p class="mt-4 text-zinc-400 text-lg">From <code class="text-sm font-mono bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">docker compose up</code> to running hardware in minutes.</p>
+        <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+            <a href="/docs/quickstart/" class="btn-primary nudge h-11 px-8">
                 <span>Get Started</span>
                 <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
             </a>
+            <a href="{{ .Site.Params.githubUrl }}" class="btn-secondary h-11 px-8">View on GitHub</a>
         </div>
     </div>
 </section>

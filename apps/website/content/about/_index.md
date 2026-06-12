@@ -1,8 +1,8 @@
 ---
 title: About
 description: >-
-  Building the future of IoT development. Making hardware programming as easy as
-  web development.
+  Why we built DeviceSDK: an open-source, self-hosted IoT platform that makes
+  hardware programming as easy as web development — on infrastructure you own.
 layout: about
 social_image: /og-images/about.png
 ---

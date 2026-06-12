@@ -5,10 +5,10 @@
     <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
         <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
             The complete IoT<br/>
-            <span class="gradient-pan">development platform</span>
+            <span class="gradient-pan">stack you run yourself</span>
         </h1>
         <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
-            CLI, runtime, dashboard, and API — everything from first line of code to production fleet.
+            CLI, device runtime, dashboard, and API — one open-source server, one Docker image, running on your own hardware.
         </p>
     </div>
 </section>
@@ -38,7 +38,7 @@
                     </div>
                     <div class="flex items-center gap-3 text-sm">
                         <code class="font-mono text-emerald-400 w-36">devicesdk deploy</code>
-                        <span class="text-zinc-500">Push to the cloud in one command</span>
+                        <span class="text-zinc-500">Push to your own server in one command</span>
                     </div>
                     <div class="flex items-center gap-3 text-sm">
                         <code class="font-mono text-emerald-400 w-36">devicesdk flash</code>
@@ -51,12 +51,12 @@
                     <div class="code-window-dots"><span></span><span></span><span></span></div>
                     <span class="code-window-title">Terminal</span>
                 </div>
-                <pre><code><span class="text-zinc-500">$</span> devicesdk init sensor-network
+                <pre><code><span class="text-zinc-500">$</span> devicesdk login --host http://192.168.1.50:8080
+<span class="text-emerald-400">&#10003;</span> Authenticated with your server
+
+<span class="text-zinc-500">$</span> devicesdk init sensor-network
 <span class="text-emerald-400">&#10003;</span> Created devicesdk.ts
 <span class="text-emerald-400">&#10003;</span> Created src/devices/device.ts
-
-<span class="text-zinc-500">$</span> devicesdk dev --port 8181
-<span class="text-sky-400">&#9654;</span> Simulator running at localhost:8181
 
 <span class="text-zinc-500">$</span> devicesdk deploy
 <span class="text-emerald-400">&#10003;</span> Built device.ts <span class="text-zinc-500">(42ms)</span>
@@ -107,7 +107,7 @@
                 <div class="badge badge-emerald mb-4">Runtime</div>
                 <h2 class="text-3xl font-bold tracking-tight">DeviceEntrypoint API</h2>
                 <p class="mt-4 text-zinc-400 text-lg leading-relaxed">
-                    Extend <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">DeviceEntrypoint</code> and implement two lifecycle hooks. Your code runs on a globally distributed runtime — the device communicates via WebSocket.
+                    Extend <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">DeviceEntrypoint</code> and implement two lifecycle hooks. Your code runs in-process on your own server — the device connects to it over WebSocket on your LAN.
                 </p>
                 <div class="mt-8 space-y-4 text-sm reveal-stagger">
                     <div class="border-b border-zinc-800 pb-3">
@@ -142,7 +142,7 @@
         <div class="text-center mb-12">
             <div class="badge badge-emerald mb-4">Dashboard</div>
             <h2 class="text-3xl font-bold tracking-tight">Manage your fleet</h2>
-            <p class="mt-4 text-zinc-400 text-lg">Web dashboard at <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">dash.devicesdk.com</code></p>
+            <p class="mt-4 text-zinc-400 text-lg">Web dashboard served by your own server at <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">http://&lt;server&gt;:8080</code></p>
         </div>
 
         <div class="space-y-0 border border-zinc-800 rounded-xl overflow-hidden reveal-stagger">
@@ -178,8 +178,8 @@
             </div>
             <div class="flex items-center justify-between p-5 hover:bg-zinc-900/40 transition-colors">
                 <div>
-                    <h3 class="font-medium text-zinc-50">Google OAuth</h3>
-                    <p class="text-sm text-zinc-500 mt-0.5">Secure sign-in with session management</p>
+                    <h3 class="font-medium text-zinc-50">Local accounts</h3>
+                    <p class="text-sm text-zinc-500 mt-0.5">Email/password sign-in; the first account becomes admin</p>
                 </div>
             </div>
         </div>
@@ -221,7 +221,7 @@
                         <td class="p-4 font-medium text-zinc-50">ESP32</td>
                         <td class="p-4 text-zinc-400">ESP32</td>
                         <td class="p-4 text-zinc-400">2.4 GHz</td>
-                        <td class="p-4"><span class="badge">Coming soon</span></td>
+                        <td class="p-4"><span class="badge badge-emerald">Supported</span></td>
                     </tr>
                 </tbody>
             </table>
@@ -233,10 +233,10 @@
 <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
     <div class="max-w-3xl mx-auto text-center fade-up">
         <h2 class="text-3xl font-bold tracking-tight">Ready to build?</h2>
-        <p class="mt-4 text-zinc-400 text-lg">Get started with the CLI in under a minute.</p>
+        <p class="mt-4 text-zinc-400 text-lg">Bring up the server and deploy your first script in minutes.</p>
         <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <a href="{{ .Site.Params.dashboardUrl }}" class="btn-primary h-11 px-6">Get started free</a>
-            <a href="{{ .Site.Params.docsUrl }}" class="btn-secondary h-11 px-6">Read documentation</a>
+            <a href="/docs/quickstart/" class="btn-primary h-11 px-6">Get Started</a>
+            <a href="{{ .Site.Params.githubUrl }}" class="btn-secondary h-11 px-6">View on GitHub</a>
         </div>
     </div>
 </section>

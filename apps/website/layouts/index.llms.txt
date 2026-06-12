@@ -1,11 +1,11 @@
 {{- /* llms.txt — curated agent index. Discoverable at https://devicesdk.com/llms.txt */ -}}
 # DeviceSDK
 
-> Deploy TypeScript scripts to Raspberry Pi Pico and ESP32 microcontrollers. Devices connect to a managed serverless runtime over WebSocket; your script handles events and issues commands. Targets: Pico W, Pico 2 W, ESP32, ESP32-C3, ESP32-C61.
+> Deploy TypeScript scripts to Raspberry Pi Pico and ESP32 microcontrollers. DeviceSDK is free, open-source (AGPL-3.0), and self-hosted: you run the server yourself (Docker on a Pi/NUC/NAS), and devices connect to it over WebSocket; your script handles events and issues commands. Targets: Pico W, Pico 2 W, ESP32, ESP32-C3, ESP32-C61.
 
 ## Instructions for AI coding agents
 
-- Device scripts run in a **sandboxed serverless runtime**. They are NOT Node.js (no `node:*` imports, no filesystem) and NOT firmware running on the chip.
+- Device scripts run **in-process on the DeviceSDK server you host** (a Bun runtime), NOT as firmware on the chip. Reach hardware through `this.env.DEVICE` — don't try to drive GPIO from the chip directly.
 - Hardware access goes through `this.env.DEVICE` (typed as `DeviceSenderInterface`). Onboard LED is **virtual pin 99** on every supported board — use it instead of chip-specific GPIO.
 - Inter-device RPC: `await this.env.DEVICES["other-slug"].method()`.
 - Secrets / config: `await this.env.VARS.get("KEY")` (set with `devicesdk env set KEY=VALUE`).

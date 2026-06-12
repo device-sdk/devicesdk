@@ -8,9 +8,9 @@ Device scripts can define named cron schedules to run recurring tasks — pollin
 
 ## How It Works
 
-Cron schedules are initialized when a device connects. The platform evaluates each expression and schedules the next fire time. When a cron fires, `onCron` is called with the schedule's name. After each firing, the next occurrence is computed and scheduled automatically.
+Cron schedules are initialized when a device connects. The server evaluates each expression and schedules the next fire time. When a cron fires, `onCron` is called with the schedule's name. After each firing, the next occurrence is computed and scheduled automatically.
 
-Crons are scoped to the device connection: they start when the device connects and stop when it disconnects.
+Crons are **connection-gated**: they start when the device connects and stop when it disconnects. A slot that comes due while the device is offline is **skipped, never caught up** — when the device reconnects, scheduling resumes from the next future slot.
 
 ## Defining Schedules
 

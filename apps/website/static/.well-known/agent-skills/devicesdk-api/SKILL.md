@@ -1,10 +1,13 @@
 ---
 name: devicesdk-api
-description: Use the DeviceSDK REST API to manage projects, devices, scripts, environment variables, and API tokens. All endpoints require Bearer authentication (session cookie or an API token with the prefix dsdk_). Responses use the envelope { success, result | error }. The full interactive OpenAPI reference is published at https://devicesdk.com/docs/api.
+description: Use the DeviceSDK REST API to manage projects, devices, scripts, environment variables, and API tokens. The API is served by your own self-hosted server (base URL http://<server>:8080), not a managed cloud host. All endpoints require Bearer authentication (session cookie or an API token with the prefix dsdk_). Responses use the envelope { success, result | error }. The full interactive OpenAPI reference is published at https://devicesdk.com/docs/api.
 ---
 
+## Base URL
+The API is served by the server you run yourself, under `/v1/*` (e.g. `http://<server>:8080/v1/...`). There is no hosted api host — replace `<server>:8080` with wherever your server listens.
+
 ## Authentication
-Send `Authorization: Bearer <token>`. Tokens come from either the dashboard OAuth session or from `POST /v1/tokens` (prefix `dsdk_`).
+Send `Authorization: Bearer <token>`. Tokens come from either the dashboard login session (served by your own server) or from `POST /v1/tokens` (prefix `dsdk_`).
 
 ## Key resources
 - `GET /v1/user` — current user profile.

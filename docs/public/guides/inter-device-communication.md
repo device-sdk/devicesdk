@@ -6,7 +6,7 @@ social_image: /og-images/docs/guides/inter-device-communication.png
 
 ## Overview
 
-Devices in the same project can call public methods on each other using `this.env.DEVICES`. The call routes through the serverless runtime, so both devices don't need to be online simultaneously — methods that only use KV storage work even when hardware is disconnected.
+Devices in the same project can call public methods on each other using `this.env.DEVICES`. The call routes through your DeviceSDK server, so both devices don't need to be online simultaneously — methods that only use KV storage work even when hardware is disconnected.
 
 ## Walkthrough: Sensor + Light Controller
 

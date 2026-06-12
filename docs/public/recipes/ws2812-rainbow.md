@@ -94,7 +94,7 @@ export class Rainbow extends DeviceEntrypoint {
 ## What this demonstrates
 
 - `pioWs2812Configure` once per connect, `pioWs2812Update` per frame.
-- A small HSV→RGB helper — agents that hallucinate `hsv()` etc. instead should be reminded that the script runs in a sandboxed runtime, no Node, no browser.
+- A small HSV→RGB helper — agents that hallucinate `hsv()` etc. instead should be reminded that the script runs server-side on your DeviceSDK server, no browser globals.
 - `crons = { tick: "* * * * *" }` for a once-per-minute animation. Faster animations need to be driven by the firmware's PWM/PIO state machine; the script can only update at cron tick rates.
 - Capping the brightness via the `v` channel (here 0.2) keeps the current draw and the literal wattage manageable.
 

@@ -11,13 +11,15 @@ social_image: /og-images/docs/guides/home-assistant.png
 
 The DeviceSDK Home Assistant integration exposes your devices as native Home Assistant entities. A GPIO input becomes a `binary_sensor`, an ADC reading becomes a `sensor`, a GPIO output becomes a `switch`, a WS2812 strip becomes a `light`. Home Assistant automations, dashboards, and voice assistants can then read and control them without any extra glue code.
 
-Under the hood the integration subscribes to a real-time watch WebSocket for each device and sends commands through the standard REST API. Idle devices cost nothing in the managed runtime — the subscription hibernates between hardware events.
+Under the hood the integration points at your self-hosted DeviceSDK server, subscribes to its real-time watch WebSocket for each device, and sends commands through the standard REST API. Both Home Assistant and DeviceSDK run on your own hardware, talking over your LAN.
+
+> **Roadmap item.** This integration is the flagship item on the [DeviceSDK roadmap](https://github.com/devicesdk/devicesdk/blob/main/ROADMAP.md). The server side is already in place — the server persists Home Assistant entity declarations per device and streams `state` frames over the watch WebSocket. The Home Assistant component itself (HACS custom integration, later an official add-on) is in progress.
 
 ## Installation
 
-The integration is distributed via [HACS](https://hacs.xyz) (Home Assistant Community Store). Open HACS in your Home Assistant instance, add the DeviceSDK custom repository, and install the integration. Then add it from **Settings → Devices & Services → Add Integration** and paste an API token.
+The integration is distributed via [HACS](https://hacs.xyz) (Home Assistant Community Store). Open HACS in your Home Assistant instance, add the DeviceSDK custom repository, and install the integration. Then add it from **Settings → Devices & Services → Add Integration** and enter your DeviceSDK server URL (e.g. `http://<server>:8080`) plus an API token.
 
-Create an API token from the dashboard: **Account → API Tokens → Create token**. Tokens are shown exactly once — copy it immediately.
+Create an API token from the dashboard at `http://<server>:8080`: **Account → API Tokens → Create token**. Tokens are shown exactly once — copy it immediately.
 
 ## Declaring entities
 
@@ -105,6 +107,6 @@ Once entities appear in Home Assistant they behave like any other entity. Use th
 
 **Device shows "unavailable"** — The device has disconnected. Check the dashboard logs page for the last connection status. The integration watches the connection state and marks entities unavailable when the device is offline, matching standard Home Assistant behavior.
 
-**Command timeout on a switch or light** — The managed runtime returned 503 or 504. Confirm the device is connected; commands fail fast when the firmware is offline so Home Assistant automations don't hang.
+**Command timeout on a switch or light** — Confirm the device is connected; commands fail fast when the firmware is offline so Home Assistant automations don't hang. Also check that Home Assistant can reach your DeviceSDK server URL on the LAN.
 
 **Custom sensor value not updating** — Verify your device script calls `this.env.DEVICE.emitState(entity_id, value)` with the exact `entity_id` from your `devicesdk.ts` declaration. Entity IDs are case-sensitive and must match.

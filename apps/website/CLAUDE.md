@@ -7,12 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working in the 
 The following content files contain front-matter only — **this is intentional**, not an oversight:
 
 - `content/product/_index.md`
-- `content/pricing/_index.md`
 - `content/about/_index.md`
 - `content/community/_index.md`
 - `content/examples/_index.md`
 - `content/solutions/_index.md`
-- `content/early-access/_index.md`
 
 Each one is rendered by a custom Hugo layout in `layouts/<section>/<section>.html` (e.g. `layouts/product/product.html`). The layouts hard-code the page content in HTML/Tailwind markup; they do not render `{{ .Content }}`.
 
@@ -22,9 +20,11 @@ Pages that DO use markdown bodies (for comparison): `content/privacy/_index.md` 
 
 ## Public-facing content rule (inherits from root CLAUDE.md)
 
-Never reference Cloudflare, Workers, D1, R2, Durable Objects, KV, Wrangler, or Pages in any file under `content/`, `layouts/`, or `docs/public/` (mounted into the Hugo content tree at build time — see `[[module.mounts]]` in `hugo.toml`). Use the generic terms listed in the root `CLAUDE.md` (`managed edge runtime`, `edge infrastructure`, `globally distributed runtime`, `managed platform`).
+DeviceSDK is now **free, open-source (AGPL-3.0), and self-hosted** — there is no managed cloud. Public-facing copy under `content/`, `layouts/`, and `docs/public/` (mounted into the Hugo content tree at build time — see `[[module.mounts]]` in `hugo.toml`) must describe the self-hosted reality:
 
-Internal runbooks live under `docs/internal/` and are **not** mounted into the Hugo build, so they may reference Cloudflare freely.
+- The server is a single **Bun** process the user runs on their own hardware (Raspberry Pi, NUC, NAS, any Docker host), serving the API, device WebSockets, and the dashboard on one port (default `8080`). Device scripts run **in-process** on that server.
+- Do **not** describe a "managed edge runtime", "serverless runtime", "globally distributed runtime", "managed platform", pricing, sign-up/early-access, or a hosted `dash.devicesdk.com` / `api.devicesdk.com`. None of those exist anymore.
+- Also never reference the old Cloudflare stack (Workers, D1, R2, Durable Objects, KV, Wrangler, Pages) — the Cloudflare-hosted era is over.
 
 ## Motion / animation vocabulary
 

@@ -42,8 +42,10 @@ All commands support these global flags:
 
 ## Environment Variables
 
-- `DEVICESDK_TOKEN` - API authentication token
-- `DEVICESDK_API_URL` - API endpoint (default: production)
+- `DEVICESDK_TOKEN` - API token (`dsdk_…`) from your dashboard's Tokens page; checked before the saved credentials, ideal for CI
+- `DEVICESDK_API_URL` - URL of the DeviceSDK server to target. There is no default — it overrides the host saved by `devicesdk login --host <url>`
+
+The CLI has **no built-in server URL**. Set it once with `devicesdk login --host http://<server>:8080`, or per-command with `DEVICESDK_API_URL`. See [`devicesdk login`](/docs/cli/login/).
 
 ## Available Commands
 
@@ -51,7 +53,7 @@ All commands support these global flags:
 - [**devicesdk init**](/docs/cli/init/) - Create a new project
 
 ### Deployment
-- [**devicesdk deploy**](/docs/cli/deploy/) - Deploy to production
+- [**devicesdk deploy**](/docs/cli/deploy/) - Deploy scripts to your server
 - [**devicesdk flash**](/docs/cli/flash/) - Flash firmware to device
 
 ### Monitoring

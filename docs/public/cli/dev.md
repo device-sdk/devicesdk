@@ -48,5 +48,5 @@ devicesdk dev --config ./devicesdk.dev.ts
 ## Related
 
 - [`devicesdk build`](/docs/cli/build/) — bundle without serving the simulator.
-- [`devicesdk deploy`](/docs/cli/deploy/) — push to production.
+- [`devicesdk deploy`](/docs/cli/deploy/) — push to your server.
 - [`devicesdk inspect`](/docs/cli/inspect/) — drive a *real* device interactively.

@@ -23,7 +23,7 @@ devicesdk inspect <device> [flags]
 
 The `inspect` command opens an interactive REPL (Read-Eval-Print Loop) that lets you send hardware commands directly to a connected device and see the results in real time. This is useful for debugging hardware, testing pin states, and exploring I2C peripherals without writing code.
 
-The device must be online (connected to the DeviceSDK platform) for commands to work.
+The device must be online (connected to your DeviceSDK server) for commands to work.
 
 Commands are sent sequentially — if you send input via a pipe, each command waits for a response before the next is processed.
 

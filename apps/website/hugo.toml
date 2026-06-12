@@ -54,8 +54,10 @@ disableKinds = ["taxonomy", "term"]
   suffixes = ["md"]
 
 [params]
-  description = "Managed platform for shipping TypeScript firmware to ESP32 and Pi Pico. Write, deploy, and stream telemetry over WebSocket in minutes."
-  dashboardUrl = "/early-access/"
+  description = "Free, open-source, self-hosted IoT platform. Write TypeScript device scripts, run the server on your own hardware (Raspberry Pi, NUC, NAS, Docker), and connect ESP32 & Pi Pico devices over WebSocket."
+  # Primary call-to-action target. DeviceSDK is self-hosted and free, so the CTA
+  # points at the quickstart rather than a hosted dashboard sign-up.
+  dashboardUrl = "/docs/quickstart/"
   docsUrl = "https://devicesdk.com/docs"
   githubUrl = "https://github.com/device-sdk"
   discordUrl = "https://discord.gg/WuNhbXGsBy"
@@ -67,24 +69,24 @@ disableKinds = ["taxonomy", "term"]
     url = "/product/"
     weight = 1
   [[menu.main]]
-    name = "Pricing"
-    url = "/pricing/"
-    weight = 2
-  [[menu.main]]
     name = "Solutions"
     url = "/solutions/"
-    weight = 3
+    weight = 2
   [[menu.main]]
     name = "Examples"
     url = "/examples/"
-    weight = 4
+    weight = 3
   [[menu.main]]
     name = "Docs"
     url = "/docs/"
-    weight = 5
+    weight = 4
   [[menu.main]]
     name = "Community"
     url = "/community/"
+    weight = 5
+  [[menu.main]]
+    name = "GitHub"
+    url = "https://github.com/device-sdk"
     weight = 6
 
   [[menu.footer_product]]
@@ -92,16 +94,16 @@ disableKinds = ["taxonomy", "term"]
     url = "/docs/"
     weight = 1
   [[menu.footer_product]]
-    name = "Dashboard"
-    url = "/early-access/"
+    name = "Quickstart"
+    url = "/docs/quickstart/"
     weight = 2
-  [[menu.footer_product]]
-    name = "Pricing"
-    url = "/pricing/"
-    weight = 3
   [[menu.footer_product]]
     name = "Examples"
     url = "/examples/"
+    weight = 3
+  [[menu.footer_product]]
+    name = "GitHub"
+    url = "https://github.com/device-sdk"
     weight = 4
 
   [[menu.footer_company]]

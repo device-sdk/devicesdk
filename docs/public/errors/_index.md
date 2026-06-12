@@ -26,7 +26,5 @@ catch (err) {
 - [`missing_credentials`](./missing_credentials/) — no Bearer token, session cookie, or CLI token on the request
 - [`invalid_token`](./invalid_token/) — token does not match any active session/API/legacy entry
 - [`invalid_cli_token`](./invalid_cli_token/) — CLI token (`dsdk_*`) is missing, expired, or revoked
-- [`account_suspended`](./account_suspended/) — user account has been suspended
-- [`account_deletion_pending`](./account_deletion_pending/) — user requested account deletion; request hasn't elapsed yet
 
 If you hit an error code that isn't listed here, please [open an issue](https://github.com/device-sdk/devicesdk-monorepo/issues) so we can document it.

@@ -57,7 +57,7 @@ Most CLI commands default the project (and the device, when there's only one) fr
 
 ## Slugs vs UUIDs
 
-Internally, every project and device also has an immutable UUID — that's the `id` column you'll occasionally see in API responses. **You don't need to use the UUIDs directly**: every public surface (CLI, dashboard, REST URLs) accepts the slugs, and the platform resolves the UUID for you. Slugs can be renamed; UUIDs cannot.
+Internally, every project and device also has an immutable UUID — that's the `id` column you'll occasionally see in API responses. **You don't need to use the UUIDs directly**: every public surface (CLI, dashboard, REST URLs) accepts the slugs, and the server resolves the UUID for you. Slugs can be renamed; UUIDs cannot.
 
 ## Naming rules
 

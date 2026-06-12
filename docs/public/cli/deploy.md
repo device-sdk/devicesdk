@@ -1,6 +1,6 @@
 ---
 title: devicesdk deploy
-description: Deploy device scripts to production
+description: Deploy device scripts to the DeviceSDK server you run
 social_image: /og-images/docs/cli/deploy.png
 ---
 
@@ -20,20 +20,20 @@ devicesdk deploy [flags]
 
 The deploy command:
 1. Builds your device scripts
-2. Uploads to DeviceSDK
-3. Creates a new version
+2. Uploads them to your server
+3. Creates a new immutable version
 4. Makes it available to devices
 
-Your code is deployed globally to 300+ edge locations for low-latency device communication.
+Your scripts run on the DeviceSDK server you host. Devices on your LAN connect to it over WebSocket.
 
 ## Deployment Process
 
 When you deploy:
 
 1. **Build** - Code is compiled and optimized
-2. **Upload** - Scripts are sent to the edge
+2. **Upload** - Scripts are sent to your server
 3. **Activate** - New version becomes active
-4. **Notify** - Connected devices receive update
+4. **Notify** - Connected devices reconnect to the new version
 5. **Publish entity declarations** - If any device defines `ha.entities` in `devicesdk.ts`, those declarations are uploaded so the [Home Assistant integration](/docs/guides/home-assistant/) can discover them.
 
 ## Examples
@@ -60,7 +60,7 @@ devicesdk deploy --dry-run
 
 ## Version History
 
-Each deployment creates a new immutable version. View version history in the [dashboard](https://dash.devicesdk.com).
+Each deployment creates a new immutable version. View version history in the dashboard your server serves.
 
 ### Deployment Messages
 
@@ -87,7 +87,7 @@ devicesdk deploy --device sensor-2
 ```
 
 ### Staged Rollout
-Deploy to subset of devices first, then expand (via dashboard).
+Deploy to a subset of devices first, then expand (via the dashboard).
 
 ## Rollback
 
@@ -121,6 +121,7 @@ jobs:
       
       - name: Deploy
         env:
+          DEVICESDK_API_URL: ${{ secrets.DEVICESDK_API_URL }}
           DEVICESDK_TOKEN: ${{ secrets.DEVICESDK_TOKEN }}
         run: npx @devicesdk/cli deploy --message "Deploy from CI"
 ```
@@ -140,11 +141,12 @@ deploy:
 Set `DEVICESDK_TOKEN` for CI/CD:
 
 ```bash
-export DEVICESDK_TOKEN="your-token-here"
+export DEVICESDK_API_URL="http://<server>:8080"
+export DEVICESDK_TOKEN="dsdk_…"
 devicesdk deploy
 ```
 
-Get your token from the [dashboard](https://dash.devicesdk.com).
+Get your token from the dashboard your server serves, under the *Tokens* page.
 
 ## Deployment Limits
 
@@ -160,7 +162,7 @@ Your session may have expired. Re-authenticate with:
 ```bash
 devicesdk login
 ```
-If using an API token, verify it's still valid in the [dashboard](https://dash.devicesdk.com) under Settings > API Tokens.
+If using an API token, verify it's still valid in your dashboard's *Tokens* page.
 
 **Build fails?**
 

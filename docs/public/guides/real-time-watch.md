@@ -15,7 +15,7 @@ The watch WebSocket is the canonical way to subscribe to a device's real-time ev
 - `log` — log entries from user code
 - `state` — structured entity state changes (GPIO input, temperature, custom telemetry)
 
-The endpoint is designed for always-on subscribers: the connection hibernates on the managed runtime between hardware events, so a dashboard tab, Home Assistant instance, or background watchdog can stay subscribed indefinitely at essentially zero cost.
+The endpoint is designed for always-on subscribers: the connection stays open between hardware events, so a dashboard tab, Home Assistant instance, or background watchdog can stay subscribed to your server indefinitely. Sessions live for the lifetime of the server process and keep serving watchers even while a device is offline.
 
 ## Endpoint
 
@@ -35,12 +35,12 @@ Each frame arrives as a single JSON object:
 ## Authentication
 
 - **Browser** — the browser sends the session cookie automatically on the WebSocket upgrade. No extra work.
-- **API token** — pass the token as a query parameter: `wss://api.devicesdk.com/v1/projects/.../watch?token=dsdk_...`. This is how the Home Assistant integration authenticates.
+- **API token** — pass the token as a query parameter: `ws://<server>:8080/v1/projects/.../watch?token=dsdk_...`. This is how the Home Assistant integration authenticates.
 
 ## Quick test with `websocat`
 
 ```bash
-websocat "wss://api.devicesdk.com/v1/projects/my-project/devices/my-device/watch?token=dsdk_..."
+websocat "ws://<server>:8080/v1/projects/my-project/devices/my-device/watch?token=dsdk_..."
 ```
 
 You should receive an initial `status` frame, then live `log` and `state` frames as the device emits them.

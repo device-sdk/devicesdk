@@ -8,3 +8,12 @@
 /docs/resources/changelog/        /docs/changelog/       301
 /docs/guides/control-from-browser/ /docs/guides/         301
 /docs                              /docs/                301
+
+# Self-host pivot: pages removed when DeviceSDK became free, open-source, and
+# self-hosted (no managed cloud, no pricing, no private beta).
+/pricing/                          /                      301
+/early-access/                     /docs/quickstart/      301
+
+# Removed error pages (account suspension and deletion-grace no longer exist).
+/docs/errors/account_suspended/         /docs/errors/     301
+/docs/errors/account_deletion_pending/  /docs/errors/     301

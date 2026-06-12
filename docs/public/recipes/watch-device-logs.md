@@ -28,14 +28,14 @@ devicesdk logs --tail
 
 ## From a script (Node, Bun, Deno)
 
-The watch endpoint is `wss://api.devicesdk.com/v1/projects/:projectId/devices/:deviceId/watch`. Authenticate with a Bearer token (CLI token, API token, or session cookie):
+The watch endpoint is `ws://<server>:8080/v1/projects/:projectId/devices/:deviceId/watch` on your DeviceSDK server. Authenticate with a Bearer token (CLI token, API token, or session cookie):
 
 ```typescript
 import WebSocket from "ws";
 
 const token = process.env.DEVICESDK_TOKEN!;
 const ws = new WebSocket(
-  `wss://api.devicesdk.com/v1/projects/my-project/devices/sensor-1/watch?backfillLimit=100`,
+  `ws://<server>:8080/v1/projects/my-project/devices/sensor-1/watch?backfillLimit=100`,
   { headers: { Authorization: `Bearer ${token}` } },
 );
 

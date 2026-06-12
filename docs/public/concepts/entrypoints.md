@@ -199,7 +199,7 @@ export class Sensor extends DeviceEntrypoint<Env> {
 
 ### Offline Behavior
 
-Your device script always runs in the serverless runtime, even when hardware is offline:
+Your device script's session always lives on the server, even when the hardware is offline:
 - **KV operations** (`this.env.DEVICE.kv.put(...)`) always succeed — use this for deferred state
 - **Hardware commands** (`this.env.DEVICE.setGpioState(...)`) throw if the device is not connected
 
@@ -227,12 +227,12 @@ async onMessage(message: DeviceResponse) {
 
 ## Performance Considerations
 
-### Keep Methods Fast
+### Keep Methods Responsive
 
-Entrypoint methods should complete quickly:
-- Typical execution: < 10ms
-- Maximum: 50ms recommended
-- CPU time limited
+Per-device handlers run in a FIFO queue — one at a time per device — so a slow handler
+delays the next event for that device. Keep work in a handler short, and offload long or
+blocking operations (large HTTP calls, heavy computation) so you don't stall the device's
+event stream. Overall throughput is bounded by the hardware you run the server on.
 
 ### Minimize State
 

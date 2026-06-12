@@ -67,21 +67,21 @@ Features identified as hardware-capable but not yet planned for implementation.
 - **Hardware**: ESP32 has 4 GP timers + system timer; Pico has 4 x 32-bit + 1 x 64-bit alarms
 - **Firmware status**: Not implemented (GPIO monitoring is poll-based)
 - **Use cases**: Precise timing, pulse counting, frequency measurement, debouncing, servo control
-- **Effort**: Medium — interrupt-driven events need a new event delivery mechanism to the cloud
+- **Effort**: Medium — interrupt-driven events need a new event delivery mechanism to the server
 
 #### On-Device Flash Storage
 - **Hardware**: ESP32 has NVS partitions; Pico has 2-4 MB flash
 - **Firmware status**: Not exposed (no device-side persistent storage for user scripts)
 - **Use cases**: Calibration data, WiFi fallback configs, offline data buffering
 - **Effort**: Medium
-- **Notes**: Different from the cloud-side per-device state container; this would persist without network connectivity
+- **Notes**: Different from the server-side per-device KV storage; this would persist without network connectivity
 
 #### RTC (Real-Time Clock)
 - **Hardware**: ESP32 has RTC with battery backup option; Pico has basic RTC
 - **Firmware status**: Not exposed
 - **Use cases**: Accurate timekeeping without network, timestamp logging, sleep/wake scheduling
 - **Effort**: Low-Medium
-- **Notes**: Cloud scripts already have `Date.now()`; on-device RTC is mainly useful for sleep/wake
+- **Notes**: Server-side device scripts already have `Date.now()`; on-device RTC is mainly useful for sleep/wake
 
 ### ESP32 Only
 

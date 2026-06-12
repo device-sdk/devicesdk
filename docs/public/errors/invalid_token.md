@@ -18,10 +18,10 @@ This is distinct from [`invalid_cli_token`](../invalid_cli_token/), which fires 
 
 ## Common causes and fixes
 
-- **The dashboard session expired.** Sign in again at <https://dash.devicesdk.com/>.
+- **The dashboard session expired.** Sign in again on your server's dashboard at `http://<server>:8080/`.
 - **The API token was revoked from the dashboard's *Tokens* page.** Generate a new one and update wherever it's stored.
 - **You copied the token with leading/trailing whitespace.** Verify the header value is exactly the token, no quotes, no newlines.
-- **You're using a token issued against a different deployment.** Tokens from `api.devicesdk.com` won't authenticate against a local API.
+- **You're using a token issued against a different server.** Tokens are scoped to the server that issued them — a token from one DeviceSDK install won't authenticate against another. Re-authenticate with `devicesdk login --host http://<server>:8080`.
 
 ## Related
 

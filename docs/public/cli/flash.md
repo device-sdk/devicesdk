@@ -21,7 +21,7 @@ devicesdk flash <device-id> [flags]
 | `-p, --port <port>` | Serial port for ESP32 (e.g. `/dev/ttyUSB0`) | Auto-detected |
 | `-b, --baud <rate>` | Baud rate for ESP32 flashing | 460800 |
 | `--before <method>` | Reset method before flashing (`default_reset` or `no_reset`) | `default_reset` |
-| `--host <url>` | Download firmware from a custom host | Production API |
+| `--host <url>` | DeviceSDK server to download firmware from and embed in the device | Saved login host |
 
 ## Description
 
@@ -31,7 +31,7 @@ Flashes the DeviceSDK firmware to your microcontroller, including:
 - Hardware abstraction layer
 - Automatic reconnection logic
 
-The CLI automatically detects the device type from your `devicesdk.ts` config and uses the appropriate flashing method.
+The CLI automatically detects the device type from your `devicesdk.ts` config and uses the appropriate flashing method. The firmware is configured to connect to the DeviceSDK server you're logged into (the host saved by `devicesdk login`, or the `--host` you pass). On the LAN that's typically `ws://<server>:8080` — the firmware uses plain `ws://` whenever the host includes an explicit port, and TLS-on-443 for a bare hostname.
 
 ## Supported Hardware
 
@@ -161,9 +161,9 @@ Flash ESP32 with lower baud rate (for unreliable USB bridges):
 devicesdk flash my-device --baud 115200
 ```
 
-Flash using a local API server:
+Flash against a specific server (e.g. its LAN IP):
 ```bash
-devicesdk flash my-device --host http://192.168.1.238:8787
+devicesdk flash my-device --host http://192.168.1.238:8080
 ```
 
 Custom timeout:
@@ -174,7 +174,7 @@ devicesdk flash my-device --timeout 120000
 ## Device Credentials
 
 The firmware is flashed with embedded credentials that:
-- Authenticate with DeviceSDK
+- Authenticate with your DeviceSDK server
 - Associate with your project
 - Enable secure communication
 
@@ -184,13 +184,13 @@ Credentials are unique per device and stored securely in flash memory.
 
 Once flashed:
 1. Device reboots automatically
-2. Connects to DeviceSDK
+2. Connects to your server over WebSocket
 3. Runs your deployed code
-4. Appears in dashboard as online
+4. Appears in the dashboard as online
 
 ### Verify connectivity
 
-The on-board LED blinks a status sequence after reboot (1 = booted, 2 = Wi-Fi connected, 3 = cloud connected). To confirm cloud-side that the device is online — useful when the LED is hard to see, or when you want to know which firmware version is running — run [`devicesdk status`](/docs/cli/status/):
+The on-board LED blinks a status sequence after reboot (1 = booted, 2 = Wi-Fi connected, 3 = connected to your server). To confirm server-side that the device is online — useful when the LED is hard to see, or when you want to know which firmware version is running — run [`devicesdk status`](/docs/cli/status/):
 
 ```bash
 devicesdk status
@@ -198,7 +198,7 @@ devicesdk status
 # my-sensor-1  ● online  a1b2c3d4  2s ago
 ```
 
-Status reads the live edge connection state, so it flips to `● online` within a second of the device's WebSocket handshake.
+Status reads the live connection state from your server, so it flips to `● online` within a second of the device's WebSocket handshake.
 
 ## WiFi Configuration
 

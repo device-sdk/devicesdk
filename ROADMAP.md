@@ -26,8 +26,11 @@ declarations per device (`HaEntityDeclaration` in `@devicesdk/core`, the
 
 ## Discovery & onboarding
 
-- **mDNS/zeroconf advertisement** (`_devicesdk._tcp`) so the CLI and the HA
-  integration can find the server without typing an IP.
+- **mDNS advertisement** — _shipped:_ the server advertises an A record for
+  `<MDNS_HOSTNAME>.local` (default `devicesdk.local`), and the ESP32/Pico
+  firmware resolve `.local` over mDNS, so devices connect without a static IP.
+  _Next:_ full DNS-SD service-type advertisement (`_devicesdk._tcp`) so the CLI
+  and the HA integration can browse for servers, not just resolve a known name.
 - Firmware provisioning improvements: Wi-Fi + server configuration over
   BLE or a captive portal instead of compile-time placeholders.
 

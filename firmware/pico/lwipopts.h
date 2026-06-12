@@ -52,6 +52,13 @@
 #define DHCP_DOES_ARP_CHECK         0
 #define LWIP_DHCP_DOES_ACD_CHECK    0
 
+// mDNS one-shot queries: let dns_gethostbyname() resolve `<server>.local`
+// names over multicast (RFC 6762), so devices flashed with e.g.
+// `devicesdk.local:8080` find the self-hosted server without a static IP.
+// Requires IGMP for the multicast group membership.
+#define LWIP_IGMP                   1
+#define LWIP_DNS_SUPPORT_MDNS_QUERIES 1
+
 // ALTCP (Application Layered TCP) for TLS support
 #define LWIP_ALTCP                  1
 #define LWIP_ALTCP_TLS              1

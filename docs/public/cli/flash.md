@@ -33,6 +33,16 @@ Flashes the DeviceSDK firmware to your microcontroller, including:
 
 The CLI automatically detects the device type from your `devicesdk.ts` config and uses the appropriate flashing method. The firmware is configured to connect to the DeviceSDK server you're logged into (the host saved by `devicesdk login`, or the `--host` you pass). On the LAN that's typically `ws://<server>:8080` — the firmware uses plain `ws://` whenever the host includes an explicit port, and TLS-on-443 for a bare hostname.
 
+### Resolve the server over mDNS (recommended for LAN)
+
+The server advertises itself over mDNS as `devicesdk.local` (configurable with `MDNS_HOSTNAME`). Flash against that name instead of a LAN IP so the device keeps finding the server even if its DHCP lease changes:
+
+```bash
+devicesdk flash my-device --host http://devicesdk.local:8080
+```
+
+The ESP32 and Pico W firmware resolve `.local` names over mDNS automatically — no extra setup on the device. (Tip: log in with the mDNS host once — `devicesdk login --host http://devicesdk.local:8080` — and every later `flash` embeds it by default.)
+
 ## Supported Hardware
 
 - **Raspberry Pi Pico W**

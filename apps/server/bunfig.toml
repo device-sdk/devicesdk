@@ -1,0 +1,25 @@
+# Test + coverage configuration for `bun test`.
+#
+# Coverage is NOT enabled by default here: a bare `bun test ./some.test.ts` stays
+# fast and ungated for single-file dev runs. The threshold below is only checked
+# when coverage is explicitly requested (`bun test --coverage`, via the
+# `test:coverage` script and CI). Coverage is scoped to `src/` — the uploaded
+# user-script fixtures (under the OS temp dir), the published @devicesdk/core
+# bundle, and the test harness itself are not server source and are excluded so
+# the percentage reflects the code under test.
+[test]
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = [
+	"**/tests/**",
+	"**/node_modules/**",
+	"**/packages/**",
+	"**/migrations/**",
+	"**/tmp/**",
+	"**/dsdk-e2e-*/**",
+]
+# NOTE: bun's own `coverageThreshold` is intentionally NOT used here. The numeric
+# form enforces the minimum PER FILE (so the BaseRoute-pattern endpoints, whose
+# inherited schema/handle functions are never all hit, would fail), and the
+# `{ line = .., function = .. }` table form is silently ignored on bun 1.3.14.
+# The project-wide >=85% gate is enforced by scripts/coverage-gate.ts instead
+# (run via `bun run test:coverage`), which parses the "All files" total.

@@ -5,12 +5,8 @@
 	"scripts": {
 		"build": "bash -c '. ${IDF_PATH:-$HOME/esp/esp-idf}/export.sh 2>/dev/null && idf.py build || echo \"Skipping ESP32 build (ESP-IDF not found)\"'",
 		"build:all": "bash -c '. ${IDF_PATH:-$HOME/esp/esp-idf}/export.sh && rm -rf dist build sdkconfig && mkdir -p dist && idf.py set-target esp32 && idf.py build && esptool.py --chip esp32 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB -o dist/esp32-client.bin 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin && rm -rf build sdkconfig && idf.py set-target esp32c61 && idf.py build && esptool.py --chip esp32c61 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB -o dist/esp32c61-client.bin 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin && rm -rf build sdkconfig && idf.py set-target esp32c3 && idf.py build && esptool.py --chip esp32c3 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB -o dist/esp32c3-client.bin 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin'",
-		"publish": "pnpm build:all && wrangler r2 object put devicesdk-firmwares/esp32-client.bin --file dist/esp32-client.bin --remote && wrangler r2 object put devicesdk-firmwares/esp32c61-client.bin --file dist/esp32c61-client.bin --remote && wrangler r2 object put devicesdk-firmwares/esp32c3-client.bin --file dist/esp32c3-client.bin --remote",
 		"test": "command -v pytest >/dev/null 2>&1 && pytest test_*.py -v || echo 'Skipping ESP32 tests'",
 		"clean": "rm -rf build dist"
-	},
-	"dependencies": {
-		"wrangler": "catalog:"
 	},
 	"license": "AGPL-3.0-only"
 }

@@ -15,6 +15,8 @@ docker compose up -d
 
 Devices on your LAN connect to `ws://<this-machine>:8080`. All state (SQLite database, device scripts, firmware images) is persisted under the `./data` volume you control.
 
+The server also advertises itself over **mDNS** as `devicesdk.local`, so you can reach it — and flash devices against it — without knowing its LAN IP (`http://devicesdk.local:8080`). Set `MDNS_HOSTNAME` to a different name to run several DeviceSDK servers on one network.
+
 Useful environment variables (see `docker-compose.yml`):
 
 | Variable | Default | Purpose |
@@ -23,6 +25,8 @@ Useful environment variables (see `docker-compose.yml`):
 | `DATA_DIR` | `/data` | Root for all persistent state |
 | `ALLOW_REGISTRATION` | `true` | Set `false` to close sign-ups after your account exists |
 | `SECURE_COOKIES` | `false` | Set `true` when serving behind an HTTPS reverse proxy |
+| `MDNS_HOSTNAME` | `devicesdk` | Advertised mDNS name (`<name>.local`); change to run multiple servers on one LAN |
+| `MDNS_ENABLED` | `true` | Set `false` to disable mDNS advertisement |
 
 See [docs/public/quickstart.md](docs/public/quickstart.md) for the full zero-to-first-deploy walkthrough.
 
@@ -133,8 +137,11 @@ Vue 3 + Quasar (dashboard), Vue 3 (simulation UI), Hugo (website).
 The Pico W and ESP32 firmware implement a WebSocket client that connects to your DeviceSDK
 server. Wi-Fi credentials and the server host are configured at flash time. The firmware uses
 plain `ws://` when the configured host includes an explicit port (self-hosted LAN) and TLS on
-443 for bare hostnames. Prebuilt binaries are published to rolling GitHub Releases and bundled
-into the Docker image; `devicesdk flash` fetches the matching binary from your server.
+443 for bare hostnames. The host can be an mDNS name — flashing with
+`--host http://devicesdk.local:8080` lets the device resolve the server over mDNS, so it keeps
+working even if the server's DHCP lease changes. Prebuilt binaries are published to rolling
+GitHub Releases and bundled into the Docker image; `devicesdk flash` fetches the matching binary
+from your server.
 
 Firmware builds gracefully skip when toolchains (`idf.py`, `cmake`) aren't installed, so they
 won't block `pnpm build`.

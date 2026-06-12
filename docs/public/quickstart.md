@@ -21,6 +21,8 @@ Open `http://localhost:8080` in your browser and **create the first account** �
 
 The server runs anywhere Docker does — Raspberry Pi, NUC, or NAS. Behind an HTTPS reverse proxy, also set `SECURE_COOKIES=true`. State persists under `DATA_DIR` (`/data` in the container).
 
+The server advertises itself over **mDNS** as `devicesdk.local`, so once it's up you can reach it at `http://devicesdk.local:8080` from any machine on the LAN — no static IP needed. To run more than one DeviceSDK server on the same network, give each a distinct name with `MDNS_HOSTNAME` (e.g. `devicesdk-garage` → `devicesdk-garage.local`), or set `MDNS_ENABLED=false` to turn it off.
+
 ## Step 2: Connect the CLI to Your Server
 
 Point the CLI at the server you just started and authenticate:

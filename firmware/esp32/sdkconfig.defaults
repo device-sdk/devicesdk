@@ -6,3 +6,8 @@ CONFIG_ESP_TLS_USING_MBEDTLS=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
 CONFIG_WS_BUFFER_SIZE=2048
+# Resolve `<server>.local` over mDNS so devices flashed with e.g.
+# `devicesdk.local:8080` reach the self-hosted server without a static IP.
+# This routes one-shot `.local` lookups through the standard lwIP resolver
+# (used by esp_websocket_client); IGMP is enabled by default in ESP-IDF lwIP.
+CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES=y

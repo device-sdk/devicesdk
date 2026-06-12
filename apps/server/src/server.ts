@@ -5,6 +5,7 @@ import { BunSqliteQB } from "./db/bunSqliteQB";
 import { D1CompatDatabase } from "./db/d1Compat";
 import { applyMigrations } from "./db/migrate";
 import { logger } from "./foundation/logger";
+import { startMdnsResponder } from "./foundation/mdns/responder";
 import { app } from "./index";
 import { startJanitor } from "./janitor";
 import { installConsoleCapture } from "./runtime/consoleCapture";
@@ -70,3 +71,24 @@ logger.info(`DeviceSDK server listening on http://localhost:${server.port}`, {
 	dataDir: config.dataDir,
 	env: config.env,
 });
+
+// Advertise `<mdnsHostname>.local` so LAN devices can resolve this server
+// without a static IP. Devices flashed with e.g. `devicesdk.local:8080` find us
+// over mDNS. Disable with MDNS_ENABLED=0; rename with MDNS_HOSTNAME=… to run
+// several servers on one network.
+const mdns = config.mdnsEnabled
+	? startMdnsResponder({ hostname: config.mdnsHostname })
+	: undefined;
+
+// Graceful shutdown — send the mDNS goodbye so caches evict us promptly.
+let shuttingDown = false;
+function shutdown(signal: string) {
+	if (shuttingDown) return;
+	shuttingDown = true;
+	logger.info("Shutting down", { signal });
+	mdns?.stop();
+	server.stop();
+	process.exit(0);
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

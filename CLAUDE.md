@@ -24,6 +24,7 @@ pnpm lint --filter @devicesdk/server          # Biome
 cd apps/server && bun run scripts/generate-openapi.ts   # regen openapi.json
 
 # Tests
+pnpm test --filter @devicesdk/server          # server unit tests (bun test)
 pnpm test --filter @devicesdk/cli             # CLI unit tests (vitest)
 pnpm test:unit --filter @devicesdk/dashboard  # Vitest component tests
 pnpm test:e2e --filter @devicesdk/dashboard   # Playwright E2E
@@ -70,6 +71,7 @@ pnpm + Turborepo. Bun is the **server runtime only** — the CLI/MCP run on plai
 - **Watch protocol** (unchanged from the cloud era, dashboard + CLI depend on it): frames `{event: "log"|"status"|"state"|"history_complete", data, replay?}`; `?backfillLimit=N&backfillLevel=warn` replays history oldest-first then `history_complete`.
 - **Metrics**: `src/foundation/usageMetrics.ts` — 5-minute SQLite buckets in `device_usage`; windows 1h/12h/7d. No cost estimation (that was a cloud-billing concept).
 - **Janitor**: `src/janitor.ts` hourly — expired sessions/CLI codes, old logs/usage.
+- **mDNS**: `src/foundation/mdns/` — a zero-dependency multicast-DNS responder (`node:dgram`) advertising the server as `<MDNS_HOSTNAME>.local` (default `devicesdk`) so LAN devices resolve it without a static IP. `dnsPacket.ts` is the pure wire codec; `responder.ts` wraps it in a socket. Started in `server.ts` after the janitor (toggle `MDNS_ENABLED`), stopped on SIGINT/SIGTERM with a TTL-0 goodbye.
 - **Response format**: `{ "success": true, "result": ... }` or `{ "success": false, "error": "..." }`.
 
 ### Device script contract (user-facing, do not break)
@@ -90,6 +92,7 @@ A script is a class with optional `onDeviceConnect/onDeviceDisconnect/onMessage/
 | Device runtime (sessions/crons/RPC/logs) | `apps/server/src/runtime/` |
 | Script validation (static, Bun.Transpiler) | `apps/server/src/foundation/scriptValidator.ts` |
 | Blob storage (scripts/firmwares) | `apps/server/src/storage/fsBlobStore.ts` |
+| mDNS responder (`<name>.local`) | `apps/server/src/foundation/mdns/` |
 | Usage metrics | `apps/server/src/foundation/usageMetrics.ts` |
 | Watch WebSocket routes | `apps/server/src/endpoints/devices/wsRoutes.ts` |
 | Dashboard watch composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
@@ -100,7 +103,7 @@ A script is a class with optional `onDeviceConnect/onDeviceDisconnect/onMessage/
 
 ## Open-source discipline
 
-- The repo is destined to be public; **tests are proprietary** (SQLite model) and will live in a private `devicesdk-tests` repo mounted as a `tests-private/` submodule. Until that split lands, don't grow public test surface beyond what exists.
+- The repo is public and **tests are open-source** — add tests alongside the code they cover. Server tests run via `bun test` (`pnpm test --filter @devicesdk/server`), the CLI via vitest, the dashboard via vitest/Playwright.
 - No telemetry/phone-home in the server. Optional integrations must be opt-in env config.
 - Never commit secrets; `client_secret*.json` and `.dev.vars` are gitignored.
 

@@ -15,6 +15,10 @@ export interface ServerConfig {
 	publicDir: string;
 	/** Directory with bundled firmware binaries used to seed the data dir. */
 	firmwaresDistDir: string;
+	/** Advertise this server over mDNS as `<mdnsHostname>.local` for device discovery. */
+	mdnsEnabled: boolean;
+	/** Short mDNS hostname (no `.local`); override to run multiple servers on one LAN. */
+	mdnsHostname: string;
 	dbPath: string;
 	scriptsDir: string;
 	firmwaresDir: string;
@@ -39,6 +43,8 @@ export function loadConfig(
 		secureCookies: parseBool(env.SECURE_COOKIES, false),
 		publicDir: env.PUBLIC_DIR || "",
 		firmwaresDistDir: env.FIRMWARES_DIST_DIR || "",
+		mdnsEnabled: parseBool(env.MDNS_ENABLED, true),
+		mdnsHostname: env.MDNS_HOSTNAME || "devicesdk",
 		dbPath: join(dataDir, "devicesdk.sqlite"),
 		scriptsDir: join(dataDir, "scripts"),
 		firmwaresDir: join(dataDir, "firmwares"),

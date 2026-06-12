@@ -10,6 +10,7 @@
 		"openapi": "bun run scripts/generate-openapi.ts",
 		"build": "pnpm run openapi",
 		"check-types": "tsc --noEmit",
+		"test": "bun test src",
 		"lint": "biome check src",
 		"lint:fix": "biome check --write src",
 		"clean": "rm -rf dist openapi.json"

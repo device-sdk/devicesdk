@@ -1,6 +1,6 @@
 ---
 name: write-sql-queries
-description: Guide for writing SELECT, INSERT, UPDATE, DELETE queries with workers-qb
+description: Guide for writing SELECT, INSERT, UPDATE, DELETE queries with workers-qb.
 ---
 
 # Write Queries Skill
@@ -8,23 +8,26 @@ description: Guide for writing SELECT, INSERT, UPDATE, DELETE queries with worke
 ## When to Use
 
 Use this skill when:
-- Writing database queries for Cloudflare Workers
+- Writing database queries for the DeviceSDK server (`apps/server` uses workers-qb over bun:sqlite)
 - Implementing CRUD operations (Create, Read, Update, Delete)
 - Building complex queries with JOINs, subqueries, or aggregations
-- Working with D1, Durable Objects SQLite, or PostgreSQL
+- Working with D1, Durable Objects SQLite, PostgreSQL, or bun:sqlite
 
 ## Database Selection
 
 | Database | Class | Sync/Async | Import |
 |----------|-------|------------|--------|
 | Cloudflare D1 | `D1QB` | **async** | `import { D1QB } from 'workers-qb'` |
+| bun:sqlite (self-hosted server) | `D1QB` | **async** | `import { D1QB } from 'workers-qb'` via the `bunSqliteQB` adapter |
 | Durable Objects | `DOQB` | **sync** | `import { DOQB } from 'workers-qb'` |
 | PostgreSQL | `PGQB` | **async** | `import { PGQB } from 'workers-qb'` |
+
+In this repo, prefer `c.get("qb")` in endpoint handlers. The adapter is configured in `apps/server/src/db/bunSqliteQB.ts`.
 
 ## Critical: Sync vs Async
 
 ```typescript
-// D1QB/PGQB - ALWAYS use await
+// D1QB/PGQB/bun:sqlite - ALWAYS use await
 const result = await qb.fetchAll({ tableName: 'users' }).execute();
 
 // DOQB - NEVER use await (synchronous)
@@ -382,7 +385,7 @@ const stats = await qb.fetchAll({
 ### Lazy Execution (Large Datasets)
 
 ```typescript
-// D1/PostgreSQL - AsyncIterable
+// D1/PostgreSQL/bun:sqlite - AsyncIterable
 const lazyResult = await qb.fetchAll({
   tableName: 'large_table',
   lazy: true,
@@ -746,7 +749,7 @@ this.ctx.blockConcurrencyWhile(() => {
 Before executing queries, verify:
 
 - [ ] Called `.execute()` on the query (or `.all()`, `.one()`, `.paginate()`)
-- [ ] Using `await` for D1QB/PGQB, **no** `await` for DOQB
+- [ ] Using `await` for D1QB/PGQB/bun:sqlite, **no** `await` for DOQB
 - [ ] Using parameterized queries (`?` placeholders), not string interpolation
 - [ ] WHERE clause is provided for UPDATE/DELETE (to avoid affecting all rows)
 - [ ] Schema type is defined for autocomplete and type safety

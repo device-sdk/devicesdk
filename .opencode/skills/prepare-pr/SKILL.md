@@ -65,7 +65,7 @@ pnpm build
 pnpm lint
 
 # Tests (skip only if PR is docs-only)
-pnpm test --filter @devicesdk/api
+pnpm test --filter @devicesdk/server
 
 # Type check
 pnpm check-types
@@ -103,7 +103,7 @@ Create `.local/prep.md`:
 - [x] pnpm install --frozen-lockfile
 - [x] pnpm build
 - [x] pnpm lint
-- [x] pnpm test --filter @devicesdk/api
+- [x] pnpm test --filter @devicesdk/server
 - [x] pnpm check-types
 
 ## Findings Resolved
@@ -155,7 +155,7 @@ Wait for maintainer judgment before proceeding to `merge-pr`.
 - [ ] `pnpm install --frozen-lockfile` succeeded
 - [ ] `pnpm build` passed
 - [ ] `pnpm lint` passed
-- [ ] `pnpm test --filter @devicesdk/api` passed
+- [ ] `pnpm test --filter @devicesdk/server` passed
 - [ ] `pnpm check-types` passed
 - [ ] Pushed with `--force-with-lease`
 - [ ] `.local/prep.md` produced

@@ -57,13 +57,13 @@ All PRs must pass these gates before merge:
 ```bash
 pnpm install --frozen-lockfile   # In fresh worktrees
 pnpm build                       # Full monorepo build
-pnpm lint                        # Biome (api, simulation, core, cli) + ESLint (dashboard)
-pnpm test --filter @devicesdk/api  # Integration tests
+pnpm lint                        # Biome (server, api, simulation, core, cli) + ESLint (dashboard)
+pnpm test --filter @devicesdk/server  # Server integration/unit tests
 pnpm check-types                 # TypeScript type checking
 ```
 
 - `pnpm build` and `pnpm lint` are always required.
-- `pnpm test --filter @devicesdk/api` is required unless the PR is docs-only.
+- `pnpm test --filter @devicesdk/server` is required unless the PR is docs-only.
 - `pnpm check-types` is always required.
 
 ## Commit Rules
@@ -104,7 +104,7 @@ Skills communicate via `.local/` artifacts:
     }
   ],
   "tests": {
-    "ran": ["pnpm test --filter @devicesdk/api"],
+    "ran": ["pnpm test --filter @devicesdk/server"],
     "gaps": [],
     "result": "pass"
   },

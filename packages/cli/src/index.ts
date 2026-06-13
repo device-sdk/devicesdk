@@ -98,8 +98,8 @@ program
 	.addHelpText(
 		"after",
 		`
-Generates AGENTS.md, CLAUDE.md, .cursor/rules/devicesdk.mdc, and .mcp.json
-so AI coding agents working in the new project have project-specific context.
+Generates AGENTS.md, .cursor/rules/devicesdk.mdc, and .mcp.json so AI
+coding agents working in the new project have project-specific context.
 
 Examples:
   $ devicesdk init my-iot-project

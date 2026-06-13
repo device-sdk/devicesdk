@@ -1,5 +1,37 @@
 # Troubleshooting Log
 
+### Dashboard E2E job fails with `pnpm install` segfault (exit 139)
+**Date**: 2026-06-13
+**Question/Problem**: The dashboard **E2E Tests** job in `ci.yml` intermittently segfaults during `pnpm install --frozen-lockfile` on the self-hosted runner, failing the PR.
+**Root Cause**: The runner uses a global pnpm store shared across jobs. The store can be left in a bad state by earlier jobs or by a corrupted `actions/setup-node` cache restore, causing `pnpm` itself to crash with a segmentation fault before any package scripts run.
+**Solution**: Make the E2E install step resilient by retrying once and wiping the pnpm store before the retry (`rm -rf "$(pnpm store path)"`). If it still fails after a fresh store, the failure is real rather than store corruption.
+**Rule**: Late-in-workflow jobs on shared self-hosted runners should defensively retry `pnpm install` after clearing the global store. Don't assume a restored pnpm store is healthy.
+
+### Release workflow fails because `bun` is not on PATH
+**Date**: 2026-06-13
+**Question/Problem**: After a PR merges to `main`, the **Release** workflow fails during `pnpm build` with `sh: 1: bun: not found` while generating `apps/server/openapi.json`.
+**Root Cause**: `@devicesdk/server` build runs `bun run scripts/generate-openapi.ts`. The `release.yml` job set up Node/pnpm but never installed Bun, unlike the CI test/e2e jobs.
+**Solution**: Add `oven-sh/setup-bun@v2` (same `1.3.14` pin as CI) to `release.yml` before the build step.
+**Rule**: Any workflow that builds `@devicesdk/server` must set up Bun, even though the published packages themselves run on Node.
+
+### Firmware rolling releases fail with "Cannot upload assets to an immutable release"
+**Date**: 2026-06-13
+**Question/Problem**: `firmware-esp32.yml` and `firmware-pico.yml` publish jobs fail on `main` with `HTTP 422: Cannot upload assets to an immutable release.` when trying to overwrite rolling-release assets in place.
+**Root Cause**: Published GitHub Releases in this repository are immutable, so `gh release upload --clobber` cannot replace existing assets on the `firmware-esp32` / `firmware-pico` rolling tags.
+**Solution**: Delete the existing rolling release (and its tag) before creating a fresh release at the current commit and uploading the new assets:
+```bash
+gh release delete firmware-esp32 --yes --cleanup-tag
+gh release create firmware-esp32 --target "$GITHUB_SHA" --title "..." --notes "..." --latest=false firmware-dist/*.bin
+```
+**Rule**: Rolling firmware releases must be recreated, not edited in place, when release immutability is enabled.
+
+### Pico firmware publish job can't find downloaded artifacts
+**Date**: 2026-06-13
+**Question/Problem**: `firmware-pico.yml` publish job fails with `no matches found for firmware-dist/devicesdk-pico-w-client.uf2` even though the artifact downloaded successfully.
+**Root Cause**: The workflow sets `defaults.run.working-directory: firmware/pico`, but `actions/download-artifact` extracts relative to `$GITHUB_WORKSPACE`. The files land at the repo root, while the upload script resolves `firmware-dist/...` relative to `firmware/pico`.
+**Solution**: Override `defaults.run.working-directory` to `.` in the `publish-release` job (or use repo-root-relative paths consistently for both download and upload steps).
+**Rule**: `download-artifact` paths are always workspace-relative; never rely on `defaults.run.working-directory` for artifact extraction paths.
+
 ### Server e2e test harness + the bun coverage-threshold gotcha
 **Date**: 2026-06-13
 **Question/Problem**: How to e2e-test `apps/server` (REST + device/watcher WebSockets + the in-process device runtime) and gate CI at ≥85% coverage with `bun test`.
@@ -25,7 +57,7 @@
 **Root Cause**: `getOrCreateUserWorker` cached the resolved `getTarget()` handle in `this.cachedUserWorker` and reused it **across DO invocations** (added in #87 to dodge the "Too many concurrent dynamic workers" limit). But a `getTarget()` return is a **child-isolate RPC stub scoped to the invocation that created it** (see the cloudflare-runtime-limitations skill). The creating invocation ends → the child isolate is recycled → the cached stub is stale. Calling `onCron`/`onDeviceConnect`/`getCrons` on that stale cross-invocation stub fans out subrequests that never resolve, blowing the per-invocation subrequest cap with `Date.now()` frozen (fire-and-forget, nothing completes) and pinning `wallTime` at the ~60 s wall. The 60 s hang froze the single-threaded DO so it couldn't service the device's WebSocket PING/PONG → firmware half-open detection (#131) tripped → reconnect loop. A second `[DIAG2]` deploy confirmed it: **every** 60 s wedge logged `cache=warm`; fast ticks were warm-without-a-hook-call; even a 10 s-old stub wedged.
 **Solution**: Make the worker stub **invocation-scoped** — clear `this.cachedUserWorker = null` at the top of every DO invocation entry point that resolves a worker (`alarm()`, `handleRemoteCall()`), so each invocation re-resolves a fresh stub (`apps/api/src/durableObjects/lib/device.ts`, PR #140). The cache still serves *intra-invocation* reuse (drain + cron in one tick share the threaded `drainedWorker`), so a stable `workerId` keeps it one underlying worker and the concurrent-dynamic-workers limit is not hit. Confirmed in prod: zero `Too many subrequests`, alarm wall-times back to 22–300 ms, and `last_connected_at` stable (one continuous connection) instead of bumping every few minutes. Regression test: `tests/integration/deviceReconnect.test.ts` asserts `alarm()` clears the cache.
 **Rule**: **Never cache a Worker-Loader `getTarget()` stub (or any RPC stub) across DO invocations.** They are valid only within the invocation that resolved them; reusing one later either hangs or fans out subrequests until the cap trips. Re-resolve per invocation (a stable Loader `id` makes this cheap and avoids the concurrent-workers limit); cache only *within* a single invocation. When `wrangler tail` shows `wallTime≈60000` + `cpuTime 0` **and** your own timing deltas read 0 ms, it's fire-and-forget subrequests that never resolve — look at what RPC handle is being called, not at CPU work.
-**Dead ends (don't re-tread)**: three fixes shipped before the real one, each disproved by data — (1) **bounding the event-drain** (wedge persisted with `pendingEvents = 0`); (2) a **pending-event-backlog** theory (the `[DIAG]` anomaly log never fired → no backlog); (3) **ghost/zombie device sockets** (a real latent bug fixed in PR #136, but `deviceSockets ≤ 1` on the wedged ticks, so not this). Lesson: instrument with a **discriminator** (here: warm-vs-cold stub) and don't ship a *guessed* fix more than once — each wrong fix costs a prod deploy cycle and muddies the signal. Full methodology in `.claude/skills/debug-prod-worker-wedge`.
+**Dead ends (don't re-tread)**: three fixes shipped before the real one, each disproved by data — (1) **bounding the event-drain** (wedge persisted with `pendingEvents = 0`); (2) a **pending-event-backlog** theory (the `[DIAG]` anomaly log never fired → no backlog); (3) **ghost/zombie device sockets** (a real latent bug fixed in PR #136, but `deviceSockets ≤ 1` on the wedged ticks, so not this). Lesson: instrument with a **discriminator** (here: warm-vs-cold stub) and don't ship a *guessed* fix more than once — each wrong fix costs a prod deploy cycle and muddies the signal. Full methodology in `the archived `debug-prod-worker-wedge` notes`.
 **Re-investigating**: the `[DIAG]`/`[DIAG2]` probes are kept permanently in `device.ts` behind the `DEVICE_DIAG_LOGS` env var (off by default, zero overhead via the `diagOn` getter). To turn them on: set `DEVICE_DIAG_LOGS` to `"1"` in `apps/api/wrangler.jsonc` (the top-level **and** the `env.production` `vars` blocks) + redeploy, `wrangler tail --env production --format json`, then set it back to `"0"`.
 
 ### Per-minute cron wedges on "Too many subrequests by single Worker invocation"; screen never updates (stuck on firmware boot text)
@@ -295,7 +327,7 @@ uint8_t com_pins = (height == 32) ? 0x02 : 0x12;
 **Solution / Rules**:
 - The recurrent "dark device" is fundamentally **the per-device-per-minute-cron architecture straining Cloudflare free-tier caps** (Worker Loader concurrency + DO row-writes). On free tier, even with the code fixes, sustained churn (or heavy debugging) re-exhausts the daily quota. **Definitive fix: Workers Paid.** Cheaper mitigation: keep the device *stably connected* (fix the wedge so it doesn't churn) — steady-state writes (~2–3/min) fit free tier; the churn is what kills it.
 - **Do NOT brute-force-reset a struggling device to "recover" it.** Each `esptool` reset / reconnect spends DO write quota (and the per-device 500/day message budget). Dozens of resets will exhaust the daily account quota and *cause* the dark-loop you're trying to debug. Diagnose from `wrangler tail` instead.
-- **Diagnosis method:** `wrangler tail --env production --format json`. Decode `event.exceptions[].message` + `.stack` — the exact CF limit string (`Too many concurrent dynamic workers` vs `Exceeded allowed rows written…`) tells you which cap you hit. `connect-fetch` outcomes of `503`/`exception` with a tight ~6s reconnect cadence = the DO can't service upgrades (jammed or quota-exhausted). A frozen `Date.now()` + ~60s wall = subrequest fan-out (stale stub). See `.claude/skills/debug-prod-worker-wedge`.
+- **Diagnosis method:** `wrangler tail --env production --format json`. Decode `event.exceptions[].message` + `.stack` — the exact CF limit string (`Too many concurrent dynamic workers` vs `Exceeded allowed rows written…`) tells you which cap you hit. `connect-fetch` outcomes of `503`/`exception` with a tight ~6s reconnect cadence = the DO can't service upgrades (jammed or quota-exhausted). A frozen `Date.now()` + ~60s wall = subrequest fan-out (stale stub). See `the archived `debug-prod-worker-wedge` notes`.
 - **`connected=1`/`=0` in D1 is a cosmetic cache, not authoritative** — a stale flag can disagree with reality; `getWebSockets("device")` (and whether cron draws are flowing in `tail`) is the truth.
 - Connect-path DO writes (`deviceMeta`, `connectedSince`, the `connected=1` D1 cache) are now **best-effort** (`safeStoragePut` + try/catch) so a transient/quota write error degrades instead of failing the upgrade and amplifying churn (PR #150). This does *not* let a fully quota-exhausted DO connect (acceptWebSocket still writes) — it only reduces blast radius.
 

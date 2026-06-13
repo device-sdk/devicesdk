@@ -10,7 +10,7 @@ Read-only analysis of a pull request. Do not modify code or switch branches duri
 ## Prerequisites
 
 - PR URL or number is known
-- You have read `.claude/skills/pr-workflow/PR_WORKFLOW.md`
+- You have read `.opencode/skills/pr-workflow/SKILL.md`
 
 ## Steps
 
@@ -77,7 +77,7 @@ If the PR touches API code, optionally run tests to verify:
 ```bash
 cd .worktrees/pr-<PR>
 pnpm install --frozen-lockfile
-pnpm test --filter @devicesdk/api
+pnpm test --filter @devicesdk/server
 ```
 
 ### 6. Produce Review Artifacts
@@ -138,7 +138,7 @@ Create `.local/review.json` with structured findings:
     }
   ],
   "tests": {
-    "ran": ["pnpm test --filter @devicesdk/api"],
+    "ran": ["pnpm test --filter @devicesdk/server"],
     "gaps": ["No test for error case"],
     "result": "pass"
   },

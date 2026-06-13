@@ -365,11 +365,6 @@ Full cookbook: <https://devicesdk.com/docs/recipes/>
 `;
 }
 
-function generateClaudeMd(): string {
-	return `@AGENTS.md
-`;
-}
-
 function generateCursorRules(): string {
 	return `---
 description: DeviceSDK device-script rules
@@ -513,21 +508,14 @@ export default async function init(
 			console.log("✓ Generated .gitignore");
 		}
 
-		// Generate AGENTS.md (and CLAUDE.md symlink-equivalent) so AI coding
-		// agents working in the user's project have version-matched context.
+		// Generate AGENTS.md so AI coding agents working in the user's project
+		// have version-matched context.
 		const agentsMdPath = path.join(projectDir, "AGENTS.md");
 		try {
 			await fs.access(agentsMdPath);
 		} catch {
 			await fs.writeFile(agentsMdPath, generateAgentsMd(projectId));
 			console.log("✓ Generated AGENTS.md");
-		}
-		const claudeMdPath = path.join(projectDir, "CLAUDE.md");
-		try {
-			await fs.access(claudeMdPath);
-		} catch {
-			await fs.writeFile(claudeMdPath, generateClaudeMd());
-			console.log("✓ Generated CLAUDE.md");
 		}
 		const cursorRulesDir = path.join(projectDir, ".cursor", "rules");
 		const cursorRulesPath = path.join(cursorRulesDir, "devicesdk.mdc");
@@ -539,8 +527,8 @@ export default async function init(
 			console.log("✓ Generated .cursor/rules/devicesdk.mdc");
 		}
 
-		// Generate .mcp.json so users with MCP-aware agents (Claude Code,
-		// Cursor) get the @devicesdk/mcp server preconfigured.
+		// Generate .mcp.json so users with MCP-aware agents (OpenCode, Claude
+		// Code, Cursor) get the @devicesdk/mcp server preconfigured.
 		const mcpJsonPath = path.join(projectDir, ".mcp.json");
 		try {
 			await fs.access(mcpJsonPath);

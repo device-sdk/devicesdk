@@ -115,8 +115,8 @@ EOF
 ### 7. Clean Up
 
 ```bash
-# Return to main repo
-cd /home/gabriel/PycharmProjects/devicesdk-monorepo
+# Return to the repository root
+cd ..
 
 # Remove the worktree
 git worktree remove .worktrees/pr-<PR>

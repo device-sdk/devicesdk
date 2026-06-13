@@ -1,6 +1,6 @@
 ---
 title: MCP server (@devicesdk/mcp)
-description: Drive DeviceSDK from Claude, Cursor, Continue, Windsurf and other MCP-aware coding agents
+description: Drive DeviceSDK from OpenCode, Claude, Cursor, Continue, Windsurf and other MCP-aware coding agents
 weight: 28
 social_image: /og-images/docs/mcp.png
 ---
@@ -39,6 +39,23 @@ If you use Claude Code in a project that has `.mcp.json`, the server registers a
 ```bash
 claude mcp add devicesdk -- npx -y @devicesdk/mcp
 ```
+
+### OpenCode
+
+OpenCode reads `.mcp.json` from the project root automatically. To register the server globally, add it to `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "mcp": {
+    "devicesdk": {
+      "type": "local",
+      "command": ["npx", "-y", "@devicesdk/mcp"]
+    }
+  }
+}
+```
+
+Restart OpenCode for the config change to take effect.
 
 ### Claude Desktop
 

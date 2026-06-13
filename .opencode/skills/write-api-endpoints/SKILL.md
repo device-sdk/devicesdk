@@ -1,6 +1,6 @@
 ---
 name: write-api-endpoints
-description: Use when creating or modifying API endpoints in apps/api/src/endpoints/. Covers Hono + Chanfana + Zod patterns, auth, validation, response format, router registration, and testing.
+description: Use when creating or modifying API endpoints in apps/server/src/endpoints/. Covers Hono + Chanfana + Zod patterns, auth, validation, response format, router registration, and testing.
 ---
 
 # Write API Endpoints
@@ -78,7 +78,7 @@ const user = c.get("user");    // Authenticated user object (id, email, name, et
 const qb = c.get("qb");        // D1QB query builder for database access
 ```
 
-Auth is handled by middleware in `src/foundation/auth.ts`. Endpoints mounted after `authenticateUser` in `src/index.ts` automatically require auth.
+Auth is handled by middleware in `apps/server/src/foundation/auth.ts`. Endpoints mounted after `authenticateUser` in `apps/server/src/index.ts` automatically require auth.
 
 ## Validation
 
@@ -157,7 +157,7 @@ throw new ApiException("Failed to create device");
 Each resource has a `router.ts` that maps HTTP methods to endpoint classes:
 
 ```typescript
-// src/endpoints/things/router.ts
+// apps/server/src/endpoints/things/router.ts
 import { fromHono } from "chanfana";
 import { Hono } from "hono";
 import { CreateThing } from "./createThing";
@@ -175,7 +175,7 @@ thingsRouter.put("/:thingId", UpdateThing);
 thingsRouter.delete("/:thingId", DeleteThing);
 ```
 
-Then mount in `src/index.ts` after the `authenticateUser` middleware:
+Then mount in `apps/server/src/index.ts` after the `authenticateUser` middleware:
 
 ```typescript
 app.route("/v1/projects/:projectId/things", thingsRouter);
@@ -183,23 +183,15 @@ app.route("/v1/projects/:projectId/things", thingsRouter);
 
 ## Testing Pattern
 
-Tests use `@cloudflare/vitest-pool-workers` with real Cloudflare Workers runtime:
+Server tests run with `bun test` and use a real Bun server + SQLite database:
 
 ```typescript
-import { SELF, env } from "cloudflare:test";
-import { D1QB } from "workers-qb";
-import { beforeAll, describe, expect, it } from "vitest";
-import { TEST_SESSION_TOKEN, TEST_PROJECT_ID } from "../setup-test-data";
+import { describe, expect, it } from "bun:test";
+import type { DeviceSDKTestHarness } from "../setup-test-data";
 
-describe.sequential("Things endpoint", () => {
-  let qb: D1QB;
-
-  beforeAll(async () => {
-    qb = new D1QB(env.DB);
-  });
-
+describe("Things endpoint", () => {
   it("should create a new thing", async () => {
-    const resp = await SELF.fetch(
+    const resp = await harness.fetch(
       `http://localhost/v1/projects/${TEST_PROJECT_ID}/things`,
       {
         method: "POST",
@@ -218,7 +210,7 @@ describe.sequential("Things endpoint", () => {
   });
 
   it("should return 401 without auth", async () => {
-    const resp = await SELF.fetch(
+    const resp = await harness.fetch(
       `http://localhost/v1/projects/${TEST_PROJECT_ID}/things`,
     );
     expect(resp.status).toBe(401);
@@ -226,15 +218,18 @@ describe.sequential("Things endpoint", () => {
 });
 ```
 
+Use existing tests in `apps/server/tests/` as the canonical source of truth for
+harness setup and fixture patterns.
+
 ## Existing Endpoint Resources
 
 Reference these for patterns:
-- `src/endpoints/projects/` — CRUD with slug validation
-- `src/endpoints/devices/` — CRUD + WebSocket connect + firmware download
-- `src/endpoints/scripts/` — Upload, deploy, batch operations
-- `src/endpoints/tokens/` — API token management (mask token values, show `last_four`)
-- `src/endpoints/user/` — Simple user details passthrough
-- `src/endpoints/cli-auth/` — Device code OAuth flow for CLI
+- `apps/server/src/endpoints/projects/` — CRUD with slug validation
+- `apps/server/src/endpoints/devices/` — CRUD + WebSocket connect + firmware download
+- `apps/server/src/endpoints/scripts/` — Upload, deploy, batch operations
+- `apps/server/src/endpoints/tokens/` — API token management (mask token values, show `last_four`)
+- `apps/server/src/endpoints/user/` — Simple user details passthrough
+- `apps/server/src/endpoints/cli-auth/` — Device code flow for CLI
 
 ## Checklist
 
@@ -244,7 +239,7 @@ Reference these for patterns:
 - [ ] Auth via `c.get("user")`, DB via `c.get("qb")`
 - [ ] Response uses `{ success: true, result }` or `{ success: false, error }`
 - [ ] Router file created with `fromHono(new Hono())`
-- [ ] Router mounted in `src/index.ts` (after auth middleware if protected)
-- [ ] Test file uses `SELF.fetch()` with `describe.sequential`
+- [ ] Router mounted in `apps/server/src/index.ts` (after auth middleware if protected)
+- [ ] Test file uses the Bun test harness
 - [ ] Test uses `TEST_SESSION_TOKEN` for auth
 - [ ] IDs use `crypto.randomUUID()`, timestamps use `Date.now()`

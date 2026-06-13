@@ -3,6 +3,7 @@
 .git
 .worktrees
 .claude
+.opencode
 .local
 .spikes
 **/dist

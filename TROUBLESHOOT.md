@@ -1,5 +1,37 @@
 # Troubleshooting Log
 
+### Dashboard E2E job fails with `pnpm install` segfault (exit 139)
+**Date**: 2026-06-13
+**Question/Problem**: The dashboard **E2E Tests** job in `ci.yml` intermittently segfaults during `pnpm install --frozen-lockfile` on the self-hosted runner, failing the PR.
+**Root Cause**: The runner uses a global pnpm store shared across jobs. The store can be left in a bad state by earlier jobs or by a corrupted `actions/setup-node` cache restore, causing `pnpm` itself to crash with a segmentation fault before any package scripts run.
+**Solution**: Make the E2E install step resilient by retrying once and wiping the pnpm store before the retry (`rm -rf "$(pnpm store path)"`). If it still fails after a fresh store, the failure is real rather than store corruption.
+**Rule**: Late-in-workflow jobs on shared self-hosted runners should defensively retry `pnpm install` after clearing the global store. Don't assume a restored pnpm store is healthy.
+
+### Release workflow fails because `bun` is not on PATH
+**Date**: 2026-06-13
+**Question/Problem**: After a PR merges to `main`, the **Release** workflow fails during `pnpm build` with `sh: 1: bun: not found` while generating `apps/server/openapi.json`.
+**Root Cause**: `@devicesdk/server` build runs `bun run scripts/generate-openapi.ts`. The `release.yml` job set up Node/pnpm but never installed Bun, unlike the CI test/e2e jobs.
+**Solution**: Add `oven-sh/setup-bun@v2` (same `1.3.14` pin as CI) to `release.yml` before the build step.
+**Rule**: Any workflow that builds `@devicesdk/server` must set up Bun, even though the published packages themselves run on Node.
+
+### Firmware rolling releases fail with "Cannot upload assets to an immutable release"
+**Date**: 2026-06-13
+**Question/Problem**: `firmware-esp32.yml` and `firmware-pico.yml` publish jobs fail on `main` with `HTTP 422: Cannot upload assets to an immutable release.` when trying to overwrite rolling-release assets in place.
+**Root Cause**: Published GitHub Releases in this repository are immutable, so `gh release upload --clobber` cannot replace existing assets on the `firmware-esp32` / `firmware-pico` rolling tags.
+**Solution**: Delete the existing rolling release (and its tag) before creating a fresh release at the current commit and uploading the new assets:
+```bash
+gh release delete firmware-esp32 --yes --cleanup-tag
+gh release create firmware-esp32 --target "$GITHUB_SHA" --title "..." --notes "..." --latest=false firmware-dist/*.bin
+```
+**Rule**: Rolling firmware releases must be recreated, not edited in place, when release immutability is enabled.
+
+### Pico firmware publish job can't find downloaded artifacts
+**Date**: 2026-06-13
+**Question/Problem**: `firmware-pico.yml` publish job fails with `no matches found for firmware-dist/devicesdk-pico-w-client.uf2` even though the artifact downloaded successfully.
+**Root Cause**: The workflow sets `defaults.run.working-directory: firmware/pico`, but `actions/download-artifact` extracts relative to `$GITHUB_WORKSPACE`. The files land at the repo root, while the upload script resolves `firmware-dist/...` relative to `firmware/pico`.
+**Solution**: Override `defaults.run.working-directory` to `.` in the `publish-release` job (or use repo-root-relative paths consistently for both download and upload steps).
+**Rule**: `download-artifact` paths are always workspace-relative; never rely on `defaults.run.working-directory` for artifact extraction paths.
+
 ### Server e2e test harness + the bun coverage-threshold gotcha
 **Date**: 2026-06-13
 **Question/Problem**: How to e2e-test `apps/server` (REST + device/watcher WebSockets + the in-process device runtime) and gate CI at ≥85% coverage with `bun test`.

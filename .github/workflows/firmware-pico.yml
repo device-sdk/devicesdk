@@ -104,6 +104,12 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: write
+    # The workflow-level default working-directory is firmware/pico, but
+    # download-artifact extracts relative to the repository root and the
+    # firmware-dist/ path is repo-root relative.
+    defaults:
+      run:
+        working-directory: .
     steps:
       - uses: actions/checkout@v6
 
@@ -113,12 +119,19 @@ jobs:
           path: firmware-dist/
 
       # Rolling release per firmware family — see firmware-esp32.yml.
+      # GitHub may mark published releases as immutable, so recreate the
+      # release (and tag) on every push to keep the rolling tag movable.
       - name: Upload binaries to the firmware-pico release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view firmware-pico >/dev/null 2>&1 || \
-            gh release create firmware-pico --title "Pico firmware (rolling)" \
-              --notes "Latest Pico W / Pico 2 W client UF2s, updated on every firmware change." --latest=false
-          gh release upload firmware-pico "firmware-dist/devicesdk-pico-w-client.uf2" --clobber
-          gh release upload firmware-pico "firmware-dist/devicesdk-pico2-w-client.uf2" --clobber
+          if gh release view firmware-pico >/dev/null 2>&1; then
+            gh release delete firmware-pico --yes --cleanup-tag
+          fi
+          gh release create firmware-pico \
+            --target ${{ github.sha }} \
+            --title "Pico firmware (rolling)" \
+            --notes "Latest Pico W / Pico 2 W client UF2s, updated on every firmware change." \
+            --latest=false \
+            firmware-dist/devicesdk-pico-w-client.uf2 \
+            firmware-dist/devicesdk-pico2-w-client.uf2

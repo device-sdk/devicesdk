@@ -186,13 +186,22 @@ jobs:
       # carries the latest binaries. The self-hosted server image bundles
       # these at build time (see Dockerfile), and users can download them
       # manually for local flashing.
+      #
+      # GitHub may mark published releases as immutable, which prevents
+      # clobbering assets in place. Recreate the release (and its tag) on every
+      # push so the rolling tag always points at the current commit.
       - name: Upload binaries to the firmware-esp32 release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view firmware-esp32 >/dev/null 2>&1 || \
-            gh release create firmware-esp32 --title "ESP32 firmware (rolling)" \
-              --notes "Latest ESP32/C3/C61 client binaries, updated on every firmware change." --latest=false
-          for target in esp32 esp32c61 esp32c3; do
-            gh release upload firmware-esp32 "firmware-dist/${target}-client.bin" --clobber
-          done
+          if gh release view firmware-esp32 >/dev/null 2>&1; then
+            gh release delete firmware-esp32 --yes --cleanup-tag
+          fi
+          gh release create firmware-esp32 \
+            --target ${{ github.sha }} \
+            --title "ESP32 firmware (rolling)" \
+            --notes "Latest ESP32/C3/C61 client binaries, updated on every firmware change." \
+            --latest=false \
+            firmware-dist/esp32-client.bin \
+            firmware-dist/esp32c61-client.bin \
+            firmware-dist/esp32c3-client.bin

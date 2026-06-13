@@ -15,15 +15,15 @@ minute** — seconds are never shown.
 
 ## How it works
 
-The microcontroller has no real-time clock, but your device script runs in the
-cloud — so it always knows the wall-clock time.
+The microcontroller has no real-time clock, but your device script runs on the
+server — so it always knows the wall-clock time.
 
 ```
         cron "* * * * *"            display_update
  ┌────────────┐  fires once   ┌────────────┐  (HH:MM + date)   ┌──────────┐
  │  Device    │  a minute  ►  │  Device    │  ───────────────► │ ESP32-C3 │
  │  Script    │               │  Script    │                   │  OLED    │
- │  (cloud)   │ ◄──────────── │  formats   │                   └──────────┘
+ │  (server)  │ ◄──────────── │  formats   │                   └──────────┘
  └────────────┘   onCron()    │  the time  │
                               └────────────┘
 ```

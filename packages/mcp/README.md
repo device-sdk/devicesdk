@@ -25,7 +25,7 @@ You don't usually run it directly — it's launched by your MCP-aware tool. Add 
 
 ## Authentication
 
-The server inherits the CLI's auth: it reads `~/.devicesdk/auth.json` (created by `devicesdk login`). If you set `DEVICESDK_TOKEN` in the environment, that takes precedence — useful in CI or when you want a tighter-scoped token for your agent.
+The server inherits the CLI's auth: it reads `~/.devicesdk/credentials.json` (created by `devicesdk login`). If you set `DEVICESDK_TOKEN` in the environment, that takes precedence — useful in CI or when you want a tighter-scoped token for your agent.
 
 ## Tools exposed
 

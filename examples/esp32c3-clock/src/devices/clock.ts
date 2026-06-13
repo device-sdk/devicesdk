@@ -3,7 +3,7 @@ import { SSD1306 } from "@devicesdk/core/i2c";
 
 // A wall clock for the ESP32-C3 board with the built-in 0.42" 72×40 OLED.
 //
-// The device script runs in the cloud, so it always knows the wall-clock time —
+// The device script runs on the server, so it always knows the wall-clock time —
 // the microcontroller itself has no real-time clock. Once a minute a cron fires,
 // we format the current time + date for the configured timezone and push a fresh
 // frame to the screen. Seconds are intentionally never shown: the display only
@@ -167,7 +167,7 @@ export class ClockDevice extends DeviceEntrypoint {
 		console.info("Clock disconnected");
 	}
 
-	// Every cloud draw re-initializes the panel (init: true), it never assumes
+	// Every server draw re-initializes the panel (init: true), it never assumes
 	// the controller is still in the state we last left it. This board's firmware
 	// shares this exact OLED: it paints "Server"/"Connected" status text on every
 	// WebSocket disconnect/reconnect, re-running the SSD1306 power-on sequence

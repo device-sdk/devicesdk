@@ -82,7 +82,7 @@
                     </div>
                     <pre><code><span class="syn-kw">import</span> { DeviceEntrypoint } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/core"</span>;
 
-<span class="syn-kw">export default class</span> <span class="syn-type">Thermostat</span> <span class="syn-kw">extends</span> <span class="syn-type">DeviceEntrypoint</span> {
+<span class="syn-kw">export class</span> <span class="syn-type">Thermostat</span> <span class="syn-kw">extends</span> <span class="syn-type">DeviceEntrypoint</span> {
   <span class="syn-cm">// Called when device connects via WebSocket</span>
   <span class="syn-kw">async</span> <span class="syn-fn">onDeviceConnect</span>() {
     <span class="syn-cm">// Monitor button on GPIO 14</span>

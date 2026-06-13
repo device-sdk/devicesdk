@@ -12,7 +12,7 @@ npm install @devicesdk/core
 
 ### Device entrypoints
 
-Extend the `DeviceEntrypoint` class to write device scripts. Your script runs in a sandboxed serverless runtime — **not on the microcontroller and not in Node.js**. It receives events from the device over WebSocket and can issue commands back through `this.env.DEVICE`.
+Extend the `DeviceEntrypoint` class to write device scripts. Your script runs **in-process on the DeviceSDK server you host** (a Bun runtime) — **not on the microcontroller and not in Node.js**. It receives events from the device over WebSocket and can issue commands back through `this.env.DEVICE`.
 
 ```typescript
 import { DeviceEntrypoint, type DeviceResponse } from "@devicesdk/core";

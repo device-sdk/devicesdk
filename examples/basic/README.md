@@ -41,15 +41,18 @@ To switch which device file is active, edit the `main:` field in `devicesdk.ts`.
 
 ## Local development
 
-If you're running a local DeviceSDK API on `localhost:8787` (rare — only relevant for SDK contributors):
+`pnpm deploy` and `pnpm flash-remote` target whichever server you logged into with
+`devicesdk login --host http://<server>:8080`. That's the everyday path — DeviceSDK is
+self-hosted, so "your server" is wherever you're running it.
+
+If you're running the server on the same machine (e.g. you're hacking on the server
+itself), the `local:*` / `flash-local` helpers point at `http://localhost:8080`:
 
 ```bash
 pnpm local:login
-DEVICESDK_API_URL=http://localhost:8787 pnpm deploy
-DEVICESDK_DEVICE_HOST=192.168.1.42:8787 pnpm flash-local   # set to your laptop's LAN IP
+DEVICESDK_API_URL=http://localhost:8080 pnpm deploy
+DEVICESDK_DEVICE_HOST=192.168.1.42:8080 pnpm flash-local   # set to your laptop's LAN IP
 ```
-
-For everyday use, ignore the `local:*` and `flash-local` scripts — `pnpm deploy` and `pnpm flash-remote` against the production API are what you want.
 
 ## See also
 

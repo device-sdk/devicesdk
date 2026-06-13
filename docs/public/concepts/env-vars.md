@@ -77,7 +77,9 @@ devicesdk env unset DISCORD_WEBHOOK_URL
 Variables are available via `this.env.VARS` inside any device class:
 
 ```typescript
-export class MySensor extends DeviceSender {
+import { DeviceEntrypoint } from "@devicesdk/core";
+
+export class MySensor extends DeviceEntrypoint {
   async onDeviceConnect() {
     // Get a single variable
     const apiKey = await this.env.VARS.get("API_KEY");

@@ -178,10 +178,7 @@ Check the dashboard for deployment status and error details. If a deployment app
 
 **Need to rollback?**
 
-Open the device in the dashboard and select a previous version to redeploy. You can also redeploy from the CLI:
-```bash
-devicesdk deploy --version <version-id>
-```
+Open the device in the dashboard and select a previous version to redeploy. From the CLI, check out the source for the version you want and run `devicesdk deploy` again — each deploy creates a new version, so re-deploying known-good code is the CLI rollback path.
 
 ## Best Practices
 

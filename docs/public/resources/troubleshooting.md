@@ -99,7 +99,7 @@ social_image: /og-images/docs/resources/troubleshooting.png
    - Check LED indicators
 
 3. **Network requirements**
-   - WebSocket (port 443) must be allowed
+   - The device must be able to reach your server's host and port (e.g. `ws://<server>:8080` on a LAN install, or port 443 if you've put the server behind a TLS terminator)
    - No captive portal on WiFi
    - Check firewall rules
 
@@ -133,7 +133,7 @@ social_image: /og-images/docs/resources/troubleshooting.png
 
 2. Verify message types match:
    ```typescript
-   // Edge script sends this type
+   // Your device script sends this type
    { type: 'gpio_write', ... }
    
    // Device must handle this type
@@ -246,7 +246,7 @@ social_image: /og-images/docs/resources/troubleshooting.png
 **Solutions**:
 1. Check network latency (ping test)
 
-2. Verify edge location is close to device
+2. Verify the device and server are on the same network and minimize hops between them
 
 3. Reduce message size
 
@@ -299,9 +299,9 @@ social_image: /og-images/docs/resources/troubleshooting.png
 
 ### "Rate limit exceeded"
 
-**Cause**: Too many requests too quickly
+**Cause**: Too many failed authentication attempts in a short window — the server only rate-limits login/register (brute-force protection). There are no general per-request quotas.
 
-**Solution**: Wait a moment and retry. For production, implement backoff.
+**Solution**: Wait a moment and retry. This applies only to authentication endpoints.
 
 ### "Script execution timeout"
 
@@ -309,7 +309,7 @@ social_image: /og-images/docs/resources/troubleshooting.png
 
 **Solutions**:
 - Optimize code performance
-- Offload heavy work to queues
+- Keep handlers short; do heavy or batch computation outside the message handler
 - Reduce message processing time
 
 ### "Invalid device credentials"
@@ -348,10 +348,11 @@ If you're still stuck:
 devicesdk deploy --verbose
 ```
 
-### Check System Status
+### Check your server is up
 
-Verify DeviceSDK services are operational:
-- [Status page](https://status.devicesdk.com)
+You run the server yourself, so check it directly:
+- `curl http://<server>:8080/health`
+- Inspect the server logs (e.g. `docker compose logs -f`)
 
 ### Isolate the Problem
 

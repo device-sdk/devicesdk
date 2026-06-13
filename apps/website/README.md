@@ -1,121 +1,81 @@
 # DeviceSDK Website
 
-Official website for [DeviceSDK](https://devicesdk.com) - A modern TypeScript SDK for building and connecting IoT devices.
+Marketing and documentation website for [DeviceSDK](https://devicesdk.com) — the free,
+open-source, **self-hosted** IoT platform. This is the public site at `devicesdk.com`; it
+is **not** part of the product (there is no hosted dashboard or managed cloud — users run
+the DeviceSDK server on their own hardware).
 
-## About
+## Tech stack
 
-This repository contains the marketing and documentation website for DeviceSDK. The site is built with pure HTML, CSS, and JavaScript (jQuery + Tailwind CSS) and is deployed using Cloudflare Pages.
+- **[Hugo](https://gohugo.io/)** — static site generator. Page content lives in `content/`
+  (front-matter, mostly) and the user docs are mounted from `../../docs/public` (see
+  `[[module.mounts]]` in `hugo.toml`); the visual layouts are hand-written HTML in
+  `layouts/`.
+- **[Tailwind CSS v4](https://tailwindcss.com/)** — compiled from `src/input.css` to
+  `static/styles.css` via `@tailwindcss/cli`.
+- **[Playwright](https://playwright.dev/)** — renders social-preview (OG) images at build
+  time (`generate-og.js`).
+- **Cloudflare** — hosting and deployment via Wrangler. (Only the website is on
+  Cloudflare; the DeviceSDK product itself is self-hosted and has no Cloudflare
+  dependency.)
 
-## Features
-
-- 🎨 Modern, gradient-based design
-- 📱 Fully responsive layout
-- ⚡ Fast loading with Cloudflare Pages
-- 🎯 Email signup integration with dashboard
-- 📊 Feature showcase and documentation preview
-
-## Tech Stack
-
-- **HTML5** - Semantic markup
-- **CSS3** - Custom styles with Tailwind CSS
-- **JavaScript** - jQuery for interactions
-- **Cloudflare Pages** - Hosting and deployment via Wrangler
-
-## Project Structure
+## Project structure
 
 ```
-devicesdk-website/
-├── public/
-│   ├── index.html      # Main landing page
-│   ├── style.css       # Custom styles
-│   └── script.js       # jQuery-powered interactions
-├── wrangler.jsonc      # Cloudflare Pages configuration
-├── package.json        # Dependencies
-└── README.md          # This file
+apps/website/
+├── hugo.toml               # Hugo config (mounts ../../docs/public at /docs)
+├── content/                # Page front-matter + markdown (privacy/terms use bodies)
+├── layouts/                # Hand-written HTML/Tailwind layouts per section
+├── src/input.css           # Tailwind entry (compiled to static/styles.css)
+├── static/                 # Static assets, _redirects, _headers, robots.txt
+├── generate-og.js          # Playwright OG-image generation
+├── generate-agent-skills.js
+└── package.json
 ```
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
-- npm or yarn
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/device-sdk/website.git
-cd website
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
+- Node.js and `pnpm` (run commands from the monorepo root, or `pnpm --filter @devicesdk/website ...`)
+- [Hugo](https://gohugo.io/installation/) (extended)
+- `pnpm exec playwright install` once, so OG-image generation can run during `build`
 
 ### Development
 
-Start the local development server:
-
 ```bash
-npx wrangler pages dev public
+pnpm --filter @devicesdk/website dev    # hugo server -D, live reload
 ```
-
-The site will be available at `http://localhost:8788`
 
 ### Building
 
-Since this is a static site, no build step is required. The `public/` directory contains all deployable assets.
+The full build depends on `apps/server/openapi.json` (copied into the docs API reference),
+so build from the monorepo root:
+
+```bash
+pnpm build                              # Turbo builds the server first, then the website
+```
+
+Or directly (after the server's `openapi.json` exists):
+
+```bash
+pnpm --filter @devicesdk/website build  # tailwind → OG images → hugo, into ./public
+```
 
 ## Deployment
 
-This site is automatically deployed to Cloudflare Pages. Any push to the `main` branch triggers a new deployment.
-
-### Manual Deployment
-
-To manually deploy:
+The site is deployed to **Cloudflare** via Wrangler:
 
 ```bash
-npx wrangler pages deploy public
+pnpm --filter @devicesdk/website deploy   # npx wrangler deploy
 ```
 
-## Configuration
+## URL changes require a redirect
 
-The site configuration is in `wrangler.jsonc`:
-
-```jsonc
-{
-  "name": "devicesdk-website",
-  "compatibility_date": "2025-01-01",
-  "assets": {
-    "directory": "./public"
-  }
-}
-```
-
-## Content Sections
-
-- **Hero Section** - Main call-to-action with email signup
-- **Features** - 6 key features of DeviceSDK
-- **Getting Started** - Quick start guide
-- **Documentation** - Links to docs (coming soon)
-- **Community** - Community resources (coming soon)
-
-## Contributing
-
-This is a private repository for the DeviceSDK website. If you're part of the team and want to contribute:
-
-1. Create a feature branch
-2. Make your changes
-3. Submit a pull request
-
-## Links
-
-- **Website**: [devicesdk.com](https://devicesdk.com)
-- **Dashboard**: [dash.devicesdk.com](https://dash.devicesdk.com)
-- **GitHub**: [github.com/device-sdk](https://github.com/device-sdk)
+If you rename, move, or delete a page under `content/` or `docs/public/` (which mounts at
+`/docs/`), add a matching 301 to `static/_redirects` so the old URL keeps its search-index
+signal. See `apps/website/CLAUDE.md` for the full rule and format.
 
 ## License
 
-All rights reserved © 2025 DeviceSDK
+AGPL-3.0-only. See the repository's [LICENSE](https://github.com/device-sdk/devicesdk-monorepo/blob/main/LICENSE).

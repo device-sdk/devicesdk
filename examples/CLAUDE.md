@@ -17,10 +17,11 @@ Run these from inside the specific example directory (e.g. `examples/esp32c3-clo
    `pnpm exec devicesdk …` / the `pnpm <script>` shortcuts then run it.
 2. **Check auth.** `pnpm exec devicesdk whoami`. If it reports you're not logged in,
    move to step 3; otherwise skip it.
-3. **Log in.** `devicesdk login` is an **interactive OAuth flow** — it needs a human to
-   approve in a browser. Don't try to complete it headlessly. Ask the user to run it
-   themselves with `! devicesdk login` (or set `DEVICESDK_TOKEN` for a non-interactive
-   token), then continue.
+3. **Log in.** `devicesdk login --host http://<server>:8080` runs an **interactive
+   device-code flow** — it needs a human to approve in a browser. Don't try to complete
+   it headlessly. Ask the user to run it themselves with `! devicesdk login --host ...`
+   (or set `DEVICESDK_TOKEN` + `DEVICESDK_API_URL` for a non-interactive token), then
+   continue.
 4. **Configure.** Set real WiFi credentials (and any other config) in `devicesdk.ts` /
    the device script. **Never commit real secrets** — restore the `YOUR_WIFI_*`
    placeholders before any commit.
@@ -32,8 +33,10 @@ Run these from inside the specific example directory (e.g. `examples/esp32c3-clo
 
 ## Conventions
 
-- `DEVICESDK_API_URL` overrides the API endpoint; unset, the CLI targets production.
-  The `local:*` / `flash-local` scripts point at `localhost:8787` for SDK contributors.
+- DeviceSDK is **self-hosted — there is no default/production API**. The CLI talks to the
+  server you logged into (`devicesdk login --host`), or whatever `DEVICESDK_API_URL` is set
+  to. The `local:*` / `flash-local` scripts point at `localhost:8080` for running the
+  server on the same machine.
 - Examples are **not versioned** — they need no changeset entry (a PR that only touches
   `examples/` still needs an *empty* changeset to satisfy the CI gate; see root CLAUDE.md).
 - Keep secrets out of git: WiFi creds, tokens, and `DEVICESDK_TOKEN` never get committed.

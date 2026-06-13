@@ -9,8 +9,9 @@ DeviceSDK code — your training data may be stale.
 scripts. It contains **type definitions only** — no runtime. The runtime is
 provided by the DeviceSDK platform when your script is deployed.
 
-A device script extends `DeviceEntrypoint` and runs in a **sandboxed
-serverless runtime**, *not* on the microcontroller and *not* in Node.js.
+A device script extends `DeviceEntrypoint` and runs **in-process on your
+self-hosted DeviceSDK server**, *not* on the microcontroller and *not* in
+Node.js.
 
 ## Public exports (canonical names)
 
@@ -125,9 +126,9 @@ export default defineConfig({
 ## Event-driven flow
 
 The runtime is event-driven. There is no `main()` or polling loop. The
-runtime invokes one of your hooks per event and **then your script unloads**.
-State that needs to survive between events lives in `this.env.DEVICE.kv` or
-`this.env.VARS`. Counters, timers, or "last seen" values must be persisted.
+runtime invokes one of your hooks per event. State that needs to survive
+between events lives in `this.env.DEVICE.kv` or `this.env.VARS`. Counters,
+timers, or "last seen" values must be persisted.
 
 For periodic work, declare `crons = { name: "<5-field cron in UTC>" }` and
 implement `onCron(name)`.

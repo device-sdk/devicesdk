@@ -1,5 +1,5 @@
 import type { Env } from "../types";
-import { getDeviceStub } from "./durableObjectStub";
+import { getDeviceStub } from "./deviceHandle";
 import { logger } from "./logger";
 
 export interface RebootResult {
@@ -8,7 +8,7 @@ export interface RebootResult {
 }
 
 /**
- * Triggers a device reboot by calling the Durable Object's RPC method.
+ * Triggers a device reboot by calling the in-process device session's RPC method.
  * Used after script upload/deploy to make the device load the new version.
  */
 export async function triggerDeviceReboot(
@@ -16,8 +16,8 @@ export async function triggerDeviceReboot(
 	projectId: string,
 	deviceId: string,
 ): Promise<RebootResult> {
-	const doName = `${projectId}:${deviceId}`;
-	logger.debug("[reboot] Triggering reboot for DO", { doName });
+	const sessionKey = `${projectId}:${deviceId}`;
+	logger.debug("[reboot] Triggering reboot for device session", { sessionKey });
 	const stub = getDeviceStub(env, projectId, deviceId);
 
 	try {
@@ -25,8 +25,10 @@ export async function triggerDeviceReboot(
 		logger.debug("[reboot] Result", { result });
 		return result;
 	} catch (error) {
-		const reason = `Failed to contact DO: ${(error as Error).message}`;
-		logger.error(error, "[reboot] Failed to contact DO", { doName });
+		const reason = `Failed to contact device session: ${(error as Error).message}`;
+		logger.error(error, "[reboot] Failed to contact device session", {
+			sessionKey,
+		});
 		return { rebooted: false, reason };
 	}
 }

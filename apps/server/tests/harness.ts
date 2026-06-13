@@ -294,6 +294,11 @@ export class TestServer {
 			ENV: "local",
 			MDNS_ENABLED: "0",
 			PORT: "0",
+			// Tests run many register/login requests through Bun.serve's test fetch,
+			// which has no reliable socket IP. Trust forwarded headers so the harness
+			// can assign a unique source IP per request and avoid tripping the global
+			// rate limiter.
+			TRUST_PROXY: "true",
 			MIGRATIONS_DIR,
 			...envOverrides,
 		});
@@ -340,9 +345,9 @@ export class TestServer {
 			}
 		}
 		const headers: Record<string, string> = { ...opts.headers };
-		// The rate limiter keys on client IP via a process-global Map shared across
-		// every TestServer in the run. Give each request a unique source IP by
-		// default so incidental register/login traffic never trips the limiter;
+		// Tests run with TRUST_PROXY=true so the rate limiter honors forwarded
+		// headers. Give each request a unique source IP by default so incidental
+		// register/login traffic across TestServers never trips the global limiter;
 		// rate-limit tests pass an explicit `X-Forwarded-For` to opt back in.
 		if (
 			headers["X-Forwarded-For"] === undefined &&

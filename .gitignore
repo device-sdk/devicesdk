@@ -11,6 +11,10 @@ out/
 .quasar/
 build/
 
+# Server runtime data (SQLite DB, scripts, firmwares)
+data/
+data-*/
+
 # Test coverage reports
 coverage/
 

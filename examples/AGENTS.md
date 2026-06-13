@@ -19,10 +19,11 @@ Run these from inside the specific example directory (e.g.
    a dep). `pnpm exec devicesdk …` / the `pnpm <script>` shortcuts then run it.
 2. **Check auth.** `pnpm exec devicesdk whoami`. If it reports you're not logged
    in, move to step 3; otherwise skip it.
-3. **Log in.** `devicesdk login` is an **interactive OAuth flow** — it needs a
-   human to approve in a browser. Don't try to complete it headlessly. Ask the
-   user to run it themselves with `! devicesdk login` (or set `DEVICESDK_TOKEN`
-   for a non-interactive token), then continue.
+3. **Log in.** `devicesdk login --host http://localhost:8080` prompts for the
+   local admin email and password you created on the server. Ask the user to
+   run it themselves with `! devicesdk login --host http://localhost:8080` (or
+   set `DEVICESDK_API_URL` / `DEVICESDK_TOKEN` for a non-interactive token),
+   then continue.
 4. **Configure.** Set real WiFi credentials (and any other config) in
    `devicesdk.ts` / the device script. **Never commit real secrets** — restore
    the `YOUR_WIFI_*` placeholders before any commit.
@@ -34,9 +35,9 @@ Run these from inside the specific example directory (e.g.
 
 ## Conventions
 
-- `DEVICESDK_API_URL` overrides the API endpoint; unset, the CLI targets
-  production. The `local:*` / `flash-local` scripts point at `localhost:8787`
-  for SDK contributors.
+- `DEVICESDK_API_URL` overrides the API endpoint; unset, the CLI uses the host
+  saved in `~/.devicesdk/credentials.json`. The `local:*` / `flash-local`
+  scripts point at `localhost:8080` for SDK contributors.
 - Examples are **not versioned** — they need no changeset entry (a PR that only
   touches `examples/` still needs an *empty* changeset to satisfy the CI gate;
   see root AGENTS.md).

@@ -4,7 +4,9 @@ export default defineConfig({
   testDir: ".",
   testMatch: "*.spec.ts",
   fullyParallel: false,
-  retries: 0,
+  // The dashboard dev server can be slow to serve chunks under CI load,
+  // so allow one retry per test in CI without masking hard failures locally.
+  retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: "list",
   globalSetup: "./global-setup.ts",

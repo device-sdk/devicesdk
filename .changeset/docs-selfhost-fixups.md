@@ -4,6 +4,7 @@
 "@devicesdk/mcp": patch
 "@devicesdk/website": patch
 "@devicesdk/firmware-pico": patch
+"@devicesdk/firmware-esp32": patch
 ---
 
 Follow-up docs cleanup: fix stale cloud-era references that survived the
@@ -35,3 +36,9 @@ self-host pivot.
   README (cloud backend, port 8787, personal absolute paths) and scrubbed the
   committed Wi-Fi credentials / API tokens it documented. Docs only — no
   firmware behavior change.
+- **Firmware (`firmware/esp32/`)**: rewrote the bare ESP-IDF "Hello World"
+  `README.md` into a real DeviceSDK ESP32 firmware doc, rewrote the
+  Pico-porting-guide `IMPLEMENTATIONS.md` into an accurate ESP32 architecture
+  reference, deleted the redundant `PROJECT_SUMMARY.md` (leaked personal path +
+  wrong CC0 license claim), and dropped the obsolete Cloudflare Durable-Object
+  billing rationale from a `config.h` comment. Docs/comment only.

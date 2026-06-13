@@ -232,15 +232,16 @@ file before generating or editing code.
 
 DeviceSDK splits a project into two halves:
 
-- **Device script** (the TypeScript files under \`src/devices/\`) — runs in a
-  **sandboxed serverless runtime**, **not on the microcontroller** and **not in
-  Node.js**. It receives events from the device and sends commands back.
+- **Device script** (the TypeScript files under \`src/devices/\`) — runs
+  **in-process on your self-hosted DeviceSDK server**, **not on the
+  microcontroller** and **not in Node.js**. It receives events from the device
+  and sends commands back.
 - **Firmware** — runs on the microcontroller (Pico W, ESP32, etc.). DeviceSDK
   ships precompiled firmware; you don't write C here. Firmware exposes
   hardware to the device script over WebSocket.
 
-When the user says "the device", clarify whether they mean the *script* (cloud)
-or the *firmware* (chip). Most code lives in the script.
+When the user says "the device", clarify whether they mean the *script*
+(server) or the *firmware* (chip). Most code lives in the script.
 
 ## Commands
 
@@ -248,7 +249,7 @@ or the *firmware* (chip). Most code lives in the script.
 |---|---|
 | \`devicesdk dev\` | Start the local simulator + dev server |
 | \`devicesdk build\` | Bundle device scripts into \`.devicesdk/build\` and regenerate \`devicesdk-env.d.ts\` |
-| \`devicesdk deploy\` | Push the build to production |
+| \`devicesdk deploy\` | Push the build to your DeviceSDK server |
 | \`devicesdk flash <device>\` | Flash matching firmware onto a connected board |
 | \`devicesdk logs <project> <device> --tail\` | Stream live logs |
 | \`devicesdk inspect <device>\` | Interactive hardware inspection |
@@ -401,7 +402,7 @@ A [DeviceSDK](https://devicesdk.com) project.
 \`\`\`bash
 devicesdk dev          # local simulator
 devicesdk build        # bundle device scripts (regenerates devicesdk-env.d.ts)
-devicesdk deploy       # push to production
+devicesdk deploy       # push to your DeviceSDK server
 devicesdk flash <id>   # flash firmware onto a connected board
 devicesdk logs <project> <device> --tail
 devicesdk env set KEY=VALUE
@@ -595,7 +596,7 @@ Next steps:`);
 			console.log(`  cd ${projectId}`);
 		}
 		console.log(`  devicesdk dev           # Start local development
-  devicesdk deploy        # Deploy to production
+  devicesdk deploy        # Deploy to your DeviceSDK server
 `);
 	} catch (error) {
 		console.error("\n✗ Error: Failed to initialize project\n");

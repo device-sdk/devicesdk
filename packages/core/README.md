@@ -64,7 +64,7 @@ import { type PicoDeviceApi } from "@devicesdk/core/devices/pico";
 
 ## License
 
-Copyright (c) 2026 DeviceSDK. All rights reserved. See [LICENSE](./LICENSE) for details.
+Licensed under [AGPL-3.0-only](./LICENSE).
 
 ## Documentation
 

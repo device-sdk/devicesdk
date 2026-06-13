@@ -1,7 +1,7 @@
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
-import { getDeviceStub } from "../../foundation/durableObjectStub";
+import { getDeviceStub } from "../../foundation/deviceHandle";
 import { logger } from "../../foundation/logger";
 import { resolveProjectAndDevice } from "../../foundation/projectDeviceResolve";
 import type { AppContext } from "../../types";

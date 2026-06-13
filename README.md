@@ -2,7 +2,7 @@
 
 **Free, open-source, self-hosted IoT platform.** Write TypeScript device scripts, run the DeviceSDK server on your own hardware (Raspberry Pi, NUC, NAS, any Docker host), and connect ESP32 / Raspberry Pi Pico microcontrollers to it over WebSocket.
 
-No cloud, no SaaS, no per-message billing — your hardware, your data. Licensed under **AGPL-3.0**.
+No cloud, no SaaS, no per-message billing — your hardware, your data. Licensed under **AGPL-3.0-only**.
 
 ## Run the server
 
@@ -44,7 +44,7 @@ npx @devicesdk/cli logs <project-id> <device-id> --tail
 
 ## Building from source
 
-**Prerequisites:** Node.js 22+, [pnpm](https://pnpm.io/) 9.x, and [Bun](https://bun.sh/) 1.3+ (server runtime).
+**Prerequisites:** Node.js 22+, [pnpm](https://pnpm.io/) 9.x, and [Bun](https://bun.sh/) 1.3.14+ (server runtime).
 
 ```bash
 git clone https://github.com/device-sdk/devicesdk-monorepo && cd devicesdk-monorepo

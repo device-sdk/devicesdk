@@ -4,7 +4,10 @@ description: Flash firmware to Raspberry Pi Pico and ESP32
 social_image: /og-images/docs/cli/flash.png
 ---
 
-> **Note:** Flashing is typically **one-time per device**. After initial flashing, updates are delivered **over-the-air (OTA)**. Only major firmware upgrades may need a repeat flash, and even those are optional unless you want the new firmware capabilities.
+> **Note:** Flashing installs the DeviceSDK firmware and device credentials.
+> After initial flashing, device-script updates are deployed from the server.
+> Firmware OTA updates are not yet implemented and require a re-flash for now;
+> see the [Roadmap](/roadmap/) for upcoming OTA support.
 
 ## Usage
 
@@ -224,7 +227,9 @@ For ESP32, WiFi credentials are embedded in the firmware at flash time.
 
 ## Firmware Updates
 
-To update firmware on an already-flashed device:
+OTA firmware updates are not yet implemented. To update firmware on an
+already-flashed device, re-flash over USB:
+
 1. Enter BOOTSEL mode (Pico) or connect via USB (ESP32)
 2. Run `devicesdk flash <device-id>`
 3. New firmware is written

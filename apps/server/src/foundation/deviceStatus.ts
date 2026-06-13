@@ -1,5 +1,5 @@
 import type { Env } from "../types";
-import { getDeviceStub } from "./durableObjectStub";
+import { getDeviceStub } from "./deviceHandle";
 
 export interface DeviceStatusResult {
 	connected: boolean;
@@ -7,7 +7,7 @@ export interface DeviceStatusResult {
 }
 
 /**
- * Retrieves the live WebSocket connection status of a device from its Durable Object.
+ * Retrieves the live WebSocket connection status of a device from its in-process session.
  * Mirrors the pattern from deviceReboot.ts.
  */
 export async function getDeviceConnectionStatus(
@@ -20,11 +20,11 @@ export async function getDeviceConnectionStatus(
 	try {
 		return await stub.getConnectionStatus();
 	} catch (err) {
-		// Most common case: DO not yet initialized (device has never connected).
+		// Most common case: session not yet initialized (device has never connected).
 		// Log at debug level — this is expected, not an error condition.
 		// Genuine RPC failures also land here; inspect `err` to escalate if needed.
 		console.debug(
-			`getDeviceConnectionStatus: DO unreachable for ${deviceId} in ${projectId} — likely never connected`,
+			`getDeviceConnectionStatus: device session unreachable for ${deviceId} in ${projectId} — likely never connected`,
 			err,
 		);
 		return { connected: false, connectedSince: null };

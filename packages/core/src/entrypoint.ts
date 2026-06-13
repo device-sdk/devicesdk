@@ -40,9 +40,9 @@ export type GetEnv<ProjectDevices = {}> = UserWorkerEnv<ProjectDevices>;
  * are callable from other devices in the same project as RPC via
  * `this.env.DEVICES["other-slug"].method()`.
  *
- * Your script runs in a sandboxed serverless runtime — **not on the
- * microcontroller and not in Node.js**. Avoid `node:*` imports, filesystem
- * access, and long-running loops; the runtime budgets CPU per event.
+ * Your script runs **in-process on your self-hosted DeviceSDK server** —
+ * **not on the microcontroller and not in Node.js**. Avoid `node:*` imports,
+ * filesystem access, and long-running loops; each event is handled serially.
  *
  * @example
  * import { DeviceEntrypoint, type DeviceResponse } from "@devicesdk/core";
@@ -86,7 +86,7 @@ export class DeviceEntrypoint<Env = UserWorkerEnv> {
 	/**
 	 * Called when the physical device opens its WebSocket connection to the runtime.
 	 * Use this to push initial configuration (set pin modes, configure I2C buses,
-	 * subscribe to inputs). Avoid heavy work — the runtime budgets CPU per event.
+	 * subscribe to inputs). Avoid heavy work — keep each event handler bounded.
 	 *
 	 * Override on your subclass; the default is a no-op.
 	 */

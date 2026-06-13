@@ -54,7 +54,10 @@ DeviceSDK runs on low-cost WiFi-capable microcontrollers. Pick the board closest
 
 ## Flashing frequency
 
-Flashing is a one-time operation per device. After the initial flash, updates are delivered over-the-air (OTA). Only major firmware upgrades may need a re-flash, and those are optional unless you want the new capabilities.
+Flashing installs the DeviceSDK firmware and credentials onto a device. After
+initial flashing, device-script updates are deployed from the server; firmware
+OTA updates are not yet implemented and require a re-flash for now. See the
+[Roadmap](/roadmap/) for upcoming OTA support.
 
 See the [flash command reference](/docs/cli/flash/) for end-to-end flashing instructions.
 

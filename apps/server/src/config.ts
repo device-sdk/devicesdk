@@ -19,6 +19,12 @@ export interface ServerConfig {
 	mdnsEnabled: boolean;
 	/** Short mDNS hostname (no `.local`); override to run multiple servers on one LAN. */
 	mdnsHostname: string;
+	/**
+	 * Trust X-Forwarded-For / X-Real-IP headers. Enable only when the server is
+	 * behind a reverse proxy; otherwise clients can spoof their IP and bypass
+	 * the brute-force rate limiter.
+	 */
+	trustProxy: boolean;
 	dbPath: string;
 	scriptsDir: string;
 	firmwaresDir: string;
@@ -45,6 +51,7 @@ export function loadConfig(
 		firmwaresDistDir: env.FIRMWARES_DIST_DIR || "",
 		mdnsEnabled: parseBool(env.MDNS_ENABLED, true),
 		mdnsHostname: env.MDNS_HOSTNAME || "devicesdk",
+		trustProxy: parseBool(env.TRUST_PROXY, false),
 		dbPath: join(dataDir, "devicesdk.sqlite"),
 		scriptsDir: join(dataDir, "scripts"),
 		firmwaresDir: join(dataDir, "firmwares"),

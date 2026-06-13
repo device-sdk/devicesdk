@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from "hono";
+import type { AppContext } from "../types";
 
 /**
  * In-memory fixed-window rate limiter. Replaces the D1-backed limiter from
@@ -8,12 +9,24 @@ import type { MiddlewareHandler } from "hono";
  */
 const windows = new Map<string, { count: number; resetAt: number }>();
 
-function clientIp(headers: Headers): string {
-	// Behind a reverse proxy the connection IP is the proxy's; honor the
-	// standard forwarding headers when present.
-	const forwarded = headers.get("x-forwarded-for");
-	if (forwarded) return forwarded.split(",")[0].trim();
-	return headers.get("x-real-ip") ?? "unknown";
+function clientIp(c: AppContext): string {
+	const headers = c.req.raw.headers;
+	const trustProxy = c.env.config.trustProxy;
+
+	if (trustProxy) {
+		// Behind a reverse proxy the connection IP is the proxy's; honor the
+		// standard forwarding headers when present.
+		const forwarded = headers.get("x-forwarded-for");
+		if (forwarded) return forwarded.split(",")[0].trim();
+		const realIp = headers.get("x-real-ip");
+		if (realIp) return realIp;
+	}
+
+	// Direct connection: use Bun's socket-level remote address if available.
+	// Fall back to "unknown" rather than forwarded headers, which are spoofable
+	// when the server is exposed directly to clients.
+	const socketIp = c.env.server?.requestIP(c.req.raw)?.address;
+	return socketIp ?? "unknown";
 }
 
 export function rateLimitMiddleware(
@@ -21,7 +34,7 @@ export function rateLimitMiddleware(
 	windowMs: number,
 ): MiddlewareHandler {
 	return async (c, next) => {
-		const key = `${clientIp(c.req.raw.headers)}:${new URL(c.req.url).pathname}`;
+		const key = `${clientIp(c as AppContext)}:${new URL(c.req.url).pathname}`;
 		const now = Date.now();
 		const entry = windows.get(key);
 

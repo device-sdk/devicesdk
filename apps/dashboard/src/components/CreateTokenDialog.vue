@@ -179,10 +179,11 @@ const managed = ref<boolean>(false);
 // can warn before the user closes and loses it forever.
 const copied = ref(false);
 
-const codeSnippet = computed(
-  () => `curl -X GET https://api.devicesdk.com/v1/user/me \\
-  -H "Authorization: Bearer ${newToken.value}"`
-);
+const codeSnippet = computed(() => {
+  const origin = window.location.origin;
+  return `curl -X GET ${origin}/v1/user/me \\
+  -H "Authorization: Bearer ${newToken.value}"`;
+});
 
 const createToken = async () => {
   try {

@@ -21,7 +21,7 @@ RUN pnpm build --filter @devicesdk/core \
 	&& pnpm build --filter @devicesdk/dashboard
 
 # ---- stage 2: bundle the server into a single file (bun toolchain) ----
-FROM oven/bun:1 AS serverbuild
+FROM oven/bun:1.3.14 AS serverbuild
 WORKDIR /repo
 COPY --from=build /repo /repo
 RUN cd apps/server \
@@ -33,7 +33,7 @@ RUN cd apps/server \
 # image still builds before the first firmware release exists (the firmware
 # flash endpoint then reports "not published" until binaries are dropped
 # into /data/firmwares).
-FROM oven/bun:1-slim AS firmware
+FROM oven/bun:1.3.14-slim AS firmware
 ARG FIRMWARE_REPO=device-sdk/devicesdk-monorepo
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
@@ -48,7 +48,7 @@ RUN mkdir -p /firmwares && cd /firmwares \
 	&& ls -la /firmwares
 
 # ---- stage 3: minimal runtime ----
-FROM oven/bun:1-slim
+FROM oven/bun:1.3.14-slim
 WORKDIR /app
 COPY --from=serverbuild /out/server.js /app/server.js
 COPY --from=build /repo/apps/server/migrations /app/migrations

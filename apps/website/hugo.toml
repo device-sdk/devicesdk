@@ -59,7 +59,7 @@ disableKinds = ["taxonomy", "term"]
   # points at the quickstart rather than a hosted dashboard sign-up.
   dashboardUrl = "/docs/quickstart/"
   docsUrl = "https://devicesdk.com/docs"
-  githubUrl = "https://github.com/device-sdk"
+  githubUrl = "https://github.com/device-sdk/devicesdk-monorepo"
   discordUrl = "https://discord.gg/WuNhbXGsBy"
   twitterUrl = "https://x.com/devicesdk"
 
@@ -86,7 +86,7 @@ disableKinds = ["taxonomy", "term"]
     weight = 5
   [[menu.main]]
     name = "GitHub"
-    url = "https://github.com/device-sdk"
+    url = "https://github.com/device-sdk/devicesdk-monorepo"
     weight = 6
 
   [[menu.footer_product]]
@@ -103,7 +103,7 @@ disableKinds = ["taxonomy", "term"]
     weight = 3
   [[menu.footer_product]]
     name = "GitHub"
-    url = "https://github.com/device-sdk"
+    url = "https://github.com/device-sdk/devicesdk-monorepo"
     weight = 4
 
   [[menu.footer_company]]
@@ -117,7 +117,7 @@ disableKinds = ["taxonomy", "term"]
 
   [[menu.footer_community]]
     name = "GitHub"
-    url = "https://github.com/device-sdk"
+    url = "https://github.com/device-sdk/devicesdk-monorepo"
     weight = 1
   [[menu.footer_community]]
     name = "X"

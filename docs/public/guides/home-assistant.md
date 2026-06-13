@@ -13,7 +13,7 @@ The DeviceSDK Home Assistant integration exposes your devices as native Home Ass
 
 Under the hood the integration points at your self-hosted DeviceSDK server, subscribes to its real-time watch WebSocket for each device, and sends commands through the standard REST API. Both Home Assistant and DeviceSDK run on your own hardware, talking over your LAN.
 
-> **Roadmap item.** This integration is the flagship item on the [DeviceSDK roadmap](https://github.com/devicesdk/devicesdk/blob/main/ROADMAP.md). The server side is already in place — the server persists Home Assistant entity declarations per device and streams `state` frames over the watch WebSocket. The Home Assistant component itself (HACS custom integration, later an official add-on) is in progress.
+> **Roadmap item.** This integration is the flagship item on the [DeviceSDK roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md). The server side is already in place — the server persists Home Assistant entity declarations per device and streams `state` frames over the watch WebSocket. The Home Assistant component itself (HACS custom integration, later an official add-on) is in progress.
 
 ## Installation
 
@@ -26,7 +26,7 @@ Create an API token from the dashboard at `http://<server>:8080`: **Account → 
 Entities are declared in `devicesdk.ts` under each device's `ha.entities` array. The CLI uploads these declarations when you run `devicesdk deploy`.
 
 ```typescript
-import { defineConfig } from '@devicesdk/core';
+import { defineConfig } from '@devicesdk/cli';
 
 export default defineConfig({
   projectId: 'my-home',

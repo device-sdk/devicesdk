@@ -1,101 +1,87 @@
-# iotkit-client
+# DeviceSDK Pico firmware
 
-This repository contains the C++ firmware for the `iotkit-client`, designed to run on a Raspberry Pi Pico W.
+C/C++ firmware (`devicesdk-client`) for the Raspberry Pi **Pico W** and **Pico 2 W**. It
+connects the board to Wi-Fi and opens a persistent WebSocket to the **DeviceSDK server you
+run yourself** (on your LAN), so your TypeScript device script can drive the hardware
+(GPIO, I2C, SPI, UART, onboard LED) and receive events back in real time.
 
-## Overview
+On a LAN the connection is plain `ws://<server>:<port>`; for a bare hostname it uses TLS on
+443. See the root `CLAUDE.md` for the host/port heuristic.
 
-The firmware connects the Pico W to a Wi-Fi network and establishes a persistent WebSocket connection to a cloud backend. This allows for real-time, bidirectional communication to control the device's hardware (like GPIO pins) and receive data from it.
+## You normally don't build this
 
-The configuration is done at compile-time, meaning the Wi-Fi credentials and API token are embedded directly into the firmware binary.
+End users do **not** compile this firmware. Run:
 
-## Getting Started
+```bash
+devicesdk flash <device>
+```
+
+The CLI downloads a prebuilt firmware image and the server patches **your** configuration
+— Wi-Fi SSID/password, API token, server host, and project/device IDs — into the binary
+before it's written to the board. Prebuilt binaries are published to rolling GitHub
+Releases and bundled into the Docker image.
+
+The rest of this document is for **firmware contributors** building from source.
+
+## Building from source (contributors)
 
 ### Prerequisites
 
-1.  **Raspberry Pi Pico SDK**: Ensure you have the [Pico SDK](https://github.com/raspberrypi/pico-sdk) installed and configured on your system.
-2.  **CMake**: The project uses CMake for building.
-3.  **Ninja**: For fast builds.
+1. **[Raspberry Pi Pico SDK](https://github.com/raspberrypi/pico-sdk)** installed and configured.
+2. **CMake** and **Ninja**.
+3. The ARM toolchain and `picotool` (the Pico VS Code extension installs these under `~/.pico-sdk`).
 
-### Configuration
+### Board selection
 
-The firmware can be configured by setting environment variables before building. However, the Wi-Fi SSID, password, and API token have default values for convenience.
+The target board defaults to `pico2_w`. Override it with the `IOTKIT_BOARD` environment
+variable before configuring:
 
-| Variable | Description | Default Value |
-| :--- | :--- | :--- |
-| `IOTKIT_WIFI_SSID` | The name (SSID) of your Wi-Fi network. | `"Caravela"` |
-| `IOTKIT_WIFI_PASSWORD` | The password for your Wi-Fi network. | `"12345679"` |
-| `IOTKIT_API_TOKEN` | The secret token for authenticating with the API. | `"30a1e5ed66c4439ebff0cab8cf4b71b0"` |
-| `IOTKIT_BOARD` | The target board (`pico_w` or `pico2_w`). | `"pico_w"` |
-
-To override the defaults, set the variables in your shell:
 ```bash
-export IOTKIT_WIFI_SSID="MEO-FCD590"
-export IOTKIT_WIFI_PASSWORD="b1de4e23d0"
-export IOTKIT_API_TOKEN="51b179951dc54f9fae515beca50ffa42"
-export IOTKIT_BOARD="pico2_w"
-export IOTKIT_TEST_HOST="192.168.1.76:8787"
+export IOTKIT_BOARD="pico_w"   # or "pico2_w"
 ```
 
-### Building the Firmware
+> The Wi-Fi/token/host/project/device values in `CMakeLists.txt` are **placeholders**.
+> They are patched per device at `devicesdk flash` time — do not put real credentials here.
 
-1.  **Clean Build (Recommended)**: If you have changed configuration or are building for the first time, it's best to start clean.
-    ```bash
-    rm -rf build
-    ```
-2.  Run CMake to configure the project. Using the `-G "Ninja"` flag is recommended.
-    ```bash
-    cmake -S . -B build -G "Ninja"
-    ```
-3.  Run Ninja to compile the firmware:
-    ```bash
-    ninja -C build
-    ```
-    
-4. Flash
+### Build
+
 ```bash
-/Users/gabriel/.pico-sdk/picotool/2.1.1/picotool/picotool load /Users/gabriel/PycharmProjects/iotkit-client/iotkit-client/build/iotkit-client.elf -fx
+rm -rf build                      # clean build (recommended after config changes)
+cmake -S . -B build -G "Ninja"
+ninja -C build
 ```
 
-This will generate a `iotkit-client.uf2` file inside the `build` directory.
+This produces `build/devicesdk-client.uf2`.
 
-### Flashing the Firmware
+### Flash
 
-1.  Connect your Pico W to your computer while holding the **BOOTSEL** button. It will appear as a mass storage device named `RPI-RP2`.
-2.  Drag and drop the `iotkit-client.uf2` file onto the `RPI-RP2` drive.
-3.  The device will automatically reboot and begin operation.
+For a from-source build, put the Pico into **BOOTSEL** mode (hold BOOTSEL while plugging
+in — it mounts as `RPI-RP2`) and either drag `devicesdk-client.uf2` onto the drive, or use
+`picotool`:
 
-## Device Status & Remote Control
+```bash
+picotool load build/devicesdk-client.uf2
+```
 
-### LED Status Codes
+## Device status & remote control
 
-The onboard LED on the Pico W indicates the device's status.
+### LED status codes
 
-*   **Booting**: Three rapid blinks on startup.
-*   **Wi-Fi Connection Failure**: One long blink, repeating.
-*   **WebSocket Connection Failure**: Two long blinks followed by one short blink, repeating. The device will automatically retry the connection every 5 seconds.
-*   **Successfully Connected**: Five rapid blinks. After this sequence, the LED will turn off and will no longer blink status codes. It is now available for remote control.
+The onboard LED indicates the device's status:
 
-### Remote LED Control
+- **Booting**: three rapid blinks on startup.
+- **Wi-Fi connection failure**: one long blink, repeating.
+- **WebSocket connection failure**: two long blinks then one short blink, repeating (retries every 5 seconds).
+- **Connected**: five rapid blinks, then the LED turns off and becomes available for remote control.
 
-Once connected, the onboard LED can be controlled by sending `set_gpio_state` commands over the WebSocket. The LED has been assigned the virtual **pin number `99`**.
+### Remote LED control
 
-*   **Turn LED ON**:
-    ```json
-    {
-      "type": "set_gpio_state",
-      "payload": {
-        "pin": 99,
-        "state": "high"
-      }
-    }
-    ```
-*   **Turn LED OFF**:
-    ```json
-    {
-      "type": "set_gpio_state",
-      "payload": {
-        "pin": 99,
-        "state": "low"
-      }
-    }
-    ```
+Once connected, the onboard LED (virtual **pin 99**) responds to `set_gpio_state` commands
+over the WebSocket:
+
+```json
+{ "type": "set_gpio_state", "payload": { "pin": 99, "state": "high" } }
+```
+
+Send `"state": "low"` to turn it off. From a device script you'd use the higher-level
+`this.env.DEVICE` API rather than raw frames; this is the underlying firmware protocol.

@@ -8,9 +8,9 @@
     "dev": "devicesdk dev",
     "build": "devicesdk build",
     "deploy": "devicesdk deploy",
-    "local:login": "DEVICESDK_API_URL=http://localhost:8787 npx devicesdk login",
+    "local:login": "DEVICESDK_API_URL=http://localhost:8080 npx devicesdk login",
     "flash-remote": "devicesdk flash device",
-    "flash-local": "DEVICESDK_API_URL=http://localhost:8787 devicesdk flash device --host ${DEVICESDK_DEVICE_HOST:-localhost:8787}"
+    "flash-local": "DEVICESDK_API_URL=http://localhost:8080 devicesdk flash device --host ${DEVICESDK_DEVICE_HOST:-localhost:8080}"
   },
   "dependencies": {
     "@devicesdk/core": "workspace:*"

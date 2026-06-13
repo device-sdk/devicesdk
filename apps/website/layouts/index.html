@@ -41,7 +41,7 @@
                     <pre><code><span class="syn-kw">import</span> { DeviceEntrypoint } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/core"</span>;
 <span class="syn-kw">import</span> { Pico } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/core/devices/pico"</span>;
 
-<span class="syn-kw">export default class</span> <span class="syn-type">Device</span> <span class="syn-kw">extends</span> <span class="syn-type">DeviceEntrypoint</span> {
+<span class="syn-kw">export class</span> <span class="syn-type">Device</span> <span class="syn-kw">extends</span> <span class="syn-type">DeviceEntrypoint</span> {
   <span class="syn-kw">async</span> <span class="syn-fn">onDeviceConnect</span>() {
     <span class="syn-cm">// Configure button on GPIO 14</span>
     <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">configureGpioInputMonitoring</span>(<span class="syn-num">14</span>, <span class="syn-num">true</span>);
@@ -110,7 +110,7 @@
                         <span></span><span></span><span></span>
                         <span class="piece-bar-title">device.ts</span>
                     </div>
-                    <pre><code><span class="syn-kw">export default class</span> <span class="syn-type">Device</span> {
+                    <pre><code><span class="syn-kw">export class</span> <span class="syn-type">Device</span> {
   <span class="syn-kw">async</span> <span class="syn-fn">onMessage</span>(m) {
     <span class="syn-kw">await</span> kv.<span class="syn-fn">put</span>(<span class="syn-str">"hit"</span>, ++n);
   }
@@ -272,7 +272,7 @@
     </div>
 </section>
 
-<!-- Feature 3: Cloud KV -->
+<!-- Feature 3: Built-in KV -->
 <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
     <div class="max-w-7xl mx-auto">
         <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center fade-up">

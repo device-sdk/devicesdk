@@ -8,9 +8,9 @@
 #define DEVICESDK_PROJECT_ID "288f2d2493094af68ab37a96ef73a118"
 #define DEVICESDK_DEVICE_ID  "d09f91a7729141eb8911d7a0f1e1595f"
 
-// 5-minute keepalive — the API DO charges ~7 storage rows-read per ping,
-// so 60 s pings burned ~10K rows/device/day on idle connections. The actual
-// idle-WS disconnect window upstream is generous (single-digit minutes).
+// 5-minute keepalive. A short interval just keeps the idle WebSocket warm;
+// the server's idle-disconnect window is generous (single-digit minutes), so
+// there's no need to ping more aggressively.
 #define IOTKIT_PING_INTERVAL_MS 300000
 
 #endif

@@ -18,7 +18,7 @@ devicesdk init [project-name] [flags]
 
 - `--yes, -y` - Skip interactive prompts and use defaults
 - `--template <name>` - Use a specific template (basic, multi-device, empty)
-- `--name <name>` - Project name (if directory name differs)
+- `--no-git` - Skip initializing a git repository in the new project
 
 ## Description
 

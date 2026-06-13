@@ -92,7 +92,7 @@ The Pi (or any Linux box) is what you run the **server** on. The device scripts 
 
 ### Can I request hardware support?
 
-Yes! Join our [Discord](https://discord.gg/WuNhbXGsBy) or open an issue on [GitHub](https://github.com/device-sdk).
+Yes! Join our [Discord](https://discord.gg/WuNhbXGsBy) or open an issue on [GitHub](https://github.com/device-sdk/devicesdk-monorepo/issues).
 
 ## Development
 
@@ -215,7 +215,7 @@ Not yet. The web dashboard is mobile-friendly.
 
 1. Check this FAQ and the [documentation](/docs/)
 2. Join the [Discord community](https://discord.gg/WuNhbXGsBy)
-3. Open an issue on [GitHub](https://github.com/device-sdk)
+3. Open an issue on [GitHub](https://github.com/device-sdk/devicesdk-monorepo/issues)
 
 ### Where do I report bugs?
 
@@ -240,12 +240,10 @@ Yes! Share feedback in Discord or via GitHub issues. It's open source — pull r
 
 ### Is DeviceSDK open source?
 
-Yes — the entire platform is open source under AGPL-3.0. See our [GitHub](https://github.com/device-sdk).
+Yes — the entire platform is open source under AGPL-3.0. See our [GitHub](https://github.com/device-sdk/devicesdk-monorepo/issues).
 
 ## Still Have Questions?
 
 - [Join Discord](https://discord.gg/WuNhbXGsBy) for community help
-- [Open a GitHub issue](https://github.com/device-sdk) for bugs or features
+- [Open a GitHub issue](https://github.com/device-sdk/devicesdk-monorepo/issues) for bugs or features
 - Check our [troubleshooting guide](/docs/resources/troubleshooting/)
-</content>
-</invoke>

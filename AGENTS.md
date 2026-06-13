@@ -265,7 +265,7 @@ This repository is configured for OpenCode:
   API endpoints, firmware, Vue components, SQL queries, local E2E, website URL
   changes).
 - `.opencode/commands/` — slash commands (`/review-pr`, `/prepare-pr`,
-  `/merge-pr`, `/run-local-e2e`) that trigger the corresponding skills.
+  `/merge-pr`, `/run-local-e2e`, `/pull`) that trigger the corresponding skills.
 
 When working on the project, make sure these files are up to date and reference
 `AGENTS.md` rather than any legacy `CLAUDE.md` paths.

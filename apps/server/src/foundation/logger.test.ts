@@ -70,9 +70,9 @@ describe("ServerLogger", () => {
 			maxFileSize: 80,
 			maxFiles: 2,
 		});
-		await logger.info("first");
-		await logger.info("second-longer-line");
-		await logger.info("third");
+		logger.info("first");
+		logger.info("second-longer-line");
+		logger.info("third");
 		await logger.flush();
 		await logger.close();
 

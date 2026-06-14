@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { mkdirSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ServerConfig } from "../config";
@@ -73,17 +74,17 @@ export class ServerLogger {
 		}
 	}
 
-	private async rotateIfNeeded(line: string): Promise<void> {
+	private rotateIfNeeded(line: string): void {
 		if (!this.sink) return;
 		const lineBytes = Buffer.byteLength(line, "utf8");
 		if (this.currentSize + lineBytes <= this.maxFileSize) return;
 
-		// Close current sink and rotate files on disk synchronously.
-		try {
-			await this.sink.end();
-		} catch {
+		// Close current sink and rotate files on disk. sink.end() may be async,
+		// but we are about to rename the file; the old descriptor writes to the
+		// rotated inode, so opening a new sink on the fresh path is safe.
+		Promise.resolve(this.sink.end()).catch(() => {
 			// Best-effort close before rotating.
-		}
+		});
 		for (let i = this.maxFiles - 1; i >= 1; i--) {
 			const src = `${this.logFile}.${i}`;
 			const dst = `${this.logFile}.${i + 1}`;
@@ -103,11 +104,7 @@ export class ServerLogger {
 		this.currentSize = 0;
 	}
 
-	private async emit(
-		level: LogLevel,
-		message: string,
-		context?: LogContext,
-	): Promise<void> {
+	private emit(level: LogLevel, message: string, context?: LogContext): void {
 		const line = JSON.stringify({
 			level,
 			message,
@@ -117,9 +114,9 @@ export class ServerLogger {
 
 		if (this.initialized && this.sink) {
 			const formatted = `${line}\n`;
-			await this.rotateIfNeeded(formatted);
-			const written = await this.sink.write(formatted);
-			this.currentSize += written;
+			this.rotateIfNeeded(formatted);
+			this.sink.write(formatted);
+			this.currentSize += Buffer.byteLength(formatted, "utf8");
 			// Best-effort flush; don't await in the logging hot path.
 			Promise.resolve(this.sink.flush()).catch(() => {
 				// Ignore flush failures to keep request handling safe.
@@ -132,25 +129,21 @@ export class ServerLogger {
 		}
 	}
 
-	async debug(message: string, context?: LogContext): Promise<void> {
-		await this.emit("debug", message, context);
+	debug(message: string, context?: LogContext): void {
+		this.emit("debug", message, context);
 	}
 
-	async info(message: string, context?: LogContext): Promise<void> {
-		await this.emit("info", message, context);
+	info(message: string, context?: LogContext): void {
+		this.emit("info", message, context);
 	}
 
-	async warn(message: string, context?: LogContext): Promise<void> {
-		await this.emit("warn", message, context);
+	warn(message: string, context?: LogContext): void {
+		this.emit("warn", message, context);
 	}
 
-	async error(
-		error: Error | unknown,
-		message: string,
-		context?: LogContext,
-	): Promise<void> {
+	error(error: unknown, message: string, context?: LogContext): void {
 		const err = error instanceof Error ? error : new Error(String(error));
-		await this.emit("error", message, {
+		this.emit("error", message, {
 			...context,
 			errorMessage: err.message,
 			stack: err.stack,
@@ -165,6 +158,7 @@ export class ServerLogger {
 	/** Close the underlying file sink. */
 	async close(): Promise<void> {
 		await this.sink?.end();
+		this.sink = undefined;
 		this.initialized = false;
 	}
 }
@@ -186,7 +180,6 @@ export function createLogger(config: ServerConfig): ServerLogger {
 			logFile: config.logFile,
 			mirrorToConsole: true,
 		});
-		singleton.open();
 	}
 	return singleton;
 }
@@ -195,7 +188,6 @@ export function createLogger(config: ServerConfig): ServerLogger {
 export function getLogger(): ServerLogger {
 	if (!singleton) {
 		singleton = new ServerLogger({ logFile: defaultLogFile() });
-		singleton.open();
 	}
 	return singleton;
 }
@@ -220,7 +212,7 @@ export const logger = {
 	warn(message: string, context?: LogContext) {
 		getLogger().warn(message, context);
 	},
-	error(error: Error | unknown, message: string, context?: LogContext) {
+	error(error: unknown, message: string, context?: LogContext) {
 		getLogger().error(error, message, context);
 	},
 };

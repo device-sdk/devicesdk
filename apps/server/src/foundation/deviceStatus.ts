@@ -1,5 +1,6 @@
 import type { Env } from "../types";
 import { getDeviceStub } from "./deviceHandle";
+import { logger } from "./logger";
 
 export interface DeviceStatusResult {
 	connected: boolean;
@@ -23,9 +24,9 @@ export async function getDeviceConnectionStatus(
 		// Most common case: session not yet initialized (device has never connected).
 		// Log at debug level — this is expected, not an error condition.
 		// Genuine RPC failures also land here; inspect `err` to escalate if needed.
-		console.debug(
+		logger.debug(
 			`getDeviceConnectionStatus: device session unreachable for ${deviceId} in ${projectId} — likely never connected`,
-			err,
+			{ error: err instanceof Error ? err.message : String(err) },
 		);
 		return { connected: false, connectedSince: null };
 	}

@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	hashToken,
-	legacyHashToken,
-	verifyToken,
-} from "../../src/foundation/tokenHash";
+import { hashToken, legacyHashToken } from "../../src/foundation/tokenHash";
 
 describe("tokenHash", () => {
 	const secret = "test-secret";
@@ -23,6 +19,12 @@ describe("tokenHash", () => {
 		expect(a).not.toBe(b);
 	});
 
+	test("HMAC hash differs for different tokens with the same secret", async () => {
+		const a = await hashToken("dsdk_token_a", secret);
+		const b = await hashToken("dsdk_token_b", secret);
+		expect(a).not.toBe(b);
+	});
+
 	test("legacy hash matches unsalted SHA-256", async () => {
 		const token = "dsdk_legacy_token";
 		const legacy = await legacyHashToken(token);
@@ -36,23 +38,10 @@ describe("tokenHash", () => {
 		expect(legacy).toBe(expected);
 	});
 
-	test("verifyToken accepts an HMAC-stored hash", async () => {
-		const token = "dsdk_verify_hmac";
-		const stored = await hashToken(token, secret);
-		expect(await verifyToken(token, stored, secret)).toBe(true);
-		expect(await verifyToken("wrong-token", stored, secret)).toBe(false);
-	});
-
-	test("verifyToken falls back to legacy SHA-256 hash", async () => {
+	test("legacy hash differs from HMAC hash of the same token", async () => {
 		const token = "dsdk_verify_legacy";
-		const stored = await legacyHashToken(token);
-		expect(await verifyToken(token, stored, secret)).toBe(true);
-		expect(await verifyToken("wrong-token", stored, secret)).toBe(false);
-	});
-
-	test("verifyToken rejects a hash from a different secret", async () => {
-		const token = "dsdk_wrong_secret";
-		const stored = await hashToken(token, "other-secret");
-		expect(await verifyToken(token, stored, secret)).toBe(false);
+		const legacy = await legacyHashToken(token);
+		const hmac = await hashToken(token, secret);
+		expect(legacy).not.toBe(hmac);
 	});
 });

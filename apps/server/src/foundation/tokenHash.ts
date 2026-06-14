@@ -5,15 +5,6 @@ async function sha256Hex(token: string): Promise<string> {
 	return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function constantTimeHexEquals(a: string, b: string): boolean {
-	if (a.length !== b.length) return false;
-	let diff = 0;
-	for (let i = 0; i < a.length; i++) {
-		diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-	}
-	return diff === 0;
-}
-
 /**
  * Hash a token with HMAC-SHA-256 using the server-side secret.
  * This replaces the previous unsalted SHA-256 storage and prevents
@@ -47,20 +38,4 @@ export async function hashToken(
  */
 export async function legacyHashToken(token: string): Promise<string> {
 	return sha256Hex(token);
-}
-
-/**
- * Verify a raw token against a stored hash. Uses HMAC first, then falls back
- * to the legacy SHA-256 format for tokens created before this change.
- */
-export async function verifyToken(
-	token: string,
-	storedHash: string,
-	secret: string,
-): Promise<boolean> {
-	const hmac = await hashToken(token, secret);
-	if (constantTimeHexEquals(hmac, storedHash)) return true;
-
-	const legacy = await legacyHashToken(token);
-	return constantTimeHexEquals(legacy, storedHash);
 }

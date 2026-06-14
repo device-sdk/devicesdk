@@ -25,6 +25,8 @@ export interface ServerConfig {
 	 * the brute-force rate limiter.
 	 */
 	trustProxy: boolean;
+	/** Absolute path to the server log file. */
+	logFile: string;
 	dbPath: string;
 	scriptsDir: string;
 	firmwaresDir: string;
@@ -52,6 +54,7 @@ export function loadConfig(
 		mdnsEnabled: parseBool(env.MDNS_ENABLED, true),
 		mdnsHostname: env.MDNS_HOSTNAME || "devicesdk",
 		trustProxy: parseBool(env.TRUST_PROXY, false),
+		logFile: env.LOG_FILE || join(dataDir, "server.log"),
 		dbPath: join(dataDir, "devicesdk.sqlite"),
 		scriptsDir: join(dataDir, "scripts"),
 		firmwaresDir: join(dataDir, "firmwares"),

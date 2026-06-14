@@ -4,7 +4,7 @@ import { loadConfig } from "./config";
 import { BunSqliteQB } from "./db/bunSqliteQB";
 import { D1CompatDatabase } from "./db/d1Compat";
 import { applyMigrations } from "./db/migrate";
-import { logger } from "./foundation/logger";
+import { createLogger, type ServerLogger } from "./foundation/logger";
 import { startMdnsResponder } from "./foundation/mdns/responder";
 import { app } from "./index";
 import { startJanitor } from "./janitor";
@@ -15,6 +15,7 @@ import type { Env } from "./types";
 import { websocket } from "./ws";
 
 const config = loadConfig();
+const logger: ServerLogger = createLogger(config);
 
 mkdirSync(config.dataDir, { recursive: true });
 
@@ -42,7 +43,7 @@ if (config.firmwaresDistDir && existsSync(config.firmwaresDistDir)) {
 }
 
 // --- device runtime ---
-const hub = new DeviceHub({ db, scripts });
+const hub = new DeviceHub({ db, scripts, logger });
 hub.resetConnectionState();
 
 const services: Env = {

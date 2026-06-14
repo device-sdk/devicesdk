@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { DeviceCommand } from "@devicesdk/core";
+import type { ServerLogger } from "../foundation/logger";
 import type { FsBlobStore } from "../storage/fsBlobStore";
 import { DeviceSession } from "./deviceSession";
 import { makeBridge } from "./devicesBridge";
@@ -22,6 +23,7 @@ export interface DeviceHandle {
 export interface DeviceHubDeps {
 	db: Database;
 	scripts: FsBlobStore;
+	logger: ServerLogger;
 }
 
 /**
@@ -51,6 +53,7 @@ export class DeviceHub {
 			session = new DeviceSession(projectId, deviceId, {
 				db: this.deps.db,
 				scripts: this.deps.scripts,
+				logger: this.deps.logger,
 				makeBridge: (meta) =>
 					makeBridge(
 						{

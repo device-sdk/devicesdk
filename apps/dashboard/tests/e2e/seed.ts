@@ -45,8 +45,8 @@ const statements = [
   `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-3', 'user-1', 'deletable-project', 'Deletable Project', 'Project for delete testing', ${now});`,
   `INSERT INTO devices (id, project_id, device_slug, name, description, current_version_id, last_connected_at, created_at, updated_at) VALUES ('dev-3', 'proj-3', 'deletable-device', 'Deletable Device', 'Device for delete testing', NULL, NULL, ${now}, ${now});`,
 
-  // Token for delete testing
-  `INSERT INTO tokens (id, user_id, token, created_at, description, managed) VALUES ('tok-1', 'user-1', 'dsdk_testtoken1234567890abcdef', ${now}, 'Test token for E2E', 0);`,
+  // Token for delete testing (token_hash is the legacy SHA-256 of the raw token).
+  `INSERT INTO tokens (id, user_id, token_hash, last_four, created_at, description, managed) VALUES ('tok-1', 'user-1', 'b61118e521fadaf15846c57b5a50b124c63772c2b43be96b91d4525b929d8c84', 'cdef', ${now}, 'Test token for E2E', 0);`,
 ];
 
 const db = new Database(dbPath);

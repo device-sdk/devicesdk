@@ -134,6 +134,35 @@ app.route("/v1/cli/auth", cliAuthRouterPreAuth);
 app.get("/cli/auth", cliAuthUser, getApprovalPage);
 app.post("/cli/auth", cliAuthUser, handleApproval);
 
+// Health / readiness probes — unauthenticated so load balancers and the
+// troubleshooting docs can verify the server without credentials.
+app.get("/health", (c) => c.json({ success: true, result: { status: "ok" } }));
+app.get("/ready", async (c) => {
+	try {
+		const db = c.env.qb.db;
+		// Verify SQLite is writable using an ephemeral temp table.
+		db.exec(
+			"CREATE TEMP TABLE IF NOT EXISTS _health_probe (id INTEGER PRIMARY KEY, checked_at INTEGER)",
+		);
+		db.query(
+			"INSERT INTO _health_probe (id, checked_at) VALUES (1, ?1) ON CONFLICT(id) DO UPDATE SET checked_at = ?1",
+		).run(Date.now());
+		const row = db
+			.query("SELECT checked_at FROM _health_probe WHERE id = 1")
+			.get() as { checked_at: number } | null;
+		if (!row) {
+			throw new Error("SQLite health readback returned no row");
+		}
+		return c.json({
+			success: true,
+			result: { status: "ready", sqlite: "ok", checkedAt: row.checked_at },
+		});
+	} catch (err) {
+		logger.error(err, "/ready probe failed");
+		return c.json({ success: false, error: "Database not writable" }, 503);
+	}
+});
+
 // 2. Authentication middleware for the API
 app.use("/v1/*", authenticateUser);
 

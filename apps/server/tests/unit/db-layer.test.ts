@@ -256,6 +256,30 @@ describe("D1CompatDatabase", () => {
 		}>();
 		expect(count?.n).toBe(2);
 	});
+
+	test("batch() rolls back atomically when a later statement fails", async () => {
+		// The table has a primary-key constraint on k.
+		await d1
+			.prepare("INSERT INTO kv (k, v) VALUES (?1, ?2)")
+			.bind("existing", "x")
+			.run();
+
+		await expect(
+			d1.batch([
+				d1.prepare("INSERT INTO kv (k, v) VALUES (?1, ?2)").bind("new", "1"),
+				// Duplicate key should abort the whole transaction.
+				d1
+					.prepare("INSERT INTO kv (k, v) VALUES (?1, ?2)")
+					.bind("existing", "y"),
+			]),
+		).rejects.toThrow();
+
+		const count = await d1.prepare("SELECT COUNT(*) AS n FROM kv").first<{
+			n: number;
+		}>();
+		// The first insert in the batch must have been rolled back.
+		expect(count?.n).toBe(1);
+	});
 });
 
 describe("applyMigrations", () => {

@@ -127,6 +127,9 @@ export class DeviceSession {
 		// leave a half-open socket; close it before accepting the replacement
 		// so command dispatch never targets a dead connection.
 		if (this.deviceWs && this.deviceWs !== ws) {
+			// Finalize the outgoing socket before the onClose guard can ignore
+			// it: pending commands must fail fast and usage must be accounted.
+			this.finalizeOutgoingSocket("Replaced by a new device connection");
 			try {
 				this.deviceWs.close(
 					WS_CLOSE_REPLACED,
@@ -241,7 +244,7 @@ export class DeviceSession {
 		this.handleConnectionLost(`WebSocket error: ${error}`);
 	}
 
-	private handleConnectionLost(reason: string): void {
+	private finalizeOutgoingSocket(reason: string): void {
 		const connectedSince = this.connectedSince;
 		if (connectedSince) {
 			this.recordUsage({
@@ -257,6 +260,10 @@ export class DeviceSession {
 			command.reject(new Error(reason));
 		}
 		this.pendingCommands.clear();
+	}
+
+	private handleConnectionLost(reason: string): void {
+		this.finalizeOutgoingSocket(reason);
 		this.deviceWs = null;
 		this.connectedSince = null;
 

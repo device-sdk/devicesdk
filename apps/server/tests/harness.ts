@@ -6,6 +6,11 @@ import { loadConfig } from "../src/config";
 import { BunSqliteQB } from "../src/db/bunSqliteQB";
 import { D1CompatDatabase } from "../src/db/d1Compat";
 import { applyMigrations } from "../src/db/migrate";
+import {
+	createLogger,
+	resetLogger,
+	type ServerLogger,
+} from "../src/foundation/logger";
 import { app } from "../src/index";
 import { installConsoleCapture } from "../src/runtime/consoleCapture";
 import { DeviceHub } from "../src/runtime/deviceHub";
@@ -268,17 +273,20 @@ export class TestServer {
 	readonly wsBase: string;
 	private server: ReturnType<typeof Bun.serve>;
 	private dataDir: string;
+	private logger: ServerLogger;
 
 	private constructor(opts: {
 		services: Env;
 		db: Database;
 		server: ReturnType<typeof Bun.serve>;
 		dataDir: string;
+		logger: ServerLogger;
 	}) {
 		this.services = opts.services;
 		this.db = opts.db;
 		this.server = opts.server;
 		this.dataDir = opts.dataDir;
+		this.logger = opts.logger;
 		const port = opts.server.port;
 		this.baseUrl = `http://localhost:${port}`;
 		this.wsBase = `ws://localhost:${port}`;
@@ -309,7 +317,8 @@ export class TestServer {
 		const qb = new BunSqliteQB(db);
 		const scripts = new FsBlobStore(config.scriptsDir);
 		const firmwares = new FsBlobStore(config.firmwaresDir);
-		const hub = new DeviceHub({ db, scripts });
+		const logger = createLogger(config);
+		const hub = new DeviceHub({ db, scripts, logger });
 		hub.resetConnectionState();
 
 		const services: Env = {
@@ -330,7 +339,7 @@ export class TestServer {
 		});
 		services.server = server;
 
-		return new TestServer({ services, db, server, dataDir });
+		return new TestServer({ services, db, server, dataDir, logger });
 	}
 
 	async request<T = unknown>(
@@ -501,7 +510,7 @@ export class TestServer {
 		);
 	}
 
-	stop(): void {
+	async stop(): Promise<void> {
 		try {
 			this.server.stop(true);
 		} catch {
@@ -512,6 +521,12 @@ export class TestServer {
 		} catch {
 			/* already closed */
 		}
+		try {
+			await this.logger.close();
+		} catch {
+			/* already closed */
+		}
+		resetLogger();
 		try {
 			rmSync(this.dataDir, { recursive: true, force: true });
 		} catch {

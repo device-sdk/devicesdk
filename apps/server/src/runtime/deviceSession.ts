@@ -10,7 +10,7 @@ import {
 	VALID_LOG_LEVELS,
 	WS_CLOSE_REPLACED,
 } from "../foundation/consts";
-import { logger } from "../foundation/logger";
+import type { ServerLogger } from "../foundation/logger";
 import { recordDeviceUsage } from "../foundation/usageMetrics";
 import type { FsBlobStore } from "../storage/fsBlobStore";
 import { runWithLogCapture } from "./consoleCapture";
@@ -65,6 +65,7 @@ interface PendingCommand {
 export interface SessionDeps {
 	db: Database;
 	scripts: FsBlobStore;
+	logger: ServerLogger;
 	/** Inter-device RPC dispatcher bound to this session's project scope. */
 	makeBridge: (meta: DeviceMeta) => BridgeFn;
 }
@@ -161,7 +162,7 @@ export class DeviceSession {
 		try {
 			this.rearmCronsFromStorage();
 		} catch (err) {
-			logger.warn("Cron re-arm on connect failed (degraded)", {
+			this.deps.logger.warn("Cron re-arm on connect failed (degraded)", {
 				deviceId: this.deviceId,
 				error: (err as Error).message,
 			});
@@ -173,7 +174,7 @@ export class DeviceSession {
 		if (ws !== this.deviceWs) return;
 
 		if (typeof data !== "string") {
-			logger.warn("Received non-string WebSocket data, ignoring");
+			this.deps.logger.warn("Received non-string WebSocket data, ignoring");
 			return;
 		}
 
@@ -181,11 +182,15 @@ export class DeviceSession {
 		try {
 			parsed = DeviceMessageSchema.safeParse(JSON.parse(data));
 		} catch (error) {
-			logger.error(error, "Failed to parse message from device", { data });
+			this.deps.logger.error(error, "Failed to parse message from device", {
+				data,
+			});
 			return;
 		}
 		if (!parsed.success) {
-			logger.warn("Invalid device message", { error: parsed.error.message });
+			this.deps.logger.warn("Invalid device message", {
+				error: parsed.error.message,
+			});
 			return;
 		}
 		// Keepalive — never wakes user code (and never counts as usage).
@@ -228,7 +233,9 @@ export class DeviceSession {
 				}, "onMessage");
 			}
 		} catch (error) {
-			logger.error(error, "Failed to dispatch device message", { data });
+			this.deps.logger.error(error, "Failed to dispatch device message", {
+				data,
+			});
 		}
 	}
 
@@ -278,7 +285,7 @@ export class DeviceSession {
 				.query("UPDATE devices SET connected = 0 WHERE id = ?1")
 				.run(this.deviceId);
 		} catch (err) {
-			logger.warn("connected=0 write failed (degraded)", {
+			this.deps.logger.warn("connected=0 write failed (degraded)", {
 				deviceId: this.deviceId,
 				error: (err as Error).message,
 			});
@@ -314,7 +321,7 @@ export class DeviceSession {
 		this.dispatchChain = this.dispatchChain
 			.then(() => runWithLogCapture(this, fn))
 			.catch((error) => {
-				logger.error(error, `Error in user worker ${label}`, {
+				this.deps.logger.error(error, `Error in user worker ${label}`, {
 					deviceId: this.deviceId,
 				});
 			});
@@ -513,7 +520,7 @@ export class DeviceSession {
 				}),
 			);
 		} catch (error) {
-			logger.error(error, "Failed to send initial status to watcher");
+			this.deps.logger.error(error, "Failed to send initial status to watcher");
 		}
 
 		// Optional log history backfill. Single scan per connect — never per
@@ -540,7 +547,7 @@ export class DeviceSession {
 						);
 					}
 				} catch (error) {
-					logger.error(error, "Watcher backfill failed");
+					this.deps.logger.error(error, "Watcher backfill failed");
 				}
 				ws.send(JSON.stringify({ event: "history_complete" }));
 			}
@@ -660,7 +667,7 @@ export class DeviceSession {
 						: nextCronTime(expr, now);
 				storage[name] = { cron: expr, nextFireAt };
 			} catch (err) {
-				logger.warn("Invalid cron expression", {
+				this.deps.logger.warn("Invalid cron expression", {
 					name: name.slice(0, 64),
 					error: (err as Error).message,
 				});
@@ -771,9 +778,13 @@ export class DeviceSession {
 			} catch (err) {
 				// Invalid cron expression — reschedule without advancing so no
 				// firings are permanently lost; the script can be redeployed.
-				logger.error(err, "Error resolving due crons — rescheduling", {
-					deviceId: this.deviceId,
-				});
+				this.deps.logger.error(
+					err,
+					"Error resolving due crons — rescheduling",
+					{
+						deviceId: this.deviceId,
+					},
+				);
 				this.armCronTimer(Math.max(now + 60_000, earliestFireTime(schedules)));
 				return;
 			}
@@ -786,7 +797,7 @@ export class DeviceSession {
 				try {
 					await worker.onCron(name);
 				} catch (error) {
-					logger.error(error, "Error in user worker onCron", {
+					this.deps.logger.error(error, "Error in user worker onCron", {
 						cronName: name.slice(0, 64),
 						deviceId: this.deviceId,
 					});

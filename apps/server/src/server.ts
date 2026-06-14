@@ -92,3 +92,18 @@ function shutdown(signal: string) {
 }
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
+
+// Crash protection: log unhandled rejections so floating promises (DB writes,
+// mDNS callbacks, etc.) don't fail silently, and exit on uncaught exceptions
+// to avoid running in a potentially corrupted state.
+process.on("unhandledRejection", (reason, _promise) => {
+	logger.error(
+		reason instanceof Error ? reason : new Error(String(reason)),
+		"Unhandled promise rejection",
+		{ reason: reason instanceof Error ? reason.message : String(reason) },
+	);
+});
+process.on("uncaughtException", (error) => {
+	logger.error(error, "Uncaught exception — exiting");
+	process.exit(1);
+});

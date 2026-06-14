@@ -98,6 +98,26 @@
 				}
 			}
 		},
+		"/health": {
+			"get": {
+				"operationId": "get_health",
+				"responses": {
+					"200": {
+						"description": "Successful response."
+					}
+				}
+			}
+		},
+		"/ready": {
+			"get": {
+				"operationId": "get_ready",
+				"responses": {
+					"200": {
+						"description": "Successful response."
+					}
+				}
+			}
+		},
 		"/v1/projects/{projectId}/devices/{deviceId}/connect/websocket": {
 			"get": {
 				"operationId": "get_upgradeWebSocket",

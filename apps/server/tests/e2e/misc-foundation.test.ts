@@ -9,6 +9,29 @@ beforeAll(async () => {
 
 afterAll(() => srv.stop());
 
+describe("health probes", () => {
+	test("GET /health returns ok without authentication", async () => {
+		const res = await srv.get("/health");
+		expect(res.status).toBe(200);
+		const body = res.body as { success: boolean; result: { status: string } };
+		expect(body.success).toBe(true);
+		expect(body.result.status).toBe("ok");
+	});
+
+	test("GET /ready confirms SQLite is writable", async () => {
+		const res = await srv.get("/ready");
+		expect(res.status).toBe(200);
+		const body = res.body as {
+			success: boolean;
+			result: { status: string; sqlite: string; checkedAt: number };
+		};
+		expect(body.success).toBe(true);
+		expect(body.result.status).toBe("ready");
+		expect(body.result.sqlite).toBe("ok");
+		expect(typeof body.result.checkedAt).toBe("number");
+	});
+});
+
 describe("serveSpa fallback (no PUBLIC_DIR configured)", () => {
 	test("a non-API path returns the documented 404 disabled-dashboard JSON", async () => {
 		// The test harness never sets PUBLIC_DIR, so serveSpa is disabled.

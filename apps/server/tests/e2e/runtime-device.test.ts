@@ -187,6 +187,36 @@ describe("device session runtime", () => {
 		await second.close();
 	});
 
+	test("socket replacement rejects pending commands immediately", async () => {
+		const token = await setupRig("replace-pending");
+		const first = await srv.connectDevice(token, "replace-pending", "dev");
+		first.sendConnected();
+		await Bun.sleep(100);
+
+		// Start a REST command but never let the device respond.
+		const cmdPromise = srv.post(
+			"/v1/projects/replace-pending/devices/dev/command",
+			{
+				token,
+				body: { type: "get_temperature", payload: {} },
+			},
+		);
+
+		// Replace the socket before the 5-second command timeout elapses.
+		await first.nextCommand(2000);
+		const second = await srv.connectDevice(token, "replace-pending", "dev");
+		await Bun.sleep(300);
+
+		const res = await cmdPromise;
+		// Immediate rejection produces 500, not the 504 timeout path.
+		expect(res.status).toBe(500);
+		expect((res.body as { error: string }).error).toContain(
+			"Replaced by a new device connection",
+		);
+
+		await second.close();
+	});
+
 	test("command to a connected device that errors → 500", async () => {
 		const token = await setupRig("cmderr");
 		const device = await srv.connectDevice(token, "cmderr", "dev");

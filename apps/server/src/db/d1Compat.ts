@@ -41,6 +41,19 @@ export class D1CompatStatement {
 		success: true;
 		meta: { changes: number; last_row_id: number };
 	}> {
+		return this.runSync();
+	}
+
+	/**
+	 * Synchronous core of {@link run}. The D1 facade keeps `run()` async to
+	 * match the Cloudflare D1 API, but `batch()` needs to execute statements
+	 * inside a synchronous `db.transaction(...)` callback so Bun/better-sqlite3
+	 * commits only after every statement has actually run.
+	 */
+	runSync(): {
+		success: true;
+		meta: { changes: number; last_row_id: number };
+	} {
 		this.db.query(this.sql).run(...(this.args as never[]));
 		const stats = this.db
 			.query("SELECT changes() AS changes, last_insert_rowid() AS last_row_id")
@@ -63,16 +76,16 @@ export class D1CompatDatabase {
 	async batch(
 		statements: D1CompatStatement[],
 	): Promise<{ success: true; meta: { changes: number } }[]> {
-		const tx = this.db.transaction(async () => {
-			const out: {
-				success: true;
-				meta: { changes: number; last_row_id: number };
-			}[] = [];
+		// bun:sqlite transactions require a synchronous callback; an async
+		// callback would commit as soon as the initial Promise is returned,
+		// before the awaited statements execute. Use the synchronous run path.
+		return this.db.transaction(() => {
+			const out: { success: true; meta: { changes: number } }[] = [];
 			for (const stmt of statements) {
-				out.push(await stmt.run());
+				const res = stmt.runSync();
+				out.push({ success: true, meta: { changes: res.meta.changes } });
 			}
 			return out;
-		});
-		return tx();
+		})();
 	}
 }

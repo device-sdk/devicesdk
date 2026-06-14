@@ -8,14 +8,15 @@ export const JANITOR_INTERVAL_MS = 60 * 60 * 1000; // hourly
 /**
  * In-process housekeeping — replaces the cloud deployment's scheduled cron.
  * Runs at boot and then hourly: drops expired sessions, expired CLI auth
- * codes, device logs past retention, and usage buckets past the longest
- * metrics window.
+ * codes, expired CLI tokens, device logs past retention, and usage buckets
+ * past the longest metrics window.
  */
 export function runJanitor(qb: BunSqliteQB): void {
 	const now = Date.now();
 	try {
 		qb.db.query("DELETE FROM user_sessions WHERE expires_at < ?1").run(now);
 		qb.db.query("DELETE FROM cli_auth_codes WHERE expires_at < ?1").run(now);
+		qb.db.query("DELETE FROM cli_tokens WHERE expires_at < ?1").run(now);
 		qb.db
 			.query("DELETE FROM device_logs WHERE created_at < ?1")
 			.run(now - LOG_RETENTION_MS);

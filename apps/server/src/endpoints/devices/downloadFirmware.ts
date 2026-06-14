@@ -126,14 +126,13 @@ export class DownloadFirmware extends BaseRoute {
 
 		// Create fresh token — raw for firmware, hash for DB
 		const newKey = crypto.randomUUID().replace(/-/g, "");
-		const tokenHash = await hashToken(newKey);
+		const tokenHash = await hashToken(newKey, c.env.config.apiTokenSecret);
 		await qb
 			.insert({
 				tableName: "tokens",
 				data: {
 					id: crypto.randomUUID(),
 					user_id: user.id,
-					token: "",
 					token_hash: tokenHash,
 					last_four: newKey.slice(-4),
 					created_at: Date.now(),

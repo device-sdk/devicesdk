@@ -268,8 +268,8 @@ describe("cli-auth: full approve -> poll -> use -> refresh -> revoke", () => {
 		).result;
 		expect(result.status).toBe("approved");
 		expect(result.token_type).toBe("Bearer");
-		expect(result.access_token).toMatch(/^dsdk_[0-9a-f]{32}$/);
-		expect(result.refresh_token).toMatch(/^dsdk_refresh_[0-9a-f]{32}$/);
+		expect(result.access_token).toMatch(/^dsdk_[0-9a-f]{64}$/);
+		expect(result.refresh_token).toMatch(/^dsdk_refresh_[0-9a-f]{64}$/);
 		expect(result.user?.email).toBeTruthy();
 
 		const accessToken = result.access_token;
@@ -301,7 +301,7 @@ describe("cli-auth: full approve -> poll -> use -> refresh -> revoke", () => {
 				result: { access_token: string; refresh_token: string };
 			}
 		).result;
-		expect(refreshed.access_token).toMatch(/^dsdk_[0-9a-f]{32}$/);
+		expect(refreshed.access_token).toMatch(/^dsdk_[0-9a-f]{64}$/);
 		expect(refreshed.access_token).not.toBe(accessToken);
 		expect(refreshed.refresh_token).not.toBe(refreshToken);
 

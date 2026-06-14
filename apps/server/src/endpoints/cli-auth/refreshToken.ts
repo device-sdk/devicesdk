@@ -1,5 +1,6 @@
+import { hashToken, legacyHashToken } from "../../foundation/tokenHash";
 import type { AppContext } from "../../types";
-import { generateAccessToken, generateRefreshToken, hashToken } from "./utils";
+import { generateAccessToken, generateRefreshToken } from "./utils";
 
 type CliToken = {
 	id: string;
@@ -19,12 +20,16 @@ export async function refreshToken(c: AppContext) {
 		return c.json({ success: false, error: "missing_refresh_token" }, 400);
 	}
 
-	const tokenHash = await hashToken(refresh_token);
+	const secret = c.env.config.apiTokenSecret;
+	const tokenHashes = [
+		await hashToken(refresh_token, secret),
+		await legacyHashToken(refresh_token),
+	];
 
 	const cliToken = await c.env.DB.prepare(
-		"SELECT * FROM cli_tokens WHERE refresh_token_hash = ? AND expires_at > ?",
+		"SELECT * FROM cli_tokens WHERE refresh_token_hash IN (?, ?) AND expires_at > ?",
 	)
-		.bind(tokenHash, Date.now())
+		.bind(tokenHashes[0], tokenHashes[1], Date.now())
 		.first<CliToken>();
 
 	if (!cliToken) {
@@ -45,8 +50,8 @@ export async function refreshToken(c: AppContext) {
 		).bind(
 			crypto.randomUUID(),
 			cliToken.user_id,
-			await hashToken(newAccessToken),
-			await hashToken(newRefreshToken),
+			await hashToken(newAccessToken, secret),
+			await hashToken(newRefreshToken, secret),
 			currentMs,
 			currentMs + refreshExpiresIn * 1000,
 		),

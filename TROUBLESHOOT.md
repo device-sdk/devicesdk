@@ -1,5 +1,12 @@
 # Troubleshooting Log
 
+### Dashboard E2E seed breaks after dropping `tokens.token`
+**Date**: 2026-06-14
+**Question/Problem**: After adding a migration to drop the `tokens.token` column, the **E2E Tests** dashboard job failed during `global-setup.ts` with `SQLiteError: table tokens has no column named token`.
+**Root Cause**: `apps/dashboard/tests/e2e/seed.ts` inserts fixture rows with raw SQL and still referenced the removed `token` column. The server e2e suite creates tokens through the API, but the dashboard seed bypasses it.
+**Solution**: Update seed fixtures to use the new schema (`token_hash`, `last_four`) and verify by running the seed script against a freshly migrated database.
+**Rule**: When a migration drops or renames a column, grep for raw SQL inserts/updates across the repo (especially dashboard e2e seeds and server tests) — not just TypeScript references.
+
 ### Dashboard E2E job fails with `pnpm install` segfault (exit 139)
 **Date**: 2026-06-13
 **Question/Problem**: The dashboard **E2E Tests** job in `ci.yml` intermittently segfaults during `pnpm install --frozen-lockfile` on the self-hosted runner, failing the PR.

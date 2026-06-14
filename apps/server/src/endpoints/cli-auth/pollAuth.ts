@@ -1,5 +1,6 @@
+import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext } from "../../types";
-import { generateAccessToken, generateRefreshToken, hashToken } from "./utils";
+import { generateAccessToken, generateRefreshToken } from "./utils";
 
 type CliAuthCode = {
 	id: string;
@@ -59,6 +60,7 @@ export async function pollAuth(c: AppContext) {
 		const expiresIn = 86400; // 24 hours
 		const refreshExpiresIn = 30 * 24 * 60 * 60; // 30 days
 		const currentMs = Date.now();
+		const secret = c.env.config.apiTokenSecret;
 
 		await c.env.DB.prepare(
 			`INSERT INTO cli_tokens (id, user_id, access_token_hash, refresh_token_hash, created_at, expires_at)
@@ -67,8 +69,8 @@ export async function pollAuth(c: AppContext) {
 			.bind(
 				crypto.randomUUID(),
 				authCode.user_id,
-				await hashToken(accessToken),
-				await hashToken(refreshToken),
+				await hashToken(accessToken, secret),
+				await hashToken(refreshToken, secret),
 				currentMs,
 				currentMs + refreshExpiresIn * 1000,
 			)

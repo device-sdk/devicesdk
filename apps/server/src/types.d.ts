@@ -88,7 +88,6 @@ export type tableDeviceScripts = {
 export type tableTokens = {
 	id: string;
 	user_id: string;
-	token: string;
 	created_at: number;
 	description?: string;
 	managed?: number;

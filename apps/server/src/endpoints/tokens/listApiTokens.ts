@@ -50,14 +50,7 @@ export class ListApiTokens extends BaseRoute {
 		const { results: tokens } = await qb
 			.fetchAll<tableTokens>({
 				tableName: "tokens",
-				fields: [
-					"id",
-					"created_at",
-					"token",
-					"last_four",
-					"description",
-					"managed",
-				],
+				fields: ["id", "created_at", "last_four", "description", "managed"],
 				where: {
 					conditions: ["user_id = ?1"],
 					params: [user.id],
@@ -88,7 +81,7 @@ export class ListApiTokens extends BaseRoute {
 					items: tokens.map((t: tableTokens) => ({
 						id: t.id,
 						created_at: t.created_at,
-						last_four: t.last_four ?? (t.token ? t.token.slice(-4) : "????"),
+						last_four: t.last_four ?? "????",
 						description: t.description ?? null,
 						managed: t.managed === 1,
 					})),

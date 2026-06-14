@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 export interface ServerConfig {
@@ -31,11 +33,38 @@ export interface ServerConfig {
 	scriptsDir: string;
 	firmwaresDir: string;
 	migrationsDir: string;
+	/**
+	 * Server-side secret used for HMAC-SHA-256 hashing of API/CLI tokens.
+	 * Prefer the API_TOKEN_SECRET env var; when omitted a random secret is
+	 * generated once and persisted under DATA_DIR so token hashes remain
+	 * stable across restarts.
+	 */
+	apiTokenSecret: string;
 }
 
 function parseBool(value: string | undefined, fallback: boolean): boolean {
 	if (value === undefined || value === "") return fallback;
 	return !["0", "false", "no", "off"].includes(value.toLowerCase());
+}
+
+function loadOrCreateApiTokenSecret(
+	env: Record<string, string | undefined>,
+	dataDir: string,
+): string {
+	const fromEnv = env.API_TOKEN_SECRET;
+	if (fromEnv && fromEnv.length > 0) return fromEnv;
+
+	mkdirSync(dataDir, { recursive: true });
+	const secretPath = join(dataDir, ".api-token-secret");
+	if (existsSync(secretPath)) {
+		const persisted = readFileSync(secretPath, "utf-8").trim();
+		if (persisted.length > 0) return persisted;
+		// File exists but is empty/corrupt: regenerate below.
+	}
+
+	const secret = randomBytes(32).toString("hex");
+	writeFileSync(secretPath, secret, { mode: 0o600 });
+	return secret;
 }
 
 export function loadConfig(
@@ -62,5 +91,6 @@ export function loadConfig(
 		// import.meta.url no longer sits next to the migrations directory.
 		migrationsDir:
 			env.MIGRATIONS_DIR || new URL("../migrations", import.meta.url).pathname,
+		apiTokenSecret: loadOrCreateApiTokenSecret(env, dataDir),
 	};
 }

@@ -1,7 +1,5 @@
-export { hashToken } from "../../foundation/tokenHash";
-
 export function generateAccessToken(): string {
-	const bytes = new Uint8Array(16);
+	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
 	const hex = Array.from(bytes)
 		.map((b) => b.toString(16).padStart(2, "0"))
@@ -10,7 +8,7 @@ export function generateAccessToken(): string {
 }
 
 export function generateRefreshToken(): string {
-	const bytes = new Uint8Array(16);
+	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
 	const hex = Array.from(bytes)
 		.map((b) => b.toString(16).padStart(2, "0"))

@@ -72,7 +72,7 @@ export class CreateApiToken extends BaseRoute {
 		}
 
 		const rawToken = crypto.randomUUID().replaceAll("-", "");
-		const tokenHash = await hashToken(rawToken);
+		const tokenHash = await hashToken(rawToken, c.env.config.apiTokenSecret);
 		const lastFour = rawToken.slice(-4);
 
 		const newApiToken = await qb
@@ -81,7 +81,6 @@ export class CreateApiToken extends BaseRoute {
 				data: {
 					id: crypto.randomUUID(),
 					user_id: user.id,
-					token: "",
 					token_hash: tokenHash,
 					last_four: lastFour,
 					created_at: Date.now(),

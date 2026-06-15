@@ -18,8 +18,9 @@ devicesdk flash <device>
 
 The CLI downloads a prebuilt firmware image and the server patches **your** configuration
 — Wi-Fi SSID/password, API token, server host, and project/device IDs — into the binary
-before it's written to the board. Prebuilt binaries are published to rolling GitHub
-Releases and bundled into the Docker image.
+before it's written to the board. Prebuilt binaries are published to versioned GitHub
+Releases (tagged `firmware-pico@vX.Y.Z`) only when the changeset "Version packages"
+PR bumps the firmware version, and bundled into the Docker image.
 
 The rest of this document is for **firmware contributors** building from source.
 

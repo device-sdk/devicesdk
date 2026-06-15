@@ -52,16 +52,12 @@
 **Solution**: Add `oven-sh/setup-bun@v2` (same `1.3.14` pin as CI) to `release.yml` before the build step.
 **Rule**: Any workflow that builds `@devicesdk/server` must set up Bun, even though the published packages themselves run on Node.
 
-### Firmware rolling releases fail with "Cannot upload assets to an immutable release"
-**Date**: 2026-06-13
-**Question/Problem**: `firmware-esp32.yml` and `firmware-pico.yml` publish jobs fail on `main` with `HTTP 422: Cannot upload assets to an immutable release.` when trying to overwrite rolling-release assets in place.
-**Root Cause**: Published GitHub Releases in this repository are immutable, so `gh release upload --clobber` cannot replace existing assets on the `firmware-esp32` / `firmware-pico` rolling tags.
-**Solution**: Delete the existing rolling release (and its tag) before creating a fresh release at the current commit and uploading the new assets:
-```bash
-gh release delete firmware-esp32 --yes --cleanup-tag
-gh release create firmware-esp32 --target "$GITHUB_SHA" --title "..." --notes "..." --latest=false firmware-dist/*.bin
-```
-**Rule**: Rolling firmware releases must be recreated, not edited in place, when release immutability is enabled.
+### Firmware rolling releases fail with "Cannot create ref due to creations being restricted"
+**Date**: 2026-06-15
+**Question/Problem**: `firmware-esp32.yml` and `firmware-pico.yml` publish jobs fail on `main` with `HTTP 422: Validation Failed` / `pre_receive Repository rule violations found` / `Cannot create ref due to creations being restricted` / `tag_name was used by an immutable release` when trying to maintain rolling-release tags (`firmware-esp32`, `firmware-pico`).
+**Root Cause**: This repository has both (a) release immutability enabled and (b) tag-creation rules that prevent the workflow's `GITHUB_TOKEN` from recreating rolling tags. Deleting and recreating a rolling release therefore fails.
+**Solution**: Stop using rolling tags. Publish firmware only when the changeset "Version packages" PR bumps the firmware package version, and create a unique, immutable-friendly versioned tag each time (`firmware-esp32@vX.Y.Z`, `firmware-pico@vX.Y.Z`). The Dockerfile queries the GitHub API for the latest versioned release per family.
+**Rule**: When a repository enforces immutable releases or restricts tag creation, firmware must ship via unique versioned release tags rather than rolling tags.
 
 ### Pico firmware publish job can't find downloaded artifacts
 **Date**: 2026-06-13

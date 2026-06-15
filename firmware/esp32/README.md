@@ -24,7 +24,9 @@ The CLI downloads the prebuilt image for your board (`esp32-client.bin`,
 `esp32c3-client.bin`, or `esp32c61-client.bin`) and the server patches **your**
 configuration — Wi-Fi SSID/password, API token, server host, and project/device IDs —
 into the binary before flashing it over serial (`esptool`). Prebuilt binaries are
-published to a rolling GitHub Release and bundled into the Docker image.
+published to versioned GitHub Releases (tagged `firmware-esp32@vX.Y.Z`) only when
+the changeset "Version packages" PR bumps the firmware version, and bundled into the
+Docker image.
 
 The rest of this document is for **firmware contributors** building from source. See
 [`IMPLEMENTATIONS.md`](IMPLEMENTATIONS.md) for the architecture.

@@ -167,11 +167,47 @@ jobs:
             firmware/esp32/dist/esp32c3-client.bin
           if-no-files-found: error
 
+  detect-version-bump:
+    name: Detect firmware version bump
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    outputs:
+      bumped: ${{ steps.check.outputs.bumped }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Compare firmware package version with previous main commit
+        id: check
+        working-directory: firmware/esp32
+        run: |
+          current_version=$(python3 -c "import json; print(json.load(open('package.json'))['version'])")
+          echo "version=$current_version" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          previous_version=$(git show "${{ github.event.before }}:firmware/esp32/package.json" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])")
+          if [ "$current_version" != "$previous_version" ]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          fi
+
   publish-release:
     name: Publish firmware to GitHub Release
     runs-on: [self-hosted, linux, proxmox-ephemeral]
-    needs: build
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [build, detect-version-bump]
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.detect-version-bump.outputs.bumped == 'true')
     permissions:
       contents: write
     steps:
@@ -182,25 +218,19 @@ jobs:
           name: devicesdk-esp32-firmware
           path: firmware-dist/
 
-      # Rolling release per firmware family: the `firmware-esp32` tag always
-      # carries the latest binaries. The self-hosted server image bundles
-      # these at build time (see Dockerfile), and users can download them
-      # manually for local flashing.
-      #
-      # GitHub may mark published releases as immutable, which prevents
-      # clobbering assets in place. Recreate the release (and its tag) on every
-      # push so the rolling tag always points at the current commit.
+      # Versioned releases per firmware family: each publish creates a unique
+      # tag (firmware-esp32@vX.Y.Z) so immutable-release repositories do not
+      # need to delete/recreate a rolling tag. The Dockerfile queries the
+      # latest versioned release at image build time.
       - name: Upload binaries to the firmware-esp32 release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view firmware-esp32 >/dev/null 2>&1; then
-            gh release delete firmware-esp32 --yes --cleanup-tag
-          fi
-          gh release create firmware-esp32 \
+          tag="firmware-esp32@v${{ needs.detect-version-bump.outputs.version }}"
+          gh release create "$tag" \
             --target ${{ github.sha }} \
-            --title "ESP32 firmware (rolling)" \
-            --notes "Latest ESP32/C3/C61 client binaries, updated on every firmware change." \
+            --title "ESP32 firmware v${{ needs.detect-version-bump.outputs.version }}" \
+            --notes "ESP32/C3/C61 client binaries for @devicesdk/firmware-esp32 v${{ needs.detect-version-bump.outputs.version }}." \
             --latest=false \
             firmware-dist/esp32-client.bin \
             firmware-dist/esp32c61-client.bin \

@@ -32,7 +32,7 @@ export interface AuthStartResponse {
 }
 
 export async function startAuth(): Promise<AuthStartResponse> {
-	const url = `${getApiUrl()}/v1/cli/auth/start`;
+	const url = `${await getApiUrl()}/v1/cli/auth/start`;
 
 	try {
 		const response = await fetch(url, {

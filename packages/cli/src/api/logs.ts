@@ -16,12 +16,12 @@ export interface LogEntry {
  * is derived from the configured API URL — local dev (http://) gets ws://,
  * everything else gets wss://.
  */
-export function getWatchUrl(
+export async function getWatchUrl(
 	projectId: string,
 	deviceId: string,
 	options?: { backfillLimit?: number; backfillLevel?: string },
-): string {
-	const apiUrl = getApiUrl();
+): Promise<string> {
+	const apiUrl = await getApiUrl();
 	const base = apiUrl.startsWith("http://")
 		? apiUrl.replace("http://", "ws://")
 		: apiUrl.replace("https://", "wss://");

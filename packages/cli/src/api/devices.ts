@@ -115,7 +115,7 @@ export async function downloadDeviceFirmware(
 	deviceType: DeviceType,
 	options?: { host?: string },
 ): Promise<Buffer> {
-	const url = `${getApiUrl()}/v1/projects/${projectId}/devices/${deviceId}/firmware`;
+	const url = `${await getApiUrl()}/v1/projects/${projectId}/devices/${deviceId}/firmware`;
 
 	const response = await fetch(url, {
 		method: "POST",

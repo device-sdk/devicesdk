@@ -97,7 +97,7 @@ export default async function login(options?: {
 			expiresAt: Date.now() + authResult.expires_in * 1000,
 			email: user.email,
 			// Persist the server URL so every later command targets it.
-			host: options?.host ? normalizeHost(options.host) : getApiUrl(),
+			host: options?.host ? normalizeHost(options.host) : await getApiUrl(),
 		};
 
 		await saveCredentials(credentials);

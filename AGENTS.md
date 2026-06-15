@@ -78,8 +78,9 @@ CLI).
 
 **`firmware/esp32`, `firmware/pico`** — C/C++ WS clients. Both select **plain
 `ws://` when the configured host contains an explicit port** (self-hosted LAN)
-and TLS-on-443 for bare hostnames. Binaries are published to rolling GitHub
-Releases (`firmware-esp32`, `firmware-pico` tags) and bundled into the Docker
+and TLS-on-443 for bare hostnames. Binaries are published to versioned GitHub
+Releases (`firmware-esp32@vX.Y.Z`, `firmware-pico@vX.Y.Z` tags) only when the
+changeset "Version packages" PR bumps a firmware version, and bundled into the Docker
 image.
 
 ### Server architecture (apps/server)

@@ -97,11 +97,47 @@ jobs:
             firmware/pico/dist/devicesdk-pico2-w-client.uf2
           if-no-files-found: error
 
+  detect-version-bump:
+    name: Detect firmware version bump
+    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    outputs:
+      bumped: ${{ steps.check.outputs.bumped }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Compare firmware package version with previous main commit
+        id: check
+        working-directory: firmware/pico
+        run: |
+          current_version=$(python3 -c "import json; print(json.load(open('package.json'))['version'])")
+          echo "version=$current_version" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          previous_version=$(git show "${{ github.event.before }}:firmware/pico/package.json" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])")
+          if [ "$current_version" != "$previous_version" ]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          fi
+
   publish-release:
     name: Publish firmware to GitHub Release
     runs-on: [self-hosted, linux, proxmox-ephemeral]
-    needs: build
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [build, detect-version-bump]
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.detect-version-bump.outputs.bumped == 'true')
     permissions:
       contents: write
     # The workflow-level default working-directory is firmware/pico, but
@@ -118,20 +154,18 @@ jobs:
           name: devicesdk-pico-firmware
           path: firmware-dist/
 
-      # Rolling release per firmware family — see firmware-esp32.yml.
-      # GitHub may mark published releases as immutable, so recreate the
-      # release (and tag) on every push to keep the rolling tag movable.
+      # Versioned releases per firmware family — see firmware-esp32.yml.
+      # Each publish creates a unique tag so immutable-release repositories do
+      # not need to delete/recreate a rolling tag.
       - name: Upload binaries to the firmware-pico release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view firmware-pico >/dev/null 2>&1; then
-            gh release delete firmware-pico --yes --cleanup-tag
-          fi
-          gh release create firmware-pico \
+          tag="firmware-pico@v${{ needs.detect-version-bump.outputs.version }}"
+          gh release create "$tag" \
             --target ${{ github.sha }} \
-            --title "Pico firmware (rolling)" \
-            --notes "Latest Pico W / Pico 2 W client UF2s, updated on every firmware change." \
+            --title "Pico firmware v${{ needs.detect-version-bump.outputs.version }}" \
+            --notes "Pico W / Pico 2 W client UF2s for @devicesdk/firmware-pico v${{ needs.detect-version-bump.outputs.version }}." \
             --latest=false \
             firmware-dist/devicesdk-pico-w-client.uf2 \
             firmware-dist/devicesdk-pico2-w-client.uf2

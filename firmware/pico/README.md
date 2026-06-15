@@ -33,11 +33,11 @@ The rest of this document is for **firmware contributors** building from source.
 
 ### Board selection
 
-The target board defaults to `pico2_w`. Override it with the `IOTKIT_BOARD` environment
+The target board defaults to `pico2_w`. Override it with the `DEVICESDK_BOARD` environment
 variable before configuring:
 
 ```bash
-export IOTKIT_BOARD="pico_w"   # or "pico2_w"
+export DEVICESDK_BOARD="pico_w"   # or "pico2_w"
 ```
 
 > The Wi-Fi/token/host/project/device values in `CMakeLists.txt` are **placeholders**.

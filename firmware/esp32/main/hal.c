@@ -3,29 +3,29 @@
 #ifdef UNIT_TEST
 
 // Stubs — replaced by mock in tests
-void iotkit_hal_init(void) {}
-void iotkit_hal_reboot(void) {}
-void iotkit_hal_blink_led(int count) { (void)count; }
-void iotkit_hal_set_gpio(uint8_t pin, gpio_state_t state) { (void)pin; (void)state; }
-bool iotkit_hal_get_gpio_digital(uint8_t pin) { (void)pin; return false; }
-uint16_t iotkit_hal_get_gpio_analog(uint8_t pin) { (void)pin; return 0; }
-void iotkit_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) { (void)pin; (void)pull; }
-void iotkit_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) { (void)pin; (void)frequency; (void)duty_cycle; }
-bool iotkit_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uint32_t frequency) { (void)bus; (void)sda_pin; (void)scl_pin; (void)frequency; return true; }
-i2c_scan_result_t iotkit_hal_i2c_scan(uint8_t bus) { (void)bus; i2c_scan_result_t r = {0}; return r; }
-bool iotkit_hal_i2c_probe(uint8_t bus, uint8_t address) { (void)bus; (void)address; return false; }
-bool iotkit_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len) { (void)bus; (void)address; (void)data; (void)len; return true; }
-int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t len, int reg) { (void)bus; (void)address; (void)buffer; (void)len; (void)reg; return 0; }
-float iotkit_hal_get_temperature(void) { return 25.0f; }
-bool iotkit_hal_watchdog_configure(uint32_t timeout_ms, bool enable) { (void)timeout_ms; (void)enable; return true; }
-void iotkit_hal_watchdog_feed(void) {}
-bool iotkit_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) { (void)bus; (void)clk_pin; (void)mosi_pin; (void)miso_pin; (void)cs_pin; (void)frequency; (void)mode; return true; }
-spi_transfer_result_t iotkit_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) { (void)bus; (void)data; (void)len; spi_transfer_result_t r = {0}; return r; }
-bool iotkit_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) { (void)bus; (void)data; (void)len; return true; }
-spi_transfer_result_t iotkit_hal_spi_read(uint8_t bus, size_t len) { (void)bus; (void)len; spi_transfer_result_t r = {0}; return r; }
-bool iotkit_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) { (void)port; (void)tx_pin; (void)rx_pin; (void)baud_rate; (void)data_bits; (void)stop_bits; (void)parity; return true; }
-bool iotkit_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) { (void)port; (void)data; (void)len; return true; }
-uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) { (void)port; (void)bytes_to_read; (void)timeout_ms; uart_read_result_t r = {0}; return r; }
+void devicesdk_hal_init(void) {}
+void devicesdk_hal_reboot(void) {}
+void devicesdk_hal_blink_led(int count) { (void)count; }
+void devicesdk_hal_set_gpio(uint8_t pin, gpio_state_t state) { (void)pin; (void)state; }
+bool devicesdk_hal_get_gpio_digital(uint8_t pin) { (void)pin; return false; }
+uint16_t devicesdk_hal_get_gpio_analog(uint8_t pin) { (void)pin; return 0; }
+void devicesdk_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) { (void)pin; (void)pull; }
+void devicesdk_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) { (void)pin; (void)frequency; (void)duty_cycle; }
+bool devicesdk_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uint32_t frequency) { (void)bus; (void)sda_pin; (void)scl_pin; (void)frequency; return true; }
+i2c_scan_result_t devicesdk_hal_i2c_scan(uint8_t bus) { (void)bus; i2c_scan_result_t r = {0}; return r; }
+bool devicesdk_hal_i2c_probe(uint8_t bus, uint8_t address) { (void)bus; (void)address; return false; }
+bool devicesdk_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len) { (void)bus; (void)address; (void)data; (void)len; return true; }
+int devicesdk_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t len, int reg) { (void)bus; (void)address; (void)buffer; (void)len; (void)reg; return 0; }
+float devicesdk_hal_get_temperature(void) { return 25.0f; }
+bool devicesdk_hal_watchdog_configure(uint32_t timeout_ms, bool enable) { (void)timeout_ms; (void)enable; return true; }
+void devicesdk_hal_watchdog_feed(void) {}
+bool devicesdk_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) { (void)bus; (void)clk_pin; (void)mosi_pin; (void)miso_pin; (void)cs_pin; (void)frequency; (void)mode; return true; }
+spi_transfer_result_t devicesdk_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) { (void)bus; (void)data; (void)len; spi_transfer_result_t r = {0}; return r; }
+bool devicesdk_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) { (void)bus; (void)data; (void)len; return true; }
+spi_transfer_result_t devicesdk_hal_spi_read(uint8_t bus, size_t len) { (void)bus; (void)len; spi_transfer_result_t r = {0}; return r; }
+bool devicesdk_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) { (void)port; (void)tx_pin; (void)rx_pin; (void)baud_rate; (void)data_bits; (void)stop_bits; (void)parity; return true; }
+bool devicesdk_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) { (void)port; (void)data; (void)len; return true; }
+uart_read_result_t devicesdk_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) { (void)port; (void)bytes_to_read; (void)timeout_ms; uart_read_result_t r = {0}; return r; }
 
 #else
 
@@ -44,7 +44,7 @@ uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+#ifdef CONFIG_DEVICESDK_LED_IS_ADDRESSABLE
 #include "led_strip.h"
 #if SOC_RMT_SUPPORTED
 #include "led_strip_rmt.h"
@@ -55,9 +55,9 @@ uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint
 
 static const char *TAG = "HAL";
 
-#define ONBOARD_LED_PIN CONFIG_IOTKIT_LED_PIN
+#define ONBOARD_LED_PIN CONFIG_DEVICESDK_LED_PIN
 
-#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+#ifdef CONFIG_DEVICESDK_LED_IS_ADDRESSABLE
 static led_strip_handle_t led_strip_handle = NULL;
 #endif
 
@@ -137,7 +137,7 @@ static i2c_master_dev_handle_t get_or_create_i2c_device(uint8_t bus, uint8_t add
     return dev_handle;
 }
 
-void iotkit_hal_init(void) {
+void devicesdk_hal_init(void) {
     if (!ledc_channel_map_initialized) {
         for (int i = 0; i < GPIO_NUM_MAX; i++) {
             ledc_channel_map[i] = -1;
@@ -145,7 +145,7 @@ void iotkit_hal_init(void) {
         ledc_channel_map_initialized = true;
     }
 
-#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+#ifdef CONFIG_DEVICESDK_LED_IS_ADDRESSABLE
     led_strip_config_t strip_config = {
         .strip_gpio_num = ONBOARD_LED_PIN,
         .max_leds = 1,
@@ -171,14 +171,14 @@ void iotkit_hal_init(void) {
     ESP_LOGI(TAG, "HAL initialized");
 }
 
-void iotkit_hal_reboot(void) {
+void devicesdk_hal_reboot(void) {
     ESP_LOGI(TAG, "Rebooting device...");
     esp_restart();
 }
 
-void iotkit_hal_blink_led(int count) {
+void devicesdk_hal_blink_led(int count) {
     for (int i = 0; i < count; ++i) {
-#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+#ifdef CONFIG_DEVICESDK_LED_IS_ADDRESSABLE
         if (led_strip_handle) {
             led_strip_set_pixel(led_strip_handle, 0, 16, 16, 16);
             led_strip_refresh(led_strip_handle);
@@ -187,16 +187,16 @@ void iotkit_hal_blink_led(int count) {
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
 #else
-        iotkit_hal_set_gpio(ONBOARD_LED_PIN, GPIO_STATE_HIGH);
+        devicesdk_hal_set_gpio(ONBOARD_LED_PIN, GPIO_STATE_HIGH);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        iotkit_hal_set_gpio(ONBOARD_LED_PIN, GPIO_STATE_LOW);
+        devicesdk_hal_set_gpio(ONBOARD_LED_PIN, GPIO_STATE_LOW);
         vTaskDelay(100 / portTICK_PERIOD_MS);
 #endif
     }
 }
 
-void iotkit_hal_set_gpio(uint8_t pin, gpio_state_t state) {
-#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+void devicesdk_hal_set_gpio(uint8_t pin, gpio_state_t state) {
+#ifdef CONFIG_DEVICESDK_LED_IS_ADDRESSABLE
     // Map onboard LED pin or virtual pin 99 to the addressable LED
     if ((pin == ONBOARD_LED_PIN || pin == 99) && led_strip_handle) {
         if (state == GPIO_STATE_HIGH) {
@@ -223,7 +223,7 @@ void iotkit_hal_set_gpio(uint8_t pin, gpio_state_t state) {
     gpio_set_level(pin, state == GPIO_STATE_HIGH ? 1 : 0);
 }
 
-bool iotkit_hal_get_gpio_digital(uint8_t pin) {
+bool devicesdk_hal_get_gpio_digital(uint8_t pin) {
     // Only initialize the pin if not already configured as input
     if (!(gpio_input_configured_mask & (1ULL << pin))) {
         gpio_config_t io_conf = {
@@ -239,7 +239,7 @@ bool iotkit_hal_get_gpio_digital(uint8_t pin) {
     return gpio_get_level(pin) == 1;
 }
 
-uint16_t iotkit_hal_get_gpio_analog(uint8_t pin) {
+uint16_t devicesdk_hal_get_gpio_analog(uint8_t pin) {
     // ESP32 ADC1 GPIO mapping: GPIO 32-39 -> ADC1 channels 4-7, 0-3
     // Use adc_oneshot_io_to_channel to map automatically
     adc_unit_t unit;
@@ -286,7 +286,7 @@ uint16_t iotkit_hal_get_gpio_analog(uint8_t pin) {
     return (uint16_t)raw_value;
 }
 
-void iotkit_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
+void devicesdk_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << pin),
         .mode = GPIO_MODE_INPUT,
@@ -298,7 +298,7 @@ void iotkit_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
     gpio_input_configured_mask |= (1ULL << pin);
 }
 
-void iotkit_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) {
+void devicesdk_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) {
     // Assign a LEDC channel to this pin if not already assigned
     if (ledc_channel_map[pin] < 0) {
         if (ledc_next_channel >= LEDC_CHANNEL_MAX) {
@@ -339,7 +339,7 @@ void iotkit_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) {
     ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)ledc_channel_map[pin]);
 }
 
-bool iotkit_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uint32_t frequency) {
+bool devicesdk_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uint32_t frequency) {
     if (bus > 1) return false;
 
     // Deinitialize existing bus if configured
@@ -373,7 +373,7 @@ bool iotkit_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uin
     return true;
 }
 
-i2c_scan_result_t iotkit_hal_i2c_scan(uint8_t bus) {
+i2c_scan_result_t devicesdk_hal_i2c_scan(uint8_t bus) {
     i2c_scan_result_t result = {0};
 
     if (bus > 1 || !i2c_bus_handles[bus]) {
@@ -393,12 +393,12 @@ i2c_scan_result_t iotkit_hal_i2c_scan(uint8_t bus) {
     return result;
 }
 
-bool iotkit_hal_i2c_probe(uint8_t bus, uint8_t address) {
+bool devicesdk_hal_i2c_probe(uint8_t bus, uint8_t address) {
     if (bus > 1 || !i2c_bus_handles[bus]) return false;
     return i2c_master_probe(i2c_bus_handles[bus], address, 50) == ESP_OK;
 }
 
-bool iotkit_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len) {
+bool devicesdk_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len) {
     i2c_master_dev_handle_t dev = get_or_create_i2c_device(bus, address);
     if (!dev) return false;
 
@@ -410,7 +410,7 @@ bool iotkit_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, siz
     return true;
 }
 
-int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t len, int reg) {
+int devicesdk_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t len, int reg) {
     i2c_master_dev_handle_t dev = get_or_create_i2c_device(bus, address);
     if (!dev) return -1;
 
@@ -431,7 +431,7 @@ int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t le
 
 // === Temperature Sensor ===
 
-float iotkit_hal_get_temperature(void) {
+float devicesdk_hal_get_temperature(void) {
 #if SOC_TEMP_SENSOR_SUPPORTED
     if (!temp_sensor_handle) {
         temperature_sensor_config_t config = TEMPERATURE_SENSOR_CONFIG_DEFAULT(-10, 80);
@@ -463,7 +463,7 @@ float iotkit_hal_get_temperature(void) {
 
 // === Watchdog Timer ===
 
-bool iotkit_hal_watchdog_configure(uint32_t timeout_ms, bool enable) {
+bool devicesdk_hal_watchdog_configure(uint32_t timeout_ms, bool enable) {
     esp_err_t ret;
 
     if (enable) {
@@ -501,7 +501,7 @@ bool iotkit_hal_watchdog_configure(uint32_t timeout_ms, bool enable) {
     return true;
 }
 
-void iotkit_hal_watchdog_feed(void) {
+void devicesdk_hal_watchdog_feed(void) {
     if (wdt_subscribed) {
         esp_err_t ret = esp_task_wdt_reset();
         if (ret != ESP_OK) {
@@ -512,7 +512,7 @@ void iotkit_hal_watchdog_feed(void) {
 
 // === SPI ===
 
-bool iotkit_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) {
+bool devicesdk_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) {
     // SPI3_HOST is preferred (SPI2 may be used by LED strip on SPI-backend chips),
     // but the RISC-V C-series only exposes SPI2 — on those we fall back to SPI2.
     // On C61 this conflicts with an addressable LED; on C3 the LED uses RMT, so SPI2 is free.
@@ -573,7 +573,7 @@ bool iotkit_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, ui
     return true;
 }
 
-spi_transfer_result_t iotkit_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) {
+spi_transfer_result_t devicesdk_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) {
     spi_transfer_result_t result = {0};
 
     if (bus > 1 || !spi_device_handles[bus]) {
@@ -608,7 +608,7 @@ spi_transfer_result_t iotkit_hal_spi_transfer(uint8_t bus, const uint8_t *data, 
     return result;
 }
 
-bool iotkit_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) {
+bool devicesdk_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) {
     if (bus > 1 || !spi_device_handles[bus]) {
         ESP_LOGE(TAG, "SPI bus %d not configured", bus);
         return false;
@@ -633,7 +633,7 @@ bool iotkit_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) {
     return true;
 }
 
-spi_transfer_result_t iotkit_hal_spi_read(uint8_t bus, size_t len) {
+spi_transfer_result_t devicesdk_hal_spi_read(uint8_t bus, size_t len) {
     spi_transfer_result_t result = {0};
 
     if (bus > 1 || !spi_device_handles[bus]) {
@@ -670,7 +670,7 @@ spi_transfer_result_t iotkit_hal_spi_read(uint8_t bus, size_t len) {
 
 // === UART ===
 
-bool iotkit_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) {
+bool devicesdk_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) {
     if (port == 0) {
         ESP_LOGE(TAG, "UART port 0 is reserved for debug console");
         return false;
@@ -741,7 +741,7 @@ bool iotkit_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uin
     return true;
 }
 
-bool iotkit_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) {
+bool devicesdk_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) {
     if (port == 0 || port > 2 || !uart_port_initialized[port]) {
         ESP_LOGE(TAG, "UART port %d not configured", port);
         return false;
@@ -755,7 +755,7 @@ bool iotkit_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) {
     return true;
 }
 
-uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) {
+uart_read_result_t devicesdk_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) {
     uart_read_result_t result = {0};
 
     if (port == 0 || port > 2 || !uart_port_initialized[port]) {

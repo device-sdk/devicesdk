@@ -83,9 +83,9 @@ jobs:
       - name: Build firmware artifacts
         run: |
           rm -rf dist && mkdir -p dist
-          IOTKIT_BOARD=pico_w make build
+          DEVICESDK_BOARD=pico_w make build
           cp build/devicesdk-client.uf2 dist/devicesdk-pico-w-client.uf2
-          IOTKIT_BOARD=pico2_w make build
+          DEVICESDK_BOARD=pico2_w make build
           cp build/devicesdk-client.uf2 dist/devicesdk-pico2-w-client.uf2
 
       - name: Upload build artifacts

@@ -44,15 +44,15 @@ void hal_blink_led(uint32_t duration_ms);
 
 ## ESP32 HAL (`firmware/esp32/main/hal.c`)
 
-The ESP32 HAL mirrors the Pico HAL but uses ESP-IDF APIs. Function names are prefixed `iotkit_hal_` instead of `hal_`.
+The ESP32 HAL mirrors the Pico HAL but uses ESP-IDF APIs. Function names are prefixed `devicesdk_hal_` instead of `hal_`.
 
 ### Addressable LED Support (WS2812)
 
 Some ESP32 dev boards (e.g. ESP32-C61-DevKitC-1) use addressable RGB LEDs instead of simple GPIOs. This is handled via the `espressif/led_strip` component.
 
 **Key Kconfig options** (`firmware/esp32/main/Kconfig.projbuild`):
-- `CONFIG_IOTKIT_LED_PIN` — GPIO pin for the onboard LED (default 8 for C61)
-- `CONFIG_IOTKIT_LED_IS_ADDRESSABLE` — enables led_strip driver (default `y` for `IDF_TARGET_ESP32C61`)
+- `CONFIG_DEVICESDK_LED_PIN` — GPIO pin for the onboard LED (default 8 for C61)
+- `CONFIG_DEVICESDK_LED_IS_ADDRESSABLE` — enables led_strip driver (default `y` for `IDF_TARGET_ESP32C61`)
 
 **SOC peripheral availability** — check `build/config/sdkconfig.h`:
 - ESP32-C61: Has `CONFIG_SOC_GPSPI_SUPPORTED` but **NOT** `CONFIG_SOC_RMT_SUPPORTED`
@@ -61,7 +61,7 @@ Some ESP32 dev boards (e.g. ESP32-C61-DevKitC-1) use addressable RGB LEDs instea
 
 **Pattern for intercepting LED pin in `set_gpio`**:
 ```c
-#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE
+#ifdef CONFIG_DEVICESDK_LED_IS_ADDRESSABLE
     if ((pin == ONBOARD_LED_PIN || pin == 99) && led_strip_handle) {
         if (state == GPIO_STATE_HIGH) {
             led_strip_set_pixel(led_strip_handle, 0, 16, 16, 16);  // dim white
@@ -82,7 +82,7 @@ source ~/esp/esp-idf/export.sh
 idf.py build
 # Flash (auto-reset works on most boards):
 python -m esptool --chip esp32c61 -b 460800 --before default_reset --after hard_reset \
-  write_flash 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/iotkit-client.bin
+  write_flash 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/devicesdk-client.bin
 ```
 
 For local dev, edit `config.h` with real credentials, build from source, flash, then restore placeholders. The API's binary-patching approach invalidates ESP-IDF checksums — see TROUBLESHOOT.md.
@@ -252,6 +252,6 @@ bool configure_i2c(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uint32_t freq)
 - [ ] CMake changes don't break graceful skip when toolchain is missing
 - [ ] I2C pin combinations validated against RP2040 pin tables
 - [ ] ESP32: Check `CONFIG_SOC_RMT_SUPPORTED` before using RMT APIs (C61 lacks RMT)
-- [ ] ESP32: Addressable LED code guarded with `#ifdef CONFIG_IOTKIT_LED_IS_ADDRESSABLE`
+- [ ] ESP32: Addressable LED code guarded with `#ifdef CONFIG_DEVICESDK_LED_IS_ADDRESSABLE`
 - [ ] ESP32: `set_gpio` intercepts both the LED pin and virtual pin 99 for addressable LEDs
 - [ ] ESP32: `config.h` restored to placeholders after local dev flashing

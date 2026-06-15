@@ -14,7 +14,7 @@
 
 static const char *TAG = "Worker";
 
-// External queues (created in iotkit_main.c)
+// External queues (created in devicesdk_main.c)
 extern QueueHandle_t cmd_queue;
 extern QueueHandle_t response_queue;
 extern QueueHandle_t gpio_notification_queue;
@@ -155,7 +155,7 @@ static void poll_gpio_pins(void) {
         if (!s_monitored_pins[i].active) continue;
 
         uint8_t pin = s_monitored_pins[i].pin;
-        bool current_state = iotkit_hal_get_gpio_digital(pin);
+        bool current_state = devicesdk_hal_get_gpio_digital(pin);
 
         if (!s_monitored_pins[i].has_initial_reading) {
             s_monitored_pins[i].last_state = current_state;
@@ -213,14 +213,14 @@ static void handle_gpio_set(const worker_command_t *cmd, worker_response_t *resp
     uint8_t pin = cmd->payload.gpio.pin;
     gpio_state_t state = (cmd->payload.gpio.state == WORKER_GPIO_HIGH)
                           ? GPIO_STATE_HIGH : GPIO_STATE_LOW;
-    iotkit_hal_set_gpio(pin, state);
+    devicesdk_hal_set_gpio(pin, state);
     resp->status = RESPONSE_SUCCESS;
     resp->data.gpio.pin = pin;
 }
 
 static void handle_gpio_get_digital(const worker_command_t *cmd, worker_response_t *resp) {
     uint8_t pin = cmd->payload.gpio.pin;
-    bool value = iotkit_hal_get_gpio_digital(pin);
+    bool value = devicesdk_hal_get_gpio_digital(pin);
     resp->status = RESPONSE_SUCCESS;
     resp->data.gpio.pin = pin;
     resp->data.gpio.digital_value = value;
@@ -229,7 +229,7 @@ static void handle_gpio_get_digital(const worker_command_t *cmd, worker_response
 
 static void handle_gpio_get_analog(const worker_command_t *cmd, worker_response_t *resp) {
     uint8_t pin = cmd->payload.gpio.pin;
-    uint16_t value = iotkit_hal_get_gpio_analog(pin);
+    uint16_t value = devicesdk_hal_get_gpio_analog(pin);
     resp->status = RESPONSE_SUCCESS;
     resp->data.gpio.pin = pin;
     resp->data.gpio.analog_value = value;
@@ -244,7 +244,7 @@ static void handle_gpio_configure_input(const worker_command_t *cmd, worker_resp
         case WORKER_PULL_DOWN: pull = GPIO_PULL_DOWN; break;
         default: pull = GPIO_PULL_NONE; break;
     }
-    iotkit_hal_configure_gpio_input(pin, pull);
+    devicesdk_hal_configure_gpio_input(pin, pull);
 
     // Add to monitored pins list
     bool found = false;
@@ -271,7 +271,7 @@ static void handle_pwm_set(const worker_command_t *cmd, worker_response_t *resp)
     uint8_t pin = cmd->payload.pwm.pin;
     uint32_t freq = cmd->payload.pwm.frequency;
     float duty = cmd->payload.pwm.duty_cycle;
-    iotkit_hal_set_pwm(pin, freq, duty);
+    devicesdk_hal_set_pwm(pin, freq, duty);
     resp->status = RESPONSE_SUCCESS;
 }
 
@@ -286,7 +286,7 @@ static void handle_i2c_configure(const worker_command_t *cmd, worker_response_t 
         return;
     }
 
-    if (!iotkit_hal_i2c_configure(bus, sda, scl, freq)) {
+    if (!devicesdk_hal_i2c_configure(bus, sda, scl, freq)) {
         set_error(resp, "Failed to configure I2C");
         return;
     }
@@ -306,7 +306,7 @@ static void handle_i2c_scan(const worker_command_t *cmd, worker_response_t *resp
         return;
     }
 
-    i2c_scan_result_t result = iotkit_hal_i2c_scan(bus);
+    i2c_scan_result_t result = devicesdk_hal_i2c_scan(bus);
     resp->status = RESPONSE_SUCCESS;
     resp->data.i2c_scan.bus = bus;
     resp->data.i2c_scan.count = result.count;
@@ -324,7 +324,7 @@ static void handle_i2c_write(const worker_command_t *cmd, worker_response_t *res
         return;
     }
 
-    if (!iotkit_hal_i2c_write(bus, addr, data, len)) {
+    if (!devicesdk_hal_i2c_write(bus, addr, data, len)) {
         set_error(resp, "I2C write failed");
         return;
     }
@@ -348,7 +348,7 @@ static void handle_i2c_read(const worker_command_t *cmd, worker_response_t *resp
         return;
     }
 
-    int result = iotkit_hal_i2c_read(bus, addr, resp->data.i2c_read.data, len, reg);
+    int result = devicesdk_hal_i2c_read(bus, addr, resp->data.i2c_read.data, len, reg);
     if (result < 0) {
         set_error(resp, "I2C read failed");
         return;
@@ -362,7 +362,7 @@ static void handle_i2c_read(const worker_command_t *cmd, worker_response_t *resp
 
 static void handle_get_temperature(const worker_command_t *cmd, worker_response_t *resp) {
     (void)cmd;
-    float celsius = iotkit_hal_get_temperature();
+    float celsius = devicesdk_hal_get_temperature();
     if (celsius <= -999.0f) {
         set_error(resp, "Failed to read temperature");
         return;
@@ -375,7 +375,7 @@ static void handle_watchdog_configure(const worker_command_t *cmd, worker_respon
     uint32_t timeout_ms = cmd->payload.watchdog_configure.timeout_ms;
     bool enable = cmd->payload.watchdog_configure.enable;
 
-    if (!iotkit_hal_watchdog_configure(timeout_ms, enable)) {
+    if (!devicesdk_hal_watchdog_configure(timeout_ms, enable)) {
         set_error(resp, "Failed to configure watchdog");
         return;
     }
@@ -384,7 +384,7 @@ static void handle_watchdog_configure(const worker_command_t *cmd, worker_respon
 
 static void handle_watchdog_feed(const worker_command_t *cmd, worker_response_t *resp) {
     (void)cmd;
-    iotkit_hal_watchdog_feed();
+    devicesdk_hal_watchdog_feed();
     resp->status = RESPONSE_SUCCESS;
 }
 
@@ -397,7 +397,7 @@ static void handle_spi_configure(const worker_command_t *cmd, worker_response_t 
     uint32_t freq = cmd->payload.spi_configure.frequency;
     uint8_t mode = cmd->payload.spi_configure.mode;
 
-    if (!iotkit_hal_spi_configure(bus, clk, mosi, miso, cs, freq, mode)) {
+    if (!devicesdk_hal_spi_configure(bus, clk, mosi, miso, cs, freq, mode)) {
         set_error(resp, "Failed to configure SPI");
         return;
     }
@@ -409,7 +409,7 @@ static void handle_spi_transfer(const worker_command_t *cmd, worker_response_t *
     const uint8_t *data = cmd->payload.spi_data.data;
     size_t len = cmd->payload.spi_data.data_len;
 
-    spi_transfer_result_t result = iotkit_hal_spi_transfer(bus, data, len);
+    spi_transfer_result_t result = devicesdk_hal_spi_transfer(bus, data, len);
     if (result.len == 0) {
         set_error(resp, "SPI transfer failed");
         return;
@@ -424,7 +424,7 @@ static void handle_spi_write(const worker_command_t *cmd, worker_response_t *res
     const uint8_t *data = cmd->payload.spi_data.data;
     size_t len = cmd->payload.spi_data.data_len;
 
-    if (!iotkit_hal_spi_write(bus, data, len)) {
+    if (!devicesdk_hal_spi_write(bus, data, len)) {
         set_error(resp, "SPI write failed");
         return;
     }
@@ -440,7 +440,7 @@ static void handle_spi_read(const worker_command_t *cmd, worker_response_t *resp
         return;
     }
 
-    spi_transfer_result_t result = iotkit_hal_spi_read(bus, len);
+    spi_transfer_result_t result = devicesdk_hal_spi_read(bus, len);
     if (result.len == 0) {
         set_error(resp, "SPI read failed");
         return;
@@ -459,7 +459,7 @@ static void handle_uart_configure(const worker_command_t *cmd, worker_response_t
     uint8_t stop_bits = cmd->payload.uart_configure.stop_bits;
     uint8_t parity = cmd->payload.uart_configure.parity;
 
-    if (!iotkit_hal_uart_configure(port, tx, rx, baud, data_bits, stop_bits, parity)) {
+    if (!devicesdk_hal_uart_configure(port, tx, rx, baud, data_bits, stop_bits, parity)) {
         set_error(resp, "Failed to configure UART");
         return;
     }
@@ -471,7 +471,7 @@ static void handle_uart_write(const worker_command_t *cmd, worker_response_t *re
     const uint8_t *data = cmd->payload.uart_write.data;
     size_t len = cmd->payload.uart_write.data_len;
 
-    if (!iotkit_hal_uart_write(port, data, len)) {
+    if (!devicesdk_hal_uart_write(port, data, len)) {
         set_error(resp, "UART write failed");
         return;
     }
@@ -488,7 +488,7 @@ static void handle_uart_read(const worker_command_t *cmd, worker_response_t *res
         return;
     }
 
-    uart_read_result_t result = iotkit_hal_uart_read(port, bytes_to_read, timeout_ms);
+    uart_read_result_t result = devicesdk_hal_uart_read(port, bytes_to_read, timeout_ms);
     resp->status = RESPONSE_SUCCESS;
     memcpy(resp->data.uart_read.data, result.data, result.len);
     resp->data.uart_read.data_len = result.len;

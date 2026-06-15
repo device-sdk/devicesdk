@@ -4,7 +4,7 @@
 	"private": true,
 	"scripts": {
 		"build": "command -v cmake >/dev/null 2>&1 && make build || echo 'Skipping Pico build (cmake not found)'",
-		"build:all": "rm -rf dist && mkdir -p dist && IOTKIT_BOARD=pico_w make build && cp build/devicesdk-client.uf2 dist/devicesdk-pico-w-client.uf2 && IOTKIT_BOARD=pico2_w make build && cp build/devicesdk-client.uf2 dist/devicesdk-pico2-w-client.uf2",
+		"build:all": "rm -rf dist && mkdir -p dist && DEVICESDK_BOARD=pico_w make build && cp build/devicesdk-client.uf2 dist/devicesdk-pico-w-client.uf2 && DEVICESDK_BOARD=pico2_w make build && cp build/devicesdk-client.uf2 dist/devicesdk-pico2-w-client.uf2",
 		"flash": "make flash",
 		"build-and-flash": "make build-and-flash",
 		"test": "command -v cmake >/dev/null 2>&1 && (cd test && cmake -B build && cmake --build build && ./build/run_tests) || echo 'Skipping Pico host tests (cmake not found)'",

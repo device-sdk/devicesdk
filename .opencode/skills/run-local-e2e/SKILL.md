@@ -123,7 +123,7 @@ echo "DEVICESDK_TOKEN=$TOKEN"
 ```
 
 Then `export DEVICESDK_TOKEN=...` and run `devicesdk` commands — also use the
-same value for `IOTKIT_API_TOKEN` in firmware `config.h`.
+same value for `DEVICESDK_API_TOKEN` in firmware `config.h`.
 
 ## Step 4 — Mint API token for firmware
 
@@ -165,10 +165,10 @@ build from source for local dev.
 ### 6a. Edit `firmware/esp32/main/config.h`
 
 ```c
-#define IOTKIT_WIFI_SSID     "Nau"               // 2.4GHz SSID — ESP32-C3 has no 5GHz radio
-#define IOTKIT_WIFI_PASSWORD "<wifi-password>"
-#define IOTKIT_API_TOKEN     "<32-hex from step 4>"
-#define IOTKIT_API_HOST      "192.168.1.238:8080"  // <lan-ip>:<port>
+#define DEVICESDK_WIFI_SSID     "Nau"               // 2.4GHz SSID — ESP32-C3 has no 5GHz radio
+#define DEVICESDK_WIFI_PASSWORD "<wifi-password>"
+#define DEVICESDK_API_TOKEN     "<32-hex from step 4>"
+#define DEVICESDK_API_HOST      "192.168.1.238:8080"  // <lan-ip>:<port>
 #define DEVICESDK_PROJECT_ID "dummy"             // SLUG, matches devicesdk.ts
 #define DEVICESDK_DEVICE_ID  "device"            // SLUG, matches devicesdk.ts
 ```
@@ -177,9 +177,9 @@ These are placeholders in git — **always `git restore firmware/esp32/main/conf
 
 ### 6b. ws/wss heuristic — required for local dev
 
-`firmware/esp32/main/iotkit_main.c` builds the WS URI. Production hostnames have
+`firmware/esp32/main/devicesdk_main.c` builds the WS URI. Production hostnames have
 no port and use `wss://`; local dev has `host:port` and needs `ws://`. The fix
-at `iotkit_main.c`:
+at `devicesdk_main.c`:
 
 ```c
 const bool use_tls = (strchr(api_host, ':') == NULL);
@@ -192,7 +192,7 @@ snprintf(uri, sizeof(uri), "%s://%s%s", use_tls ? "wss" : "ws", api_host, ws_pat
 If this isn't in the tree, every local-dev flash fails at the TCP-handshake
 stage with `ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST` — even though the "TLS"
 label suggests a cert problem, the TLS layer is just the unified transport
-abstraction. Confirm by `grep -n 'use_tls' firmware/esp32/main/iotkit_main.c`
+abstraction. Confirm by `grep -n 'use_tls' firmware/esp32/main/devicesdk_main.c`
 before building. If absent, restore from PR history or apply the diff above
 (and add `#include <stdbool.h>` to the file's includes).
 
@@ -228,7 +228,7 @@ python -m esptool --chip esp32c3 --port /dev/ttyACM0 -b 460800 \
   write_flash --flash_mode dio --flash_size 2MB --flash_freq 80m \
   0x0     build/bootloader/bootloader.bin \
   0x8000  build/partition_table/partition-table.bin \
-  0x10000 build/iotkit-client.bin
+  0x10000 build/devicesdk-client.bin
 ```
 
 ESP32-C3 and C61 both use bootloader offset `0x0` (per `AGENTS.md` C3/C61
@@ -269,7 +269,7 @@ Three signals, in order of cost:
 | Login times out, no approval page | CLI auth not configured or wrong API URL | Check `DEVICESDK_API_URL`, server logs, and `apps/server/src/config.ts` |
 | `esp-tls: select() timeout` on serial despite WS-not-WSS | host firewall blocks `:8080` | `sudo ufw allow from <lan>/24 to any port 8080 proto tcp` |
 | `connect() error: Host is unreachable` early after boot | Wifi not yet connected (normal during boot) — only worry if it persists past `got ip:` | Wait one reconnect cycle (10 s) |
-| `ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST` after WiFi up | Firmware compiled before the ws/wss heuristic; binary still uses `wss://` against a port-bearing host | Verify the heuristic is in `iotkit_main.c`, rebuild, reflash |
+| `ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST` after WiFi up | Firmware compiled before the ws/wss heuristic; binary still uses `wss://` against a port-bearing host | Verify the heuristic is in `devicesdk_main.c`, rebuild, reflash |
 | CMake "C compiler is broken" | Stale Docker artifacts under `firmware/esp32/build/` owned by root | `mv build build.stale-docker && idf.py build` |
 | `404 Not Found` on `GET /v1/projects/<slug>` after deploy | Trying to query before `pnpm local:deploy` ran or auto-create failed | Look for `Created project "<slug>"` in deploy output; otherwise CLI access token may be expired |
 | Device IP and laptop IP on different `/24` | Router has separate subnets for 2.4G/5G SSIDs | Connect laptop to the same SSID as the device, or have user reconfigure router |
@@ -284,7 +284,7 @@ Before reporting "done":
 2. Stop background dev servers. Leaving them running is annoying but not
    harmful.
 3. Decide which of the helper edits should persist:
-   - **Keep**: `firmware/esp32/main/iotkit_main.c` ws/wss heuristic (makes local dev work without binary patching).
+   - **Keep**: `firmware/esp32/main/devicesdk_main.c` ws/wss heuristic (makes local dev work without binary patching).
    - **Decide per task**: `examples/basic/devicesdk.ts` `deviceType` — only change if the example's target board actually changed.
 4. The ufw rule from Step 2 is narrow (LAN-only, single port) and persists.
    Document it if onboarding others.
@@ -297,7 +297,7 @@ Before reporting "done":
 | CLI credential storage | `packages/cli/src/credentials.ts` (file: `~/.devicesdk/credentials.json`, env: `DEVICESDK_TOKEN`) |
 | API token mint | `apps/server/src/endpoints/tokens/createApiToken.ts` |
 | Deploy auto-create-project | `packages/cli/src/commands/deploy.ts` |
-| Firmware WS URI build | `firmware/esp32/main/iotkit_main.c` |
+| Firmware WS URI build | `firmware/esp32/main/devicesdk_main.c` |
 | Firmware credential placeholders | `firmware/esp32/main/config.h` |
 | Server bind address | `apps/server/src/config.ts` |
 | Local convenience scripts | root `package.json`: `local`, `local:login`, `local:deploy`, `local:flash` |

@@ -7,7 +7,7 @@ These items tighten the trust boundary between users, devices, and the network.
 **Files:**
 - `apps/server/src/endpoints/devices/wsRoutes.ts`
 - `apps/server/src/foundation/auth.ts`
-- `firmware/esp32/main/iotkit_main.c`
+- `firmware/esp32/main/devicesdk_main.c`
 - `firmware/pico/main.cpp`
 
 Device WebSocket authentication currently uses a user-scoped API token. Any valid token for the user can connect as any of that user’s devices and can call any REST endpoint (download firmware, read env vars, send commands, etc.). A single compromised device equals full account compromise.

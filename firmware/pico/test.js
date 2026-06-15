@@ -62,8 +62,8 @@ function padToLen(str, len) {
   return out.toString("ascii");
 }
 
-const input = "build/iotkit-client.uf2";      // source UF2
-const output = "iotkit-client.patched.uf2"; // destination UF2
+const input = "build/devicesdk-client.uf2";      // source UF2
+const output = "devicesdk-client.patched.uf2"; // destination UF2
 
 const buf = readFileSync(input);
 

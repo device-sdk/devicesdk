@@ -149,7 +149,7 @@ jobs:
               -o "dist/$target-client.bin" \
               "$bootloader_offset" build/bootloader/bootloader.bin \
               0x8000 build/partition_table/partition-table.bin \
-              0x10000 build/iotkit-client.bin
+              0x10000 build/devicesdk-client.bin
             echo "::endgroup::"
           }
 

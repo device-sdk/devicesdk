@@ -140,22 +140,22 @@ describe("getWatchUrl", () => {
 		}
 	});
 
-	it("derives wss:// from https:// API host", () => {
+	it("derives wss:// from https:// API host", async () => {
 		process.env.DEVICESDK_API_URL = "https://devicesdk.example.com";
-		const url = getWatchUrl("proj", "dev");
+		const url = await getWatchUrl("proj", "dev");
 		expect(url).toMatch(/^wss:\/\/devicesdk\.example\.com\//);
 		expect(url).toContain("/v1/projects/proj/devices/dev/watch");
 	});
 
-	it("derives ws:// from http:// API host (local dev)", () => {
+	it("derives ws:// from http:// API host (local dev)", async () => {
 		process.env.DEVICESDK_API_URL = "http://localhost:8787";
-		const url = getWatchUrl("proj", "dev");
+		const url = await getWatchUrl("proj", "dev");
 		expect(url).toMatch(/^ws:\/\/localhost:8787\//);
 	});
 
-	it("appends backfillLimit and backfillLevel as query params", () => {
+	it("appends backfillLimit and backfillLevel as query params", async () => {
 		process.env.DEVICESDK_API_URL = "http://localhost:8080";
-		const url = getWatchUrl("proj", "dev", {
+		const url = await getWatchUrl("proj", "dev", {
 			backfillLimit: 25,
 			backfillLevel: "warn",
 		});

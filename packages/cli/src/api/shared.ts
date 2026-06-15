@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { discoverMdnsHost } from "./mdnsDiscovery.js";
 
 let verboseLogging = false;
 
@@ -10,10 +11,12 @@ export function setVerbose(verbose: boolean): void {
 
 // DeviceSDK is self-hosted: there is no default cloud endpoint. The server
 // URL comes from (in precedence order) the DEVICESDK_API_URL env var, an
-// explicit `--host` flag (setApiUrl), or the host stored in
-// ~/.devicesdk/credentials.json by `devicesdk login --host <url>`.
+// explicit `--host` flag (setApiUrl), the host stored in
+// ~/.devicesdk/credentials.json by `devicesdk login --host <url>`, or — as a
+// last resort — an mDNS query for `<DEVICESDK_MDNS_HOSTNAME>.local`.
 let apiUrlOverride: string | null = null;
 let storedHostCache: string | null | undefined;
+let mdnsHostCache: string | null | undefined;
 
 /** Normalizes a user-supplied host: adds http:// when no scheme is given. */
 export function normalizeHost(host: string): string {
@@ -39,13 +42,26 @@ function readStoredHost(): string | null {
 	}
 }
 
-export function getApiUrl(): string {
+export async function getApiUrl(): Promise<string> {
 	if (process.env.DEVICESDK_API_URL) {
 		return process.env.DEVICESDK_API_URL.replace(/\/+$/, "");
 	}
 	if (apiUrlOverride) return apiUrlOverride;
 	if (storedHostCache === undefined) storedHostCache = readStoredHost();
 	if (storedHostCache) return storedHostCache;
+
+	if (mdnsHostCache === undefined) {
+		mdnsHostCache = await discoverMdnsHost();
+		if (mdnsHostCache) {
+			console.error(
+				`✓ Discovered DeviceSDK server at ${mdnsHostCache} via mDNS.`,
+			);
+			console.error(
+				"  Use `devicesdk login --host <url>` to pin a different server.\n",
+			);
+		}
+	}
+	if (mdnsHostCache) return mdnsHostCache;
 
 	console.error("✗ Error: No DeviceSDK server configured.\n");
 	console.error(
@@ -207,7 +223,7 @@ export async function request<T>(
 	token?: string,
 	unwrapResult: boolean = true,
 ): Promise<T> {
-	const url = `${getApiUrl()}${endpoint}`;
+	const url = `${await getApiUrl()}${endpoint}`;
 	const method = options.method || "GET";
 	const headers: Record<string, string> = {
 		"Content-Type": "application/json",

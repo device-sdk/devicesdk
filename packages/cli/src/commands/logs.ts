@@ -112,10 +112,10 @@ function finish(state: SessionState, result: SessionResult): void {
  * exponential backoff (1 s → 30 s) up to MAX_RECONNECT_ATTEMPTS times before
  * finishing non-zero.
  */
-function openSession(state: SessionState): void {
+async function openSession(state: SessionState): Promise<void> {
 	if (state.finished) return;
 
-	const url = getWatchUrl(state.projectId, state.deviceId, {
+	const url = await getWatchUrl(state.projectId, state.deviceId, {
 		backfillLimit: state.lines,
 		backfillLevel: state.level,
 	});
@@ -245,7 +245,7 @@ function openSession(state: SessionState): void {
 
 		const delay = state.reconnectDelay;
 		state.reconnectDelay = Math.min(state.reconnectDelay * 2, RECONNECT_MAX_MS);
-		setTimeout(() => openSession(state), delay);
+		setTimeout(() => void openSession(state), delay);
 	};
 
 	ws.on("close", handleClose);
@@ -328,7 +328,12 @@ export default async function logs(
 			finish(state, { exitCode: EXIT.SUCCESS });
 		});
 
-		openSession(state);
+		openSession(state).catch((err) =>
+			finish(state, {
+				exitCode: EXIT.GENERIC,
+				reason: String(err),
+			}),
+		);
 	});
 
 	if (result.reason) {

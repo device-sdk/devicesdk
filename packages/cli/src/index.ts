@@ -52,6 +52,10 @@ Examples:
   $ devicesdk login --host http://raspberrypi.local:8080
   $ devicesdk login
 
+With no --host, the CLI will try to discover a server on the LAN via mDNS
+(default: devicesdk.local on port 8080). Set DEVICESDK_MDNS_HOSTNAME and
+DEVICESDK_MDNS_PORT to override the defaults.
+
 More: https://devicesdk.com/docs/cli/login/`,
 	)
 	.action(login);

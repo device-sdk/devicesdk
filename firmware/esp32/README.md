@@ -9,7 +9,7 @@ real time.
 
 On a LAN the connection is plain `ws://<server>:<port>`; for a bare hostname it uses TLS on
 443 (`wss://`). The firmware picks plain WS whenever the configured host contains an
-explicit `:port` — see [`main/iotkit_main.c`](main/iotkit_main.c) and the root `CLAUDE.md`
+explicit `:port` — see [`main/devicesdk_main.c`](main/devicesdk_main.c) and the root `CLAUDE.md`
 for the heuristic.
 
 ## You normally don't build this
@@ -49,10 +49,10 @@ idf.py -p /dev/ttyUSB0 flash monitor
 > The Wi-Fi/token/host/project/device values in [`main/config.h`](main/config.h) are
 > **placeholders**. They are patched per device at `devicesdk flash` time — do not commit
 > real credentials here. The onboard LED pin/type is configured via
-> `idf.py menuconfig` → *IoTKit Configuration* (defaults are set per target in
+> `idf.py menuconfig` → *DeviceSDK Configuration* (defaults are set per target in
 > `sdkconfig.defaults.<target>`).
 
-The build produces `build/iotkit-client.bin`. CI repackages bootloader + partition table +
+The build produces `build/devicesdk-client.bin`. CI repackages bootloader + partition table +
 app into the per-target `<target>-client.bin` artifacts the CLI flashes (bootloader offset
 `0x1000` on ESP32, `0x0` on the RISC-V C3/C61; app at `0x10000`).
 

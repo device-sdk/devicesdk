@@ -24,7 +24,7 @@
 #include "shared_buffers.h"
 #include "worker_task.h"
 
-static const char *TAG = "IoTKit";
+static const char *TAG = "DeviceSDK";
 
 // Strip null padding from binary-patched credentials (matching Pico main.cpp:186-194)
 static void sanitize_credential(const char* src, size_t src_len, char* dest, size_t dest_size) {
@@ -38,10 +38,10 @@ static void sanitize_credential(const char* src, size_t src_len, char* dest, siz
 }
 
 // Raw credential arrays (may contain null padding from binary patching)
-static const char RAW_SSID[] = IOTKIT_WIFI_SSID;
-static const char RAW_PASSWORD[] = IOTKIT_WIFI_PASSWORD;
-static const char RAW_TOKEN[] = IOTKIT_API_TOKEN;
-static const char RAW_HOST[] = IOTKIT_API_HOST;
+static const char RAW_SSID[] = DEVICESDK_WIFI_SSID;
+static const char RAW_PASSWORD[] = DEVICESDK_WIFI_PASSWORD;
+static const char RAW_TOKEN[] = DEVICESDK_API_TOKEN;
+static const char RAW_HOST[] = DEVICESDK_API_HOST;
 static const char RAW_PROJECT_ID[] = DEVICESDK_PROJECT_ID;
 static const char RAW_DEVICE_ID[] = DEVICESDK_DEVICE_ID;
 
@@ -291,7 +291,7 @@ static void process_worker_responses(void) {
         // Handle reboot after sending response
         if (resp.original_cmd == CMD_REBOOT && resp.status == RESPONSE_SUCCESS) {
             vTaskDelay(100 / portTICK_PERIOD_MS);
-            iotkit_hal_reboot();
+            devicesdk_hal_reboot();
         }
     }
 }
@@ -381,7 +381,7 @@ static void wifi_init_sta(void) {
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "connected to ap SSID:%s", wifi_ssid);
         display_boot_text("WiFi");
-        iotkit_hal_blink_led(2);
+        devicesdk_hal_blink_led(2);
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s", wifi_ssid);
     } else {
@@ -399,7 +399,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             // The cloud sends the first display_update right after the
             // device_connected handshake below, which overwrites this.
             display_boot_text("Connected");
-            iotkit_hal_blink_led(3);
+            devicesdk_hal_blink_led(3);
             {
                 const char *msg = "{\"type\":\"device_connected\"}";
                 esp_websocket_client_send_text(ws_client, msg, strlen(msg), portMAX_DELAY);
@@ -537,7 +537,7 @@ static void websocket_task(void *pvParameters) {
         // Ping keepalive
         if (ws_connected) {
             uint32_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
-            if (now - last_ping_time > IOTKIT_PING_INTERVAL_MS) {
+            if (now - last_ping_time > DEVICESDK_PING_INTERVAL_MS) {
                 const char *ping_msg = "{\"type\":\"ping\"}";
                 esp_websocket_client_send_text(ws_client, ping_msg, strlen(ping_msg), portMAX_DELAY);
                 last_ping_time = now;
@@ -559,7 +559,7 @@ static void websocket_task(void *pvParameters) {
 }
 
 void app_main(void) {
-    ESP_LOGI(TAG, "Starting IoTKit Client");
+    ESP_LOGI(TAG, "Starting DeviceSDK Client");
 
     // Sanitize binary-patched credentials (strip null padding)
     sanitize_credential(RAW_SSID, sizeof(RAW_SSID), wifi_ssid, sizeof(wifi_ssid));
@@ -576,12 +576,12 @@ void app_main(void) {
     }
     ESP_ERROR_CHECK(ret);
 
-    iotkit_hal_init();
+    devicesdk_hal_init();
     // Probe + init the on-board OLED (FN4 / 0.42" boards). NACK on boards
     // without one (DevKitM-1) → boot text becomes a no-op for the rest of boot.
     display_boot_init();
     display_boot_text("Booting");
-    iotkit_hal_blink_led(1);
+    devicesdk_hal_blink_led(1);
 
     // Initialize inter-task queues
     cmd_queue = xQueueCreate(8, sizeof(worker_command_t));

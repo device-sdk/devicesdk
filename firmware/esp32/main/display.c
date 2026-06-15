@@ -28,17 +28,17 @@
 
 static bool send_cmd(uint8_t bus, uint8_t addr, uint8_t cmd) {
     uint8_t data[2] = { CONTROL_BYTE_CMD, cmd };
-    return iotkit_hal_i2c_write(bus, addr, data, 2);
+    return devicesdk_hal_i2c_write(bus, addr, data, 2);
 }
 
 static bool send_cmd2(uint8_t bus, uint8_t addr, uint8_t cmd, uint8_t arg) {
     uint8_t data[3] = { CONTROL_BYTE_CMD, cmd, arg };
-    return iotkit_hal_i2c_write(bus, addr, data, 3);
+    return devicesdk_hal_i2c_write(bus, addr, data, 3);
 }
 
 static bool send_cmd3(uint8_t bus, uint8_t addr, uint8_t cmd, uint8_t arg1, uint8_t arg2) {
     uint8_t data[4] = { CONTROL_BYTE_CMD, cmd, arg1, arg2 };
-    return iotkit_hal_i2c_write(bus, addr, data, 4);
+    return devicesdk_hal_i2c_write(bus, addr, data, 4);
 }
 
 bool display_init_ssd1306(uint8_t bus, uint8_t addr, uint8_t width, uint8_t height) {
@@ -107,7 +107,7 @@ bool display_write_fb_ssd1306(uint8_t bus, uint8_t addr, uint8_t width, uint8_t 
         chunk[0] = CONTROL_BYTE_DATA;
         memcpy(&chunk[1], &buffer[offset], to_send);
 
-        if (!iotkit_hal_i2c_write(bus, addr, chunk, to_send + 1)) {
+        if (!devicesdk_hal_i2c_write(bus, addr, chunk, to_send + 1)) {
             return false;
         }
         offset += to_send;
@@ -133,7 +133,7 @@ bool display_write_fb_sh1106(uint8_t bus, uint8_t addr, uint8_t width, uint8_t h
         page_data[0] = CONTROL_BYTE_DATA;
         memcpy(&page_data[1], &buffer[fb_page_offset], width);
 
-        if (!iotkit_hal_i2c_write(bus, addr, page_data, width + 1)) {
+        if (!devicesdk_hal_i2c_write(bus, addr, page_data, width + 1)) {
             return false;
         }
     }
@@ -176,10 +176,10 @@ static int boot_draw_char(uint8_t *fb, int x, int y, char c) {
 bool display_boot_init(void) {
     if (s_boot_display_ready) return true;
 
-    if (!iotkit_hal_i2c_configure(BOOT_DISPLAY_BUS, BOOT_DISPLAY_SDA, BOOT_DISPLAY_SCL, BOOT_DISPLAY_FREQ)) {
+    if (!devicesdk_hal_i2c_configure(BOOT_DISPLAY_BUS, BOOT_DISPLAY_SDA, BOOT_DISPLAY_SCL, BOOT_DISPLAY_FREQ)) {
         return false;
     }
-    if (!iotkit_hal_i2c_probe(BOOT_DISPLAY_BUS, BOOT_DISPLAY_ADDR)) {
+    if (!devicesdk_hal_i2c_probe(BOOT_DISPLAY_BUS, BOOT_DISPLAY_ADDR)) {
         // No OLED on this board (e.g. DevKitM-1) — silent skip.
         return false;
     }
@@ -197,13 +197,13 @@ bool display_boot_init(void) {
     {
         uint8_t cmd_set_col[]  = { CONTROL_BYTE_CMD, SSD1306_CMD_SET_COL_ADDR, 0, 127 };
         uint8_t cmd_set_page[] = { CONTROL_BYTE_CMD, SSD1306_CMD_SET_PAGE_ADDR, 0, BOOT_DISPLAY_PAGES - 1 };
-        iotkit_hal_i2c_write(BOOT_DISPLAY_BUS, BOOT_DISPLAY_ADDR, cmd_set_col, sizeof(cmd_set_col));
-        iotkit_hal_i2c_write(BOOT_DISPLAY_BUS, BOOT_DISPLAY_ADDR, cmd_set_page, sizeof(cmd_set_page));
+        devicesdk_hal_i2c_write(BOOT_DISPLAY_BUS, BOOT_DISPLAY_ADDR, cmd_set_col, sizeof(cmd_set_col));
+        devicesdk_hal_i2c_write(BOOT_DISPLAY_BUS, BOOT_DISPLAY_ADDR, cmd_set_page, sizeof(cmd_set_page));
     }
     size_t total = 128 * BOOT_DISPLAY_PAGES;
     while (total > 0) {
         size_t n = total > 32 ? 32 : total;
-        iotkit_hal_i2c_write(BOOT_DISPLAY_BUS, BOOT_DISPLAY_ADDR, zero_chunk, n + 1);
+        devicesdk_hal_i2c_write(BOOT_DISPLAY_BUS, BOOT_DISPLAY_ADDR, zero_chunk, n + 1);
         total -= n;
     }
     return true;

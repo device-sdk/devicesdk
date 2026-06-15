@@ -18,7 +18,7 @@ self-host pivot.
   `guides/home-assistant.md` (`defineConfig` import from `@devicesdk/cli`, repo
   URL), `cli/init.md` (documented the real `--no-git` flag, removed the
   non-existent `--name`), `cli/deploy.md` (removed the non-existent
-  `deploy --version`), `hardware/esp32-c61.md` (`iotkit-client.bin` →
+  `deploy --version`), `hardware/esp32-c61.md` (`devicesdk-client.bin` →
   `esp32c61-client.bin`), broken `github.com/device-sdk` org-root links, and a
   stray `</content></invoke>` artifact at the end of `resources/faq.md`. Trimmed
   the obsolete Cloudflare/Durable-Object/OAuth "Platform Roadmap" section from
@@ -36,7 +36,7 @@ self-host pivot.
 - **Package READMEs**: `@devicesdk/core` ("sandboxed serverless runtime" →
   in-process on the self-hosted server), `@devicesdk/cli` (`login` now needs
   `--host`), `@devicesdk/mcp` (`auth.json` → `credentials.json`).
-- **Firmware (`firmware/pico/README.md`)**: rewrote the stale "iotkit-client"
+- **Firmware (`firmware/pico/README.md`)**: rewrote the stale "devicesdk-client"
   README (cloud backend, port 8787, personal absolute paths) and scrubbed the
   committed Wi-Fi credentials / API tokens it documented. Docs only — no
   firmware behavior change.

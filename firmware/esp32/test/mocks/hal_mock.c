@@ -11,19 +11,19 @@ void hal_mock_reset(void) {
     g_hal_mock.i2c_read_return = 0;
 }
 
-void iotkit_hal_init(void) {
+void devicesdk_hal_init(void) {
     // No-op in tests
 }
 
-void iotkit_hal_reboot(void) {
+void devicesdk_hal_reboot(void) {
     g_hal_mock.reboot_called = true;
 }
 
-void iotkit_hal_blink_led(int count) {
+void devicesdk_hal_blink_led(int count) {
     (void)count;
 }
 
-void iotkit_hal_set_gpio(uint8_t pin, gpio_state_t state) {
+void devicesdk_hal_set_gpio(uint8_t pin, gpio_state_t state) {
     if (g_hal_mock.gpio_set_call_count < MAX_MOCK_CALLS) {
         int idx = g_hal_mock.gpio_set_call_count++;
         g_hal_mock.gpio_set_calls[idx].pin = pin;
@@ -31,17 +31,17 @@ void iotkit_hal_set_gpio(uint8_t pin, gpio_state_t state) {
     }
 }
 
-bool iotkit_hal_get_gpio_digital(uint8_t pin) {
+bool devicesdk_hal_get_gpio_digital(uint8_t pin) {
     (void)pin;
     return g_hal_mock.gpio_digital_return;
 }
 
-uint16_t iotkit_hal_get_gpio_analog(uint8_t pin) {
+uint16_t devicesdk_hal_get_gpio_analog(uint8_t pin) {
     (void)pin;
     return g_hal_mock.gpio_analog_return;
 }
 
-void iotkit_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
+void devicesdk_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
     if (g_hal_mock.gpio_configure_input_call_count < MAX_MOCK_CALLS) {
         int idx = g_hal_mock.gpio_configure_input_call_count++;
         g_hal_mock.gpio_configure_input_calls[idx].pin = pin;
@@ -49,7 +49,7 @@ void iotkit_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
     }
 }
 
-void iotkit_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) {
+void devicesdk_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) {
     if (g_hal_mock.pwm_set_call_count < MAX_MOCK_CALLS) {
         int idx = g_hal_mock.pwm_set_call_count++;
         g_hal_mock.pwm_set_calls[idx].pin = pin;
@@ -58,7 +58,7 @@ void iotkit_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) {
     }
 }
 
-bool iotkit_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uint32_t frequency) {
+bool devicesdk_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uint32_t frequency) {
     if (g_hal_mock.i2c_configure_call_count < MAX_MOCK_CALLS) {
         int idx = g_hal_mock.i2c_configure_call_count++;
         g_hal_mock.i2c_configure_calls[idx].bus = bus;
@@ -69,7 +69,7 @@ bool iotkit_hal_i2c_configure(uint8_t bus, uint8_t sda_pin, uint8_t scl_pin, uin
     return g_hal_mock.i2c_configure_return;
 }
 
-i2c_scan_result_t iotkit_hal_i2c_scan(uint8_t bus) {
+i2c_scan_result_t devicesdk_hal_i2c_scan(uint8_t bus) {
     if (g_hal_mock.i2c_scan_call_count < MAX_MOCK_CALLS) {
         g_hal_mock.i2c_scan_calls[g_hal_mock.i2c_scan_call_count++] = bus;
     }
@@ -81,7 +81,7 @@ i2c_scan_result_t iotkit_hal_i2c_scan(uint8_t bus) {
     return result;
 }
 
-bool iotkit_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len) {
+bool devicesdk_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, size_t len) {
     if (g_hal_mock.i2c_write_call_count < MAX_MOCK_CALLS) {
         int idx = g_hal_mock.i2c_write_call_count++;
         g_hal_mock.i2c_write_calls[idx].bus = bus;
@@ -93,7 +93,7 @@ bool iotkit_hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t *data, siz
     return g_hal_mock.i2c_write_return;
 }
 
-int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t len, int reg) {
+int devicesdk_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t len, int reg) {
     if (g_hal_mock.i2c_read_call_count < MAX_MOCK_CALLS) {
         int idx = g_hal_mock.i2c_read_call_count++;
         g_hal_mock.i2c_read_calls[idx].bus = bus;
@@ -113,54 +113,54 @@ int iotkit_hal_i2c_read(uint8_t bus, uint8_t address, uint8_t *buffer, size_t le
     return g_hal_mock.i2c_read_return > 0 ? g_hal_mock.i2c_read_return : (int)bytes_to_copy;
 }
 
-float iotkit_hal_get_temperature(void) {
+float devicesdk_hal_get_temperature(void) {
     return 25.0f;
 }
 
-bool iotkit_hal_watchdog_configure(uint32_t timeout_ms, bool enable) {
+bool devicesdk_hal_watchdog_configure(uint32_t timeout_ms, bool enable) {
     (void)timeout_ms;
     (void)enable;
     return true;
 }
 
-void iotkit_hal_watchdog_feed(void) {
+void devicesdk_hal_watchdog_feed(void) {
 }
 
-bool iotkit_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) {
+bool devicesdk_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin, uint8_t miso_pin, uint8_t cs_pin, uint32_t frequency, uint8_t mode) {
     (void)bus; (void)clk_pin; (void)mosi_pin; (void)miso_pin; (void)cs_pin; (void)frequency; (void)mode;
     return true;
 }
 
-spi_transfer_result_t iotkit_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) {
+spi_transfer_result_t devicesdk_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) {
     (void)bus; (void)data; (void)len;
     spi_transfer_result_t result;
     memset(&result, 0, sizeof(result));
     return result;
 }
 
-bool iotkit_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) {
+bool devicesdk_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) {
     (void)bus; (void)data; (void)len;
     return true;
 }
 
-spi_transfer_result_t iotkit_hal_spi_read(uint8_t bus, size_t len) {
+spi_transfer_result_t devicesdk_hal_spi_read(uint8_t bus, size_t len) {
     (void)bus; (void)len;
     spi_transfer_result_t result;
     memset(&result, 0, sizeof(result));
     return result;
 }
 
-bool iotkit_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) {
+bool devicesdk_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity) {
     (void)port; (void)tx_pin; (void)rx_pin; (void)baud_rate; (void)data_bits; (void)stop_bits; (void)parity;
     return true;
 }
 
-bool iotkit_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) {
+bool devicesdk_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) {
     (void)port; (void)data; (void)len;
     return true;
 }
 
-uart_read_result_t iotkit_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) {
+uart_read_result_t devicesdk_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) {
     (void)port; (void)bytes_to_read; (void)timeout_ms;
     uart_read_result_t result;
     memset(&result, 0, sizeof(result));

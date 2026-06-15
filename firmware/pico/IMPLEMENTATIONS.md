@@ -1,6 +1,6 @@
-# IoTKit Client Implementation Guide
+# DeviceSDK Client Implementation Guide
 
-This document provides a comprehensive description of the IoTKit Client firmware implementation for the Raspberry Pi Pico W. It is designed to help you port this implementation to other platforms, specifically ESP32 with ESP-IDF.
+This document provides a comprehensive description of the DeviceSDK Client firmware implementation for the Raspberry Pi Pico W. It is designed to help you port this implementation to other platforms, specifically ESP32 with ESP-IDF.
 
 ## Table of Contents
 
@@ -505,8 +505,8 @@ C++17 is required for picojson. Exceptions are enabled.
 #### Target Board Selection
 
 ```cmake
-if(DEFINED ENV{IOTKIT_BOARD})
-    set(PICO_BOARD "$ENV{IOTKIT_BOARD}" CACHE STRING "Board type")
+if(DEFINED ENV{DEVICESDK_BOARD})
+    set(PICO_BOARD "$ENV{DEVICESDK_BOARD}" CACHE STRING "Board type")
 else()
     set(PICO_BOARD pico_w CACHE STRING "Board type")
 endif()
@@ -517,10 +517,10 @@ Supports `pico_w` and `pico2_w` boards via environment variable.
 #### Compile-Time Credentials
 
 ```cmake
-target_compile_definitions(iotkit-client PRIVATE
-    IOTKIT_WIFI_SSID="${WIFI_SSID}"
-    IOTKIT_WIFI_PASSWORD="${WIFI_PASSWORD}"
-    IOTKIT_API_TOKEN="${API_TOKEN}"
+target_compile_definitions(devicesdk-client PRIVATE
+    DEVICESDK_WIFI_SSID="${WIFI_SSID}"
+    DEVICESDK_WIFI_PASSWORD="${WIFI_PASSWORD}"
+    DEVICESDK_API_TOKEN="${API_TOKEN}"
 )
 ```
 
@@ -539,7 +539,7 @@ These placeholder strings are likely replaced by a binary patch or linker script
 #### lwIP Configuration
 
 ```cmake
-target_compile_definitions(iotkit-client PRIVATE
+target_compile_definitions(devicesdk-client PRIVATE
     NO_SYS=1          # No RTOS
     LWIP_SOCKET=0     # Disable socket API
     LWIP_NETCONN=0    # Disable netconn API
@@ -551,7 +551,7 @@ Uses lwIP's raw API (not sockets).
 #### Library Dependencies
 
 ```cmake
-target_link_libraries(iotkit-client
+target_link_libraries(devicesdk-client
     pico_stdlib                              # Standard library
     pico_cyw43_arch_lwip_threadsafe_background  # Wi-Fi + lwIP
     pico_rand                                # Random number generation
@@ -565,14 +565,14 @@ target_link_libraries(iotkit-client
 #### Output Files
 
 ```cmake
-pico_add_extra_outputs(iotkit-client)
+pico_add_extra_outputs(devicesdk-client)
 ```
 
 Generates:
-- `iotkit-client.elf` - ELF executable
-- `iotkit-client.uf2` - USB Flashing Format (drag-and-drop)
-- `iotkit-client.bin` - Raw binary
-- `iotkit-client.hex` - Intel HEX format
+- `devicesdk-client.elf` - ELF executable
+- `devicesdk-client.uf2` - USB Flashing Format (drag-and-drop)
+- `devicesdk-client.bin` - Raw binary
+- `devicesdk-client.hex` - Intel HEX format
 
 ### lwIP Configuration (`lwipopts.h`)
 
@@ -635,7 +635,7 @@ Required for WPA2 Wi-Fi authentication:
 #### USB Serial
 
 - USB acts as a serial console (CDC-ACM)
-- Enabled with `pico_enable_stdio_usb(iotkit-client 1)`
+- Enabled with `pico_enable_stdio_usb(devicesdk-client 1)`
 - Used for debug logging with `printf()`
 
 ### Memory Constraints
@@ -814,8 +814,8 @@ This allows changing credentials without reflashing.
 **ESP32:** Use `idf.py` build system:
 
 ```bash
-idf.py create-project iotkit-client
-cd iotkit-client
+idf.py create-project devicesdk-client
+cd devicesdk-client
 idf.py menuconfig  # Configure project
 idf.py build
 idf.py flash

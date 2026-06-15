@@ -277,10 +277,10 @@ static void process_gpio_notifications() {
 }
 
 // WIFI Credentials - taken from environment variables
-const char WIFI_SSID[] = IOTKIT_WIFI_SSID;
-const char WIFI_PASSWORD[] = IOTKIT_WIFI_PASSWORD;
-const char WEBSOCKET_TOKEN[] = IOTKIT_API_TOKEN;
-const char API_HOST[] = IOTKIT_API_HOST;
+const char WIFI_SSID[] = DEVICESDK_WIFI_SSID;
+const char WIFI_PASSWORD[] = DEVICESDK_WIFI_PASSWORD;
+const char WEBSOCKET_TOKEN[] = DEVICESDK_API_TOKEN;
+const char API_HOST[] = DEVICESDK_API_HOST;
 const char PROJECT_ID[] = DEVICESDK_PROJECT_ID;
 const char DEVICE_ID[] = DEVICESDK_DEVICE_ID;
 

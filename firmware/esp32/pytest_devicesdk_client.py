@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 IoTKit Project
+# SPDX-FileCopyrightText: 2025 DeviceSDK Project
 # SPDX-License-Identifier: CC0-1.0
 import logging
 from typing import Callable
@@ -10,12 +10,12 @@ from pytest_embedded_idf.utils import idf_parametrize
 
 @pytest.mark.esp32
 @pytest.mark.generic
-def test_iotkit_client_build(dut: IdfDut, log_minimum_free_heap_size: Callable[..., None]) -> None:
-    """Test that the IoTKit client builds and starts correctly."""
+def test_devicesdk_client_build(dut: IdfDut, log_minimum_free_heap_size: Callable[..., None]) -> None:
+    """Test that the DeviceSDK client builds and starts correctly."""
     
     # Check for boot message
-    dut.expect('Starting IoTKit Client', timeout=30)
-    logging.info('IoTKit client started successfully')
+    dut.expect('Starting DeviceSDK Client', timeout=30)
+    logging.info('DeviceSDK client started successfully')
     
     # Check HAL initialization
     dut.expect('HAL initialized', timeout=10)
@@ -31,10 +31,10 @@ def test_iotkit_client_build(dut: IdfDut, log_minimum_free_heap_size: Callable[.
 
 @pytest.mark.esp32
 @pytest.mark.generic
-def test_iotkit_client_wifi_connection(dut: IdfDut) -> None:
+def test_devicesdk_client_wifi_connection(dut: IdfDut) -> None:
     """Test Wi-Fi connection attempt."""
     
-    dut.expect('Starting IoTKit Client', timeout=30)
+    dut.expect('Starting DeviceSDK Client', timeout=30)
     
     # Wi-Fi should attempt to connect
     dut.expect('wifi_init_sta finished', timeout=10)
@@ -47,10 +47,10 @@ def test_iotkit_client_wifi_connection(dut: IdfDut) -> None:
 
 @pytest.mark.esp32
 @pytest.mark.generic
-def test_iotkit_client_websocket_task(dut: IdfDut) -> None:
+def test_devicesdk_client_websocket_task(dut: IdfDut) -> None:
     """Test that WebSocket task starts."""
     
-    dut.expect('Starting IoTKit Client', timeout=30)
+    dut.expect('Starting DeviceSDK Client', timeout=30)
     
     # Check for WebSocket task start
     dut.expect('WebSocket task started', timeout=40)
@@ -59,10 +59,10 @@ def test_iotkit_client_websocket_task(dut: IdfDut) -> None:
 
 @pytest.mark.esp32
 @pytest.mark.generic
-def test_iotkit_client_hal_gpio(dut: IdfDut) -> None:
+def test_devicesdk_client_hal_gpio(dut: IdfDut) -> None:
     """Test HAL GPIO functionality."""
     
-    dut.expect('Starting IoTKit Client', timeout=30)
+    dut.expect('Starting DeviceSDK Client', timeout=30)
     
     # HAL should initialize
     dut.expect('HAL initialized', timeout=10)
@@ -74,10 +74,10 @@ def test_iotkit_client_hal_gpio(dut: IdfDut) -> None:
 
 @pytest.mark.esp32
 @pytest.mark.generic
-def test_iotkit_client_no_crash(dut: IdfDut) -> None:
+def test_devicesdk_client_no_crash(dut: IdfDut) -> None:
     """Test that the client runs without crashing for a reasonable time."""
     
-    dut.expect('Starting IoTKit Client', timeout=30)
+    dut.expect('Starting DeviceSDK Client', timeout=30)
     dut.expect('wifi_init_sta finished', timeout=10)
     
     # Wait for 10 seconds to ensure no crash
@@ -91,10 +91,10 @@ def test_iotkit_client_no_crash(dut: IdfDut) -> None:
 
 @pytest.mark.esp32
 @pytest.mark.generic
-def test_iotkit_client_component_load(dut: IdfDut) -> None:
+def test_devicesdk_client_component_load(dut: IdfDut) -> None:
     """Test that all required components load correctly."""
     
-    dut.expect('Starting IoTKit Client', timeout=30)
+    dut.expect('Starting DeviceSDK Client', timeout=30)
     
     # Check that NVS flash initializes
     # This happens silently if successful, but errors would be logged

@@ -23,12 +23,12 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-if(DEFINED ENV{IOTKIT_BOARD})
-    set(PICO_BOARD "$ENV{IOTKIT_BOARD}" CACHE STRING "Board type")
-    message(STATUS "Using IOTKIT_BOARD from environment: $ENV{IOTKIT_BOARD}")
+if(DEFINED ENV{DEVICESDK_BOARD})
+    set(PICO_BOARD "$ENV{DEVICESDK_BOARD}" CACHE STRING "Board type")
+    message(STATUS "Using DEVICESDK_BOARD from environment: $ENV{DEVICESDK_BOARD}")
 else()
     set(PICO_BOARD pico2_w CACHE STRING "Board type")
-    message(STATUS "IOTKIT_BOARD not set, defaulting to pico2_w.")
+    message(STATUS "DEVICESDK_BOARD not set, defaulting to pico2_w.")
 endif()
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
@@ -56,10 +56,10 @@ add_executable(devicesdk-client
 
 # Pass credentials to the code
 target_compile_definitions(devicesdk-client PRIVATE
-    IOTKIT_WIFI_SSID="8d477eda147344f8b9b8d3e3bef7505b"
-    IOTKIT_WIFI_PASSWORD="ebc8394548904aa583916609049d5ea527021de49780437a98915189223dcf8"
-    IOTKIT_API_TOKEN="e343ecb8036442e093a47718463c1716"
-    IOTKIT_API_HOST="3ed66c2c3ed1474382278f70ba01dc4c"
+    DEVICESDK_WIFI_SSID="8d477eda147344f8b9b8d3e3bef7505b"
+    DEVICESDK_WIFI_PASSWORD="ebc8394548904aa583916609049d5ea527021de49780437a98915189223dcf8"
+    DEVICESDK_API_TOKEN="e343ecb8036442e093a47718463c1716"
+    DEVICESDK_API_HOST="3ed66c2c3ed1474382278f70ba01dc4c"
     DEVICESDK_PROJECT_ID="288f2d2493094af68ab37a96ef73a118"
     DEVICESDK_DEVICE_ID="d09f91a7729141eb8911d7a0f1e1595f"
 )

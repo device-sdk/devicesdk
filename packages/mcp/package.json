@@ -1,6 +1,6 @@
 {
 	"name": "@devicesdk/mcp",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "Model Context Protocol server for DeviceSDK — gives AI agents tools to deploy, flash, inspect, and query DeviceSDK projects.",
 	"author": "DeviceSDK <hello@devicesdk.com>",
 	"license": "AGPL-3.0-only",

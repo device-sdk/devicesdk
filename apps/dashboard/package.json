@@ -1,6 +1,6 @@
 {
 	"name": "@devicesdk/dashboard",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"description": "DeviceSDK Control Panel",
 	"productName": "DeviceSDK",
 	"author": "Gabriel Massadas <g4bryrm98@gmail.com>",

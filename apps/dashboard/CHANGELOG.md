@@ -1,5 +1,63 @@
 # @devicesdk/dashboard
 
+## 0.4.0
+
+### Minor Changes
+
+- 6d0a71b: DeviceSDK is now a self-hosted, open-source platform. The Cloudflare-hosted
+  backend (`apps/api`) is replaced by `@devicesdk/server`, a single Bun process
+  (Hono + bun:sqlite + filesystem storage) that serves the REST API, device and
+  watcher WebSockets, and the dashboard UI on one port, distributed as a Docker
+  image (amd64 + arm64).
+  - Server: in-process device runtime replaces Durable Objects (same watch
+    protocol, command acks, connection-gated crons, per-device KV, inter-device
+    RPC); local email/password accounts replace Google OAuth; usage metrics in
+    SQLite replace Analytics Engine; plans/tiers/daily message limits removed.
+  - Dashboard: local login/registration with first-run setup; served
+    same-origin by the server; cost/billing UI removed.
+  - CLI: no default cloud endpoint — connect with `devicesdk login --host
+http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
+  - Firmware: Pico gains plain `ws://` support when the host has an explicit
+    port (ESP32 already had it); binaries now publish to rolling GitHub
+    Releases instead of R2.
+  - License: AGPL-3.0-only.
+
+### Patch Changes
+
+- 7cffbef: Audit Batch 02 — Auth & Token Hardening
+  - Drops the legacy plaintext `tokens.token` column after clearing any residual values.
+  - Replaces unsalted SHA-256 token storage with HMAC-SHA-256 using a server-side secret (`API_TOKEN_SECRET`); legacy SHA-256 hashes remain verifiable during the transition.
+  - Persists an auto-generated API token secret under `DATA_DIR` when `API_TOKEN_SECRET` is not provided.
+  - Increases CLI access/refresh token entropy from 16 bytes (128 bits) to 32 bytes (256 bits).
+  - Purges expired `cli_tokens` rows in the janitor.
+  - Updates dashboard E2E seed fixtures to use `token_hash`/`last_four` now that `tokens.token` is removed.
+
+- f724c46: Migrate CLAUDE.md and `.claude/skills/` to `AGENTS.md` and OpenCode-compatible `.opencode/skills/` and `.opencode/commands/`. `devicesdk init` now scaffolds `AGENTS.md` only (no longer `CLAUDE.md`), and MCP docs mention OpenCode alongside Claude and Cursor. Also hardens CI: dashboard E2E tests retry once in CI, pnpm install is retried after clearing the store, release builds have Bun available, and firmware rolling releases recreate immutable releases.
+- 02b3ce3: Remove leftover Cloudflare tooling from the self-host pivot. None of these were
+  reachable anymore after the move off Workers/Pages/R2; they only confused the
+  build surface and a publicly-shipped author field.
+  - **dashboard**: dropped the `wrangler pages deploy` script and the unused
+    `wrangler` devDependency (the SPA is served by the Bun server now), and fixed
+    the `author` email that still pointed at a `@cloudflare.com` address.
+  - **firmware-esp32 / firmware-pico**: removed the dead `publish` scripts that
+    uploaded binaries to the R2 `devicesdk-firmwares` bucket, plus the now-unused
+    `wrangler` dependency. Firmware ships via rolling GitHub Releases
+    (`gh release upload` in `firmware-*.yml`) and the Docker bundle.
+  - **website**: deleted the stale `inputs/*.md` marketing drafts that still
+    described the product as "Cloudflare-native" (Workers/Durable Objects/D1/R2).
+    They predated and were superseded by the self-host content rewrite, and were
+    not consumed by the Hugo build.
+
+- 3a72934: Self-host release readiness pass
+  - Added `KNOWN_NOT_ISSUES.md` documenting the npm Trusted Publishers release setup.
+  - Fixed dashboard token snippet and redirect allow-list for custom self-hosted origins.
+  - Added `apps/server/.env.example` and a `TRUST_PROXY` setting so rate limiting safely handles reverse proxies.
+  - Removed stale cloud-era wording from `@devicesdk/core`, the CLI `init` template, and `examples/AGENTS.md`.
+  - Corrected OTA firmware claims in docs until the feature ships.
+  - Updated `TROUBLESHOOT.md` to reference self-hosted dashboard URLs and generic proxy/CDN guidance.
+  - Added `data/` directories to `.gitignore`, pinned the Bun version in `Dockerfile` to `1.3.14`, and renamed `durableObjectStub.ts` to `deviceHandle.ts`.
+  - Documented the intentionally skipped migration `0003` in `apps/server/migrations/README.md`.
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,5 +1,128 @@
 # @devicesdk/website
 
+## 0.1.3
+
+### Patch Changes
+
+- ab7ea11: Critical safety and correctness fixes (Audit Batch 01).
+  - **Database atomicity**: `D1CompatDatabase.batch()` now executes statements inside a synchronous `db.transaction(...)` callback, restoring atomicity for callers that rely on `c.env.DB.batch()` (entity upserts, env-var sets, CLI token refresh).
+  - **Health probes**: added unauthenticated `GET /health` and `GET /ready` endpoints. `/health` returns a lightweight `{success:true,result:{status:"ok"}}`; `/ready` verifies SQLite is writable and returns 503 if not. The troubleshooting docs now reference both endpoints.
+  - **Device socket replacement**: when a new connection replaces a stale one, the outgoing socket's pending commands are rejected immediately and its `connectedSeconds` usage is recorded before the replacement takes over.
+  - **Process crash protection**: `server.ts` now registers `unhandledRejection` (log) and `uncaughtException` (log + `process.exit(1)`) handlers in addition to the existing `SIGTERM`/`SIGINT` shutdown logic.
+
+- 874cd73: Follow-up docs cleanup: fix stale cloud-era references that survived the
+  self-host pivot.
+  - **Public docs (`docs/public/`)**: corrected `troubleshooting.md` (dropped
+    "edge script/edge location", Cloudflare-era queues, the dead
+    `status.devicesdk.com` status page, the hardcoded port-443 firewall note, and
+    the request-quota framing — the server only rate-limits auth brute-force);
+    fixed `concepts/env-vars.md` (`DeviceSender` → `DeviceEntrypoint` + import),
+    `guides/home-assistant.md` (`defineConfig` import from `@devicesdk/cli`, repo
+    URL), `cli/init.md` (documented the real `--no-git` flag, removed the
+    non-existent `--name`), `cli/deploy.md` (removed the non-existent
+    `deploy --version`), `hardware/esp32-c61.md` (`devicesdk-client.bin` →
+    `esp32c61-client.bin`), broken `github.com/device-sdk` org-root links, and a
+    stray `</content></invoke>` artifact at the end of `resources/faq.md`. Trimmed
+    the obsolete Cloudflare/Durable-Object/OAuth "Platform Roadmap" section from
+    the (unpublished) `docs/public/ROADMAP.md`.
+  - **Marketing site (`apps/website`)**: removed the dead cloud-billing model from
+    the Solutions page ("Estimated cost / Free tier / ~$0.60/month / daily limit"
+    → "Self-hosted"); fixed `export default class` hero/product code samples to
+    the required named `export class`; "cloud KV" → "device KV"; rewrote the
+    website `README.md` (it still described the old pure-HTML/jQuery/Wrangler
+    setup — it's a Hugo + Tailwind site now, still deployed to Cloudflare Pages).
+    Also pointed every "GitHub" link (the `githubUrl` param, nav/footer menus,
+    footer license link, about page, terms/privacy) at the repo
+    (`device-sdk/devicesdk-monorepo`) instead of the bare org root, and aligned a
+    "KV namespace" → "KV store" code comment with the rest of the self-host copy.
+  - **Package READMEs**: `@devicesdk/core` ("sandboxed serverless runtime" →
+    in-process on the self-hosted server), `@devicesdk/cli` (`login` now needs
+    `--host`), `@devicesdk/mcp` (`auth.json` → `credentials.json`).
+  - **Firmware (`firmware/pico/README.md`)**: rewrote the stale "devicesdk-client"
+    README (cloud backend, port 8787, personal absolute paths) and scrubbed the
+    committed Wi-Fi credentials / API tokens it documented. Docs only — no
+    firmware behavior change.
+  - **Firmware (`firmware/esp32/`)**: rewrote the bare ESP-IDF "Hello World"
+    `README.md` into a real DeviceSDK ESP32 firmware doc, rewrote the
+    Pico-porting-guide `IMPLEMENTATIONS.md` into an accurate ESP32 architecture
+    reference, deleted the redundant `PROJECT_SUMMARY.md` (leaked personal path +
+    wrong CC0 license claim), and dropped the obsolete Cloudflare Durable-Object
+    billing rationale from a `config.h` comment. Docs/comment only.
+
+- 87d0c04: Docs & website content pass for the self-hosted, open-source pivot. The
+  marketing site, README, and the public docs (`docs/public/`) described the old
+  Cloudflare-hosted, managed-runtime SaaS — they now describe running the
+  DeviceSDK server yourself.
+  - **Marketing site**: homepage, product, solutions, about, community, and 404
+    repositioned to "free, open-source (AGPL-3.0), self-hosted." Pricing and
+    Early-Access (private beta) pages removed, with 301 redirects added. Nav,
+    menus, CTAs, footer, and the primary call-to-action now point at GitHub and
+    the quickstart instead of a hosted dashboard sign-up. Terms and Privacy
+    rewritten for self-hosted software (AGPL-3.0; no service collecting your
+    data; no telemetry).
+  - **Docs (`docs/public/`)**: architecture, concepts, CLI, quickstart, guides,
+    recipes, resources, and errors rewritten — in-process device runtime on your
+    own server (not a "globally distributed serverless runtime"), `devicesdk
+login --host`, `~/.devicesdk/credentials.json`, devices on `ws://<server>:8080`,
+    and honest rate-limit/scaling sections. Obsolete `account_suspended` and
+    `account_deletion_pending` error pages removed (redirected). Self-host
+    changelog entry added.
+  - **README** rewritten around `docker compose up -d` and the self-hosted
+    workflow; project-structure table updated (`apps/server` replaces `apps/api`).
+  - Agent-discovery files (`llms.txt`, `llms-full.txt`, `.well-known/agent-skills`,
+    `api-catalog`, `oauth-protected-resource`) updated to describe the in-process,
+    self-hosted runtime.
+
+- 60a9f49: Add mDNS service discovery so devices connect to the server without a static IP.
+  - **Server**: a zero-dependency multicast-DNS responder (`apps/server/src/foundation/mdns/`,
+    over `node:dgram`) advertises the server as `<MDNS_HOSTNAME>.local` (default
+    `devicesdk.local`). Two new env vars: `MDNS_HOSTNAME` (rename to run several DeviceSDK
+    servers on one LAN) and `MDNS_ENABLED` (default `true`). Started after the janitor and
+    stopped on SIGINT/SIGTERM with a TTL-0 goodbye. Covered by the server's first `bun test`
+    suite (packet codec + responder).
+  - **Firmware**: ESP32 (`CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES`) and Pico W (`LWIP_IGMP` +
+    `LWIP_DNS_SUPPORT_MDNS_QUERIES`) now resolve `.local` hostnames over mDNS, so a device
+    flashed with `--host http://devicesdk.local:8080` keeps reaching the server across DHCP
+    lease changes. No connection-logic changes — the existing explicit-port heuristic already
+    selects plain `ws://` for LAN hosts.
+  - **Docs**: README, quickstart, and the `flash` CLI reference document flashing against the
+    mDNS name; the roadmap marks server-side mDNS advertisement as shipped.
+
+- f724c46: Migrate CLAUDE.md and `.claude/skills/` to `AGENTS.md` and OpenCode-compatible `.opencode/skills/` and `.opencode/commands/`. `devicesdk init` now scaffolds `AGENTS.md` only (no longer `CLAUDE.md`), and MCP docs mention OpenCode alongside Claude and Cursor. Also hardens CI: dashboard E2E tests retry once in CI, pnpm install is retried after clearing the store, release builds have Bun available, and firmware rolling releases recreate immutable releases.
+- 02b3ce3: Remove leftover Cloudflare tooling from the self-host pivot. None of these were
+  reachable anymore after the move off Workers/Pages/R2; they only confused the
+  build surface and a publicly-shipped author field.
+  - **dashboard**: dropped the `wrangler pages deploy` script and the unused
+    `wrangler` devDependency (the SPA is served by the Bun server now), and fixed
+    the `author` email that still pointed at a `@cloudflare.com` address.
+  - **firmware-esp32 / firmware-pico**: removed the dead `publish` scripts that
+    uploaded binaries to the R2 `devicesdk-firmwares` bucket, plus the now-unused
+    `wrangler` dependency. Firmware ships via rolling GitHub Releases
+    (`gh release upload` in `firmware-*.yml`) and the Docker bundle.
+  - **website**: deleted the stale `inputs/*.md` marketing drafts that still
+    described the product as "Cloudflare-native" (Workers/Durable Objects/D1/R2).
+    They predated and were superseded by the self-host content rewrite, and were
+    not consumed by the Hugo build.
+
+- 291833d: Rename all remaining `iotkit`/`IOTKIT`/`IoTKit` identifiers to `devicesdk`/`DEVICESDK`/`DeviceSDK` across firmware source, build configuration, tests, CI workflows, and documentation.
+- 6d0a71b: DeviceSDK is now a self-hosted, open-source platform. The Cloudflare-hosted
+  backend (`apps/api`) is replaced by `@devicesdk/server`, a single Bun process
+  (Hono + bun:sqlite + filesystem storage) that serves the REST API, device and
+  watcher WebSockets, and the dashboard UI on one port, distributed as a Docker
+  image (amd64 + arm64).
+  - Server: in-process device runtime replaces Durable Objects (same watch
+    protocol, command acks, connection-gated crons, per-device KV, inter-device
+    RPC); local email/password accounts replace Google OAuth; usage metrics in
+    SQLite replace Analytics Engine; plans/tiers/daily message limits removed.
+  - Dashboard: local login/registration with first-run setup; served
+    same-origin by the server; cost/billing UI removed.
+  - CLI: no default cloud endpoint — connect with `devicesdk login --host
+http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
+  - Firmware: Pico gains plain `ws://` support when the host has an explicit
+    port (ESP32 already had it); binaries now publish to rolling GitHub
+    Releases instead of R2.
+  - License: AGPL-3.0-only.
+
 ## 0.1.2
 
 ### Patch Changes

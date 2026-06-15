@@ -1,7 +1,7 @@
 {
   "name": "@devicesdk/example-esp32c3-clock",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ESP32-C3 OLED clock that updates once a minute",
   "type": "module",
   "scripts": {

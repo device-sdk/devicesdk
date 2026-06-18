@@ -11,3 +11,10 @@ find the full documentation for it [in the main changesets repo](https://github.
 3. Commit the generated changeset file along with your code
 4. When changesets are merged to `main`, a "Version Packages" PR is automatically created
 5. Merging that PR bumps versions, updates changelogs, and publishes public packages to npm
+
+**Private packages**
+
+Packages marked `private: true` (e.g. `@devicesdk/server`, `@devicesdk/dashboard`,
+`@devicesdk/simulation`, `@devicesdk/website`) are still version-bumped and
+receive changelog updates, but they are **not** published to npm. The website is
+deployed separately via `.github/workflows/website-deploy.yml`.

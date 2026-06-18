@@ -66,7 +66,8 @@ Requirements:
 - Follow AGENTS.md exactly (worktree usage, changesets, lint, tests, coding standards).
 - Make minimal, focused changes.
 - Create a changeset early with `pnpm changeset` referencing every workspace
-  package touched.
+  package touched, including `@devicesdk/website` for docs or marketing-site
+  changes.
 - Run `pnpm install` if node_modules is missing, then `pnpm build`,
   `pnpm lint`, `pnpm check-types`, and relevant tests.
 - Do NOT open a PR; just finish the implementation and report what changed.

@@ -243,6 +243,26 @@ on the user's own server — that's the trust model).
   would like to proceed (e.g. push to their fork, open a PR against upstream, or
   stop here).
 
+## Changesets
+
+The monorepo uses `@changesets/cli` for versioning and release management.
+
+- **Public packages** (`private: false`) are published to npm by `pnpm release`:
+  `@devicesdk/core`, `@devicesdk/cli`, `@devicesdk/mcp`.
+- **Private packages** (`private: true`) are version-bumped and get changelog
+  entries, but are **not** published to npm. This includes the runtime apps:
+  `@devicesdk/server`, `@devicesdk/dashboard`, `@devicesdk/simulation`, and
+  `@devicesdk/website`.
+- The `@devicesdk/website` package follows the same changeset lifecycle as the
+  CLI: create a changeset with `pnpm changeset`, the "Version packages" PR bumps
+  `apps/website/package.json` and `apps/website/CHANGELOG.md`, and the current
+  version is the source of truth for the site release. The actual Cloudflare
+  Pages deploy is handled by `.github/workflows/website-deploy.yml`.
+- Always create a changeset for any user-visible change in a published or
+  private-with-changelog package. Docs-only fixes under `docs/public/` that do
+  not touch `apps/website` code can be covered by a `@devicesdk/website`
+  changeset because the site consumes them.
+
 ## CI Runner Image
 
 CI jobs labelled `[self-hosted, linux, proxmox-ephemeral]` run on a Proxmox VM

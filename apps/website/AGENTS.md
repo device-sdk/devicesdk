@@ -70,6 +70,22 @@ Front-matter can override this:
 Use `slug`/`url` sparingly; when they change an existing live URL, you must add
 a 301 redirect.
 
+## Docs navigation is generated from content
+
+The docs sidebar, section landing cards, and page-to-page previous/next links
+are all driven by `src/generated/content.json` (produced by
+`scripts/build-content.ts`).
+
+- `src/components/DocsSidebar.vue` builds sections from docs pages and uses
+  `src/composables/useDocsNav.ts` for ordering, expansion, and active states.
+- `src/pages/DocsListPage.vue` renders cards from each section's `children`.
+- `src/pages/DocsPage.vue` adds previous/next links via `useDocsReadingOrder()`.
+
+If you add, remove, or reorder docs pages, update the sidebar/card order by
+setting `weight:` front-matter or by adjusting `DOCS_SECTION_ORDER` in
+`useDocsNav.ts`. Do **not** hand-edit the sidebar to list individual pages —
+that is the pattern that caused navigation to fall out of sync.
+
 ## Motion / animation vocabulary
 
 A small set of CSS-only motion utilities lives in `src/styles/global.css`. Use

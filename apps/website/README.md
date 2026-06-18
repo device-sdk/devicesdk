@@ -7,30 +7,37 @@ the DeviceSDK server on their own hardware).
 
 ## Tech stack
 
-- **[Hugo](https://gohugo.io/)** — static site generator. Page content lives in `content/`
-  (front-matter, mostly) and the user docs are mounted from `../../docs/public` (see
-  `[[module.mounts]]` in `hugo.toml`); the visual layouts are hand-written HTML in
-  `layouts/`.
-- **[Tailwind CSS v4](https://tailwindcss.com/)** — compiled from `src/input.css` to
-  `static/styles.css` via `@tailwindcss/cli`.
+- **[Vue 3](https://vuejs.org/) + [TypeScript](https://www.typescriptlang.org/)** — page
+  components in `src/pages/`.
+- **[vite-ssg](https://github.com/antfu/vite-ssg)** — static-site generation.
+- **[vite-plugin-pages](https://github.com/hannoeru/vite-plugin-pages)** — file-based routing.
+- **[Tailwind CSS v4](https://tailwindcss.com/)** — `src/styles/main.css`.
+- **[D3](https://d3js.org/)** — interactive architecture diagrams.
+- **[markdown-it](https://github.com/markdown-it/markdown-it) + [Shiki](https://shiki.style/)** —
+  Markdown rendering and syntax highlighting for docs.
 - **[Playwright](https://playwright.dev/)** — renders social-preview (OG) images at build
-  time (`generate-og.js`).
-- **Cloudflare** — hosting and deployment via Wrangler. (Only the website is on
-  Cloudflare; the DeviceSDK product itself is self-hosted and has no Cloudflare
-  dependency.)
+  time (`scripts/generate-og.ts`).
+- **[Wrangler](https://developers.cloudflare.com/workers/wrangler/)** — deploys the static
+  `dist/` output to Cloudflare Pages. (Only the website is on Cloudflare; the DeviceSDK
+  product itself is self-hosted and has no Cloudflare dependency.)
 
 ## Project structure
 
 ```
 apps/website/
-├── hugo.toml               # Hugo config (mounts ../../docs/public at /docs)
-├── content/                # Page front-matter + markdown (privacy/terms use bodies)
-├── layouts/                # Hand-written HTML/Tailwind layouts per section
-├── src/input.css           # Tailwind entry (compiled to static/styles.css)
-├── static/                 # Static assets, _redirects, _headers, robots.txt
-├── generate-og.js          # Playwright OG-image generation
-├── generate-agent-skills.js
-└── package.json
+├── index.html              # Vite HTML entry
+├── vite.config.ts          # Vite + vite-ssg + pages plugin
+├── src/
+│   ├── pages/              # Marketing + architecture Vue pages
+│   ├── components/         # Design system, layouts, diagrams
+│   ├── styles/main.css     # Tailwind entry + utilities
+│   ├── utils/              # Docs index, markdown renderer, routes
+│   └── generated/          # Generated docs paths/index (gitignored)
+├── content/                # Front-matter source for OG image titles
+├── static/                 # Static assets, _redirects, _headers, .well-known
+├── scripts/                # Prebuild, OG images, agent-skills manifest
+├── public/                 # Generated build-time public dir (gitignored)
+└── dist/                   # Final static output (gitignored)
 ```
 
 ## Getting started
@@ -38,13 +45,12 @@ apps/website/
 ### Prerequisites
 
 - Node.js and `pnpm` (run commands from the monorepo root, or `pnpm --filter @devicesdk/website ...`)
-- [Hugo](https://gohugo.io/installation/) (extended)
 - `pnpm exec playwright install` once, so OG-image generation can run during `build`
 
 ### Development
 
 ```bash
-pnpm --filter @devicesdk/website dev    # hugo server -D, live reload
+pnpm --filter @devicesdk/website dev    # vite dev server with prebuild
 ```
 
 ### Building
@@ -59,22 +65,22 @@ pnpm build                              # Turbo builds the server first, then th
 Or directly (after the server's `openapi.json` exists):
 
 ```bash
-pnpm --filter @devicesdk/website build  # tailwind → OG images → hugo, into ./public
+pnpm --filter @devicesdk/website build  # prebuild → vite-ssg build → ./dist
 ```
 
 ## Deployment
 
-The site is deployed to **Cloudflare** via Wrangler:
+The site is deployed to **Cloudflare Pages** via Wrangler:
 
 ```bash
-pnpm --filter @devicesdk/website deploy   # npx wrangler deploy
+pnpm --filter @devicesdk/website deploy   # wrangler pages deploy dist
 ```
 
 ## URL changes require a redirect
 
-If you rename, move, or delete a page under `content/` or `docs/public/` (which mounts at
+If you rename, move, or delete a page under `src/pages/` or `docs/public/` (which renders at
 `/docs/`), add a matching 301 to `static/_redirects` so the old URL keeps its search-index
-signal. See `apps/website/CLAUDE.md` for the full rule and format.
+signal. See `apps/website/AGENTS.md` for the full rule and format.
 
 ## License
 

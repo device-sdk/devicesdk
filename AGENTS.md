@@ -73,8 +73,9 @@ runtime is a roadmap item).
 **`apps/simulation`** — Vue UI for the CLI dev simulator (built dist embedded in
 CLI).
 
-**`apps/website`** + **`docs/public`** — Hugo site. Website build consumes
-`apps/server/openapi.json`.
+**`apps/website`** + **`docs/public`** — Vue 3 + TypeScript static site built
+with Vite/vite-ssg. Website build consumes `apps/server/openapi.json`.
+See `apps/website/AGENTS.md` for website-specific conventions.
 
 **`firmware/esp32`, `firmware/pico`** — C/C++ WS clients. Both select **plain
 `ws://` when the configured host contains an explicit port** (self-hosted LAN)

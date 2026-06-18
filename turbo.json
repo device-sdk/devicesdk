@@ -22,7 +22,7 @@
 		"@devicesdk/website#build": {
 			"dependsOn": ["^build", "@devicesdk/server#build"],
 			"inputs": ["$TURBO_DEFAULT$", ".env*"],
-			"outputs": ["public/**", "static/docs/api/openapi.json"]
+			"outputs": ["dist/**", "public/**"]
 		},
 		"dev": { "cache": false, "persistent": true },
 		"lint": {},

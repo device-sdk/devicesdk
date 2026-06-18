@@ -1,0 +1,272 @@
+<script setup lang="ts">
+import { useHead } from "@vueuse/head";
+import HeroEnter from "~/components/animations/HeroEnter.vue";
+import ScrollReveal from "~/components/animations/ScrollReveal.vue";
+import StaggerReveal from "~/components/animations/StaggerReveal.vue";
+import CodeWindow from "~/components/ui/CodeWindow.vue";
+
+useHead({
+	title: "Product | DeviceSDK",
+	meta: [
+		{
+			name: "description",
+			content:
+				"The complete self-hosted IoT stack: CLI, device runtime, dashboard, and API in one open-source server.",
+		},
+	],
+});
+</script>
+
+<template>
+  <div>
+    <section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <div class="hero-mesh subtle" aria-hidden="true"></div>
+      <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
+        <HeroEnter>
+          <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
+            The complete IoT<br />
+            <span class="gradient-pan">stack you run yourself</span>
+          </h1>
+          <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
+            CLI, device runtime, dashboard, and API — one open-source server, one Docker image, running on your own hardware.
+          </p>
+        </HeroEnter>
+      </div>
+    </section>
+
+    <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+      <div class="max-w-7xl mx-auto">
+        <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <ScrollReveal>
+            <div>
+              <div class="badge badge-emerald mb-4">CLI</div>
+              <h2 class="text-3xl font-bold tracking-tight">Full workflow from the terminal</h2>
+              <p class="mt-4 text-zinc-400 text-lg leading-relaxed">
+                One tool for the entire lifecycle: scaffold, develop, test, deploy, and flash.
+              </p>
+              <StaggerReveal>
+                <div class="mt-8 space-y-3">
+                  <div class="flex items-center gap-3 text-sm">
+                    <code class="font-mono text-emerald-400 w-36">devicesdk init</code>
+                    <span class="text-zinc-500">Scaffold a new project with TypeScript config</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-sm">
+                    <code class="font-mono text-emerald-400 w-36">devicesdk dev</code>
+                    <span class="text-zinc-500">Local simulator with hot reload</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-sm">
+                    <code class="font-mono text-emerald-400 w-36">devicesdk build</code>
+                    <span class="text-zinc-500">Bundle your device script with esbuild</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-sm">
+                    <code class="font-mono text-emerald-400 w-36">devicesdk deploy</code>
+                    <span class="text-zinc-500">Push to your own server in one command</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-sm">
+                    <code class="font-mono text-emerald-400 w-36">devicesdk flash</code>
+                    <span class="text-zinc-500">Write firmware to a connected Pico</span>
+                  </div>
+                </div>
+              </StaggerReveal>
+            </div>
+          </ScrollReveal>
+          <ScrollReveal direction="right">
+            <CodeWindow title="Terminal" terminal>
+              <span class="text-zinc-500">$</span> devicesdk login --host http://192.168.1.50:8080
+              <span class="text-emerald-400">&#10003;</span> Authenticated with your server
+
+              <span class="text-zinc-500">$</span> devicesdk init sensor-network
+              <span class="text-emerald-400">&#10003;</span> Created devicesdk.ts
+              <span class="text-emerald-400">&#10003;</span> Created src/devices/device.ts
+
+              <span class="text-zinc-500">$</span> devicesdk deploy
+              <span class="text-emerald-400">&#10003;</span> Built device.ts <span class="text-zinc-500">(42ms)</span>
+              <span class="text-emerald-400">&#10003;</span> Deployed to 3 devices
+
+              <span class="text-zinc-500">$</span> devicesdk flash
+              <span class="text-emerald-400">&#10003;</span> Found RPI-RP2 at /Volumes/RPI-RP2
+              <span class="text-emerald-400">&#10003;</span> Firmware flashed successfully
+            </CodeWindow>
+          </ScrollReveal>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+      <div class="max-w-7xl mx-auto">
+        <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <ScrollReveal class="order-2 lg:order-1">
+            <CodeWindow title="src/devices/thermostat.ts">
+              <span class="syn-kw">import</span> { DeviceEntrypoint } <span class="syn-kw">from</span> <span class="syn-str">"@devicesdk/core"</span>;
+
+              <span class="syn-kw">export class</span> <span class="syn-type">Thermostat</span> <span class="syn-kw">extends</span> <span class="syn-type">DeviceEntrypoint</span> {
+                <span class="syn-cm">// Called when device connects via WebSocket</span>
+                <span class="syn-kw">async</span> <span class="syn-fn">onDeviceConnect</span>() {
+                  <span class="syn-cm">// Monitor button on GPIO 14</span>
+                  <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">configureGpioInputMonitoring</span>(<span class="syn-num">14</span>, <span class="syn-num">true</span>);
+                }
+
+                <span class="syn-cm">// Called for every device message</span>
+                <span class="syn-kw">async</span> <span class="syn-fn">onMessage</span>(message) {
+                  <span class="syn-kw">if</span> (message.type === <span class="syn-str">"gpio_state_changed"</span>) {
+                    <span class="syn-kw">const</span> pin = message.payload.pin;
+                    <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv.<span class="syn-fn">put</span>(<span class="syn-str">"lastPin"</span>, pin);
+
+                    <span class="syn-kw">if</span> (message.payload.state === <span class="syn-str">"low"</span>) {
+                      <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">setGpioState</span>(<span class="syn-num">15</span>, <span class="syn-str">"high"</span>);
+                    }
+                  }
+                }
+              }
+            </CodeWindow>
+          </ScrollReveal>
+          <ScrollReveal class="order-1 lg:order-2">
+            <div>
+              <div class="badge badge-emerald mb-4">Runtime</div>
+              <h2 class="text-3xl font-bold tracking-tight">DeviceEntrypoint API</h2>
+              <p class="mt-4 text-zinc-400 text-lg leading-relaxed">
+                Extend <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">DeviceEntrypoint</code> and implement two lifecycle hooks. Your code runs in-process on your own server — the device connects to it over WebSocket on your LAN.
+              </p>
+              <StaggerReveal>
+                <div class="mt-8 space-y-4 text-sm">
+                  <div class="border-b border-zinc-800 pb-3">
+                    <code class="font-mono text-emerald-400">onDeviceConnect()</code>
+                    <p class="text-zinc-500 mt-1">Configure GPIO, I2C, ADC monitoring when the device first connects</p>
+                  </div>
+                  <div class="border-b border-zinc-800 pb-3">
+                    <code class="font-mono text-emerald-400">onMessage(message)</code>
+                    <p class="text-zinc-500 mt-1">Handle sensor readings, button presses, and all device events</p>
+                  </div>
+                  <div class="border-b border-zinc-800 pb-3">
+                    <code class="font-mono text-emerald-400">this.env.DEVICE.kv</code>
+                    <p class="text-zinc-500 mt-1">Type-safe key-value storage that persists across reboots</p>
+                  </div>
+                  <div class="border-b border-zinc-800 pb-3">
+                    <code class="font-mono text-emerald-400">this.env.DEVICE.display</code>
+                    <p class="text-zinc-500 mt-1">Fluent API for SSD1306 OLED drawing commands</p>
+                  </div>
+                  <div>
+                    <code class="font-mono text-emerald-400">this.env.DEVICES</code>
+                    <p class="text-zinc-500 mt-1">Call methods on other devices in your project with full type safety</p>
+                  </div>
+                </div>
+              </StaggerReveal>
+            </div>
+          </ScrollReveal>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+      <div class="max-w-4xl mx-auto">
+        <ScrollReveal>
+          <div class="text-center mb-12">
+            <div class="badge badge-emerald mb-4">Dashboard</div>
+            <h2 class="text-3xl font-bold tracking-tight">Manage your fleet</h2>
+            <p class="mt-4 text-zinc-400 text-lg">
+              Web dashboard served by your own server at <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">http://&lt;server&gt;:8080</code>
+            </p>
+          </div>
+        </ScrollReveal>
+        <StaggerReveal>
+          <div class="space-y-0 border border-zinc-800 rounded-xl overflow-hidden">
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
+              <div>
+                <h3 class="font-medium text-zinc-50">Project management</h3>
+                <p class="text-sm text-zinc-500 mt-0.5">Organize devices into projects with separate settings</p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
+              <div>
+                <h3 class="font-medium text-zinc-50">Device inventory</h3>
+                <p class="text-sm text-zinc-500 mt-0.5">See all devices, connection status, and last seen time</p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
+              <div>
+                <h3 class="font-medium text-zinc-50">Script deployment</h3>
+                <p class="text-sm text-zinc-500 mt-0.5">Upload and deploy scripts from the browser or API</p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
+              <div>
+                <h3 class="font-medium text-zinc-50">Version history</h3>
+                <p class="text-sm text-zinc-500 mt-0.5">Full deployment log with one-click rollback</p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-5 border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
+              <div>
+                <h3 class="font-medium text-zinc-50">API tokens</h3>
+                <p class="text-sm text-zinc-500 mt-0.5">Create and revoke tokens for CLI and programmatic access</p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-5 hover:bg-zinc-900/40 transition-colors">
+              <div>
+                <h3 class="font-medium text-zinc-50">Local accounts</h3>
+                <p class="text-sm text-zinc-500 mt-0.5">Email/password sign-in; the first account becomes admin</p>
+              </div>
+            </div>
+          </div>
+        </StaggerReveal>
+      </div>
+    </section>
+
+    <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+      <div class="max-w-4xl mx-auto">
+        <ScrollReveal>
+          <div class="text-center mb-12">
+            <div class="badge badge-emerald mb-4">Hardware</div>
+            <h2 class="text-3xl font-bold tracking-tight">Supported devices</h2>
+          </div>
+        </ScrollReveal>
+        <ScrollReveal>
+          <div class="border border-zinc-800 rounded-xl overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-zinc-800">
+                  <th class="text-left p-4 text-zinc-400 font-medium">Device</th>
+                  <th class="text-left p-4 text-zinc-400 font-medium">Chip</th>
+                  <th class="text-left p-4 text-zinc-400 font-medium">WiFi</th>
+                  <th class="text-left p-4 text-zinc-400 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
+                  <td class="p-4 font-medium text-zinc-50">Raspberry Pi Pico W</td>
+                  <td class="p-4 text-zinc-400">RP2040</td>
+                  <td class="p-4 text-zinc-400">2.4 GHz</td>
+                  <td class="p-4"><span class="badge badge-emerald">Supported</span></td>
+                </tr>
+                <tr class="border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
+                  <td class="p-4 font-medium text-zinc-50">Raspberry Pi Pico 2 W</td>
+                  <td class="p-4 text-zinc-400">RP2350</td>
+                  <td class="p-4 text-zinc-400">2.4 GHz</td>
+                  <td class="p-4"><span class="badge badge-emerald">Supported</span></td>
+                </tr>
+                <tr class="hover:bg-zinc-900/40 transition-colors">
+                  <td class="p-4 font-medium text-zinc-50">ESP32</td>
+                  <td class="p-4 text-zinc-400">ESP32</td>
+                  <td class="p-4 text-zinc-400">2.4 GHz</td>
+                  <td class="p-4"><span class="badge badge-emerald">Supported</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </ScrollReveal>
+      </div>
+    </section>
+
+    <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+      <div class="max-w-3xl mx-auto text-center">
+        <ScrollReveal>
+          <h2 class="text-3xl font-bold tracking-tight">Ready to build?</h2>
+          <p class="mt-4 text-zinc-400 text-lg">Bring up the server and deploy your first script in minutes.</p>
+          <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+            <a href="/docs/quickstart/" class="btn-primary h-11 px-6">Get Started</a>
+            <a href="https://github.com/device-sdk/devicesdk-monorepo" target="_blank" rel="noopener" class="btn-secondary h-11 px-6">View on GitHub</a>
+          </div>
+        </ScrollReveal>
+      </div>
+    </section>
+  </div>
+</template>

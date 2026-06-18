@@ -1,0 +1,8 @@
+name = "devicesdk-website"
+compatibility_date = "2025-01-01"
+
+[build]
+command = "pnpm build"
+
+[site]
+bucket = "./dist"

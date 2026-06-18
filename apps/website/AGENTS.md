@@ -1,38 +1,33 @@
 # apps/website — Agent Guide
 
 This file provides guidance to AI coding agents (OpenCode, Claude Code, Cursor,
-etc.) when working in the website Hugo project.
+etc.) when working in the DeviceSDK marketing and documentation website.
 
-## Empty Section Pages
+## Stack
 
-The following content files contain front-matter only — **this is intentional**,
-not an oversight:
+The site is a Vue 3 + TypeScript SPA built with **vite-ssg** and
+**vite-plugin-pages** for file-based routing:
 
-- `content/product/_index.md`
-- `content/about/_index.md`
-- `content/community/_index.md`
-- `content/examples/_index.md`
-- `content/solutions/_index.md`
+- `src/pages/*.vue` — marketing pages (dark theme).
+- `src/pages/docs/[...slug].vue` — documentation renderer (light theme).
+- `src/pages/architecture/*.vue` — architecture deep-dives with D3 diagrams.
+- `src/components/` — design system and layout components.
+- `src/styles/main.css` — Tailwind 4 entry + component utilities.
+- `scripts/prebuild.ts` — generates docs routes/index, sitemap, `llms.txt`,
+  `robots.txt`, agent-skills manifest, copies OpenAPI JSON, and renders OG
+  images with Playwright.
+- `static/` — static assets copied into `public/` during prebuild
+  (`_redirects`, `_headers`, `.well-known`, `logo.svg`, etc.).
+- `public/` — generated build-time public directory.
+- `dist/` — final static output.
 
-Each one is rendered by a custom Hugo layout in `layouts/<section>/<section>.html`
-(e.g. `layouts/product/product.html`). The layouts hard-code the page content in
-HTML/Tailwind markup; they do not render `{{ .Content }}`.
-
-**Writing markdown in the body of an empty `_index.md` will NOT appear in the
-built site.** If you need to change the text of one of these pages, edit the
-matching HTML layout instead.
-
-Pages that DO use markdown bodies (for comparison): `content/privacy/_index.md`
-and `content/terms/_index.md` — the corresponding layouts
-(`layouts/privacy/privacy.html`, `layouts/terms/terms.html`) call
-`{{ .Content }}` and `{{ .TableOfContents }}`.
+Build command: `pnpm build` (runs `scripts/prebuild.ts` then `vite-ssg build`).
 
 ## Public-facing content rule (inherits from root AGENTS.md)
 
-DeviceSDK is now **free, open-source (AGPL-3.0), and self-hosted** — there is no
-managed cloud. Public-facing copy under `content/`, `layouts/`, and
-`docs/public/` (mounted into the Hugo content tree at build time — see
-`[[module.mounts]]` in `hugo.toml`) must describe the self-hosted reality:
+DeviceSDK is **free, open-source (AGPL-3.0), and self-hosted** — there is no
+managed cloud. Public-facing copy under `content/`, `src/pages/`, and
+`docs/public/` must describe the self-hosted reality:
 
 - The server is a single **Bun** process the user runs on their own hardware
   (Raspberry Pi, NUC, NAS, any Docker host), serving the API, device WebSockets,
@@ -46,41 +41,22 @@ managed cloud. Public-facing copy under `content/`, `layouts/`, and
 
 ## Motion / animation vocabulary
 
-A small set of CSS-only motion utilities lives in `layouts/partials/head.html`.
-Use them instead of inventing one-off keyframes — keeps the site visually
-cohesive and respects `prefers-reduced-motion` automatically.
+Reusable CSS utilities live in `src/styles/main.css`. Prefer them over one-off
+keyframes so the site stays visually cohesive and respects
+`prefers-reduced-motion`.
 
-- `.fade-up` — *legacy*, still works. Fades + rises 20px when scrolled into
-  view. Toggled by the IntersectionObserver in `_default/baseof.html`.
-- `.reveal` — modern replacement for `.fade-up`. Larger displacement (28px),
-  slower easing. Add `data-reveal="left|right|scale"` to vary the direction.
-- `.reveal-stagger` — apply to a parent; its direct children animate in sequence
-  (70ms step, capped at 9). Use for grids, lists, and "reveal a sequence"
-  moments. Nest under a `.reveal` if both the container and items should animate.
-- `.hero-enter` — first-paint stagger (no IntersectionObserver). Apply to a hero
-  copy block to fade-and-rise its children on load.
-- `.hero-mesh` — drifting blurred gradient orbs behind a hero. Wrap in
-  `<section class="relative overflow-hidden">` and add a sibling
-  `<div class="hero-mesh subtle" aria-hidden="true"></div>`. Place hero content
-  inside `.hero-stack` so it sits above the mesh.
-- `.gradient-pan` — animated emerald gradient text. Use sparingly — typically
-  the second line of an h1 (the accent phrase).
-- `.pulse-soft` — a halo that radiates out from a small dot. Great for "live" /
-  beta indicators. The dot itself is a separate sibling element.
-- `.card-lift` — lifts a card 3px with an emerald-tinted shadow on hover. Compose
-  with `.card` (`class="card card-lift"`) or use standalone on any bordered
-  surface.
-- `.btn-primary` — already has a sweeping shimmer on hover. No extra class
-  needed.
-- `.nudge` — for CTAs; pairs with an inline `<svg>` arrow to nudge the arrow 3px
-  right on hover.
-- `.link-underline` — animated underline that grows from the left on hover.
-- `.float` — gentle 4px vertical drift loop. Use sparingly on a single element
-  near a hero.
-
-The IntersectionObserver in `layouts/_default/baseof.html` handles `.fade-up`,
-`.reveal`, and `.reveal-stagger` together — you only need to add classes; no
-per-page wiring required.
+- `.reveal` — fade + rise 28px on scroll. Add `data-reveal="left|right|scale"`
+  to vary direction.
+- `.reveal-stagger` — parent class; direct children animate in sequence
+  (70 ms step, capped at 9).
+- `.hero-enter` — first-paint stagger for hero copy (no IntersectionObserver).
+- `.hero-mesh` / `.hero-mesh.subtle` — drifting gradient orbs behind a hero.
+- `.gradient-pan` — animated emerald gradient text (use sparingly).
+- `.pulse-soft` — radiating halo for live/beta indicators.
+- `.card-lift` — lifts a card 3 px with emerald-tinted shadow on hover.
+- `.btn-primary` — emerald button with shimmer on hover.
+- `.nudge` — CTA; inline arrow nudges 3 px right on hover.
+- `.link-underline` — animated underline grows from the left on hover.
 
 ## OG Image Generation
 
@@ -90,17 +66,14 @@ caches the Playwright browsers between runs.
 
 ## URL changes require a redirect
 
-Whenever you rename, move, or delete a content file under `content/` or
-`docs/public/` (which mounts at `/docs/`), you **MUST** add a 301 entry to
+Whenever you rename, move, or delete a documentation file under `docs/public/`
+or a marketing page under `src/pages/`, you **MUST** add a 301 entry to
 `apps/website/static/_redirects` mapping the old URL to the new one (or to the
 closest still-existing parent for deletions).
 
 This applies even for "small" reorganizations. Google retains old URLs for
 months and continues serving them from the index — a missing redirect costs
-impressions and trips canonical/404 warnings in Search Console. We've already
-paid for this once: `/docs/resources/hardware/` was moved to `/docs/hardware/`
-without a redirect, leading to ~36 wasted impressions per quarter and a
-"duplicate without canonical" warning.
+impressions and trips canonical/404 warnings in Search Console.
 
 **Format:** `<old-path> <new-path> 301`, one per line. Wildcards work:
 `/docs/old-section/:slug /docs/new-section/:slug 301`. Place the more specific
@@ -108,7 +81,3 @@ entries before the general ones.
 
 **Verify after deploy:** `curl -I https://devicesdk.com/<old-path>` should
 return `HTTP/2 301` with the new `location:` header.
-
-Also applies to: changes to `permalink`/`url` in front-matter, changes to
-`[permalinks]` in `apps/website/hugo.toml`, and changes to `[[module.mounts]]`
-`target` values that shift where content lands in the URL tree.

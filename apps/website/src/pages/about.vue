@@ -1,0 +1,156 @@
+<script setup lang="ts">
+import { useHead } from "@vueuse/head";
+import HeroEnter from "~/components/animations/HeroEnter.vue";
+import ScrollReveal from "~/components/animations/ScrollReveal.vue";
+import StaggerReveal from "~/components/animations/StaggerReveal.vue";
+
+useHead({
+	title: "About | DeviceSDK",
+	meta: [
+		{
+			name: "description",
+			content:
+				"Why we built DeviceSDK — free, open-source, self-hosted IoT software.",
+		},
+	],
+});
+</script>
+
+<template>
+  <div>
+    <section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <div class="hero-mesh subtle" aria-hidden="true"></div>
+      <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
+        <HeroEnter>
+          <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
+            About<br />
+            <span class="gradient-pan">DeviceSDK</span>
+          </h1>
+        </HeroEnter>
+      </div>
+    </section>
+
+    <section class="py-20 px-4 sm:px-6 lg:px-8 bg-zinc-50">
+      <div class="max-w-3xl mx-auto">
+        <ScrollReveal>
+          <h2 class="text-2xl font-bold text-zinc-900 tracking-tight mb-6">Why we built DeviceSDK</h2>
+          <div class="space-y-4 text-zinc-600 leading-relaxed">
+            <p>
+              Building IoT shouldn't require learning C firmware, wrestling with MQTT brokers, or renting a cloud you can't inspect. But that's exactly what developers face today.
+            </p>
+            <p>
+              We built DeviceSDK because we believe the best way to program hardware is with the tools you already know — and on infrastructure you actually own. TypeScript gives you type safety, autocomplete, and a massive ecosystem. The DeviceSDK server is open source (AGPL-3.0) and runs on your own hardware: a Raspberry Pi, a NUC, a NAS, or any Docker host. No cloud account, no per-message billing, no vendor lock-in.
+            </p>
+            <p>
+              The result is a platform where you write a single TypeScript class, deploy it with one command to a server you run yourself, and it runs on real hardware — with built-in state management, display APIs, and sensor integration.
+            </p>
+          </div>
+        </ScrollReveal>
+      </div>
+    </section>
+
+    <section class="py-20 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-4xl mx-auto">
+        <div class="grid md:grid-cols-2 gap-8">
+          <ScrollReveal direction="left">
+            <div>
+              <h3 class="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-6">Before DeviceSDK</h3>
+              <StaggerReveal>
+                <ul class="space-y-3 text-sm">
+                  <li class="flex items-start gap-2 text-zinc-500">
+                    <span class="text-zinc-600 mt-0.5 line-through">Learn C/C++ for each microcontroller</span>
+                  </li>
+                  <li class="flex items-start gap-2 text-zinc-500">
+                    <span class="text-zinc-600 mt-0.5 line-through">Set up MQTT broker + cloud server</span>
+                  </li>
+                  <li class="flex items-start gap-2 text-zinc-500">
+                    <span class="text-zinc-600 mt-0.5 line-through">Manual firmware flashing with custom toolchains</span>
+                  </li>
+                  <li class="flex items-start gap-2 text-zinc-500">
+                    <span class="text-zinc-600 mt-0.5 line-through">No local testing without hardware</span>
+                  </li>
+                  <li class="flex items-start gap-2 text-zinc-500">
+                    <span class="text-zinc-600 mt-0.5 line-through">Build your own OTA update system</span>
+                  </li>
+                </ul>
+              </StaggerReveal>
+            </div>
+          </ScrollReveal>
+          <ScrollReveal direction="right">
+            <div>
+              <h3 class="text-sm font-semibold text-emerald-500 uppercase tracking-wider mb-6">With DeviceSDK</h3>
+              <StaggerReveal>
+                <ul class="space-y-3 text-sm">
+                  <li class="flex items-start gap-2 text-zinc-300">
+                    <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Write TypeScript with full type safety
+                  </li>
+                  <li class="flex items-start gap-2 text-zinc-300">
+                    <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Runs on your own hardware — your data never leaves your network
+                  </li>
+                  <li class="flex items-start gap-2 text-zinc-300">
+                    <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    One command: <code class="font-mono text-xs bg-zinc-900 px-1 rounded">devicesdk flash</code>
+                  </li>
+                  <li class="flex items-start gap-2 text-zinc-300">
+                    <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Built-in local simulator
+                  </li>
+                  <li class="flex items-start gap-2 text-zinc-300">
+                    <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Deploy new code over-the-air instantly
+                  </li>
+                </ul>
+              </StaggerReveal>
+            </div>
+          </ScrollReveal>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+      <div class="max-w-2xl mx-auto">
+        <ScrollReveal>
+          <h2 class="text-2xl font-bold tracking-tight mb-8">Contact</h2>
+          <div class="space-y-4 text-sm">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
+              <span class="text-zinc-400">General</span>
+              <span class="text-zinc-300">hello@devicesdk.com</span>
+            </div>
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
+              <span class="text-zinc-400">Issues &amp; contributions</span>
+              <span class="text-zinc-300">github.com/device-sdk/devicesdk-monorepo</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-400">Community</span>
+              <span class="text-zinc-300">Discord</span>
+            </div>
+          </div>
+        </ScrollReveal>
+      </div>
+    </section>
+
+    <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+      <div class="max-w-3xl mx-auto text-center">
+        <ScrollReveal>
+          <h2 class="text-3xl font-bold tracking-tight">Start building with DeviceSDK</h2>
+          <p class="mt-4 text-zinc-400 text-lg">Free and open source. No account, no cloud — run it yourself.</p>
+          <div class="mt-8">
+            <a href="/docs/quickstart/" class="btn-primary h-11 px-8">Get started</a>
+          </div>
+        </ScrollReveal>
+      </div>
+    </section>
+  </div>
+</template>

@@ -9,7 +9,7 @@
 	"scripts": {
 		"build-content": "tsx scripts/build-content.ts",
 		"build": "rm -rf dist && mkdir -p static/docs/api && (test -f ../server/openapi.json || (echo 'ERROR: ../server/openapi.json missing. Run \"pnpm --filter @devicesdk/server build\" first, or use \"pnpm build\" from the monorepo root.' >&2 && exit 1)) && cp ../server/openapi.json static/docs/api/openapi.json && node generate-agent-skills.js && node generate-og.js && pnpm run build-content && vite-ssg build && tsx scripts/post-build.ts",
-		"dev": "pnpm run build-content && vite-ssg dev",
+		"dev": "pnpm run build-content && vite",
 		"deploy": "npx wrangler pages deploy dist",
 		"clean": "rm -rf dist .vite-ssg-temp static/docs/api static/og-images static/llms.txt static/llms-full.txt static/sitemap.xml",
 		"lint": "tsc --noEmit",

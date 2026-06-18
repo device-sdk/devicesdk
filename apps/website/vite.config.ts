@@ -1,7 +1,20 @@
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+
+const devEntryPlugin: Plugin = {
+	name: "dev-entry",
+	transformIndexHtml: {
+		order: "pre",
+		handler(html, ctx) {
+			if (ctx.server) {
+				return html.replace('src="/src/main.ts"', 'src="/src/main.dev.ts"');
+			}
+			return html;
+		},
+	},
+};
 
 export default defineConfig({
 	base: "/",
@@ -11,7 +24,17 @@ export default defineConfig({
 			"@": path.resolve(__dirname, "./src"),
 		},
 	},
-	plugins: [vue(), tailwindcss()],
+	plugins: [
+		devEntryPlugin,
+		vue({
+			template: {
+				compilerOptions: {
+					isCustomElement: (tag) => tag === "search-modal-snippet",
+				},
+			},
+		}),
+		tailwindcss(),
+	],
 	build: {
 		outDir: "dist",
 		emptyOutDir: true,

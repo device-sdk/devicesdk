@@ -30,8 +30,8 @@
 		"dev": "pnpm run build-content && vite",
 		"deploy": "npx wrangler pages deploy dist",
 		"clean": "rm -rf dist .vite-ssg-temp static/docs/api static/og-images static/llms.txt static/llms-full.txt static/sitemap.xml",
-		"lint": "tsc --noEmit",
-		"check-types": "tsc --noEmit"
+		"lint": "pnpm run build-content && tsc --noEmit",
+		"check-types": "pnpm run build-content && tsc --noEmit"
 	},
 	"dependencies": {
 		"@unhead/vue": "^2.0.5",

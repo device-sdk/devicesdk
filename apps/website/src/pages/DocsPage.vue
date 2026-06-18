@@ -28,6 +28,38 @@
           </div>
 
           <div class="prose prose-gray max-w-none" v-html="page?.html"></div>
+
+          <!-- Prev / Next -->
+          <nav v-if="prev || next" class="mt-16 pt-8 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <a
+              v-if="prev"
+              :href="prev.path"
+              class="group flex flex-col p-4 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/30 transition-colors"
+            >
+              <span class="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                Previous
+              </span>
+              <span class="text-sm font-semibold text-gray-900 group-hover:text-emerald-700">{{ prev.title }}</span>
+            </a>
+            <div v-else></div>
+
+            <a
+              v-if="next"
+              :href="next.path"
+              class="group flex flex-col items-end text-right p-4 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/30 transition-colors"
+            >
+              <span class="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                Next
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </span>
+              <span class="text-sm font-semibold text-gray-900 group-hover:text-emerald-700">{{ next.title }}</span>
+            </a>
+          </nav>
         </article>
       </main>
 
@@ -46,11 +78,14 @@
 import { onMounted, onUnmounted } from "vue";
 import DocsSidebar from "@/components/DocsSidebar.vue";
 import { usePageData } from "@/composables/usePageContent";
+import { useDocsReadingOrder } from "@/composables/useDocsNav";
 import { useSiteHead } from "@/composables/useSiteHead";
 import "@/styles/docs.css";
 
 const page = usePageData();
 useSiteHead(page);
+
+const { prev, next } = useDocsReadingOrder();
 
 onMounted(() => {
   const sidebarToggle = document.getElementById("mobile-sidebar-toggle");

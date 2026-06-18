@@ -22,13 +22,16 @@ coverage/
 .wrangler/
 .dev.vars
 
-# Hugo
-apps/website/public/
-resources/_gen/
-
 # Generated website assets
+apps/website/.vite-ssg-temp/
+apps/website/src/generated/
 apps/website/static/og-images/
-apps/website/static/styles.css
+apps/website/static/docs/api/
+apps/website/static/.well-known/agent-skills/
+apps/website/static/**/*.md
+apps/website/static/llms.txt
+apps/website/static/llms-full.txt
+apps/website/static/sitemap.xml
 
 # Plans and specs (local drafts)
 docs/plans/

@@ -1,6 +1,6 @@
 ---
 name: website-url-changes
-description: Use whenever a change will alter the public URL of a page on devicesdk.com. Triggers include renaming/moving/deleting any file under apps/website/content/ or docs/public/ (which mounts at /docs/), changing `permalink` or `url` in a content file's front-matter, modifying `[permalinks]` in apps/website/hugo.toml, or changing `[[module.mounts]]` targets. Ensures a 301 entry is added to apps/website/static/_redirects so the old URL keeps its Google index signal.
+description: Use whenever a change will alter the public URL of a page on devicesdk.com. Triggers include renaming/moving/deleting any file under apps/website/content/ or docs/public/ (which mounts at /docs/), changing `slug:` or `url:` in a content file's front-matter, or changing the route derivation in apps/website/scripts/build-content.ts. Ensures a 301 entry is added to apps/website/static/_redirects so the old URL keeps its Google index signal.
 ---
 
 # Website URL changes
@@ -12,16 +12,15 @@ Any change that alters a public URL on devicesdk.com requires a 301 redirect fro
 - Renaming a `.md` file under `apps/website/content/` or `docs/public/`.
 - Moving a file between directories (e.g., `docs/public/resources/hardware/esp32.md` → `docs/public/hardware/esp32.md`).
 - Deleting a file that has been live long enough for Google to know about it.
-- Changing `slug:`, `url:`, or `permalink:` in a content file's front-matter.
-- Editing `[permalinks]` in `apps/website/hugo.toml`.
-- Editing `[[module.mounts]]` `target` for content sources, which shifts where content lands in the URL tree.
+- Changing `slug:` or `url:` in a content file's front-matter.
+- Editing the route derivation in `apps/website/scripts/build-content.ts` (e.g., how filenames map to paths, the `/docs` prefix, or trailing-slash behavior).
 
 ## What to do
 
-1. **Identify the old URL.** Hugo's permalink derivation:
+1. **Identify the old URL.** The build script's permalink derivation:
    - `content/foo/bar.md` → `/foo/bar/`
    - `content/foo/_index.md` → `/foo/`
-   - `docs/public/cli/init.md` → `/docs/cli/init/` (because the `docs/public/` mount target is `content/docs`)
+   - `docs/public/cli/init.md` → `/docs/cli/init/` (because `docs/public/` is mounted at `/docs/`)
    - Front-matter `slug:` overrides the filename.
    - Front-matter `url:` overrides the entire path.
 
@@ -57,9 +56,9 @@ Before this rule existed, hardware docs were moved from `docs/public/resources/h
 
 The first line covers the section landing; the second covers all child pages (`esp32.md`, `pico-w.md`, etc.).
 
-## Why not just rely on Hugo aliases?
+## Why not rely on client-side redirects?
 
-Hugo's built-in `aliases:` front-matter creates HTML meta-refresh redirects in the *new* page's location. Those work for users but Google treats them as soft 301s at best and ignores them at worst. A real `_redirects` 301 served by Cloudflare's edge is what transfers index signal cleanly.
+The site is a static SSG build. A real `_redirects` 301 served by Cloudflare's edge transfers index signal cleanly and works for all clients, including search crawlers and `curl`. Client-side `<meta http-equiv="refresh">` or Vue-router redirects are invisible to crawlers and should not be used for SEO-sensitive URL moves.
 
 ## Skip when
 

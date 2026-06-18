@@ -23,11 +23,16 @@ pnpm build
 pnpm dev --filter @devicesdk/server      # Bun server on port 8080 (bun run --watch)
 pnpm dev --filter @devicesdk/dashboard   # Quasar dev server on port 9000
 pnpm dev --filter @devicesdk/simulation  # Vite dev on port 9002
+pnpm dev --filter @devicesdk/website     # Vite + vite-ssg dev server
 pnpm local                               # server + dashboard concurrently
 
 # Server checks
 pnpm check-types --filter @devicesdk/server   # tsc
 pnpm lint --filter @devicesdk/server          # Biome
+
+# Website checks
+pnpm lint --filter @devicesdk/website         # tsc --noEmit
+pnpm check-types --filter @devicesdk/website  # tsc --noEmit
 cd apps/server && bun run scripts/generate-openapi.ts   # regen openapi.json
 
 # Tests
@@ -73,8 +78,8 @@ runtime is a roadmap item).
 **`apps/simulation`** — Vue UI for the CLI dev simulator (built dist embedded in
 CLI).
 
-**`apps/website`** + **`docs/public`** — Hugo site. Website build consumes
-`apps/server/openapi.json`.
+**`apps/website`** + **`docs/public`** — Vue 3 + Vite SSG marketing and docs site.
+Website build consumes `apps/server/openapi.json`.
 
 **`firmware/esp32`, `firmware/pico`** — C/C++ WS clients. Both select **plain
 `ws://` when the configured host contains an explicit port** (self-hosted LAN)
@@ -237,6 +242,26 @@ on the user's own server — that's the trust model).
   automatically. Instead, tell the user the task is finished and ask how they
   would like to proceed (e.g. push to their fork, open a PR against upstream, or
   stop here).
+
+## Changesets
+
+The monorepo uses `@changesets/cli` for versioning and release management.
+
+- **Public packages** (`private: false`) are published to npm by `pnpm release`:
+  `@devicesdk/core`, `@devicesdk/cli`, `@devicesdk/mcp`.
+- **Private packages** (`private: true`) are version-bumped and get changelog
+  entries, but are **not** published to npm. This includes the runtime apps:
+  `@devicesdk/server`, `@devicesdk/dashboard`, `@devicesdk/simulation`, and
+  `@devicesdk/website`.
+- The `@devicesdk/website` package follows the same changeset lifecycle as the
+  CLI: create a changeset with `pnpm changeset`, the "Version packages" PR bumps
+  `apps/website/package.json` and `apps/website/CHANGELOG.md`, and the current
+  version is the source of truth for the site release. The actual Cloudflare
+  Pages deploy is handled by `.github/workflows/website-deploy.yml`.
+- Always create a changeset for any user-visible change in a published or
+  private-with-changelog package. Docs-only fixes under `docs/public/` that do
+  not touch `apps/website` code can be covered by a `@devicesdk/website`
+  changeset because the site consumes them.
 
 ## CI Runner Image
 

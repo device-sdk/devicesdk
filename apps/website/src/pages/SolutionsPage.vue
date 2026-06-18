@@ -1,0 +1,169 @@
+<template>
+  <!-- Hero -->
+  <section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div class="hero-mesh subtle" aria-hidden="true"></div>
+    <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
+      <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
+        Real-world<br/>
+        <span class="gradient-pan">solutions</span>
+      </h1>
+      <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
+        See how DeviceSDK fits real IoT use cases — all running on your own self-hosted server.
+      </p>
+    </div>
+  </section>
+
+  <!-- Solution 1: Environmental Monitoring -->
+  <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-4xl mx-auto fade-up">
+      <div class="grid md:grid-cols-2 gap-12 items-start">
+        <div>
+          <div class="badge badge-emerald mb-4">Environmental</div>
+          <h2 class="text-2xl font-bold tracking-tight">Environmental monitoring</h2>
+          <p class="mt-4 text-zinc-400 leading-relaxed">
+            Deploy sensors that measure temperature, humidity, and air quality across a building or outdoor site. Readings stored in device KV on your server, accessible via the dashboard.
+          </p>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">DeviceSDK approach</h3>
+          <ul class="space-y-2 text-sm text-zinc-300">
+            <li>BME280 sensor over I2C on a Pico W</li>
+            <li>ADC monitoring every 5 minutes (288 messages/day)</li>
+            <li>Data stored in device KV, visible in dashboard</li>
+            <li>Discord webhook alert if temp exceeds threshold</li>
+          </ul>
+          <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg card-lift">
+            <div class="text-xs text-zinc-500 uppercase tracking-wider">Hosting</div>
+            <div class="text-lg font-bold text-emerald-400 mt-1">Self-hosted</div>
+            <div class="text-xs text-zinc-600">~288 messages/day, on your own server</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution 2: Industrial Automation -->
+  <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-4xl mx-auto fade-up">
+      <div class="grid md:grid-cols-2 gap-12 items-start">
+        <div>
+          <div class="badge badge-emerald mb-4">Industrial</div>
+          <h2 class="text-2xl font-bold tracking-tight">Industrial automation</h2>
+          <p class="mt-4 text-zinc-400 leading-relaxed">
+            Monitor equipment status and control relays remotely. Track machine runtime, detect anomalies, and trigger maintenance alerts.
+          </p>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">DeviceSDK approach</h3>
+          <ul class="space-y-2 text-sm text-zinc-300">
+            <li>GPIO inputs for machine state (running/stopped)</li>
+            <li>ADC for current monitoring (every 10s)</li>
+            <li>GPIO outputs for relay control</li>
+            <li>KV for runtime tracking and maintenance logs</li>
+          </ul>
+          <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg card-lift">
+            <div class="text-xs text-zinc-500 uppercase tracking-wider">Hosting</div>
+            <div class="text-lg font-bold text-emerald-400 mt-1">Self-hosted</div>
+            <div class="text-xs text-zinc-600">~8,640 messages/day per machine</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution 3: Smart Home -->
+  <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-4xl mx-auto fade-up">
+      <div class="grid md:grid-cols-2 gap-12 items-start">
+        <div>
+          <div class="badge badge-emerald mb-4">Smart home</div>
+          <h2 class="text-2xl font-bold tracking-tight">Smart home & building</h2>
+          <p class="mt-4 text-zinc-400 leading-relaxed">
+            Control lights, monitor temperature, and manage access with simple TypeScript scripts. No proprietary hub required.
+          </p>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">DeviceSDK approach</h3>
+          <ul class="space-y-2 text-sm text-zinc-300">
+            <li>Button inputs for light switches</li>
+            <li>GPIO outputs for relay-controlled lights</li>
+            <li>Inter-device RPC &mdash; motion sensor triggers light controller</li>
+            <li>OLED display for room temperature</li>
+            <li>KV for state persistence across power outages</li>
+          </ul>
+          <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg card-lift">
+            <div class="text-xs text-zinc-500 uppercase tracking-wider">Hosting</div>
+            <div class="text-lg font-bold text-emerald-400 mt-1">Self-hosted</div>
+            <div class="text-xs text-zinc-600">Event-driven, no message quotas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution 4: Agriculture -->
+  <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-4xl mx-auto fade-up">
+      <div class="grid md:grid-cols-2 gap-12 items-start">
+        <div>
+          <div class="badge badge-emerald mb-4">Agriculture</div>
+          <h2 class="text-2xl font-bold tracking-tight">Agriculture & greenhouse</h2>
+          <p class="mt-4 text-zinc-400 leading-relaxed">
+            Monitor soil moisture, ambient temperature, and light levels. Automate irrigation pumps and vent controls based on sensor thresholds.
+          </p>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">DeviceSDK approach</h3>
+          <ul class="space-y-2 text-sm text-zinc-300">
+            <li>Soil moisture via ADC (every 15 min)</li>
+            <li>Temperature + humidity via I2C BME280</li>
+            <li>Water pump control via GPIO relay</li>
+            <li>Daily summary logged to KV</li>
+          </ul>
+          <div class="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg card-lift">
+            <div class="text-xs text-zinc-500 uppercase tracking-wider">Hosting</div>
+            <div class="text-lg font-bold text-emerald-400 mt-1">Self-hosted</div>
+            <div class="text-xs text-zinc-600">~200 messages/day per zone</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrations -->
+  <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-4xl mx-auto text-center fade-up">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">Works with your stack</h2>
+      <p class="text-zinc-400 max-w-xl mx-auto">
+        Your device scripts run on your own DeviceSDK server — you can <code class="text-sm font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">fetch()</code> any HTTP API directly from your device code.
+      </p>
+      <div class="mt-8 flex flex-wrap justify-center gap-3 text-sm text-zinc-500 reveal-stagger">
+        <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Discord</span>
+        <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Slack</span>
+        <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Email (SendGrid)</span>
+        <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Databases</span>
+        <span class="px-3 py-1 border border-zinc-800 rounded-full hover:border-emerald-500/40 hover:text-zinc-300 transition-colors">Any REST API</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-3xl mx-auto text-center fade-up">
+      <h2 class="text-3xl font-bold tracking-tight">What will you build?</h2>
+      <p class="mt-4 text-zinc-400 text-lg">Start with an example, customize it, and deploy in minutes.</p>
+      <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="/docs/quickstart/" class="btn-primary h-11 px-6">Get started free</a>
+        <a href="/examples/" class="btn-secondary h-11 px-6">Browse examples</a>
+      </div>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { usePageData } from "@/composables/usePageContent";
+import { useSiteHead } from "@/composables/useSiteHead";
+
+const page = usePageData();
+useSiteHead(page);
+</script>

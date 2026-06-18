@@ -95,11 +95,17 @@ function htmlTemplate({ title }) {
   </html>`;
 }
 
-// Only mirror what Hugo publishes. The repo also has docs/internal/ for
-// runbooks that intentionally stay out of the public site (and may reference
+// Only mirror what the public site publishes. The repo also has docs/internal/
+// for runbooks that intentionally stay out of the public site (and may reference
 // Cloudflare etc.) — generating OG images for those would leak titles into
 // /static/og-images/ even though the markdown itself never ships.
 const DOCS_DIR = path.join(__dirname, '..', '..', 'docs', 'public');
+
+function shouldSkipPage(data) {
+  if (data.draft === true) return true;
+  if (data.build && data.build.render === 'never') return true;
+  return false;
+}
 
 async function main() {
   const contentFiles = await glob('**/*.md', { cwd: CONTENT_DIR, nodir: true });
@@ -118,6 +124,7 @@ async function main() {
     const raw = fs.readFileSync(abs, 'utf8');
     const fm = matter(raw);
     const data = fm.data || {};
+    if (shouldSkipPage(data)) continue;
     let title = data.title || path.basename(rel, path.extname(rel));
     title = title.replaceAll('DeviceSDK -', '').replaceAll('DeviceSDK', '');
 

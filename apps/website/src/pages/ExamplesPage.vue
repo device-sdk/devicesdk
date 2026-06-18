@@ -1,0 +1,297 @@
+<template>
+  <!-- Hero -->
+  <section class="relative pt-20 pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div class="hero-mesh subtle" aria-hidden="true"></div>
+    <div class="max-w-4xl mx-auto text-center hero-stack hero-enter">
+      <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
+        Example<br/>
+        <span class="gradient-pan">projects</span>
+      </h1>
+      <p class="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
+        Real code, ready to deploy. Browse by category or dive into the source.
+      </p>
+    </div>
+  </section>
+
+  <!-- Filter + Grid -->
+  <section class="pb-24 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <!-- Filter Pills -->
+      <div ref="pillsContainer" class="flex flex-wrap gap-2 justify-center mb-12 fade-up">
+        <button class="filter-pill active px-4 py-1.5 text-sm font-medium rounded-full border transition-colors" data-filter="all">All</button>
+        <button class="filter-pill px-4 py-1.5 text-sm font-medium rounded-full border border-zinc-800 text-zinc-400 hover:text-zinc-50 hover:border-zinc-600 transition-colors" data-filter="basic">Basic</button>
+        <button class="filter-pill px-4 py-1.5 text-sm font-medium rounded-full border border-zinc-800 text-zinc-400 hover:text-zinc-50 hover:border-zinc-600 transition-colors" data-filter="sensors">Sensors</button>
+        <button class="filter-pill px-4 py-1.5 text-sm font-medium rounded-full border border-zinc-800 text-zinc-400 hover:text-zinc-50 hover:border-zinc-600 transition-colors" data-filter="integrations">Integrations</button>
+        <button class="filter-pill px-4 py-1.5 text-sm font-medium rounded-full border border-zinc-800 text-zinc-400 hover:text-zinc-50 hover:border-zinc-600 transition-colors" data-filter="advanced">Advanced</button>
+      </div>
+
+      <!-- Card Grid -->
+      <div ref="gridContainer" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 reveal-stagger">
+        <!-- Basic: Blink LED -->
+        <div class="card card-lift p-5" data-category="basic">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge badge-emerald">Basic</span>
+            <span class="badge">Pico W</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Blink LED</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Toggle the onboard LED on and off with a timer</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE
+  .<span class="syn-fn">setGpioState</span>(<span class="syn-num">99</span>, <span class="syn-str">"high"</span>);
+<span class="syn-cm">// Pin 99 = onboard LED</span></code></pre>
+          </div>
+        </div>
+
+        <!-- Basic: Button Input -->
+        <div class="card card-lift p-5" data-category="basic">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge badge-emerald">Basic</span>
+            <span class="badge">Pico W</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Button Input</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">React to physical button presses on a GPIO pin</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE
+  .<span class="syn-fn">configureGpioInputMonitoring</span>(
+    <span class="syn-num">14</span>, <span class="syn-num">true</span>);
+<span class="syn-cm">// Fires gpio_state_changed</span></code></pre>
+          </div>
+        </div>
+
+        <!-- Basic: OLED Counter -->
+        <div class="card card-lift p-5" data-category="basic">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge badge-emerald">Basic</span>
+            <span class="badge">I2C</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">OLED Counter</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Display a button press counter on an SSD1306 OLED</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">this</span>.env.DEVICE.display
+  .<span class="syn-fn">clear</span>()
+  .<span class="syn-fn">drawText</span>(<span class="syn-num">0</span>,<span class="syn-num">0</span>,<span class="syn-str">`Count: ${n}`</span>)
+  .<span class="syn-fn">render</span>();</code></pre>
+          </div>
+        </div>
+
+        <!-- Sensors: Temperature Monitor -->
+        <div class="card card-lift p-5" data-category="sensors">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge" style="border-color:rgba(56,189,248,0.3);color:#38bdf8;background:rgba(56,189,248,0.1)">Sensors</span>
+            <span class="badge">ADC</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Temperature Monitor</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Read an analog temperature sensor with periodic ADC polling</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE
+  .<span class="syn-fn">configureGpioInputMonitoring</span>(
+    <span class="syn-num">26</span>, <span class="syn-num">true</span>);</code></pre>
+          </div>
+        </div>
+
+        <!-- Sensors: BME280 -->
+        <div class="card card-lift p-5" data-category="sensors">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge" style="border-color:rgba(56,189,248,0.3);color:#38bdf8;background:rgba(56,189,248,0.1)">Sensors</span>
+            <span class="badge">I2C</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">BME280 Weather</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Read temperature, humidity, and pressure over I2C</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">const</span> sensor = Pico.<span class="syn-fn">i2c</span>({
+  bus: <span class="syn-num">0</span>,
+  sda_pin: <span class="syn-num">0</span>, scl_pin: <span class="syn-num">1</span>
+});</code></pre>
+          </div>
+        </div>
+
+        <!-- Sensors: Motion Detector -->
+        <div class="card card-lift p-5" data-category="sensors">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge" style="border-color:rgba(56,189,248,0.3);color:#38bdf8;background:rgba(56,189,248,0.1)">Sensors</span>
+            <span class="badge">GPIO</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Motion Detector</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Detect motion with a PIR sensor and log events to KV</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">if</span> (msg.type === <span class="syn-str">"gpio_state_changed"</span>)
+  <span class="syn-kw">await</span> kv.<span class="syn-fn">put</span>(<span class="syn-str">"lastMotion"</span>,
+    Date.<span class="syn-fn">now</span>());</code></pre>
+          </div>
+        </div>
+
+        <!-- Integrations: Discord Alerts -->
+        <div class="card card-lift p-5" data-category="integrations">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge" style="border-color:rgba(192,132,252,0.3);color:#c084fc;background:rgba(192,132,252,0.1)">Integration</span>
+            <span class="badge">Webhook</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Discord Alerts</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Send a Discord message when temperature exceeds a threshold</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-fn">fetch</span>(WEBHOOK_URL, {
+  method: <span class="syn-str">"POST"</span>,
+  body: JSON.<span class="syn-fn">stringify</span>({
+    content: <span class="syn-str">`Temp: ${t}C`</span>
+  })
+});</code></pre>
+          </div>
+        </div>
+
+        <!-- Integrations: Data Logger -->
+        <div class="card card-lift p-5" data-category="integrations">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge" style="border-color:rgba(192,132,252,0.3);color:#c084fc;background:rgba(192,132,252,0.1)">Integration</span>
+            <span class="badge">KV</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Data Logger</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Log sensor readings to device KV storage with timestamps</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv
+  .<span class="syn-fn">put</span>(<span class="syn-str">`reading:${ts}`</span>,
+    { temp, humidity });</code></pre>
+          </div>
+        </div>
+
+        <!-- Advanced: Smart Thermostat -->
+        <div class="card card-lift p-5" data-category="advanced">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge" style="border-color:rgba(251,146,60,0.3);color:#fb923c;background:rgba(251,146,60,0.1)">Advanced</span>
+            <span class="badge">Multi-sensor</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Smart Thermostat</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Control heating based on temperature with OLED display</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">if</span> (temp &lt; target) {
+  <span class="syn-kw">await</span> device.<span class="syn-fn">setGpioState</span>(
+    RELAY_PIN, <span class="syn-str">"high"</span>);
+  display.<span class="syn-fn">drawText</span>(<span class="syn-num">0</span>,<span class="syn-num">0</span>,<span class="syn-str">"Heating"</span>);
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Advanced: Multi-Device -->
+        <div class="card card-lift p-5" data-category="advanced">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge" style="border-color:rgba(251,146,60,0.3);color:#fb923c;background:rgba(251,146,60,0.1)">Advanced</span>
+            <span class="badge">Fleet</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Multi-Device System</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Coordinate multiple devices reading different sensors</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-cm">// Same script deploys to</span>
+<span class="syn-cm">// multiple devices — each</span>
+<span class="syn-cm">// gets its own KV store</span>
+kv.<span class="syn-fn">put</span>(<span class="syn-str">"role"</span>, <span class="syn-str">"sensor-a"</span>);</code></pre>
+          </div>
+        </div>
+
+        <!-- Advanced: Plant Watering -->
+        <div class="card card-lift p-5" data-category="advanced">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge" style="border-color:rgba(251,146,60,0.3);color:#fb923c;background:rgba(251,146,60,0.1)">Advanced</span>
+            <span class="badge">ADC + GPIO</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Plant Watering</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Monitor soil moisture and control a water pump automatically</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">if</span> (moisture &lt; <span class="syn-num">30</span>) {
+  <span class="syn-kw">await</span> device.<span class="syn-fn">setGpioState</span>(
+    PUMP_PIN, <span class="syn-str">"high"</span>);
+  <span class="syn-kw">await</span> <span class="syn-fn">delay</span>(<span class="syn-num">5000</span>);
+}</code></pre>
+          </div>
+        </div>
+        <div class="card card-lift p-5" data-category="advanced">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge" style="border-color:rgba(251,146,60,0.3);color:#fb923c;background:rgba(251,146,60,0.1)">Advanced</span>
+            <span class="badge">RPC</span>
+          </div>
+          <h3 class="font-semibold text-zinc-50">Device-to-Device RPC</h3>
+          <p class="text-sm text-zinc-500 mt-1 mb-4">Sensor triggers light controller via type-safe method calls</p>
+          <div class="code-window text-xs">
+            <pre class="!p-3"><code><span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICES[
+  <span class="syn-str">"light"</span>
+].<span class="syn-fn">turnOn</span>();
+<span class="syn-cm">// { status: "on" }</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-20 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-3xl mx-auto text-center fade-up">
+      <h2 class="text-2xl font-bold tracking-tight">Want the full source?</h2>
+      <p class="mt-3 text-zinc-400">All examples are available on GitHub with instructions.</p>
+      <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+        <a :href="GITHUB_URL" target="_blank" rel="noopener" class="btn-secondary h-10 px-5 text-sm">
+          <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/></svg>
+          View on GitHub
+        </a>
+        <a href="/docs/quickstart/" class="btn-primary h-10 px-5 text-sm">Start building</a>
+      </div>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { onMounted, onUnmounted, ref } from "vue";
+import { GITHUB_URL } from "@/config";
+import { usePageData } from "@/composables/usePageContent";
+import { useSiteHead } from "@/composables/useSiteHead";
+
+const page = usePageData();
+useSiteHead(page);
+
+const pillsContainer = ref<HTMLElement | null>(null);
+const gridContainer = ref<HTMLElement | null>(null);
+
+onMounted(() => {
+  const pills = pillsContainer.value?.querySelectorAll<HTMLElement>("[data-filter]");
+  const cards = gridContainer.value?.querySelectorAll<HTMLElement>("[data-category]");
+  if (!pills || !cards) return;
+
+  const timers: number[] = [];
+
+  pills.forEach((pill) => {
+    pill.addEventListener("click", () => {
+      const filter = pill.getAttribute("data-filter") ?? "all";
+
+      pills.forEach((p) => {
+        p.classList.remove("active", "border-emerald-500", "text-emerald-400", "bg-emerald-500/10");
+        p.classList.add("border-zinc-800", "text-zinc-400");
+      });
+      pill.classList.add("active", "border-emerald-500", "text-emerald-400", "bg-emerald-500/10");
+      pill.classList.remove("border-zinc-800", "text-zinc-400");
+
+      cards.forEach((card) => {
+        const match = filter === "all" || card.getAttribute("data-category") === filter;
+        if (match) {
+          card.classList.remove("is-hidden");
+          card.style.display = "";
+        } else {
+          card.classList.add("is-hidden");
+          const t = window.setTimeout(() => {
+            if (card.classList.contains("is-hidden")) {
+              card.style.display = "none";
+            }
+          }, 300);
+          timers.push(t);
+        }
+      });
+    });
+  });
+
+  const allPill = pillsContainer.value?.querySelector<HTMLElement>('[data-filter="all"]');
+  if (allPill) {
+    allPill.classList.add("border-emerald-500", "text-emerald-400", "bg-emerald-500/10");
+    allPill.classList.remove("border-zinc-800", "text-zinc-400");
+  }
+
+  onUnmounted(() => {
+    timers.forEach((t) => clearTimeout(t));
+  });
+});
+</script>

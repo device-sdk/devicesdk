@@ -6,7 +6,7 @@ run yourself** (on your LAN), so your TypeScript device script can drive the har
 (GPIO, I2C, SPI, UART, onboard LED) and receive events back in real time.
 
 On a LAN the connection is plain `ws://<server>:<port>`; for a bare hostname it uses TLS on
-443. See the root `CLAUDE.md` for the host/port heuristic.
+443. See the root `AGENTS.md` for the host/port heuristic.
 
 ## You normally don't build this
 

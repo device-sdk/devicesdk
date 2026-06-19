@@ -29,7 +29,6 @@ Creates a new project directory with:
 - `tsconfig.json` (strict) and `package.json`
 - `.gitignore`
 - `AGENTS.md` — version-matched guidance for AI coding agents working in the project
-- `CLAUDE.md` — one-line `@AGENTS.md` reference for Claude Code
 - `.cursor/rules/devicesdk.mdc` — Cursor rules pointing at `AGENTS.md`
 - `.mcp.json` — preconfigures the `@devicesdk/mcp` server for MCP-aware agents
 - `README.md` — quick reference for humans
@@ -96,7 +95,6 @@ my-project/
 │   └── devices/
 │       └── my-device.ts  # Device entrypoint
 ├── AGENTS.md             # AI-agent guidance
-├── CLAUDE.md             # @AGENTS.md (Claude Code reference)
 ├── .cursor/
 │   └── rules/
 │       └── devicesdk.mdc # Cursor rules

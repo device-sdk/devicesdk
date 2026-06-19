@@ -2,6 +2,11 @@
 
 This document provides a comprehensive description of the DeviceSDK Client firmware implementation for the Raspberry Pi Pico W. It is designed to help you port this implementation to other platforms, specifically ESP32 with ESP-IDF.
 
+> **Self-hosted context.** DeviceSDK is self-hosted: the firmware connects to
+> the WebSocket endpoint of a server you run yourself (default `ws://your-server.local:8080`).
+> Examples in this guide use `your-server.local:8080`; substitute your own host
+> and port. On a bare hostname with no explicit port the firmware uses TLS on 443.
+
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
@@ -121,10 +126,12 @@ if (cyw43_arch_wifi_connect_timeout_ms(
 
 ```cpp
 WebsocketClient client;
-client.connect("api.devicesdk.com", 80, "/v1/projects/1/devices/2/connect/websocket", WEBSOCKET_TOKEN);
+client.connect("your-server.local", 8080, "/v1/projects/<project-id>/devices/<device-id>/connect/websocket", WEBSOCKET_TOKEN);
 ```
 
-Initiates DNS lookup and TCP connection to the WebSocket server.
+Initiates DNS lookup and TCP connection to the self-hosted DeviceSDK server.
+Replace `your-server.local` and `8080` with the host and port of your server; on
+a bare hostname (no explicit port) the firmware uses TLS on 443 instead.
 
 ### 5. Main Event Loop (`main.cpp:47-70`)
 
@@ -223,8 +230,8 @@ The WebSocket client implements the core WebSocket protocol (RFC 6455) over a pl
 After TCP connection, an HTTP upgrade request is sent:
 
 ```cpp
-GET /v1/projects/1/devices/2/connect/websocket HTTP/1.1
-Host: api.devicesdk.com
+GET /v1/projects/<project-id>/devices/<device-id>/connect/websocket HTTP/1.1
+Host: your-server.local:8080
 Upgrade: websocket
 Connection: Upgrade
 Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
@@ -668,7 +675,7 @@ void websocket_task(void *pvParameters) {
     
     // DNS resolution
     struct addrinfo hints, *res;
-    getaddrinfo("api.devicesdk.com", "80", &hints, &res);
+    getaddrinfo("your-server.local", "8080", &hints, &res);
     
     // Connect
     connect(sock, res->ai_addr, res->ai_addrlen);
@@ -779,7 +786,7 @@ Example with esp_websocket_client:
 #include "esp_websocket_client.h"
 
 esp_websocket_client_config_t ws_cfg = {
-    .uri = "ws://api.devicesdk.com/v1/projects/1/devices/2/connect/websocket",
+    .uri = "ws://your-server.local:8080/v1/projects/<project-id>/devices/<device-id>/connect/websocket",
     .headers = "Authorization: Bearer token\r\n",
 };
 

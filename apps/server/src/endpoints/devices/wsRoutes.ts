@@ -88,8 +88,8 @@ export function registerDeviceWsRoutes(app: App): void {
 				.fetchOne<tableDeviceScripts>({
 					tableName: "device_scripts",
 					where: {
-						conditions: ["version_id = ?"],
-						params: [versionId],
+						conditions: ["version_id = ?", "device_id = ?"],
+						params: [versionId, device.id],
 					},
 				})
 				.execute()

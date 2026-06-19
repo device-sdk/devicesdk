@@ -2,7 +2,7 @@
 	"name": "devicesdk-monorepo",
 	"private": true,
 	"scripts": {
-		"build": "turbo run build",
+		"build": "turbo run build --filter '!./examples/*'",
 		"dev": "turbo run dev",
 		"lint": "biome check --write apps/server apps/simulation packages/core packages/cli && turbo run lint",
 		"test": "turbo run test",

@@ -75,7 +75,15 @@ ENV PORT=8080 \
 	MIGRATIONS_DIR=/app/migrations \
 	FIRMWARES_DIST_DIR=/app/firmwares-dist
 
+# Run as an unprivileged user. The bun image ships a `bun` group/user (uid 1000),
+# so reuse it rather than creating a new account that may collide with the host.
+RUN mkdir -p /data && chown -R bun:bun /app /data
+USER bun
+
 EXPOSE 8080
 VOLUME /data
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+	CMD bun -e "fetch('http://localhost:' + (process.env.PORT || 8080) + '/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 CMD ["bun", "run", "/app/server.js"]

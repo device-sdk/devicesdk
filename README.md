@@ -67,7 +67,7 @@ pnpm + Turborepo monorepo. **Bun is the server runtime only** — the CLI and MC
 | `apps/server` | `@devicesdk/server` | The backend: Bun + Hono + Chanfana + Zod + `bun:sqlite`. One process, one port — REST API (`/v1/*`), device + watcher WebSockets, dashboard SPA, OpenAPI docs (`/api-docs`) |
 | `apps/dashboard` | `@devicesdk/dashboard` | Vue 3 + Quasar SPA — local email/password auth, project/device/token management. Served same-origin by the server |
 | `apps/simulation` | `@devicesdk/simulation` | Vue 3 device-simulation UI (static export consumed by the CLI `dev` command) |
-| `apps/website` | `@devicesdk/website` | Hugo + Tailwind marketing & docs site |
+| `apps/website` | `@devicesdk/website` | Vue 3 + Vite SSG marketing & docs site |
 | `packages/core` | `@devicesdk/core` | Shared TypeScript types and the `DeviceEntrypoint` base class (published to npm) |
 | `packages/cli` | `@devicesdk/cli` | CLI tool (`devicesdk`) — login, init, build, dev, deploy, flash, logs, status, inspect |
 | `packages/mcp` | `@devicesdk/mcp` | Model Context Protocol server wrapping the CLI for AI agents |
@@ -130,7 +130,7 @@ Devices within the same project can call methods on each other via type-safe RPC
 with full TypeScript types for inter-device communication.
 
 **Tech stack:** Bun + Hono (server), Chanfana (OpenAPI), `bun:sqlite` (storage),
-Vue 3 + Quasar (dashboard), Vue 3 (simulation UI), Hugo (website).
+Vue 3 + Quasar (dashboard), Vue 3 (simulation UI), Vue 3 + Vite SSG (website).
 
 ## Firmware
 

@@ -33,6 +33,9 @@ apps/website/static/llms.txt
 apps/website/static/llms-full.txt
 apps/website/static/sitemap.xml
 
+# Generated OpenAPI schema (built on demand by the server)
+apps/server/openapi.json
+
 # Plans and specs (local drafts)
 docs/plans/
 docs/superpowers/specs/

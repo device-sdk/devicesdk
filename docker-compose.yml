@@ -16,8 +16,10 @@ services:
       # All persistent state: SQLite database, device scripts, firmware images.
       - ./data:/data
     environment:
-      # Disable to stop new account sign-ups after yours is created.
-      ALLOW_REGISTRATION: "true"
-      # Enable if you serve this behind an HTTPS reverse proxy.
-      SECURE_COOKIES: "false"
+      # The first registered user is always allowed; set this to "false"
+      # afterwards to prevent further account sign-ups.
+      ALLOW_REGISTRATION: "false"
+      # Set to "false" only when running plain HTTP on a trusted LAN without a
+      # reverse proxy. Production / HTTPS deployments must keep this "true".
+      SECURE_COOKIES: "true"
     restart: unless-stopped

@@ -9,7 +9,7 @@ real time.
 
 On a LAN the connection is plain `ws://<server>:<port>`; for a bare hostname it uses TLS on
 443 (`wss://`). The firmware picks plain WS whenever the configured host contains an
-explicit `:port` — see [`main/devicesdk_main.c`](main/devicesdk_main.c) and the root `CLAUDE.md`
+explicit `:port` — see [`main/devicesdk_main.c`](main/devicesdk_main.c) and the root `AGENTS.md`
 for the heuristic.
 
 ## You normally don't build this

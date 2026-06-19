@@ -10,7 +10,7 @@
     position: sticky;
     top: 64px;
     max-height: calc(100vh - 64px);
-    overflow: hidden;
+    overflow-y: auto;
     border-right: 1px solid #e5e7eb;
     padding: 2rem 1.5rem;
 }
@@ -18,13 +18,14 @@
 .docs-main {
     padding: 3rem 4rem;
     max-width: 800px;
+    min-width: 0;
 }
 
 .docs-toc {
     position: sticky;
     top: 64px;
     max-height: calc(100vh - 64px);
-    overflow: hidden;
+    overflow-y: auto;
     padding: 2rem 1.5rem;
     border-left: 1px solid #e5e7eb;
 }
@@ -43,6 +44,9 @@
         left: 0;
         width: 280px;
         height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
         z-index: 40;
         border-right: 1px solid #e5e7eb;
         background: white;
@@ -50,6 +54,8 @@
         transition: transform 0.3s ease;
         padding-top: 6.75rem;
         overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
     }
 
     .docs-sidebar.open {
@@ -63,6 +69,9 @@
         right: 0;
         width: 280px;
         height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
         z-index: 40;
         border-left: 1px solid #e5e7eb;
         background: white;
@@ -70,6 +79,8 @@
         transition: transform 0.3s ease;
         padding-top: 6.75rem;
         overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
     }
 
     .docs-toc.open {
@@ -78,7 +89,17 @@
     }
 
     .docs-main {
-        padding: 2rem 1.5rem;
+        padding: 2rem 1rem;
+        max-width: 100%;
+        min-width: 0;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    .docs-article {
+        min-width: 0;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
     }
 }
 
@@ -107,6 +128,8 @@
     color: #374151;
     font-size: 1rem;
     line-height: 1.75;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
 }
 
 .prose h2 {
@@ -194,9 +217,12 @@
 }
 
 .prose table {
+    display: block;
     width: 100%;
+    max-width: 100%;
     border-collapse: collapse;
     margin: 1.5rem 0;
+    overflow-x: auto;
 }
 
 .prose th, .prose td {

@@ -270,7 +270,7 @@ async function collectPages(): Promise<PageData[]> {
 
 	pages.sort((a, b) => a.path.localeCompare(b.path));
 
-	// Populate direct children for section pages.
+	// Populate direct children for section pages, sorted by weight then title.
 	for (const page of pages) {
 		if (!page.isSection) continue;
 		const prefix = page.path;
@@ -278,6 +278,10 @@ async function collectPages(): Promise<PageData[]> {
 		page.children = pages
 			.filter((p) => p.path.startsWith(prefix) && p.path !== prefix)
 			.filter((p) => p.path.split("/").filter(Boolean).length === prefixDepth + 1)
+			.sort((a, b) => {
+				if (a.weight !== b.weight) return a.weight - b.weight;
+				return a.title.localeCompare(b.title);
+			})
 			.map((p) => p.path);
 	}
 

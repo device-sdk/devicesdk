@@ -14,3 +14,7 @@ Improve docs discoverability and navigation.
 - Added the missing `/docs/guides/` section index.
 - Fixed broken or outdated links on the docs landing page (e.g. changelog URL).
 - Made the sidebar and table-of-contents panes scrollable on desktop.
+- Fixed mobile layout issues: docs content no longer overflows the viewport,
+  tables scroll horizontally, and the mobile sidebar/TOC drawers use the
+  dynamic viewport height so they fill the screen on browsers with collapsing
+  toolbars.

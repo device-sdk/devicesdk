@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.1",
   "description": "ESP32-C3 OLED clock that updates once a minute",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "devicesdk dev",

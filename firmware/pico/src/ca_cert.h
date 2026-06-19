@@ -4,10 +4,11 @@
 // Google Trust Services Root R4 (ECDSA P-384)
 // Issuer:  C=US, O=Google Trust Services LLC, CN=GTS Root R4
 // Valid:   2016-06-22 to 2036-06-22
-// Used to verify the TLS certificate chain for api.devicesdk.com
+// Example root CA used to verify the TLS certificate chain when connecting to
+// a server that uses a publicly-trusted certificate. Self-hosted servers using
+// their own CA must replace this with the matching root certificate.
 //
-// Source: https://pki.goog/repo/certs/gtsr4.pem
-// Chain:  devicesdk.com -> GTS WE1 (intermediate) -> GTS Root R4 (this cert)
+// Source: https://pki.goog/repo/certs/gtsr4.pem (Google Trust Services Root R4)
 static const unsigned char ca_cert_pem[] =
     "-----BEGIN CERTIFICATE-----\n"
     "MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD\n"

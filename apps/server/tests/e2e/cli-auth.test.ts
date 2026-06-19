@@ -409,6 +409,38 @@ describe("cli-auth: refresh / revoke error branches", () => {
 		});
 		expect(res.status).toBe(200);
 	});
+
+	test("revoke is scoped to the authenticated user", async () => {
+		// Start a CLI auth flow as user B.
+		const { device_code, user_code } = await startFlow(srv);
+		const tokenB = await registerFresh(
+			srv,
+			`revoke-scope-b-${crypto.randomUUID()}@example.com`,
+		);
+		await approve(srv, tokenB, user_code);
+
+		const poll = await srv.post("/v1/cli/auth/poll", {
+			headers: freshIpHeaders(),
+			body: { device_code },
+		});
+		expect(poll.status).toBe(200);
+		const refreshTokenB = (poll.body as { result: { refresh_token: string } })
+			.result.refresh_token;
+
+		// User A tries to revoke user B's token and gets an idempotent success,
+		// but the token must remain valid for user B.
+		const revoke = await srv.post("/v1/cli/auth/revoke", {
+			token,
+			body: { refresh_token: refreshTokenB },
+		});
+		expect(revoke.status).toBe(200);
+
+		const afterRevoke = await srv.post("/v1/cli/auth/refresh", {
+			headers: freshIpHeaders(),
+			body: { refresh_token: refreshTokenB },
+		});
+		expect(afterRevoke.status).toBe(200);
+	});
 });
 
 describe("cli-auth: expired code handling", () => {

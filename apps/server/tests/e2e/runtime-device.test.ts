@@ -358,4 +358,26 @@ describe("device session runtime", () => {
 			(status.body as { result: { connected: boolean } }).result.connected,
 		).toBe(false);
 	});
+
+	test("rejects device connection with a versionId belonging to another device", async () => {
+		const token = await setupRig("scope");
+		await srv.post("/v1/projects/scope/devices", {
+			token,
+			body: { device_id: "other" },
+		});
+
+		const upload = await srv.put("/v1/projects/scope/devices/dev/script", {
+			token,
+			body: { script: RIG_SCRIPT, entrypoint: "Rig" },
+		});
+		expect(upload.status).toBe(201);
+		const otherVersionId = (upload.body as { result: { version_id: string } })
+			.result.version_id;
+
+		// Connecting `other` with `dev`'s versionId must fail before the socket
+		// upgrade, so the WebSocket open promise rejects.
+		await expect(
+			srv.connectDevice(token, "scope", "other", otherVersionId),
+		).rejects.toThrow();
+	});
 });

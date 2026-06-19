@@ -6,7 +6,8 @@ on:
     paths:
       - 'apps/website/**'
       - 'docs/public/**'
-      - 'apps/server/openapi.json'
+      - 'apps/server/src/**'
+      - 'apps/server/scripts/generate-openapi.ts'
       - '.github/workflows/website-deploy.yml'
 
 concurrency:

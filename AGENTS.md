@@ -16,7 +16,9 @@ implementation is preserved in pre-refactor git history).
 ## Build & Development Commands
 
 ```bash
-# Build everything (Turbo handles dependency order: core → cli/server/simulation → dashboard/website)
+# Build everything (Turbo handles dependency order: core → cli/server/simulation → dashboard/website).
+# Examples are excluded from the root build because they depend on the CLI binary;
+# build them individually from inside each example directory when needed.
 pnpm build
 
 # Dev servers
@@ -231,6 +233,8 @@ on the user's own server — that's the trust model).
   private-with-changelog: `@devicesdk/server`, `@devicesdk/dashboard`,
   `@devicesdk/simulation`, `@devicesdk/website`). Create it early in the branch
   with `pnpm changeset` so CI can validate it.
+- **Example projects are ignored by changesets** (`@devicesdk/example-*`) — they
+  are not versioned and need no changeset entry.
 - **Firmware changes MUST include a changeset**
   (`@devicesdk/firmware-esp32` / `@devicesdk/firmware-pico`) — the version bump
   triggers the firmware build + rolling-release publish (`firmware-*.yml`). No

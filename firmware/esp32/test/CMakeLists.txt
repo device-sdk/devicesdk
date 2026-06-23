@@ -11,8 +11,9 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 include(FetchContent)
 FetchContent_Declare(
     googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.14.0
+    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
+    URL_HASH SHA256=8ad598c73ad796e0d8280b082cebd82a630d73e73cd3c70057938a6501bba5d7
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
@@ -20,8 +21,9 @@ FetchContent_MakeAvailable(googletest)
 # Fetch cJSON (needed for websocket_handler.c)
 FetchContent_Declare(
     cjson
-    GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git
-    GIT_TAG v1.7.18
+    URL https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.18.tar.gz
+    URL_HASH SHA256=3aa806844a03442c00769b83e99970be70fbef03735ff898f4811dd03b9f5ee5
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(cjson)
 

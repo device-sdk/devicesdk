@@ -1,5 +1,5 @@
 {
-  "name": "@devicesdk/example-temperature",
+  "name": "@devicesdk/example-temperature-to-discord",
   "version": "0.1.11",
   "type": "module",
   "license": "AGPL-3.0-only",

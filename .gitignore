@@ -22,6 +22,9 @@ coverage/
 .wrangler/
 .dev.vars
 
+# Generated API schema (served live from the running server)
+apps/server/openapi.json
+
 # Generated website assets
 apps/website/.vite-ssg-temp/
 apps/website/src/generated/
@@ -32,9 +35,6 @@ apps/website/static/**/*.md
 apps/website/static/llms.txt
 apps/website/static/llms-full.txt
 apps/website/static/sitemap.xml
-
-# Generated OpenAPI schema (built on demand by the server)
-apps/server/openapi.json
 
 # Plans and specs (local drafts)
 docs/plans/
@@ -51,6 +51,10 @@ firmware/esp32/sdkconfig.old
 # ESP-IDF managed components and Python cache
 firmware/esp32/managed_components/
 __pycache__/
+
+# Python virtual environments (created by firmware-esp32 CI workflow)
+.venv/
+venv/
 
 # IDE files
 .idea/
@@ -93,3 +97,9 @@ packages/cli/src/simulator/assets
 
 # Sensitive: never commit downloaded OAuth client secret JSONs
 client_secret*.json
+
+# Certificates and private keys
+*.pem
+*.key
+*.p12
+*.pfx

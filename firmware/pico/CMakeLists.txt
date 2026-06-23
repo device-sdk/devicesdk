@@ -54,7 +54,13 @@ add_executable(devicesdk-client
         src/commands/i2c_batch_write.cpp
 )
 
-# Pass credentials to the code
+# Build-time patch placeholders — NOT real credentials.
+# These fixed-length ASCII strings are baked into the compiled firmware binary.
+# When a user downloads firmware via the DeviceSDK server, the server locates
+# these exact byte sequences and replaces them with real credentials before
+# streaming the binary. See apps/server/src/endpoints/devices/downloadFirmware.ts.
+# IMPORTANT: Do NOT change the strings or their lengths — the patch logic depends
+# on finding these exact byte patterns.
 target_compile_definitions(devicesdk-client PRIVATE
     DEVICESDK_WIFI_SSID="8d477eda147344f8b9b8d3e3bef7505b"
     DEVICESDK_WIFI_PASSWORD="ebc8394548904aa583916609049d5ea527021de49780437a98915189223dcf8"

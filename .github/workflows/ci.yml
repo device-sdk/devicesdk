@@ -207,6 +207,8 @@ jobs:
         with:
           bun-version: '1.3.14'
       - run: pnpm install --frozen-lockfile
+      - name: Build @devicesdk/core
+        run: pnpm build --filter @devicesdk/core
       - name: Regenerate openapi.json
         run: pnpm --filter @devicesdk/server run openapi
       - name: Check for drift

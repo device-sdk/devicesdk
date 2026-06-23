@@ -6,7 +6,7 @@ A minimal DeviceSDK project demonstrating the canonical building blocks:
 - The lifecycle hooks (`onDeviceConnect`, `onMessage`, `onDeviceDisconnect`)
 - GPIO output (onboard LED on virtual pin 99)
 - I2C OLED display via the bundled `SSD1306` helper
-- Button input via `Pico.gpio({ pin, pull: 'up' })` and `pin_state_update` events
+- Button input via `configureGpioInputMonitoring()` and `gpio_state_changed` events
 - Per-device KV state (`this.env.DEVICE.kv.put` / `.get`)
 
 ## Quickstart

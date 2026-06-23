@@ -7,6 +7,11 @@ import { validateUf2Structure } from "../../foundation/picoUf2Checksum";
 import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext, tableProjects } from "../../types";
 
+// These are the build-time patch placeholder strings baked into firmware binaries
+// (firmware/esp32/main/config.h and firmware/pico/CMakeLists.txt). They are NOT
+// real credentials. On download, this endpoint finds these exact byte sequences in
+// the binary and replaces them with the user's real Wi-Fi/token/host/project/device
+// values before streaming the patched image. Their lengths must not change.
 const OLD_TOKEN = "e343ecb8036442e093a47718463c1716";
 const OLD_SSID = "8d477eda147344f8b9b8d3e3bef7505b";
 const OLD_PASS =

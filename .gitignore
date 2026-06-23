@@ -22,6 +22,9 @@ coverage/
 .wrangler/
 .dev.vars
 
+# Generated API schema (served live from the running server)
+apps/server/openapi.json
+
 # Generated website assets
 apps/website/.vite-ssg-temp/
 apps/website/src/generated/

@@ -4,6 +4,14 @@
 
 No cloud, no SaaS, no per-message billing — your hardware, your data. Licensed under **AGPL-3.0-only**.
 
+## Philosophy
+
+**No breaking changes.** A device script that works today will work in five years. Breaking changes are treated as bugs. If one ever ships, it's a regression — not a feature.
+
+**Update only when you want to.** Releases are infrequent and intentional. If a new release has something you want, update. If not, don't — your current setup keeps working exactly as before.
+
+**Compatibility flags.** When behavior genuinely has to evolve, opt-in compatibility flags (inspired by Cloudflare Workers' compatibility dates) let you migrate on your own schedule. You will never wake up to a broken device because of a forced upgrade.
+
 ## Run the server
 
 The whole platform — REST API, device & watcher WebSockets, and the dashboard UI — is a single container listening on one port.

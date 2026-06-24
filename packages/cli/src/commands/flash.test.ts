@@ -20,12 +20,11 @@ vi.mock("../api.js", async (importOriginal) => {
 	const original = await importOriginal<typeof import("../api.js")>();
 	return {
 		...original,
-		getProject: (...args: any[]) => apiMocks.getProject(...args),
-		createProject: (...args: any[]) => apiMocks.createProject(...args),
-		getDevice: (...args: any[]) => apiMocks.getDevice(...args),
-		createDevice: (...args: any[]) => apiMocks.createDevice(...args),
-		downloadDeviceFirmware: (...args: any[]) =>
-			apiMocks.downloadDeviceFirmware(...args),
+		getProject: apiMocks.getProject,
+		createProject: apiMocks.createProject,
+		getDevice: apiMocks.getDevice,
+		createDevice: apiMocks.createDevice,
+		downloadDeviceFirmware: apiMocks.downloadDeviceFirmware,
 	};
 });
 
@@ -53,7 +52,7 @@ vi.mock("../utils.js", () => ({
 
 const flashPicoMock = vi.fn();
 vi.mock("../flash/pico.js", () => ({
-	flashPico: (...args: any[]) => flashPicoMock(...args),
+	flashPico: flashPicoMock,
 }));
 
 const flashEsp32Mocks = {
@@ -61,8 +60,8 @@ const flashEsp32Mocks = {
 	checkEsptoolInstalled: vi.fn(),
 };
 vi.mock("../flash/esp32.js", () => ({
-	flashESP32: (...args: any[]) => flashEsp32Mocks.flashESP32(...args),
-	checkEsptoolInstalled: () => flashEsp32Mocks.checkEsptoolInstalled(),
+	flashESP32: flashEsp32Mocks.flashESP32,
+	checkEsptoolInstalled: flashEsp32Mocks.checkEsptoolInstalled,
 }));
 
 function createEsp32Config() {
@@ -111,11 +110,11 @@ function createEsp32c3Config() {
 }
 
 describe("flash command", () => {
-	const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-		code?: number,
-	) => {
-		throw new Error(`exit:${code ?? 0}`);
-	}) as any);
+	const exitSpy = vi
+		.spyOn(process, "exit")
+		.mockImplementation((code?: number | string): never => {
+			throw new Error(`exit:${code ?? 0}`);
+		});
 
 	const mkdirSpy = vi.spyOn(fs, "mkdir");
 	const writeFileSpy = vi.spyOn(fs, "writeFile");
@@ -210,7 +209,7 @@ describe("flash command", () => {
 
 	it("exits when device is not in config", async () => {
 		const { loadConfig } = await import("../utils.js");
-		(loadConfig as any).mockResolvedValueOnce({
+		vi.mocked(loadConfig).mockResolvedValueOnce({
 			...createBaseConfig(),
 			devices: {},
 		});
@@ -248,7 +247,7 @@ describe("flash command", () => {
 	describe("ESP32 devices", () => {
 		it("routes ESP32 devices to flashESP32", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32Config());
 
 			await flash("esp-1");
 
@@ -271,7 +270,7 @@ describe("flash command", () => {
 
 		it("passes port option to flashESP32", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32Config());
 
 			await flash("esp-1", { port: "/dev/ttyUSB0" });
 
@@ -282,7 +281,7 @@ describe("flash command", () => {
 
 		it("passes baud option to flashESP32", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32Config());
 
 			await flash("esp-1", { baud: 115200 });
 
@@ -293,7 +292,7 @@ describe("flash command", () => {
 
 		it("exits when esptool is not installed", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32Config());
 			flashEsp32Mocks.checkEsptoolInstalled.mockResolvedValueOnce(false);
 
 			await expect(flash("esp-1")).rejects.toThrowError(/exit:6/);
@@ -303,7 +302,7 @@ describe("flash command", () => {
 
 		it("exits when ESP32 firmware download fails", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32Config());
 			apiMocks.downloadDeviceFirmware.mockRejectedValueOnce(
 				new Error("download failed"),
 			);
@@ -314,7 +313,7 @@ describe("flash command", () => {
 
 		it("exits when ESP32 flashing fails", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32Config());
 			flashEsp32Mocks.flashESP32.mockRejectedValueOnce(
 				new Error("flash failed"),
 			);
@@ -327,7 +326,7 @@ describe("flash command", () => {
 	describe("ESP32-C61 devices", () => {
 		it("routes esp32c61 devices to flashESP32 with correct chip name", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32c61Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32c61Config());
 
 			await flash("esp-c61-1");
 
@@ -351,7 +350,7 @@ describe("flash command", () => {
 
 		it("exits when esptool is not installed for esp32c61", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32c61Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32c61Config());
 			flashEsp32Mocks.checkEsptoolInstalled.mockResolvedValueOnce(false);
 
 			await expect(flash("esp-c61-1")).rejects.toThrowError(/exit:6/);
@@ -363,7 +362,7 @@ describe("flash command", () => {
 	describe("ESP32-C3 devices", () => {
 		it("prints a tailored 'firmware not yet published' hint on FIRMWARE_NOT_PUBLISHED", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32c3Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32c3Config());
 			apiMocks.downloadDeviceFirmware.mockRejectedValueOnce(
 				new DeviceSDKApiError(
 					'Firmware for device_type "esp32c3" is not currently published.',
@@ -395,7 +394,7 @@ describe("flash command", () => {
 
 		it("routes esp32c3 devices to flashESP32 with correct chip name", async () => {
 			const { loadConfig } = await import("../utils.js");
-			(loadConfig as any).mockResolvedValueOnce(createEsp32c3Config());
+			vi.mocked(loadConfig).mockResolvedValueOnce(createEsp32c3Config());
 
 			await flash("esp-c3-1");
 

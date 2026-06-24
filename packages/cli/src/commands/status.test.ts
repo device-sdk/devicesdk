@@ -15,8 +15,8 @@ vi.mock("../api.js", async (importOriginal) => {
 	const original = await importOriginal<typeof import("../api.js")>();
 	return {
 		...original,
-		listDevices: (...args: any[]) => apiMocks.listDevices(...args),
-		getDeviceStatus: (...args: any[]) => apiMocks.getDeviceStatus(...args),
+		listDevices: apiMocks.listDevices,
+		getDeviceStatus: apiMocks.getDeviceStatus,
 	};
 });
 
@@ -41,11 +41,11 @@ function makeStatus(
 }
 
 describe("status command", () => {
-	const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-		code?: number,
-	) => {
-		throw new Error(`exit:${code ?? 0}`);
-	}) as any);
+	const exitSpy = vi
+		.spyOn(process, "exit")
+		.mockImplementation((code?: number | string): never => {
+			throw new Error(`exit:${code ?? 0}`);
+		});
 
 	const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 	const consoleErrorSpy = vi

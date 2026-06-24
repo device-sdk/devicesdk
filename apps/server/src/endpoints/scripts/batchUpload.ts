@@ -228,7 +228,13 @@ export class BatchUploadScripts extends BaseRoute {
 					})
 					.execute();
 
-				device = newDevice.results!;
+				if (!newDevice.results) {
+					return c.json(
+						{ success: false, error: "failed to create device" },
+						500,
+					);
+				}
+				device = newDevice.results;
 				status = "created";
 			}
 

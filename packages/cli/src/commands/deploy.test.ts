@@ -19,11 +19,10 @@ vi.mock("../api.js", async (importOriginal) => {
 	const original = await importOriginal<typeof import("../api.js")>();
 	return {
 		...original,
-		getProject: (...args: any[]) => apiMocks.getProject(...args),
-		createProject: (...args: any[]) => apiMocks.createProject(...args),
-		uploadScript: (...args: any[]) => apiMocks.uploadScript(...args),
-		uploadScriptsBatch: (...args: any[]) =>
-			apiMocks.uploadScriptsBatch(...args),
+		getProject: apiMocks.getProject,
+		createProject: apiMocks.createProject,
+		uploadScript: apiMocks.uploadScript,
+		uploadScriptsBatch: apiMocks.uploadScriptsBatch,
 	};
 });
 
@@ -71,16 +70,16 @@ vi.mock("./build.js", async (importOriginal) => {
 	const original = await importOriginal<typeof import("./build.js")>();
 	return {
 		...original,
-		buildDevice: (...args: any[]) => buildDeviceMock(...args),
+		buildDevice: buildDeviceMock,
 	};
 });
 
 describe("deploy command", () => {
-	const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-		code?: number,
-	) => {
-		throw new Error(`exit:${code ?? 0}`);
-	}) as any);
+	const exitSpy = vi
+		.spyOn(process, "exit")
+		.mockImplementation((code?: number | string): never => {
+			throw new Error(`exit:${code ?? 0}`);
+		});
 
 	const mkdirSpy = vi.spyOn(fs, "mkdir");
 	const accessSpy = vi.spyOn(fs, "access");
@@ -126,7 +125,7 @@ describe("deploy command", () => {
 		});
 		mkdirSpy.mockImplementation(async () => undefined);
 		accessSpy.mockResolvedValue(undefined);
-		readFileSpy.mockResolvedValue("const x = 1;" as any);
+		readFileSpy.mockResolvedValue(Buffer.from("const x = 1;"));
 	});
 
 	afterEach(() => {});
@@ -148,7 +147,7 @@ describe("deploy command", () => {
 
 	it("exits when config has no devices", async () => {
 		const { loadConfig } = await import("../utils.js");
-		(loadConfig as any).mockResolvedValueOnce({
+		vi.mocked(loadConfig).mockResolvedValueOnce({
 			projectId: "test-project",
 			devices: {},
 		});
@@ -159,7 +158,7 @@ describe("deploy command", () => {
 
 	it("deploys all devices in batch when no device filter is specified", async () => {
 		const { loadConfig } = await import("../utils.js");
-		(loadConfig as any).mockResolvedValueOnce(createMultiDeviceConfig());
+		vi.mocked(loadConfig).mockResolvedValueOnce(createMultiDeviceConfig());
 		buildDeviceMock
 			.mockResolvedValueOnce({
 				size: 1024,
@@ -287,7 +286,7 @@ describe("deploy command", () => {
 
 	it("exits when uploadScriptsBatch fails", async () => {
 		const { loadConfig } = await import("../utils.js");
-		(loadConfig as any).mockResolvedValueOnce(createMultiDeviceConfig());
+		vi.mocked(loadConfig).mockResolvedValueOnce(createMultiDeviceConfig());
 		buildDeviceMock
 			.mockResolvedValueOnce({
 				size: 1024,

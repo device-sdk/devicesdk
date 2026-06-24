@@ -314,12 +314,13 @@ export default async function deploy(
 			if (!json)
 				console.log("\n⬆ Uploading Home Assistant entity declarations...");
 			for (const { deviceId, haEntities } of devicesWithEntities) {
+				if (!haEntities) continue;
 				try {
 					const result = await upsertDeviceEntities(
 						token,
 						config.projectId,
 						deviceId,
-						haEntities!,
+						haEntities,
 					);
 					entityResults.push({ deviceId, count: result.count });
 					if (!json) {

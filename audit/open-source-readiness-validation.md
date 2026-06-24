@@ -226,7 +226,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 ## Phase 3 — Minor
 
 ### 25. Lint warnings are addressed
-- **Status:** ❌ TBD
+- **Status:** ✅ Done — PR #178 resolved all 65 warnings across `packages/core`, `packages/cli`, and `apps/server`. Fixes: `noBannedTypes` (`{}` → `Record<string, never>` in command/env types), `noNonNullAssertion` (explicit null checks), `noExplicitAny` (test mock wrappers simplified to direct fn refs, `vi.mocked()`, and typed casts). Website lint fails on a missing `markdown-it` dep unrelated to these warnings; non-website packages report zero warnings.
 - **How to verify:**
   ```bash
   pnpm lint

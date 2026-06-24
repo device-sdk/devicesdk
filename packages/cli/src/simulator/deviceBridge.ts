@@ -5,8 +5,8 @@ import type { DeviceEntrypoint, DeviceResponse } from "@devicesdk/core";
 import { LocalDeviceSender } from "./localDeviceSender.js";
 
 type DeviceEntrypointClass = new (
-	ctx: {},
-	env: { DEVICE: LocalDeviceSender; DEVICES: {} },
+	ctx: Record<string, unknown>,
+	env: { DEVICE: LocalDeviceSender; DEVICES: Record<string, never> },
 ) => DeviceEntrypoint;
 
 /**

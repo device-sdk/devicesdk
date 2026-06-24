@@ -53,11 +53,11 @@ const ME_RESPONSE = {
 };
 
 describe("login command", () => {
-	const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-		code?: number,
-	) => {
-		throw new Error(`exit:${code ?? 0}`);
-	}) as any);
+	const exitSpy = vi
+		.spyOn(process, "exit")
+		.mockImplementation((code?: number | string): never => {
+			throw new Error(`exit:${code ?? 0}`);
+		});
 
 	beforeEach(() => {
 		vi.clearAllMocks();

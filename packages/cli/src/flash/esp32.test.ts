@@ -25,40 +25,40 @@ describe("esp32 flash", () => {
 
 	describe("checkEsptoolInstalled", () => {
 		it("returns true when esptool.py is available", async () => {
-			(execaMock as any).mockResolvedValueOnce({});
+			execaMock.mockResolvedValueOnce({});
 			expect(await checkEsptoolInstalled()).toBe(true);
 			expect(execaMock).toHaveBeenCalledWith("esptool.py", ["version"]);
 		});
 
 		it("falls back to esptool when esptool.py fails", async () => {
-			(execaMock as any).mockRejectedValueOnce(new Error("not found"));
-			(execaMock as any).mockResolvedValueOnce({});
+			execaMock.mockRejectedValueOnce(new Error("not found"));
+			execaMock.mockResolvedValueOnce({});
 			expect(await checkEsptoolInstalled()).toBe(true);
 			expect(execaMock).toHaveBeenCalledWith("esptool", ["version"]);
 		});
 
 		it("returns false when neither is available", async () => {
-			(execaMock as any).mockRejectedValueOnce(new Error("not found"));
-			(execaMock as any).mockRejectedValueOnce(new Error("not found"));
+			execaMock.mockRejectedValueOnce(new Error("not found"));
+			execaMock.mockRejectedValueOnce(new Error("not found"));
 			expect(await checkEsptoolInstalled()).toBe(false);
 		});
 	});
 
 	describe("getEsptoolCommand", () => {
 		it("returns esptool.py when available", async () => {
-			(execaMock as any).mockResolvedValueOnce({});
+			execaMock.mockResolvedValueOnce({});
 			expect(await getEsptoolCommand()).toBe("esptool.py");
 		});
 
 		it("returns esptool as fallback", async () => {
-			(execaMock as any).mockRejectedValueOnce(new Error("not found"));
-			(execaMock as any).mockResolvedValueOnce({});
+			execaMock.mockRejectedValueOnce(new Error("not found"));
+			execaMock.mockResolvedValueOnce({});
 			expect(await getEsptoolCommand()).toBe("esptool");
 		});
 
 		it("throws when neither is available", async () => {
-			(execaMock as any).mockRejectedValueOnce(new Error("not found"));
-			(execaMock as any).mockRejectedValueOnce(new Error("not found"));
+			execaMock.mockRejectedValueOnce(new Error("not found"));
+			execaMock.mockRejectedValueOnce(new Error("not found"));
 			await expect(getEsptoolCommand()).rejects.toThrow(
 				"esptool.py is not installed",
 			);
@@ -74,7 +74,7 @@ describe("esp32 flash", () => {
 				"ttyUSB0",
 				"ttyACM0",
 				"null",
-			] as any);
+			] as unknown as import("node:fs").Dirent[]);
 
 			const ports = await listSerialPorts();
 			expect(ports).toEqual(["/dev/ttyUSB0", "/dev/ttyACM0"]);
@@ -87,7 +87,7 @@ describe("esp32 flash", () => {
 				"ttyS1",
 				"ttyS2",
 				"ttyS3",
-			] as any);
+			] as unknown as import("node:fs").Dirent[]);
 
 			const ports = await listSerialPorts();
 			expect(ports).toEqual([]);
@@ -100,7 +100,7 @@ describe("esp32 flash", () => {
 				"cu.SLAB_USBtoUART",
 				"cu.Bluetooth-Incoming-Port",
 				"tty.usbserial-0001",
-			] as any);
+			] as unknown as import("node:fs").Dirent[]);
 
 			const ports = await listSerialPorts();
 			expect(ports).toEqual([
@@ -126,13 +126,13 @@ describe("esp32 flash", () => {
 	describe("flashESP32", () => {
 		beforeEach(() => {
 			// getEsptoolCommand: make esptool.py available
-			(execaMock as any).mockResolvedValueOnce({});
+			execaMock.mockResolvedValueOnce({});
 		});
 
 		it("passes --port to esptool with explicit port", async () => {
 			vi.spyOn(fs, "access").mockResolvedValue();
 			// esptool flash call
-			(execaMock as any).mockResolvedValueOnce({});
+			execaMock.mockResolvedValueOnce({});
 
 			const result = await flashESP32({
 				firmwarePath: "/tmp/fw.bin",
@@ -150,10 +150,12 @@ describe("esp32 flash", () => {
 
 		it("auto-detects port and passes --port to esptool", async () => {
 			vi.spyOn(os, "platform").mockReturnValue("linux");
-			vi.spyOn(fs, "readdir").mockResolvedValue(["ttyUSB0"] as any);
+			vi.spyOn(fs, "readdir").mockResolvedValue([
+				"ttyUSB0",
+			] as unknown as import("node:fs").Dirent[]);
 			vi.spyOn(fs, "access").mockResolvedValue();
 			// esptool flash call
-			(execaMock as any).mockResolvedValueOnce({});
+			execaMock.mockResolvedValueOnce({});
 
 			const result = await flashESP32({
 				firmwarePath: "/tmp/fw.bin",
@@ -169,9 +171,12 @@ describe("esp32 flash", () => {
 
 		it("picks first port when multiple ttyUSB ports exist", async () => {
 			vi.spyOn(os, "platform").mockReturnValue("linux");
-			vi.spyOn(fs, "readdir").mockResolvedValue(["ttyUSB0", "ttyUSB1"] as any);
+			vi.spyOn(fs, "readdir").mockResolvedValue([
+				"ttyUSB0",
+				"ttyUSB1",
+			] as unknown as import("node:fs").Dirent[]);
 			vi.spyOn(fs, "access").mockResolvedValue();
-			(execaMock as any).mockResolvedValueOnce({});
+			execaMock.mockResolvedValueOnce({});
 
 			const result = await flashESP32({
 				firmwarePath: "/tmp/fw.bin",
@@ -219,7 +224,7 @@ describe("esp32 flash", () => {
 
 		it("uses custom baud rate", async () => {
 			vi.spyOn(fs, "access").mockResolvedValue();
-			(execaMock as any).mockResolvedValueOnce({});
+			execaMock.mockResolvedValueOnce({});
 
 			await flashESP32({
 				firmwarePath: "/tmp/fw.bin",
@@ -236,9 +241,10 @@ describe("esp32 flash", () => {
 
 		it("throws on esptool failure with stderr", async () => {
 			vi.spyOn(fs, "access").mockResolvedValue();
-			const err = new Error("process failed") as any;
-			err.stderr = "A fatal error occurred";
-			(execaMock as any).mockRejectedValueOnce(err);
+			const err = Object.assign(new Error("process failed"), {
+				stderr: "A fatal error occurred",
+			});
+			execaMock.mockRejectedValueOnce(err);
 
 			await expect(
 				flashESP32({

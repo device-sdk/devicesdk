@@ -28,6 +28,27 @@
     </div>
   </section>
 
+  <!-- Stability / Philosophy -->
+  <section class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto fade-up">
+      <h2 class="text-2xl font-bold text-zinc-900 tracking-tight mb-6">Stability is a feature</h2>
+      <div class="space-y-4 text-zinc-600 leading-relaxed">
+        <p>
+          Home Assistant and ESPHome are excellent projects — and DeviceSDK is designed to work alongside them. But they move fast, and fast-moving software occasionally breaks things. If you manage automations remotely for people who aren't developers, a weekly update cadence can feel like a liability. One misplaced click can take down the touchscreen that's the main way someone interacts with their home.
+        </p>
+        <p>
+          That experience shaped this project. DeviceSDK treats a breaking change as a bug, not a version bump. A device script that works today should work in five years without anyone touching it.
+        </p>
+        <p>
+          Releases are infrequent and intentional. If a new release has something you want, update. If not, skip it — your existing setup keeps working exactly as before. When behavior genuinely has to evolve, opt-in compatibility flags (inspired by Cloudflare Workers' compatibility dates) let you migrate on your own schedule.
+        </p>
+        <p>
+          Set it, forget it, and trust it. That's the point.
+        </p>
+      </div>
+    </div>
+  </section>
+
   <!-- Before / After Comparison -->
   <section class="py-20 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto fade-up">

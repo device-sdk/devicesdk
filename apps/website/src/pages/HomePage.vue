@@ -336,6 +336,60 @@
     </div>
   </section>
 
+  <!-- Stability / No breaking changes -->
+  <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-16 fade-up">
+        <p class="text-zinc-500 text-sm font-mono uppercase tracking-wider mb-4">Built to last</p>
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">
+          Your automation runs.<br/>
+          <span class="text-zinc-400">For years.</span>
+        </h2>
+        <p class="mt-6 text-zinc-500 max-w-2xl mx-auto">
+          If your device script works today, it will work in five years — without you touching it. Breaking changes are bugs, not version bumps.
+        </p>
+      </div>
+
+      <div class="grid sm:grid-cols-3 gap-6 reveal-stagger">
+        <div class="card-lift bg-zinc-900/60 border border-zinc-800 rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-semibold text-zinc-100 mb-2">No breaking changes</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed">
+            A breaking change is a bug, not a version bump. Your scripts keep running across every update — no surprise regressions, no emergency fixes at 2am.
+          </p>
+        </div>
+
+        <div class="card-lift bg-zinc-900/60 border border-zinc-800 rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-semibold text-zinc-100 mb-2">Update when you want to</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed">
+            Releases are infrequent and intentional. If a new release has something you want, update. If not, skip it — your setup keeps working exactly as before.
+          </p>
+        </div>
+
+        <div class="card-lift bg-zinc-900/60 border border-zinc-800 rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-semibold text-zinc-100 mb-2">Compatibility flags</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed">
+            When behavior genuinely has to evolve, opt-in compatibility flags let you migrate on your own schedule. Inspired by Cloudflare Workers' compatibility dates — never a forced upgrade.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Run it anywhere -->
   <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
     <div class="max-w-3xl mx-auto text-center fade-up">

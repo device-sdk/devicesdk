@@ -52,7 +52,7 @@ export function parseCommand(input: string): ParseResult | ParseError {
 		const state = parts[3]?.toLowerCase();
 		if (state !== "high" && state !== "low") {
 			return {
-				error: `Invalid state: "${parts[3]}" — must be "high" or "low"`,
+				error: `Invalid state: "${parts[3]}" - must be "high" or "low"`,
 			};
 		}
 		return {
@@ -152,7 +152,7 @@ export function parseCommand(input: string): ParseResult | ParseError {
 			const pull = parts[2].toLowerCase();
 			if (pull !== "up" && pull !== "down" && pull !== "none") {
 				return {
-					error: `Invalid pull mode: "${parts[2]}" — must be "up", "down", or "none"`,
+					error: `Invalid pull mode: "${parts[2]}" - must be "up", "down", or "none"`,
 				};
 			}
 			payload.pull = pull;
@@ -457,7 +457,7 @@ export default async function inspect(
 
 		rl.prompt();
 
-		// Serial queue — ensures commands don't interleave on piped input
+		// Serial queue - ensures commands don't interleave on piped input
 		let commandQueue: Promise<void> = Promise.resolve();
 
 		rl.on("line", (line) => {

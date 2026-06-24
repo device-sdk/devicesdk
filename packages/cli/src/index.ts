@@ -264,7 +264,7 @@ More: https://devicesdk.com/docs/cli/status/`,
 program
 	.command("inspect <device-id>")
 	.description(
-		"Interactive hardware inspection — send commands to a connected device",
+		"Interactive hardware inspection - send commands to a connected device",
 	)
 	.option("-c, --config <path>", "Path to the devicesdk.ts config file")
 	.option("--project <id>", "Project ID (if no devicesdk.ts config)")

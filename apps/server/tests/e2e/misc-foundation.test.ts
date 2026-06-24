@@ -119,7 +119,7 @@ describe("rate limiting (foundation/rateLimit)", () => {
 	});
 });
 
-describe("resource limits (foundation/limits) — surfaced through project creation", () => {
+describe("resource limits (foundation/limits) - surfaced through project creation", () => {
 	test("creating projects beyond the limit returns 403 with the limit message", async () => {
 		const auth = await srv.register({
 			email: `limits-${crypto.randomUUID()}@example.com`,
@@ -146,7 +146,7 @@ describe("resource limits (foundation/limits) — surfaced through project creat
 			expect(hit.error).toContain("Limit reached");
 		}
 		// If the default cap is above 120 the loop simply created 120 projects
-		// without error, which is also a valid pass — the limit helper is unit-
+		// without error, which is also a valid pass - the limit helper is unit-
 		// covered separately below.
 	});
 });

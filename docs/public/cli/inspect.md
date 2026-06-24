@@ -25,7 +25,7 @@ The `inspect` command opens an interactive REPL (Read-Eval-Print Loop) that lets
 
 The device must be online (connected to your DeviceSDK server) for commands to work.
 
-Commands are sent sequentially — if you send input via a pipe, each command waits for a response before the next is processed.
+Commands are sent sequentially - if you send input via a pipe, each command waits for a response before the next is processed.
 
 ## Available Commands
 
@@ -79,5 +79,5 @@ Goodbye.
 
 ## Exit Codes
 
-- `0` — clean exit (user typed `exit` or closed the REPL)
-- `1` — authentication error or unhandled API error
+- `0` - clean exit (user typed `exit` or closed the REPL)
+- `1` - authentication error or unhandled API error

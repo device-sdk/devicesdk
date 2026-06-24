@@ -1,6 +1,6 @@
 ---
 title: How do I read a BME280 temperature/humidity sensor on a Pico?
-description: I2C-based BME280 driver — configure the bus, read the chip ID, log readings on a cron
+description: I2C-based BME280 driver - configure the bus, read the chip ID, log readings on a cron
 weight: 10
 social_image: /og-images/docs/recipes/read-bme280.png
 ---
@@ -54,7 +54,7 @@ export class EnvSensor extends DeviceEntrypoint {
       Pico.i2c({ bus: I2C_BUS, sda_pin: 0, scl_pin: 1 }),
     );
 
-    // Verify the sensor is alive: read the chip-ID register (0xD0) — should be 0x60.
+    // Verify the sensor is alive: read the chip-ID register (0xD0) - should be 0x60.
     const reply = await this.env.DEVICE.i2cRead(I2C_BUS, BME280_ADDR, 1, "0xD0");
     if (reply.type !== "i2c_read_result" || reply.payload.data[0] !== "0x60") {
       console.error(
@@ -63,7 +63,7 @@ export class EnvSensor extends DeviceEntrypoint {
       return;
     }
 
-    // Force-mode, x1 oversampling — see datasheet §3.4.
+    // Force-mode, x1 oversampling - see datasheet §3.4.
     await this.env.DEVICE.i2cBatchWrite ??
       undefined; // older runtimes used i2cBatchWrite; fall back to two writes.
     await this.env.DEVICE.i2cWrite(I2C_BUS, BME280_ADDR, ["0xF2", "0x01"]); // ctrl_hum
@@ -83,7 +83,7 @@ export class EnvSensor extends DeviceEntrypoint {
     if (reply.type !== "i2c_read_result") return;
 
     // Parsing the calibration data and applying the BME280 compensation
-    // formulas is omitted here — see the project repo for a full driver.
+    // formulas is omitted here - see the project repo for a full driver.
     // For demo purposes: log the raw bytes.
     console.log("BME280 raw:", reply.payload.data.join(" "));
   }
@@ -108,5 +108,5 @@ export class EnvSensor extends DeviceEntrypoint {
 
 - Apply the BME280 compensation formulas to convert raw counts to °C, %, hPa. See the [datasheet §4.2](https://www.bosch-sensortec.com/products/environmental-sensors/humidity-sensors-bme280/).
 - Persist the most recent reading with `this.env.DEVICE.kv.put("last", { temp, hum })` and read it on cold start.
-- Forward to Home Assistant — see the [HA recipe](../sensor-to-home-assistant/).
-- Forward to Discord — see the [Discord recipe](../post-discord-webhook/).
+- Forward to Home Assistant - see the [HA recipe](../sensor-to-home-assistant/).
+- Forward to Discord - see the [Discord recipe](../post-discord-webhook/).

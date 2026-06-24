@@ -2,7 +2,7 @@ import { expect, test } from "./fixtures";
 
 test.describe("Terms page", () => {
   test("loads with heading and last updated date", async ({ browser }) => {
-    // Terms page is public — no auth required
+    // Terms page is public - no auth required
     const context = await browser.newContext({
       storageState: { cookies: [], origins: [] },
     });

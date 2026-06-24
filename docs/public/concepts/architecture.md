@@ -7,7 +7,7 @@ social_image: /og-images/docs/concepts/architecture.png
 ## Overview
 
 DeviceSDK is a **self-hosted** IoT platform. You run a single server process on your own
-hardware — a Raspberry Pi, a NUC, a NAS, or any Docker host — and your microcontrollers
+hardware - a Raspberry Pi, a NUC, a NAS, or any Docker host - and your microcontrollers
 connect to it over WebSocket. There is no cloud, no managed runtime, and no per-message
 billing: it's one process on hardware you control.
 
@@ -57,7 +57,7 @@ TLS (`wss://`) on port 443.
 
 A persistent connection between the device and your server:
 - Binary/JSON message protocol
-- Low latency on a LAN
+- Near-zero latency - device, server, and scripts all run locally with no cloud hop
 - Automatic keepalive
 - Optionally TLS-encrypted (see Security Model)
 
@@ -103,7 +103,7 @@ example, a GPIO write command:
 }
 ```
 
-You normally don't write these messages by hand — call typed helpers on `this.env.DEVICE`
+You normally don't write these messages by hand - call typed helpers on `this.env.DEVICE`
 instead:
 
 ```typescript
@@ -117,13 +117,12 @@ discriminated union you can narrow in `onMessage`.
 ## Script Execution Model
 
 Your device scripts run as **in-process** code on the server:
-- **Per-device session** — one long-lived session per device, keyed by project + device
-- **Event-driven** — handlers fire on connect, message, disconnect, and cron
-- **User-owned** — your code runs on your own server; this is the trust model, not a sandbox
-- **Serialized dispatch** — per-session handlers run in FIFO order, one at a time
+- **Per-device session** - one long-lived session per device, keyed by project + device
+- **Event-driven** - handlers fire on connect, message, disconnect, and cron
+- **User-owned** - your code runs on your own server; this is the trust model, not a sandbox
+- **Serialized dispatch** - per-session handlers run in FIFO order, one at a time
 
-Because scripts are not sandboxed serverless functions, there's no cold start and no global
-distribution: they're plain TypeScript modules loaded into the Bun process you run.
+Because scripts are plain TypeScript modules loaded directly into the Bun process, there's no cold start and no deployment pipeline - changes take effect on the next device reconnect.
 
 ## Persistent Storage
 
@@ -153,10 +152,10 @@ server, which holds both device sessions in-process:
 ```
 
 Key properties:
-- **Server-mediated** — RPC routes through the server, never directly between devices
-- **Same project only** — devices can only call other devices in the same project
-- **Type-safe** — the CLI generates TypeScript types for autocomplete and compile-time checking
-- **Request-response** — callers await the return value; errors propagate back
+- **Server-mediated** - RPC routes through the server, never directly between devices
+- **Same project only** - devices can only call other devices in the same project
+- **Type-safe** - the CLI generates TypeScript types for autocomplete and compile-time checking
+- **Request-response** - callers await the return value; errors propagate back
 
 ## Security Model
 
@@ -164,7 +163,7 @@ Key properties:
 - **Token authentication** - API access controlled by tokens; local email/password accounts
   (argon2id) back the dashboard and CLI login
 - **Optional TLS** - On a trusted LAN you can run plain `ws://`/`http://`. To expose the
-  server beyond your LAN, put it behind a reverse proxy (or tunnel) that terminates TLS —
+  server beyond your LAN, put it behind a reverse proxy (or tunnel) that terminates TLS -
   the firmware uses `wss://` automatically for bare hostnames on port 443
 - **User-owned scripts** - Scripts run in-process because they're your own code on your own
   server; the trust boundary is the machine, not a per-script sandbox
@@ -177,14 +176,14 @@ When you deploy:
 3. A new immutable version is created
 4. Connected devices are sent a reboot and reconnect to the new version
 
-Deploys go to the one server you run — there is no global rollout. A device picks up the new
+Deploys go to the one server you run - there is no global rollout. A device picks up the new
 version the next time it connects.
 
 ## Scaling
 
 DeviceSDK scales to whatever your hardware can handle. A Raspberry Pi comfortably runs many
 devices; a larger host runs more. There's no infrastructure-as-a-service layer and no
-automatic horizontal scaling — capacity is the CPU, memory, and network of the box you run
+automatic horizontal scaling - capacity is the CPU, memory, and network of the box you run
 the server on. For larger fleets, run on bigger hardware.
 
 ## Next Steps

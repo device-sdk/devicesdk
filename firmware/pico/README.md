@@ -17,7 +17,7 @@ devicesdk flash <device>
 ```
 
 The CLI downloads a prebuilt firmware image and the server patches **your** configuration
-— Wi-Fi SSID/password, API token, server host, and project/device IDs — into the binary
+- Wi-Fi SSID/password, API token, server host, and project/device IDs - into the binary
 before it's written to the board. Prebuilt binaries are published to versioned GitHub
 Releases (tagged `firmware-pico@vX.Y.Z`) only when the changeset "Version packages"
 PR bumps the firmware version, and bundled into the Docker image.
@@ -42,7 +42,7 @@ export DEVICESDK_BOARD="pico_w"   # or "pico2_w"
 ```
 
 > The Wi-Fi/token/host/project/device values in `CMakeLists.txt` are **placeholders**.
-> They are patched per device at `devicesdk flash` time — do not put real credentials here.
+> They are patched per device at `devicesdk flash` time - do not put real credentials here.
 
 ### Build
 
@@ -57,7 +57,7 @@ This produces `build/devicesdk-client.uf2`.
 ### Flash
 
 For a from-source build, put the Pico into **BOOTSEL** mode (hold BOOTSEL while plugging
-in — it mounts as `RPI-RP2`) and either drag `devicesdk-client.uf2` onto the drive, or use
+in - it mounts as `RPI-RP2`) and either drag `devicesdk-client.uf2` onto the drive, or use
 `picotool`:
 
 ```bash

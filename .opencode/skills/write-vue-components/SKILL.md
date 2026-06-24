@@ -7,7 +7,7 @@ description: Use when creating or modifying Vue components in apps/dashboard/ (Q
 
 This codebase has two Vue apps with different UI frameworks. Identify the target before writing.
 
-## Dashboard (Quasar) — `apps/dashboard/`
+## Dashboard (Quasar) - `apps/dashboard/`
 
 ### Component Structure
 
@@ -140,7 +140,7 @@ pnpm check-types --filter @devicesdk/dashboard  # vue-tsc
 
 ---
 
-## Simulation (Tailwind) — `apps/simulation/`
+## Simulation (Tailwind) - `apps/simulation/`
 
 ### Component Structure
 
@@ -241,7 +241,7 @@ const { floatingStyles } = useFloating(reference, floating, {
 
 ### Styling
 
-- Tailwind CSS v4 utility classes (no `tailwind.config.js` — uses CSS-first config)
+- Tailwind CSS v4 utility classes (no `tailwind.config.js` - uses CSS-first config)
 - Dark theme by default (bg-gray-900, text-white)
 - Hardware simulation colors: dark green (#2A563F) for PCB, etc.
 

@@ -70,7 +70,7 @@ const display = new SSD1306({
 });
 ```
 
-For SH1106 panels, the default `columnOffset` is 2 even if you pass `0` — this matches the SH1106's well-known built-in offset. Pass a different value to override.
+For SH1106 panels, the default `columnOffset` is 2 even if you pass `0` - this matches the SH1106's well-known built-in offset. Pass a different value to override.
 
 ## Drawing Methods
 

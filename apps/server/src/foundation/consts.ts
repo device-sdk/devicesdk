@@ -14,7 +14,7 @@ export type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 export const LOG_MESSAGE_MAX_LENGTH = 10_000;
 export const LOG_RETENTION_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const LOG_MAX_STORED = 1_000;
-// Log cleanup runs at most every N writes AND every M ms — whichever is later.
+// Log cleanup runs at most every N writes AND every M ms - whichever is later.
 // Each run scans up to LOG_MAX_STORED rows for the overflow DELETE, so we want
 // it infrequent. The previous N=10 burned DO rows-read on chatty scripts.
 export const LOG_CLEANUP_INTERVAL = 100;

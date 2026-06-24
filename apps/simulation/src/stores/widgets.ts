@@ -8,7 +8,7 @@ export interface WidgetInstance {
 	kind: WidgetKind;
 	pins: Record<string, number>;
 	config: Record<string, unknown>;
-	/** Offset from board center, in px — for floating card layout */
+	/** Offset from board center, in px - for floating card layout */
 	offset?: { x: number; y: number };
 }
 

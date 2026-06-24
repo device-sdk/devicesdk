@@ -59,16 +59,16 @@ gh pr edit <PR> --add-assignee @me
 
 Review the PR diff for:
 
-**A. Metadata** — PR number, title, author, base branch, labels
-**B. Scope** — What files changed, what's the blast radius
-**C. Correctness** — Does the code do what it claims? Edge cases handled?
-**D. Security** — Input validation, auth checks, injection risks, abuse paths
-**E. Types** — Strict types used? No `any` in implementation? Boundaries validated?
-**F. Tests** — Adequate coverage? Real assertions, not performative? Regression tests?
-**G. API Compatibility** — Breaking changes to endpoints, response shapes, or schemas?
-**H. Docs** — User-facing changes documented? Public content clean of Cloudflare references?
-**I. Performance** — N+1 queries? Unbounded fetches? Missing indexes?
-**J. Style** — Follows codebase conventions? Consistent with existing patterns?
+**A. Metadata** - PR number, title, author, base branch, labels
+**B. Scope** - What files changed, what's the blast radius
+**C. Correctness** - Does the code do what it claims? Edge cases handled?
+**D. Security** - Input validation, auth checks, injection risks, abuse paths
+**E. Types** - Strict types used? No `any` in implementation? Boundaries validated?
+**F. Tests** - Adequate coverage? Real assertions, not performative? Regression tests?
+**G. API Compatibility** - Breaking changes to endpoints, response shapes, or schemas?
+**H. Docs** - User-facing changes documented? Public content clean of Cloudflare references?
+**I. Performance** - N+1 queries? Unbounded fetches? Missing indexes?
+**J. Style** - Follows codebase conventions? Consistent with existing patterns?
 
 ### 5. Run Local Tests (Optional)
 
@@ -85,7 +85,7 @@ pnpm test --filter @devicesdk/server
 Create `.local/review.md` with sections A through J:
 
 ```markdown
-# PR Review: #<PR> — <title>
+# PR Review: #<PR> - <title>
 
 ## A. Metadata
 - **Author**: @<author>

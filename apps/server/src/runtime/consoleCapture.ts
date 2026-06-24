@@ -18,11 +18,10 @@ function serialize(args: unknown[]): string {
 
 /**
  * Patches global console once so user-script console.* calls are persisted as
- * device logs (and streamed to watchers), exactly like the sandboxed-worker
- * console override did. User scripts share the server process, so the only
- * per-device routing signal is the async context: dispatchers wrap every user
- * handler call in runWithLogCapture(), and the patched console looks up the
- * active sink. Server-side logging (logger.ts) writes through the saved
+ * device logs and streamed to watchers. User scripts share the server process,
+ * so the only per-device routing signal is the async context: dispatchers wrap
+ * every user handler call in runWithLogCapture(), and the patched console looks
+ * up the active sink. Server-side logging (logger.ts) writes through the saved
  * originals, so it is never captured.
  */
 export function installConsoleCapture(): void {

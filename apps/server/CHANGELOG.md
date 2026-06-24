@@ -4,7 +4,7 @@
 
 ### Minor Changes
 
-- 7cffbef: Audit Batch 02 — Auth & Token Hardening
+- 7cffbef: Audit Batch 02 - Auth & Token Hardening
   - Drops the legacy plaintext `tokens.token` column after clearing any residual values.
   - Replaces unsalted SHA-256 token storage with HMAC-SHA-256 using a server-side secret (`API_TOKEN_SECRET`); legacy SHA-256 hashes remain verifiable during the transition.
   - Persists an auto-generated API token secret under `DATA_DIR` when `API_TOKEN_SECRET` is not provided.
@@ -22,7 +22,7 @@
   - **Firmware**: ESP32 (`CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES`) and Pico W (`LWIP_IGMP` +
     `LWIP_DNS_SUPPORT_MDNS_QUERIES`) now resolve `.local` hostnames over mDNS, so a device
     flashed with `--host http://devicesdk.local:8080` keeps reaching the server across DHCP
-    lease changes. No connection-logic changes — the existing explicit-port heuristic already
+    lease changes. No connection-logic changes - the existing explicit-port heuristic already
     selects plain `ws://` for LAN hosts.
   - **Docs**: README, quickstart, and the `flash` CLI reference document flashing against the
     mDNS name; the roadmap marks server-side mDNS advertisement as shipped.
@@ -38,7 +38,7 @@
     SQLite replace Analytics Engine; plans/tiers/daily message limits removed.
   - Dashboard: local login/registration with first-run setup; served
     same-origin by the server; cost/billing UI removed.
-  - CLI: no default cloud endpoint — connect with `devicesdk login --host
+  - CLI: no default cloud endpoint - connect with `devicesdk login --host
 http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
   - Firmware: Pico gains plain `ws://` support when the host has an explicit
     port (ESP32 already had it); binaries now publish to rolling GitHub

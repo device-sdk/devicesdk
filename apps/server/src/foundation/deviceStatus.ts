@@ -22,10 +22,10 @@ export async function getDeviceConnectionStatus(
 		return await stub.getConnectionStatus();
 	} catch (err) {
 		// Most common case: session not yet initialized (device has never connected).
-		// Log at debug level — this is expected, not an error condition.
+		// Log at debug level - this is expected, not an error condition.
 		// Genuine RPC failures also land here; inspect `err` to escalate if needed.
 		logger.debug(
-			`getDeviceConnectionStatus: device session unreachable for ${deviceId} in ${projectId} — likely never connected`,
+			`getDeviceConnectionStatus: device session unreachable for ${deviceId} in ${projectId} - likely never connected`,
 			{ error: err instanceof Error ? err.message : String(err) },
 		);
 		return { connected: false, connectedSince: null };

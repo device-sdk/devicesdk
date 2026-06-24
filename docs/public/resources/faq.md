@@ -20,7 +20,7 @@ DeviceSDK is a self-hosted, open-source platform for building IoT applications w
 
 ### Is DeviceSDK free?
 
-Yes. DeviceSDK is free and open source under the **AGPL-3.0** license. There are no plans, tiers, message quotas, or usage billing — you run the server on your own hardware and it's yours.
+Yes. DeviceSDK is free and open source under the **AGPL-3.0** license. There are no plans, tiers, message quotas, or usage billing - you run the server on your own hardware and it's yours.
 
 ### Do I need to know any specific cloud platform?
 
@@ -30,7 +30,7 @@ No. DeviceSDK runs anywhere Docker (or Bun) runs: a Raspberry Pi, a NUC, a NAS, 
 
 ### Where does it run?
 
-Anywhere you can run the Docker image `ghcr.io/device-sdk/devicesdk` — Raspberry Pi, NUC, NAS, or a plain Docker host. It's a single Bun process listening on one port (default **8080**).
+Anywhere you can run the Docker image `ghcr.io/device-sdk/devicesdk` - Raspberry Pi, NUC, NAS, or a plain Docker host. It's a single Bun process listening on one port (default **8080**).
 
 ### How do I start it?
 
@@ -44,9 +44,9 @@ The server then serves the REST API, the device and watcher WebSockets, and the 
 
 All state lives under `DATA_DIR` (default `./data`, `/data` inside Docker):
 
-- `devicesdk.sqlite` — the SQLite database (WAL mode)
-- `scripts/` — your deployed device script bundles
-- `firmwares/` — cached firmware images
+- `devicesdk.sqlite` - the SQLite database (WAL mode)
+- `scripts/` - your deployed device script bundles
+- `firmwares/` - cached firmware images
 
 Back up that directory and you've backed up everything.
 
@@ -110,7 +110,7 @@ Yes, but TypeScript is recommended for better type safety and developer experien
 
 ### What libraries can I use?
 
-Device scripts run **in-process** on your server (Bun). Most JavaScript/TypeScript libraries work. Keep scripts lightweight — they handle device events, not heavy batch computation.
+Device scripts run **in-process** on your server (Bun). Most JavaScript/TypeScript libraries work. Keep scripts lightweight - they handle device events, not heavy batch computation.
 
 ### Can I use external APIs?
 
@@ -136,7 +136,7 @@ Yes. Rollback to any previous version via the dashboard.
 
 ### How many devices can I have?
 
-There's no built-in limit — you're bound only by your own hardware.
+There's no built-in limit - you're bound only by your own hardware.
 
 ### Can I deploy from CI/CD?
 
@@ -150,17 +150,17 @@ DEVICESDK_API_URL=http://<server>:8080 DEVICESDK_TOKEN=xxx devicesdk deploy
 
 ### How do connections work?
 
-- Devices connect to your server over WebSocket. When the configured host includes an explicit port (e.g. `ws://<server>:8080`), firmware uses plain `ws://` — typical for a LAN install. For a bare hostname behind a TLS terminator, it uses TLS on 443.
+- Devices connect to your server over WebSocket. When the configured host includes an explicit port (e.g. `ws://<server>:8080`), firmware uses plain `ws://` - typical for a LAN install. For a bare hostname behind a TLS terminator, it uses TLS on 443.
 - API access requires authentication tokens.
 - Device credentials are unique per device, embedded at flash time.
 
-### Is my code isolated from other users?
+### Who can run scripts on my server?
 
-Device scripts are **your** code running on **your** server — there are no other tenants. The trust model is single-operator: user-owned code on user-owned hardware. Within a project, devices can call each other's public methods (same-project RPC).
+Anyone with a dashboard account. DeviceSDK is single-tenant by design - all accounts on your server are trusted operators who can deploy and modify any device script. If you want stricter separation, run separate server instances. Within a project, devices can call each other's public methods (same-project RPC).
 
 ### Can I expose the server beyond my LAN?
 
-Yes, but put it behind a reverse proxy or TLS terminator (or wait for the planned optional-HTTPS support — see the [roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md)). The server itself speaks HTTP on one port by default.
+Yes, but put it behind a reverse proxy or TLS terminator (or wait for the planned optional-HTTPS support - see the [roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md)). The server itself speaks HTTP on one port by default.
 
 ## Connectivity
 
@@ -181,7 +181,7 @@ import type { Env } from '../../devicesdk-env';
 
 export class Sensor extends DeviceEntrypoint<Env> {
   async onMessage(message: DeviceResponse) {
-    // Call a method on another device — fully typed with autocomplete
+    // Call a method on another device - fully typed with autocomplete
     const result = await this.env.DEVICES['light-controller'].turnOn();
     console.info('Light status:', result.status);
   }
@@ -236,11 +236,11 @@ See the full [roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/mai
 
 ### Can I influence the roadmap?
 
-Yes! Share feedback in Discord or via GitHub issues. It's open source — pull requests welcome.
+Yes! Share feedback in Discord or via GitHub issues. It's open source - pull requests welcome.
 
 ### Is DeviceSDK open source?
 
-Yes — the entire platform is open source under AGPL-3.0. See our [GitHub](https://github.com/device-sdk/devicesdk-monorepo/issues).
+Yes - the entire platform is open source under AGPL-3.0. See our [GitHub](https://github.com/device-sdk/devicesdk-monorepo/issues).
 
 ## Still Have Questions?
 

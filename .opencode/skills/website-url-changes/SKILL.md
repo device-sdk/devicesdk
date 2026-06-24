@@ -5,7 +5,7 @@ description: Use whenever a change will alter the public URL of a page on device
 
 # Website URL changes
 
-Any change that alters a public URL on devicesdk.com requires a 301 redirect from the old URL to the new one. Google retains old URLs in its index for months — without a redirect, those URLs go to 404 (or to a "duplicate without canonical" status) and the impressions they were earning are lost.
+Any change that alters a public URL on devicesdk.com requires a 301 redirect from the old URL to the new one. Google retains old URLs in its index for months - without a redirect, those URLs go to 404 (or to a "duplicate without canonical" status) and the impressions they were earning are lost.
 
 ## When this applies
 
@@ -35,7 +35,7 @@ Any change that alters a public URL on devicesdk.com requires a 301 redirect fro
 
    Use `:slug` wildcards when an entire subtree moved. Place specific entries before general ones (Cloudflare matches top-down).
 
-4. **For deletions**, redirect to the closest still-existing parent or the most relevant remaining page — never leave a 404 if the page had any inbound links. Example: deleted `/docs/guides/control-from-browser/` → 301 to `/docs/guides/`.
+4. **For deletions**, redirect to the closest still-existing parent or the most relevant remaining page - never leave a 404 if the page had any inbound links. Example: deleted `/docs/guides/control-from-browser/` → 301 to `/docs/guides/`.
 
 5. **Verify after deploy:**
 

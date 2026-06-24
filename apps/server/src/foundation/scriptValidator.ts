@@ -10,8 +10,7 @@ export interface ValidationResult {
  * Statically validates an uploaded device-script bundle without executing it.
  * Bun.Transpiler.scan parses the module (surfacing syntax errors) and lists
  * its exports, so we can confirm the declared entrypoint class is exported.
- * The cloud deployment loaded the script into a sandboxed worker for this;
- * in-process execution is deferred to first device connect (scriptHost).
+ * Actual execution is deferred to first device connect (scriptHost).
  */
 export async function validateUserScript(
 	script: string,

@@ -6,7 +6,7 @@ import type { KVInterface } from "./types";
 // Synchronously validate user-supplied arguments before they round-trip to the
 // firmware. Without this, a bad value (pin out of range, duty cycle out of
 // 0..1, malformed I2C address) silently fires and the user only sees a
-// `command_error` event in `onMessage` — which they often haven't wired up.
+// `command_error` event in `onMessage` - which they often haven't wired up.
 // Throwing locally means agents and humans alike get an actionable stack with
 // the exact field that's wrong.
 
@@ -66,7 +66,7 @@ function validateHexBytes(data: unknown, docs: string): void {
 			fail(
 				"data byte",
 				byte,
-				'a single-byte hex string like "0xAE" — one byte per array element, do not pack',
+				'a single-byte hex string like "0xAE" - one byte per array element, do not pack',
 				docs,
 			);
 		}
@@ -188,7 +188,7 @@ export class LocalDeviceSender {
 			fail(
 				"dutyCycle",
 				dutyCycle,
-				"a number in 0..1 (NOT a percent — pass 0.5 for half, not 50)",
+				"a number in 0..1 (NOT a percent - pass 0.5 for half, not 50)",
 				docs,
 			);
 		}

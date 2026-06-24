@@ -15,7 +15,7 @@ export const WINDOWS: Record<MetricsWindow, WindowConfig> = {
 	"7d": { seconds: 604_800, bucketSeconds: 21_600 }, // 28 × 6-hour buckets
 };
 
-/** Storage granularity — finest bucket any window uses. */
+/** Storage granularity - finest bucket any window uses. */
 export const STORAGE_BUCKET_MS = 300_000;
 
 /** How long usage rows are kept (longest window). */
@@ -106,7 +106,7 @@ export function recordDeviceUsage(db: Database, delta: UsageDelta): void {
 			delta.connectedSeconds ?? 0,
 		);
 	} catch {
-		// Best-effort — usage accounting must never break device traffic.
+		// Best-effort - usage accounting must never break device traffic.
 	}
 }
 

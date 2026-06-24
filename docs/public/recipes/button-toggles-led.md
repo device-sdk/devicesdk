@@ -11,7 +11,7 @@ The smallest hardware-interactive recipe: press a button, the onboard LED toggle
 
 Wire one leg of a momentary button to **GP20**, the other leg to **GND**. The script enables the internal pull-up, so an unpressed button reads `high` and a pressed button reads `low`.
 
-The LED is the onboard one — virtual pin 99, no wiring needed.
+The LED is the onboard one - virtual pin 99, no wiring needed.
 
 ## `devicesdk.ts`
 
@@ -77,4 +77,4 @@ export class ButtonToggle extends DeviceEntrypoint {
 ## Going further
 
 - Replace the LED with a relay for a real power switch. See the [Home Assistant recipe](../sensor-to-home-assistant/) to surface this as an HA `switch` entity.
-- Drive a WS2812 strip color instead — see the [WS2812 recipe](../ws2812-rainbow/).
+- Drive a WS2812 strip color instead - see the [WS2812 recipe](../ws2812-rainbow/).

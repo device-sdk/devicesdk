@@ -18,8 +18,8 @@ Use `emitState` for anything you want exposed as an entity that isn't one of the
 emitState(entityId: string, value: unknown): Promise<void>
 ```
 
-- `entityId` — matches the `entity_id` declared in your `devicesdk.ts` under `ha.entities`. Must be lowercase letters, digits, and underscores.
-- `value` — any JSON-serializable value. Numbers become sensor readings, strings become text states, booleans become binary sensor states.
+- `entityId` - matches the `entity_id` declared in your `devicesdk.ts` under `ha.entities`. Must be lowercase letters, digits, and underscores.
+- `value` - any JSON-serializable value. Numbers become sensor readings, strings become text states, booleans become binary sensor states.
 
 ## Example: Soil moisture sensor
 
@@ -63,7 +63,7 @@ export class Planter extends DeviceEntrypoint<Env> {
     const raw = (reading.payload as { value: number }).value;
     const percent = Math.round((raw / 4095) * 100);
 
-    // Publish to Home Assistant — appears on the "Planter Moisture" sensor
+    // Publish to Home Assistant - appears on the "Planter Moisture" sensor
     await this.env.DEVICE.emitState('soil_moisture', percent);
   }
 
@@ -88,4 +88,4 @@ Use `emitState` when:
 
 ## Overhead
 
-`emitState` is cheap. Every call is a single function invocation inside the device's session on the server — no extra round-trips to storage or to the device hardware. The state event is only broadcast to active watchers; if no one is subscribed, the call does almost nothing.
+`emitState` is cheap. Every call is a single function invocation inside the device's session on the server - no extra round-trips to storage or to the device hardware. The state event is only broadcast to active watchers; if no one is subscribed, the call does almost nothing.

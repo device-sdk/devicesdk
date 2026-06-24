@@ -14,7 +14,7 @@
   - **Firmware**: ESP32 (`CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES`) and Pico W (`LWIP_IGMP` +
     `LWIP_DNS_SUPPORT_MDNS_QUERIES`) now resolve `.local` hostnames over mDNS, so a device
     flashed with `--host http://devicesdk.local:8080` keeps reaching the server across DHCP
-    lease changes. No connection-logic changes — the existing explicit-port heuristic already
+    lease changes. No connection-logic changes - the existing explicit-port heuristic already
     selects plain `ws://` for LAN hosts.
   - **Docs**: README, quickstart, and the `flash` CLI reference document flashing against the
     mDNS name; the roadmap marks server-side mDNS advertisement as shipped.
@@ -30,7 +30,7 @@
     SQLite replace Analytics Engine; plans/tiers/daily message limits removed.
   - Dashboard: local login/registration with first-run setup; served
     same-origin by the server; cost/billing UI removed.
-  - CLI: no default cloud endpoint — connect with `devicesdk login --host
+  - CLI: no default cloud endpoint - connect with `devicesdk login --host
 http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
   - Firmware: Pico gains plain `ws://` support when the host has an explicit
     port (ESP32 already had it); binaries now publish to rolling GitHub
@@ -44,7 +44,7 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
   - **Public docs (`docs/public/`)**: corrected `troubleshooting.md` (dropped
     "edge script/edge location", Cloudflare-era queues, the dead
     `status.devicesdk.com` status page, the hardcoded port-443 firewall note, and
-    the request-quota framing — the server only rate-limits auth brute-force);
+    the request-quota framing - the server only rate-limits auth brute-force);
     fixed `concepts/env-vars.md` (`DeviceSender` → `DeviceEntrypoint` + import),
     `guides/home-assistant.md` (`defineConfig` import from `@devicesdk/cli`, repo
     URL), `cli/init.md` (documented the real `--no-git` flag, removed the
@@ -59,7 +59,7 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
     → "Self-hosted"); fixed `export default class` hero/product code samples to
     the required named `export class`; "cloud KV" → "device KV"; rewrote the
     website `README.md` (it still described the old pure-HTML/jQuery/Wrangler
-    setup — it's a Hugo + Tailwind site now, still deployed to Cloudflare Pages).
+    setup - it's a Hugo + Tailwind site now, still deployed to Cloudflare Pages).
     Also pointed every "GitHub" link (the `githubUrl` param, nav/footer menus,
     footer license link, about page, terms/privacy) at the repo
     (`device-sdk/devicesdk-monorepo`) instead of the bare org root, and aligned a
@@ -69,7 +69,7 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
     `--host`), `@devicesdk/mcp` (`auth.json` → `credentials.json`).
   - **Firmware (`firmware/pico/README.md`)**: rewrote the stale "devicesdk-client"
     README (cloud backend, port 8787, personal absolute paths) and scrubbed the
-    committed Wi-Fi credentials / API tokens it documented. Docs only — no
+    committed Wi-Fi credentials / API tokens it documented. Docs only - no
     firmware behavior change.
   - **Firmware (`firmware/esp32/`)**: rewrote the bare ESP-IDF "Hello World"
     `README.md` into a real DeviceSDK ESP32 firmware doc, rewrote the
@@ -123,16 +123,16 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
 
 ### Patch Changes
 
-- f4e26bd: Cut a new firmware release for Pico and ESP32. No functional firmware changes — this entry bumps the firmware package versions so the "version packages" PR's `package.json` edits trip the path-filtered firmware workflows and rebuild/republish the binaries to R2. This release picks up the repaired R2 upload step (the `--file` path is now anchored to `$GITHUB_WORKSPACE` so `pnpm --filter … exec`'s `apps/api` CWD no longer breaks the upload).
+- f4e26bd: Cut a new firmware release for Pico and ESP32. No functional firmware changes - this entry bumps the firmware package versions so the "version packages" PR's `package.json` edits trip the path-filtered firmware workflows and rebuild/republish the binaries to R2. This release picks up the repaired R2 upload step (the `--file` path is now anchored to `$GITHUB_WORKSPACE` so `pnpm --filter … exec`'s `apps/api` CWD no longer breaks the upload).
 
 ## 0.0.3
 
 ### Patch Changes
 
-- 48a3bf9: Cut a new firmware release for ESP32 and Pico. No functional firmware changes — this entry bumps the firmware package versions so the release pipeline rebuilds and republishes the binaries to R2. For ESP32 this picks up the fixed CI pipeline (single-job multi-target build + repaired R2 upload); the previous run built the ESP32 binaries but failed to upload them.
+- 48a3bf9: Cut a new firmware release for ESP32 and Pico. No functional firmware changes - this entry bumps the firmware package versions so the release pipeline rebuilds and republishes the binaries to R2. For ESP32 this picks up the fixed CI pipeline (single-job multi-target build + repaired R2 upload); the previous run built the ESP32 binaries but failed to upload them.
 
 ## 0.0.2
 
 ### Patch Changes
 
-- 6495035: Cut a new firmware release. No functional firmware changes — this entry exists to bump the Pico and ESP32 firmware package versions so the release pipeline rebuilds and republishes the binaries.
+- 6495035: Cut a new firmware release. No functional firmware changes - this entry exists to bump the Pico and ESP32 firmware package versions so the release pipeline rebuilds and republishes the binaries.

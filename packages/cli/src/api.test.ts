@@ -39,7 +39,7 @@ describe("request error parsing", () => {
 		expect(err).toBeInstanceOf(DeviceSDKApiError);
 		expect(err.statusCode).toBe(401);
 		expect(err.code).toBe("invalid_refresh_token");
-		expect(err.message).toBe("Session expired — run `devicesdk login`.");
+		expect(err.message).toBe("Session expired - run `devicesdk login`.");
 	});
 
 	it("preserves a structured `{ error: { message, code } }` body", async () => {
@@ -86,7 +86,7 @@ describe("request error parsing", () => {
 
 		const err = (await getMe("tok").catch((e) => e)) as DeviceSDKApiError;
 		expect(err.statusCode).toBe(404);
-		// Spaces / sentences must not flow into `code` — that would mislead
+		// Spaces / sentences must not flow into `code` - that would mislead
 		// downstream consumers that compare `err.code === "SOMETHING"`.
 		expect(err.code).toBeUndefined();
 		expect(err.message).toBe("User not found");

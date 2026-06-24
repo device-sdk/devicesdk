@@ -8,7 +8,7 @@ Model Context Protocol server for DeviceSDK. Lets AI coding agents (Claude Deskt
 npx -y @devicesdk/mcp --version
 ```
 
-You don't usually run it directly — it's launched by your MCP-aware tool. Add this to `.mcp.json` in your project (or wherever your tool reads MCP config):
+You don't usually run it directly - it's launched by your MCP-aware tool. Add this to `.mcp.json` in your project (or wherever your tool reads MCP config):
 
 ```json
 {
@@ -25,7 +25,7 @@ You don't usually run it directly — it's launched by your MCP-aware tool. Add 
 
 ## Authentication
 
-The server inherits the CLI's auth: it reads `~/.devicesdk/credentials.json` (created by `devicesdk login`). If you set `DEVICESDK_TOKEN` in the environment, that takes precedence — useful in CI or when you want a tighter-scoped token for your agent.
+The server inherits the CLI's auth: it reads `~/.devicesdk/credentials.json` (created by `devicesdk login`). If you set `DEVICESDK_TOKEN` in the environment, that takes precedence - useful in CI or when you want a tighter-scoped token for your agent.
 
 ## Tools exposed
 
@@ -43,10 +43,10 @@ Each tool wraps the equivalent `devicesdk <cmd> --json` invocation, so the agent
 
 ## Full docs
 
-The complete reference — install snippets per MCP host (Claude Desktop, Claude Code, Cursor, Continue.dev, Windsurf), auth model, troubleshooting — lives at **<https://devicesdk.com/docs/mcp/>**.
+The complete reference - install snippets per MCP host (Claude Desktop, Claude Code, Cursor, Continue.dev, Windsurf), auth model, troubleshooting - lives at **<https://devicesdk.com/docs/mcp/>**.
 
 ## See also
 
-- [`devicesdk init`](https://devicesdk.com/docs/cli/init/) — scaffolds a project with `.mcp.json` preconfigured.
-- [Cookbook](https://devicesdk.com/docs/recipes/) — task-shaped recipes.
-- [`@devicesdk/cli`](https://www.npmjs.com/package/@devicesdk/cli) — the CLI this server wraps.
+- [`devicesdk init`](https://devicesdk.com/docs/cli/init/) - scaffolds a project with `.mcp.json` preconfigured.
+- [Cookbook](https://devicesdk.com/docs/recipes/) - task-shaped recipes.
+- [`@devicesdk/cli`](https://www.npmjs.com/package/@devicesdk/cli) - the CLI this server wraps.

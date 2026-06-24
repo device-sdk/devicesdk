@@ -109,7 +109,7 @@ describe("getConfigDir", () => {
 		});
 
 		it("stops walking at a foreign-project boundary (.git)", async () => {
-			// tmpRoot/devicesdk.ts (would match if walk continued — must NOT)
+			// tmpRoot/devicesdk.ts (would match if walk continued - must NOT)
 			// tmpRoot/foreign-repo/.git (boundary)
 			// tmpRoot/foreign-repo/sub (cwd)
 			await fs.writeFile(path.join(tmpRoot, "devicesdk.ts"), "// stray");
@@ -135,7 +135,7 @@ describe("getConfigDir", () => {
 		});
 
 		it("still finds devicesdk.ts at a level that also has package.json", async () => {
-			// Typical real-world layout — co-located devicesdk.ts and package.json.
+			// Typical real-world layout - co-located devicesdk.ts and package.json.
 			const projectDir = path.join(tmpRoot, "project");
 			const subDir = path.join(projectDir, "src");
 			await fs.mkdir(subDir, { recursive: true });

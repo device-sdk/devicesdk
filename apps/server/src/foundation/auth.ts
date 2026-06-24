@@ -61,7 +61,7 @@ export function setSessionCookie(
 	token: string,
 	expiresAt: number,
 ): void {
-	// Host-only cookie (no Domain attribute) — the dashboard is served from
+	// Host-only cookie (no Domain attribute) - the dashboard is served from
 	// the same origin as the API on a self-hosted server. Secure is opt-in
 	// via SECURE_COOKIES because most home installs run plain HTTP on a LAN.
 	setCookie(c, SESSION_COOKIE_NAME, token, {

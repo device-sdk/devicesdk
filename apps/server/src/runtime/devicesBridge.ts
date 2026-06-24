@@ -18,12 +18,12 @@ export interface BridgeDeps {
 }
 
 /**
- * Inter-device RPC dispatcher — the in-process port of the DevicesBridge
+ * Inter-device RPC dispatcher - the in-process port of the DevicesBridge
  * WorkerEntrypoint. User code calls `this.env.DEVICES["slug"].method()`;
  * this resolves the slug within the caller's project and invokes the target
  * session's script instance directly.
  *
- * SECURITY NOTE — trust model unchanged from the cloud implementation: all
+ * SECURITY NOTE - trust model unchanged from the cloud implementation: all
  * devices within a project can call any non-blocked method on any other
  * device in the same project. Projects are single-tenant by design.
  */

@@ -19,7 +19,7 @@ worktree, review, fix findings in a loop, and open a PR.
 6. Run gates (build, lint, type-check, tests).
 7. Push and open a PR.
 
-## Step 1 — Parse the Request
+## Step 1 - Parse the Request
 
 The command argument (`$ARGUMENTS`) is either:
 
@@ -36,7 +36,7 @@ Determine which it is:
 Derive a short, kebab-case feature name from the first line of the instruction
 or filename. Use it for the branch and worktree names.
 
-## Step 2 — Create Worktree and Branch
+## Step 2 - Create Worktree and Branch
 
 From the repo root:
 
@@ -49,7 +49,7 @@ cd .worktrees/<feature-name>
 If the worktree or branch already exists, remove/recreate or reuse as
 appropriate, but never modify a branch you did not create.
 
-## Step 3 — Implement with a Subagent
+## Step 3 - Implement with a Subagent
 
 Delegate the implementation to a `general` subagent with this prompt:
 
@@ -77,7 +77,7 @@ Requirements:
 Wait for the subagent to finish. Trust its output but verify the worktree
 exists and has commits.
 
-## Step 4 — Review the Implementation
+## Step 4 - Review the Implementation
 
 Inside the feature worktree, perform a read-only review as if running
 `/review-pr` on the branch. You may either:
@@ -99,7 +99,7 @@ Severity guide:
   missing validation.
 - **NIT**: Naming, style, minor improvements.
 
-## Step 5 — Fix Findings in a Loop
+## Step 5 - Fix Findings in a Loop
 
 Read `.local/review.json`:
 
@@ -122,7 +122,7 @@ Read `.local/review.json`:
 Stop after a reasonable number of iterations (e.g., 5). If findings persist,
 report to the user instead of looping forever.
 
-## Step 6 — Run Final Gates
+## Step 6 - Run Final Gates
 
 Inside the feature worktree:
 
@@ -136,7 +136,7 @@ pnpm test --filter @devicesdk/server
 
 If any gate fails, delegate fixes to a `general` subagent and re-run gates.
 
-## Step 7 — Push and Open PR
+## Step 7 - Push and Open PR
 
 ```bash
 git push -u origin <feature-name>

@@ -1,5 +1,5 @@
 /**
- * Pico W / Pico 2W type hints — pin literal unions and validated builders.
+ * Pico W / Pico 2W type hints - pin literal unions and validated builders.
  *
  * Provides full type safety for valid I2C pin combinations and narrow types
  * for GPIO / ADC / PWM pins. Both Pico W (RP2040) and Pico 2W (RP2350) share
@@ -11,7 +11,7 @@
  * await this.env.DEVICE.setGpioState(OnboardLED, "high");
  *
  * const led: PicoGpioPin = 25;       // ok
- * // const bad: PicoGpioPin = 30;     // compile error — 30 is not a valid Pico GPIO
+ * // const bad: PicoGpioPin = 30;     // compile error - 30 is not a valid Pico GPIO
  */
 
 import type { I2cConfigureCommand } from "../index.js";

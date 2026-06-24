@@ -82,7 +82,7 @@ describe("projects API", () => {
 
 	test("invalid slug format returns 400", async () => {
 		const auth = await registerUser("badslug@example.com");
-		// Starts with a digit / uppercase / underscore — all violate the regex.
+		// Starts with a digit / uppercase / underscore - all violate the regex.
 		for (const slug of ["1bad", "Bad", "has_underscore", "-leading"]) {
 			const res = await srv.post("/v1/projects", {
 				token: auth.token,

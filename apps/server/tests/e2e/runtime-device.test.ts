@@ -291,7 +291,7 @@ describe("device session runtime", () => {
 		await Bun.sleep(50);
 		// invalid schema (missing required `type`)
 		device.send({ foo: "bar" } as Record<string, unknown>);
-		// ping keepalive — never wakes user code, never counts as usage
+		// ping keepalive - never wakes user code, never counts as usage
 		device.send({ type: "ping", payload: {} });
 		await Bun.sleep(100);
 

@@ -281,7 +281,7 @@ describe("logs command (WS)", () => {
 			const ws = wsInstances[wsInstances.length - 1];
 			expect(ws).toBeDefined();
 			ws.emit("close");
-			// 1s, 2s, 4s, 8s, 16s — cumulative; advance generously.
+			// 1s, 2s, 4s, 8s, 16s - cumulative; advance generously.
 			await vi.advanceTimersByTimeAsync(35_000);
 		}
 
@@ -334,7 +334,7 @@ describe("logs command (WS)", () => {
 		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toMatch(
 			/Rate limited:.*429.*Retry-After: 60/s,
 		);
-		// Crucially, no reconnect attempt was made — retrying from the same
+		// Crucially, no reconnect attempt was made - retrying from the same
 		// client is what the 429 is asking us NOT to do.
 		expect(wsInstances).toHaveLength(1);
 	});

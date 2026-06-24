@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "skills": [
+    {
+      "name": "devicesdk-api",
+      "type": "skill-md",
+      "description": "Use the DeviceSDK REST API to manage projects, devices, scripts, environment variables, and API tokens. All endpoints require Bearer authentication (session cookie or an API token with the prefix dsdk_). Responses use the envelope { success, result | error }. The full interactive OpenAPI reference is published at https://devicesdk.com/docs/api.",
+      "url": "https://devicesdk.com/.well-known/agent-skills/devicesdk-api/SKILL.md",
+      "digest": "sha256:61d21af57a8f215237ce8ad1133875a765530825d3f9945edb5e881025dc796f"
+    },
+    {
+      "name": "devicesdk-cli",
+      "type": "skill-md",
+      "description": "The devicesdk CLI (npm i -g @devicesdk/cli) builds, deploys, flashes, and inspects DeviceSDK projects. A project is defined by a devicesdk.ts config that maps device slugs to TypeScript entrypoint classes under src/entrypoints/.",
+      "url": "https://devicesdk.com/.well-known/agent-skills/devicesdk-cli/SKILL.md",
+      "digest": "sha256:97a19a3649e94b378d3964b26410732fd9288baa45fd6d86abd945c924e51452"
+    },
+    {
+      "name": "devicesdk-firmware",
+      "type": "skill-md",
+      "description": "DeviceSDK firmware runs on Raspberry Pi Pico W (RP2040) and the ESP32 family (including ESP32-C61). Devices open a raw WebSocket to the managed runtime, receive commands, and stream status/log/state events back. Flashing is typically a one-time operation; subsequent updates are delivered over the air.",
+      "url": "https://devicesdk.com/.well-known/agent-skills/devicesdk-firmware/SKILL.md",
+      "digest": "sha256:a0d1603d6956a4249aaef2390473561e3281151a0f460ffd980d3a54dcabc2ec"
+    },
+    {
+      "name": "devicesdk-overview",
+      "type": "skill-md",
+      "description": "DeviceSDK is a managed IoT platform. Users write TypeScript device scripts, deploy them to a globally distributed runtime, and flash firmware onto microcontrollers (Raspberry Pi Pico W, ESP32 family) that connect back over WebSocket. A Home Assistant integration exposes devices as native HA entities.",
+      "url": "https://devicesdk.com/.well-known/agent-skills/devicesdk-overview/SKILL.md",
+      "digest": "sha256:5ddf2110d6453f7a49aba92e7a109b7bb24b67c225daa387578d6f4dac4b60cb"
+    }
+  ]
+}

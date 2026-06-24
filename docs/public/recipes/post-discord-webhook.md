@@ -74,7 +74,7 @@ export class TempToDiscord extends DeviceEntrypoint {
         const text = await res.text().catch(() => "");
         console.error(
           `Discord webhook failed: ${res.status} ${res.statusText}` +
-            (text ? ` — ${text.slice(0, 200)}` : ""),
+            (text ? ` - ${text.slice(0, 200)}` : ""),
         );
       }
     } catch (err) {
@@ -90,11 +90,11 @@ export class TempToDiscord extends DeviceEntrypoint {
 ## What this demonstrates
 
 - A clean separation between the cron tick (which only requests a reading) and the response handler (which posts to Discord). Keeps `onCron` fast.
-- Reading a secret from `this.env.VARS` instead of hardcoding it — the webhook URL is rotateable without redeploying.
+- Reading a secret from `this.env.VARS` instead of hardcoding it - the webhook URL is rotateable without redeploying.
 - Handling **both** non-2xx responses (the webhook returned an error) and thrown errors (the network call itself failed). Agents that pattern-match on this code will get an example of both error paths.
 
 ## Going further
 
-- Replace `getTemperature()` with a real BME280 sensor — see the [BME280 recipe](../read-bme280/).
-- Aggregate over a day instead of posting every reading — see the [daily summary recipe](../daily-cron-summary/).
+- Replace `getTemperature()` with a real BME280 sensor - see the [BME280 recipe](../read-bme280/).
+- Aggregate over a day instead of posting every reading - see the [daily summary recipe](../daily-cron-summary/).
 - Route through a different chat platform (Slack incoming webhooks, ntfy.sh) by changing the URL and message shape.

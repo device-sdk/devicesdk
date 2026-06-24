@@ -4,20 +4,20 @@ description: Use the DeviceSDK REST API to manage projects, devices, scripts, en
 ---
 
 ## Base URL
-The API is served by the server you run yourself, under `/v1/*` (e.g. `http://<server>:8080/v1/...`). There is no hosted api host — replace `<server>:8080` with wherever your server listens.
+The API is served by the server you run yourself, under `/v1/*` (e.g. `http://<server>:8080/v1/...`). There is no hosted api host - replace `<server>:8080` with wherever your server listens.
 
 ## Authentication
 Send `Authorization: Bearer <token>`. Tokens come from either the dashboard login session (served by your own server) or from `POST /v1/tokens` (prefix `dsdk_`).
 
 ## Key resources
-- `GET /v1/user` — current user profile.
-- `GET /v1/projects`, `POST /v1/projects` — list / create projects.
-- `GET /v1/projects/{id}/devices`, `POST /v1/projects/{id}/devices` — list / create devices.
-- `GET /v1/projects/{id}/devices/{did}/script`, `POST …/script` — fetch / upload a device script (the POST returns a signed upload URL).
-- `GET /v1/projects/{id}/devices/{did}/logs` — paginated logs.
-- `GET /v1/projects/{id}/devices/{did}/watch` — WebSocket (upgrade) streaming `status` / `log` / `state` frames in real time.
-- `GET /v1/projects/{id}/env`, `PUT …/env/{key}` — environment variables.
-- `POST /v1/tokens` — create API tokens.
+- `GET /v1/user` - current user profile.
+- `GET /v1/projects`, `POST /v1/projects` - list / create projects.
+- `GET /v1/projects/{id}/devices`, `POST /v1/projects/{id}/devices` - list / create devices.
+- `GET /v1/projects/{id}/devices/{did}/script`, `POST …/script` - fetch / upload a device script (the POST returns a signed upload URL).
+- `GET /v1/projects/{id}/devices/{did}/logs` - paginated logs.
+- `GET /v1/projects/{id}/devices/{did}/watch` - WebSocket (upgrade) streaming `status` / `log` / `state` frames in real time.
+- `GET /v1/projects/{id}/env`, `PUT …/env/{key}` - environment variables.
+- `POST /v1/tokens` - create API tokens.
 
 ## Response envelope
 ```json

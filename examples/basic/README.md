@@ -42,7 +42,7 @@ To switch which device file is active, edit the `main:` field in `devicesdk.ts`.
 ## Local development
 
 `pnpm deploy` and `pnpm flash-remote` target whichever server you logged into with
-`devicesdk login --host http://<server>:8080`. That's the everyday path — DeviceSDK is
+`devicesdk login --host http://<server>:8080`. That's the everyday path - DeviceSDK is
 self-hosted, so "your server" is wherever you're running it.
 
 If you're running the server on the same machine (e.g. you're hacking on the server

@@ -16,7 +16,7 @@ export function useDeviceConnection() {
 	let commandHandler: ((cmd: DeviceCommand) => DeviceResponse | null) | null =
 		null;
 
-	// Reconnect state — set when `connect()` is called, used by `onclose` to
+	// Reconnect state - set when `connect()` is called, used by `onclose` to
 	// re-establish the socket after the local dev worker restarts. Cleared on
 	// explicit `disconnect()` so a manual disconnect doesn't loop forever.
 	let activeDeviceId: string | null = null;

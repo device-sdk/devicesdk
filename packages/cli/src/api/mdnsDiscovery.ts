@@ -211,7 +211,7 @@ export async function discoverMdnsHost(
 					finish(`http://${ips[0]}:${serverPort}`);
 				}
 			} catch {
-				// malformed packet — ignore
+				// malformed packet - ignore
 			}
 		});
 

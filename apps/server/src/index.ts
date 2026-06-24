@@ -117,7 +117,7 @@ app.use(async (c, next) => {
 	await next();
 });
 
-// 1. Endpoints that don't require auth — local account login/registration
+// 1. Endpoints that don't require auth - local account login/registration
 app.get("/v1/auth/status", handleAuthStatus);
 app.use("/v1/auth/register", rateLimitMiddleware(10, 60_000));
 app.use("/v1/auth/login", rateLimitMiddleware(20, 60_000));
@@ -134,7 +134,7 @@ app.route("/v1/cli/auth", cliAuthRouterPreAuth);
 app.get("/cli/auth", cliAuthUser, getApprovalPage);
 app.post("/cli/auth", cliAuthUser, handleApproval);
 
-// Health / readiness probes — unauthenticated so load balancers and the
+// Health / readiness probes - unauthenticated so load balancers and the
 // troubleshooting docs can verify the server without credentials.
 app.get("/health", (c) => c.json({ success: true, result: { status: "ok" } }));
 app.get("/ready", async (c) => {
@@ -179,5 +179,5 @@ app.route("/v1/projects/:projectId/devices/:deviceId/script", scriptsRouter);
 app.route("/v1/projects/:projectId/devices/:deviceId/logs", logsRouter);
 app.route("/v1/projects/:projectId/scripts", batchScriptsRouter);
 
-// 4. Dashboard SPA — served same-origin for any non-API path.
+// 4. Dashboard SPA - served same-origin for any non-API path.
 app.get("*", serveSpa);

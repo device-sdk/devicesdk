@@ -9,7 +9,7 @@ Small SSD1306 OLEDs (128×64 or 128×32) are common, cheap, and run on I2C. The 
 
 ## Wiring
 
-The OLED uses the same I2C pins as the [BME280 recipe](../read-bme280/) — both can share the bus.
+The OLED uses the same I2C pins as the [BME280 recipe](../read-bme280/) - both can share the bus.
 
 | OLED | Pico W |
 |---|---|
@@ -45,7 +45,7 @@ import { Pico } from "@devicesdk/core/devices/pico";
 
 const display = new SSD1306({
   bus: 0,
-  address: "0x3C", // some panels are at 0x3D — run i2cScan if unsure
+  address: "0x3C", // some panels are at 0x3D - run i2cScan if unsure
   width: 128,
   height: 64,
 });
@@ -83,13 +83,13 @@ export class OledDisplay extends DeviceEntrypoint {
 ## What this demonstrates
 
 - The `SSD1306` helper bundles the init sequence and a simple text-drawing API.
-- Sharing the I2C bus with other sensors works fine — addresses are independent.
+- Sharing the I2C bus with other sensors works fine - addresses are independent.
 - Updating the screen on `temperature_result` keeps the redraws scheduled by the firmware ack, not a fragile script-side timer.
 
 ## Common gotchas
 
 - **0.42" 72×40 panels.** These have a column offset of 28 in controller RAM. The `SSD1306` helper handles common offsets, but for non-standard glass sizes you may need to send `display_update` directly with a custom `columnOffset`.
-- **Address scan.** If `init` looks like it succeeded but the screen is dark, run `await this.env.DEVICE.i2cScan(0)` once and check the address — some boards default to `0x3D`, not `0x3C`.
+- **Address scan.** If `init` looks like it succeeded but the screen is dark, run `await this.env.DEVICE.i2cScan(0)` once and check the address - some boards default to `0x3D`, not `0x3C`.
 
 ## Going further
 

@@ -104,7 +104,7 @@ function finish(state: SessionState, result: SessionResult): void {
 
 /**
  * Open one WebSocket to the watcher endpoint. Replaces the polling-based
- * `--tail` loop that retired in May 2026 — see the comment block on
+ * `--tail` loop that retired in May 2026 - see the comment block on
  * `BaseDevice.getLogs` in apps/api/src/durableObjects/lib/device.ts.
  *
  * Non-tail mode: collect replay frames, print on `history_complete`, finish 0.
@@ -143,14 +143,14 @@ async function openSession(state: SessionState): Promise<void> {
 		} else if (status === 429) {
 			// Rate-limited at the edge or by the cross-route block list. Retrying
 			// from the same client just deepens the burn that triggered the block
-			// in the first place — terminate and let the operator decide when
+			// in the first place - terminate and let the operator decide when
 			// to come back. Honour `Retry-After` in the surfaced message.
 			finish(state, {
 				exitCode: EXIT.GENERIC,
 				reason: `Rate limited: ${status} ${res.statusMessage ?? ""}${headerHint}\n  Wait for the period above to elapse before retrying.`,
 			});
 		} else if (!state.json) {
-			// Non-auth, non-rate-limit failure — let close fire and reconnect path
+			// Non-auth, non-rate-limit failure - let close fire and reconnect path
 			// handle it. Suppress stderr in JSON mode so the only output is the
 			// final JSON (or NDJSON) document; the close handler will emit a
 			// `logs_session_error` record describing the failure.
@@ -284,7 +284,7 @@ export default async function logs(
 			} else {
 				if (json) {
 					emitJsonError(
-						"Multiple devices in devicesdk.ts — pass one as positional.",
+						"Multiple devices in devicesdk.ts - pass one as positional.",
 						{
 							code: "device_required",
 							docs: "https://devicesdk.com/docs/cli/logs/",
@@ -292,7 +292,7 @@ export default async function logs(
 					);
 				} else {
 					console.error(
-						"✗ Error: Multiple devices in devicesdk.ts — pass one as positional.\n",
+						"✗ Error: Multiple devices in devicesdk.ts - pass one as positional.\n",
 					);
 					console.error(`  Available: ${deviceKeys.join(", ")}`);
 				}

@@ -4,9 +4,9 @@ import { describe, expectTypeOf, it } from "vitest";
 // Contract test: lock the PinStateUpdate discriminated-union shape so a future
 // edit to either the firmware (which emits these JSON frames) or the type can't
 // silently desynchronize again. The reviewer flagged that without a fixture-
-// based assertion, the union shape change is invisible at runtime — this test
+// based assertion, the union shape change is invisible at runtime - this test
 // fails to compile if either side drifts.
-describe("PinStateUpdate union — wire-format contract", () => {
+describe("PinStateUpdate union - wire-format contract", () => {
 	it("accepts a digital frame with value: 'high' | 'low'", () => {
 		const digitalHigh: PinStateUpdate = {
 			id: "abc",

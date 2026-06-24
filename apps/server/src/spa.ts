@@ -4,7 +4,7 @@ import type { AppContext } from "./types";
 /**
  * Serves the built dashboard SPA from config.publicDir with an index.html
  * fallback for client-side routes. API paths never reach this handler (it
- * is mounted last). Disabled when publicDir is unset (dev mode — dashboard
+ * is mounted last). Disabled when publicDir is unset (dev mode - dashboard
  * runs on the quasar dev server instead).
  */
 export async function serveSpa(c: AppContext): Promise<Response> {

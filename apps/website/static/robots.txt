@@ -1,4 +1,4 @@
-# DeviceSDK — robots.txt
+# DeviceSDK - robots.txt
 # Fully open: all crawlers (including AI) may access everything.
 # Content signals per contentsignals.org; directives per RFC 9309.
 

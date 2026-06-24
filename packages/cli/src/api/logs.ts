@@ -1,6 +1,6 @@
 import { getApiUrl } from "./shared.js";
 
-// Logs — over the watcher WebSocket. The HTTP /logs endpoint was retired in
+// Logs - over the watcher WebSocket. The HTTP /logs endpoint was retired in
 // May 2026 (returns 410 with a Link header pointing here). See the comment
 // block on `BaseDevice.getLogs` in apps/api/src/durableObjects/lib/device.ts.
 export interface LogEntry {
@@ -13,7 +13,7 @@ export interface LogEntry {
 /**
  * Builds the `ws://` or `wss://` URL for the watcher WebSocket. Mirrors the
  * dashboard helper in apps/dashboard/src/services/api.service.ts. The scheme
- * is derived from the configured API URL — local dev (http://) gets ws://,
+ * is derived from the configured API URL - local dev (http://) gets ws://,
  * everything else gets wss://.
  */
 export async function getWatchUrl(

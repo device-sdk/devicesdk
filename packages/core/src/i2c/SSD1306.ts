@@ -10,9 +10,9 @@ export interface SSD1306Options extends I2cDeviceOptions {
 	width?: number;
 	height?: number;
 	controller?: DisplayController;
-	// For glasses whose visible window is offset from RAM column/page 0 — e.g. the
+	// For glasses whose visible window is offset from RAM column/page 0 - e.g. the
 	// 0.42" 72x40 panels, which use columnOffset: 28 on most FN4 boards (and 30/32 on
-	// other variants — verify with your board, see docs/hardware/esp32-c3.md).
+	// other variants - verify with your board, see docs/hardware/esp32-c3.md).
 	// Defaults to 0 (standard 128x64).
 	columnOffset?: number;
 	pageOffset?: number;
@@ -52,11 +52,11 @@ export class SSD1306 extends I2cDevice {
 	/**
 	 * Preset for the 72×40 OLED that ships built-in on common ESP32-C3
 	 * "FN4 / 0.42-inch OLED" boards. The visible glass sits at column offset
-	 * 28 in the controller's 128-wide RAM — without this offset, pixels render
+	 * 28 in the controller's 128-wide RAM - without this offset, pixels render
 	 * into the non-visible region.
 	 *
 	 * Pair with `i2c_configure({ bus: 0, sda_pin: 5, scl_pin: 6 })` for the
-	 * default DevKit pinout (verify against your board's silkscreen — some
+	 * default DevKit pinout (verify against your board's silkscreen - some
 	 * variants swap SDA/SCL).
 	 *
 	 * @example

@@ -66,7 +66,7 @@ export class DeleteProject extends BaseRoute {
 			})
 			.execute();
 
-		// Best-effort R2 cleanup — DB delete already committed
+		// Best-effort R2 cleanup - DB delete already committed
 		try {
 			const r2 = c.env.SCRIPTS;
 			const prefix = `${user.id}/${projectId}/`;

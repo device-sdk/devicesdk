@@ -52,7 +52,7 @@ export interface TestUser {
 /**
  * A device-side WebSocket simulator: connects to the device `connect/websocket`
  * route, queues frames the server sends (commands), and lets a test reply to
- * them by id — the firmware's role, in TypeScript.
+ * them by id - the firmware's role, in TypeScript.
  */
 export class DeviceSim {
 	private ws: WebSocket;

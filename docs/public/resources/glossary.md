@@ -45,7 +45,7 @@ The process of uploading and activating device scripts on your server. Creates a
 ## E
 
 ### Runtime
-The in-process JavaScript runtime where device scripts execute — they run inside the Bun server process on your own hardware, not in a sandboxed or serverless environment.
+The in-process JavaScript runtime where device scripts execute - they run inside the Bun server process on your own hardware, not in a sandboxed or serverless environment.
 
 ### Environment Bindings
 Objects accessible in device entrypoints like `this.env.DEVICE`, providing access to platform features. Standard `console` methods are also available for logging.

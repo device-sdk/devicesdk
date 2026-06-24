@@ -32,7 +32,7 @@ describe("I2cDevice", () => {
 		expect(cmd.payload.writes).toEqual([["0x00", "0xAF"], ["0x01"]]);
 	});
 
-	it("toBatchCommand returns a copy — mutating it does not affect later calls", () => {
+	it("toBatchCommand returns a copy - mutating it does not affect later calls", () => {
 		const d = new TestI2cDevice({ address: "0x3C" });
 		d.publicQueueWrite(["0xAA"]);
 		const cmd = d.toBatchCommand();

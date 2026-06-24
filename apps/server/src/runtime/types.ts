@@ -1,7 +1,7 @@
 import type { DeviceCommand, DeviceResponse } from "@devicesdk/core";
 
 /**
- * The wrapper surface the runtime drives on a loaded user script — same
+ * The wrapper surface the runtime drives on a loaded user script - same
  * contract the Worker Loader proxy entrypoint used to return, now produced
  * in-process by scriptHost.ts.
  */
@@ -33,7 +33,7 @@ export interface DeviceMeta {
 	deviceId: string;
 	/**
 	 * Slugs are what uploadScript/getScript/deployVersion use as the script
-	 * blob key prefix — the projectId/deviceId fields above are UUIDs and do
+	 * blob key prefix - the projectId/deviceId fields above are UUIDs and do
 	 * NOT match any blob key.
 	 */
 	projectSlug: string;

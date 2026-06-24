@@ -1,6 +1,6 @@
 # Cloudflare Static Assets redirects
 # Format: <from> <to> <status>
-# See apps/website/AGENTS.md "URL changes require a redirect" — every move/rename
+# See apps/website/AGENTS.md "URL changes require a redirect" - every move/rename
 # of a content file MUST add an entry here so we don't lose Google index signal.
 
 /docs/resources/hardware/         /docs/hardware/        301

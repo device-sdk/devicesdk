@@ -1,11 +1,11 @@
 ---
 title: Device API reference
-description: Every method on this.env.DEVICE — GPIO, PWM, I2C, SPI, UART, KV, watchdog
+description: Every method on this.env.DEVICE - GPIO, PWM, I2C, SPI, UART, KV, watchdog
 weight: 25
 social_image: /og-images/docs/concepts/device-api.png
 ---
 
-This is a single-page reference of every method on `this.env.DEVICE`. The same surface is documented in JSDoc on `node_modules/@devicesdk/core/dist/index.d.ts` — your editor will surface it on hover and in completions. Use this page when you want a flat overview rather than chasing types.
+This is a single-page reference of every method on `this.env.DEVICE`. The same surface is documented in JSDoc on `node_modules/@devicesdk/core/dist/index.d.ts` - your editor will surface it on hover and in completions. Use this page when you want a flat overview rather than chasing types.
 
 > Pin numbering: every supported board exposes a virtual **pin 99** mapped to the onboard LED. Use it instead of chip-specific GPIOs to keep your code portable.
 
@@ -15,7 +15,7 @@ This is a single-page reference of every method on `this.env.DEVICE`. The same s
 await this.env.DEVICE.setGpioState(pin: number, state: "high" | "low"): Promise<void>
 ```
 
-Drive a GPIO output. Use `99` for the onboard LED. Pico W GPIOs are 0–22, 26–28; ESP32 ranges depend on chip — see the [Pico pinout](/docs/hardware/pico-w/) and ESP32 hardware pages.
+Drive a GPIO output. Use `99` for the onboard LED. Pico W GPIOs are 0–22, 26–28; ESP32 ranges depend on chip - see the [Pico pinout](/docs/hardware/pico-w/) and ESP32 hardware pages.
 
 ```typescript
 await this.env.DEVICE.getPinState(pin: number, mode: "analog" | "digital"): Promise<DeviceResponse>
@@ -79,7 +79,7 @@ await this.env.DEVICE.uartRead(port, bytesToRead, timeoutMs?): Promise<DeviceRes
 
 See the [UART guide](/docs/guides/using-uart/).
 
-## Addressable LEDs (WS2812 / NeoPixel — Pico)
+## Addressable LEDs (WS2812 / NeoPixel - Pico)
 
 ```typescript
 await this.env.DEVICE.pioWs2812Configure(pin: number, numLeds: number): Promise<void>
@@ -122,7 +122,7 @@ this.env.DEVICE.persistLog(level: string, message: string): Promise<void>
 this.env.DEVICE.emitState(entityId: string, value: unknown): Promise<void>
 ```
 
-`persistLog` writes a structured log entry visible in `devicesdk logs --tail` and the dashboard — but `console.log/info/warn/error` are captured automatically, so prefer those. `emitState` publishes telemetry to dashboard watchers and (if declared in `devicesdk.ts`) Home Assistant. See [Emit state](/docs/concepts/emit-state/).
+`persistLog` writes a structured log entry visible in `devicesdk logs --tail` and the dashboard - but `console.log/info/warn/error` are captured automatically, so prefer those. `emitState` publishes telemetry to dashboard watchers and (if declared in `devicesdk.ts`) Home Assistant. See [Emit state](/docs/concepts/emit-state/).
 
 ## Reboot
 
@@ -130,7 +130,7 @@ this.env.DEVICE.emitState(entityId: string, value: unknown): Promise<void>
 await this.env.DEVICE.reboot(): Promise<void>
 ```
 
-Soft-reboot the device. Don't chain commands after this — they queue and fire on reconnect.
+Soft-reboot the device. Don't chain commands after this - they queue and fire on reconnect.
 
 ## Lower-level escape hatches
 
@@ -145,6 +145,6 @@ Prefer the typed methods above whenever possible.
 
 ## Related
 
-- [Device entrypoints](/docs/concepts/entrypoints/) — how methods on `DeviceEntrypoint` connect to this surface.
-- [Cookbook](/docs/recipes/) — task-shaped recipes that use these methods.
-- [Error reference](/docs/errors/) — what runtime errors look like.
+- [Device entrypoints](/docs/concepts/entrypoints/) - how methods on `DeviceEntrypoint` connect to this surface.
+- [Cookbook](/docs/recipes/) - task-shaped recipes that use these methods.
+- [Error reference](/docs/errors/) - what runtime errors look like.

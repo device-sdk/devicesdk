@@ -12,8 +12,8 @@ export function setVerbose(verbose: boolean): void {
 // DeviceSDK is self-hosted: there is no default cloud endpoint. The server
 // URL comes from (in precedence order) the DEVICESDK_API_URL env var, an
 // explicit `--host` flag (setApiUrl), the host stored in
-// ~/.devicesdk/credentials.json by `devicesdk login --host <url>`, or — as a
-// last resort — an mDNS query for `<DEVICESDK_MDNS_HOSTNAME>.local`.
+// ~/.devicesdk/credentials.json by `devicesdk login --host <url>`, or - as a
+// last resort - an mDNS query for `<DEVICESDK_MDNS_HOSTNAME>.local`.
 let apiUrlOverride: string | null = null;
 let storedHostCache: string | null | undefined;
 let mdnsHostCache: string | null | undefined;
@@ -124,8 +124,8 @@ const AUTH_EXPIRED_CODES = new Set([
 ]);
 
 // Programmatic error codes are short ASCII identifiers (e.g.
-// `FIRMWARE_NOT_PUBLISHED`, `invalid_refresh_token`). Anything else — full
-// sentences, punctuation, very long strings — is a human message that must not
+// `FIRMWARE_NOT_PUBLISHED`, `invalid_refresh_token`). Anything else - full
+// sentences, punctuation, very long strings - is a human message that must not
 // pollute `DeviceSDKApiError.code`, since downstream consumers compare it with
 // `===` against a known code.
 function looksLikeErrorCode(value: unknown): value is string {
@@ -190,7 +190,7 @@ export function buildErrorMessage(
 	parsed: ParsedErrorBody,
 ): string {
 	if (isAuthExpired(status, parsed.code)) {
-		return "Session expired — run `devicesdk login`.";
+		return "Session expired - run `devicesdk login`.";
 	}
 	const base = parsed.message || `Request failed with status ${status}`;
 	if (status === 401) {

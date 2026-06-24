@@ -4,11 +4,11 @@ description: DeviceSDK firmware runs on Raspberry Pi Pico W (RP2040) and the ESP
 ---
 
 ## Connecting to your server
-Firmware connects to the server you run yourself. It selects **plain `ws://`** when the configured host contains an explicit port (e.g. `192.168.1.10:8080` — the typical self-hosted LAN case) and **`wss://` on 443** for a bare hostname. There is no managed cloud endpoint; point the device at your own server's host:port.
+Firmware connects to the server you run yourself. It selects **plain `ws://`** when the configured host contains an explicit port (e.g. `192.168.1.10:8080` - the typical self-hosted LAN case) and **`wss://` on 443** for a bare hostname. There is no managed cloud endpoint; point the device at your own server's host:port.
 
 ## Supported hardware
-- **Raspberry Pi Pico W** — RP2040 dual Cortex-M0+, 264 KB RAM, 2 MB flash, Wi-Fi via CYW43439. Full HAL: GPIO, PWM, ADC, I2C, SPI, UART. Virtual pin `99` is the onboard LED.
-- **ESP32 family (C3, S3, C6, C61, …)** — built with ESP-IDF 5.5.2. Same HAL plus addressable-LED support (WS2812) via the `led_strip` component. Current pre-built targets: `esp32` (classic, bootloader at `0x1000`), `esp32c61` and `esp32c3` (both RISC-V, bootloader at `0x0`). ESP32-C61 uses the SPI backend for WS2812 (no RMT peripheral); ESP32-C3 uses the RMT backend. Onboard WS2812 is on GPIO 5 for ESP32-C61-DevKitC-1 and GPIO 8 for ESP32-C3-DevKitM-1.
+- **Raspberry Pi Pico W** - RP2040 dual Cortex-M0+, 264 KB RAM, 2 MB flash, Wi-Fi via CYW43439. Full HAL: GPIO, PWM, ADC, I2C, SPI, UART. Virtual pin `99` is the onboard LED.
+- **ESP32 family (C3, S3, C6, C61, …)** - built with ESP-IDF 5.5.2. Same HAL plus addressable-LED support (WS2812) via the `led_strip` component. Current pre-built targets: `esp32` (classic, bootloader at `0x1000`), `esp32c61` and `esp32c3` (both RISC-V, bootloader at `0x0`). ESP32-C61 uses the SPI backend for WS2812 (no RMT peripheral); ESP32-C3 uses the RMT backend. Onboard WS2812 is on GPIO 5 for ESP32-C61-DevKitC-1 and GPIO 8 for ESP32-C3-DevKitM-1.
 
 ## Flashing
 **Pico** (device in BOOTSEL mode; a `RPI-RP2` or `RP2350` volume mounts):
@@ -16,7 +16,7 @@ Firmware connects to the server you run yourself. It selects **plain `ws://`** w
 devicesdk flash my-pico
 ```
 
-**ESP32** — build from source to avoid merged-binary checksum issues. Pick a target (`esp32c61`, `esp32c3`, or `esp32`) and pass the matching `--chip` to esptool:
+**ESP32** - build from source to avoid merged-binary checksum issues. Pick a target (`esp32c61`, `esp32c3`, or `esp32`) and pass the matching `--chip` to esptool:
 ```bash
 cd firmware/esp32 && source ~/esp/esp-idf/export.sh
 idf.py set-target esp32c3   # or esp32c61 / esp32

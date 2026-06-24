@@ -34,7 +34,7 @@ Flashes the DeviceSDK firmware to your microcontroller, including:
 - Hardware abstraction layer
 - Automatic reconnection logic
 
-The CLI automatically detects the device type from your `devicesdk.ts` config and uses the appropriate flashing method. The firmware is configured to connect to the DeviceSDK server you're logged into (the host saved by `devicesdk login`, or the `--host` you pass). On the LAN that's typically `ws://<server>:8080` — the firmware uses plain `ws://` whenever the host includes an explicit port, and TLS-on-443 for a bare hostname.
+The CLI automatically detects the device type from your `devicesdk.ts` config and uses the appropriate flashing method. The firmware is configured to connect to the DeviceSDK server you're logged into (the host saved by `devicesdk login`, or the `--host` you pass). On the LAN that's typically `ws://<server>:8080` - the firmware uses plain `ws://` whenever the host includes an explicit port, and TLS-on-443 for a bare hostname.
 
 ### Resolve the server over mDNS (recommended for LAN)
 
@@ -44,7 +44,7 @@ The server advertises itself over mDNS as `devicesdk.local` (configurable with `
 devicesdk flash my-device --host http://devicesdk.local:8080
 ```
 
-The ESP32 and Pico W firmware resolve `.local` names over mDNS automatically — no extra setup on the device. (Tip: log in with the mDNS host once — `devicesdk login --host http://devicesdk.local:8080` — and every later `flash` embeds it by default.)
+The ESP32 and Pico W firmware resolve `.local` names over mDNS automatically - no extra setup on the device. (Tip: log in with the mDNS host once - `devicesdk login --host http://devicesdk.local:8080` - and every later `flash` embeds it by default.)
 
 ## Supported Hardware
 
@@ -93,10 +93,10 @@ esptool.py version
 Your user needs write access to the serial port. The fix depends on your distribution:
 
 ```bash
-# Debian / Ubuntu / Fedora — group is `dialout`
+# Debian / Ubuntu / Fedora - group is `dialout`
 sudo usermod -a -G dialout $USER
 
-# Arch Linux — group is `uucp`
+# Arch Linux - group is `uucp`
 sudo usermod -a -G uucp $USER
 
 # Then log out and back in for the group change to take effect.
@@ -106,7 +106,7 @@ If you'd rather not log out, or you want the permission to survive replug withou
 
 ```bash
 sudo tee /etc/udev/rules.d/99-devicesdk-serial.rules > /dev/null <<'EOF'
-# DeviceSDK — ESP32 USB-UART bridges
+# DeviceSDK - ESP32 USB-UART bridges
 SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", GROUP="plugdev", MODE="0660"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", GROUP="plugdev", MODE="0660"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", GROUP="plugdev", MODE="0660"
@@ -203,7 +203,7 @@ Once flashed:
 
 ### Verify connectivity
 
-The on-board LED blinks a status sequence after reboot (1 = booted, 2 = Wi-Fi connected, 3 = connected to your server). To confirm server-side that the device is online — useful when the LED is hard to see, or when you want to know which firmware version is running — run [`devicesdk status`](/docs/cli/status/):
+The on-board LED blinks a status sequence after reboot (1 = booted, 2 = Wi-Fi connected, 3 = connected to your server). To confirm server-side that the device is online - useful when the LED is hard to see, or when you want to know which firmware version is running - run [`devicesdk status`](/docs/cli/status/):
 
 ```bash
 devicesdk status
@@ -239,7 +239,7 @@ already-flashed device, re-flash over USB:
 ### Pico
 
 **Device not detected?**
-- Ensure BOOTSEL mode is active — the Pico should appear as a USB drive (`RPI-RP2` or `RP2350`)
+- Ensure BOOTSEL mode is active - the Pico should appear as a USB drive (`RPI-RP2` or `RP2350`)
 - Check USB cable supports data (not power-only)
 - Try a different USB port
 
@@ -268,7 +268,7 @@ devicesdk flash my-device --timeout 120000
 **Flash hangs or fails mid-transfer?**
 - Lower the baud rate: `--baud 115200`
 - Try a different USB cable or port
-- Some USB hubs cause issues — connect directly to the computer
+- Some USB hubs cause issues - connect directly to the computer
 
 ### General
 

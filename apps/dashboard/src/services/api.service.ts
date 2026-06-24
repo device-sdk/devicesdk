@@ -133,7 +133,7 @@ export interface Token {
 /**
  * Discriminated union mirroring the API's `{ success, result }` /
  * `{ success, error }` envelope. Modeling the failure arm means `result` is
- * only accessible after a `success` check — the type no longer lies about
+ * only accessible after a `success` check - the type no longer lies about
  * `result` being present on an error response.
  */
 export type ApiResponse<T> =
@@ -362,7 +362,7 @@ export const deviceService = {
   },
 
   /**
-   * Authoritative live connection state from the device's Durable Object — the
+   * Authoritative live connection state from the device's Durable Object - the
    * same signal the project list's online/offline column reflects. Use this for
    * the detail page's status chip instead of a client-side last-seen heuristic.
    */

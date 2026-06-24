@@ -37,7 +37,7 @@ Confirm all variables are set. If any are missing, stop and re-run `prepare-pr`.
 Before proceeding, verify:
 
 - [ ] All BLOCKER and IMPORTANT findings from review.json are resolved
-- [ ] Verification is meaningful (not just "tests pass" — the fix actually addresses the problem)
+- [ ] Verification is meaningful (not just "tests pass" - the fix actually addresses the problem)
 - [ ] Required CI checks are green
 - [ ] Branch is not behind `main` (rebase was done in prepare)
 - [ ] PREP_HEAD_SHA matches current PR head
@@ -70,8 +70,8 @@ EOF
 ```
 
 Key flags:
-- `--squash` — Squash all commits into one
-- `--match-head-commit` — Ensures we merge exactly the SHA we reviewed (prevents TOCTOU)
+- `--squash` - Squash all commits into one
+- `--match-head-commit` - Ensures we merge exactly the SHA we reviewed (prevents TOCTOU)
 
 ### 4. Handle Merge Failures
 
@@ -96,7 +96,7 @@ MERGE_SHA=$(gh pr view <PR> --json mergeCommit --jq '.mergeCommit.oid')
 echo "Merge SHA: $MERGE_SHA"
 ```
 
-The PR must be in `MERGED` state, not `CLOSED`. If it shows `CLOSED`, something went wrong — investigate immediately.
+The PR must be in `MERGED` state, not `CLOSED`. If it shows `CLOSED`, something went wrong - investigate immediately.
 
 ### 6. Post PR Comment
 
@@ -131,12 +131,12 @@ Only clean up after confirming the PR is in `MERGED` state.
 
 ## Safety Rules
 
-- **Never use `gh pr merge --auto`** — merge only after manual verification.
-- **Never run `git push` directly** — merging is done via `gh pr merge`.
-- **Require `--match-head-commit`** — prevents merging unexpected changes.
-- **Must end in MERGED state** — never CLOSED. Verify after merge.
-- **Clean up only after confirmed merge** — never delete worktree before verification.
-- **Co-author trailers are required** — always attribute the PR author and maintainer.
+- **Never use `gh pr merge --auto`** - merge only after manual verification.
+- **Never run `git push` directly** - merging is done via `gh pr merge`.
+- **Require `--match-head-commit`** - prevents merging unexpected changes.
+- **Must end in MERGED state** - never CLOSED. Verify after merge.
+- **Clean up only after confirmed merge** - never delete worktree before verification.
+- **Co-author trailers are required** - always attribute the PR author and maintainer.
 
 ## Checklist
 

@@ -22,7 +22,7 @@ export interface Env {
 	ENV: "local" | "production";
 	config: ServerConfig;
 	/**
-	 * The Bun server handle — hono's bun adapter resolves it from c.env.server
+	 * The Bun server handle - hono's bun adapter resolves it from c.env.server
 	 * to perform WebSocket upgrades. Assigned right after Bun.serve() returns.
 	 */
 	server: Server | undefined;

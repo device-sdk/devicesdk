@@ -15,7 +15,7 @@ WS2812 (NeoPixel) strips are addressable RGB LEDs. On the Pico, DeviceSDK drives
 | GND | GND (shared with Pico GND if external supply) |
 | DIN | GP2 |
 
-Strips with more than ~8 LEDs draw too much current to power from VBUS — give them their own 5V supply and tie grounds together.
+Strips with more than ~8 LEDs draw too much current to power from VBUS - give them their own 5V supply and tie grounds together.
 
 ## `devicesdk.ts`
 
@@ -63,7 +63,7 @@ function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
 }
 
 export class Rainbow extends DeviceEntrypoint {
-  // Update once a second — the hue offset advances each tick, the rainbow rolls.
+  // Update once a second - the hue offset advances each tick, the rainbow rolls.
   crons = { tick: "* * * * *" };
 
   async onDeviceConnect() {
@@ -94,11 +94,11 @@ export class Rainbow extends DeviceEntrypoint {
 ## What this demonstrates
 
 - `pioWs2812Configure` once per connect, `pioWs2812Update` per frame.
-- A small HSV→RGB helper — agents that hallucinate `hsv()` etc. instead should be reminded that the script runs server-side on your DeviceSDK server, no browser globals.
+- A small HSV→RGB helper - agents that hallucinate `hsv()` etc. instead should be reminded that the script runs server-side on your DeviceSDK server, no browser globals.
 - `crons = { tick: "* * * * *" }` for a once-per-minute animation. Faster animations need to be driven by the firmware's PWM/PIO state machine; the script can only update at cron tick rates.
 - Capping the brightness via the `v` channel (here 0.2) keeps the current draw and the literal wattage manageable.
 
 ## Going further
 
 - Tie the rainbow speed to a dial or potentiometer read via ADC.
-- Mirror state into a Home Assistant `light` entity — declare it under `ha.entities` in `devicesdk.ts`.
+- Mirror state into a Home Assistant `light` entity - declare it under `ha.entities` in `devicesdk.ts`.

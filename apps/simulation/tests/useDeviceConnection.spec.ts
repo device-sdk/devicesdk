@@ -3,7 +3,7 @@ import { effectScope } from "vue";
 import { useDeviceConnection } from "../src/composables/useDeviceConnection";
 
 // FakeWebSocket lets the tests drive open/close/error/message lifecycles
-// synchronously. Each `connect` call constructs one — after a close the
+// synchronously. Each `connect` call constructs one - after a close the
 // composable nulls the reference, so reconnects produce fresh instances.
 class FakeWebSocket {
 	static OPEN = 1;
@@ -86,7 +86,7 @@ describe("useDeviceConnection", () => {
 			conn.connect("dev-1", () => null);
 			FakeWebSocket.instances[0]?.emitOpen();
 
-			// First unintended drop — banner shows, reconnect scheduled at 1s.
+			// First unintended drop - banner shows, reconnect scheduled at 1s.
 			FakeWebSocket.instances[0]?.emitClose();
 			expect(conn.reconnecting.value).toBe(true);
 			expect(FakeWebSocket.instances).toHaveLength(1);
@@ -126,7 +126,7 @@ describe("useDeviceConnection", () => {
 			FakeWebSocket.instances[1]?.emitOpen();
 			expect(conn.reconnecting.value).toBe(false);
 
-			// Drop again — should schedule at 1s, not 2s.
+			// Drop again - should schedule at 1s, not 2s.
 			FakeWebSocket.instances[1]?.emitClose();
 			vi.advanceTimersByTime(999);
 			expect(FakeWebSocket.instances).toHaveLength(2);

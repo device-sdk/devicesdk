@@ -45,7 +45,7 @@ export class TemperatureSensor extends DeviceEntrypoint {
         const text = await response.text().catch(() => "");
         console.error(
           `Discord webhook failed: ${response.status} ${response.statusText}` +
-            (text ? ` — ${text.slice(0, 200)}` : ""),
+            (text ? ` - ${text.slice(0, 200)}` : ""),
         );
       }
     } catch (err) {

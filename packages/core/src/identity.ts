@@ -3,8 +3,8 @@ export const ENV_VAR_KEY_REGEX = /^[A-Z][A-Z0-9_]{0,63}$/;
 
 // ---- Branded ID types ----
 // These are nominal aliases of `string`. They cost nothing at runtime, but
-// catch the most common LLM mistake — passing a `projectId` where a `deviceId`
-// is expected — at compile time.
+// catch the most common LLM mistake - passing a `projectId` where a `deviceId`
+// is expected - at compile time.
 //
 // The constructors (`asProjectId`, `asDeviceId`, ...) validate at the boundary
 // where untyped strings enter your code (CLI args, API request params, etc.)
@@ -66,7 +66,7 @@ export const asTokenId = (s: string): TokenId =>
  * - ESP32-C61 DevKitC-1: WS2812 on GPIO 5
  *
  * Use this constant in `setGpioState` to keep your code portable across
- * targets — the firmware translates it to the right physical pin.
+ * targets - the firmware translates it to the right physical pin.
  *
  * @example
  * await this.env.DEVICE.setGpioState(OnboardLED, "high");

@@ -73,7 +73,7 @@ export class DownloadFirmware extends BaseRoute {
 		const data = await this.getValidatedData<typeof this.schema>();
 		const { projectId, deviceId } = data.params;
 		const { ssid = "", pass = "" } = data.body;
-		// Default to the host that served this request — the device should call
+		// Default to the host that served this request - the device should call
 		// back to this self-hosted server. An explicit override still wins
 		// (e.g. flashing for a different LAN address than the one the CLI used).
 		const host = data.body.host ?? new URL(c.req.url).host;
@@ -111,7 +111,7 @@ export class DownloadFirmware extends BaseRoute {
 		}
 
 		// Token rotation is always required on every firmware download.
-		// The raw token is never persisted after creation — only its SHA-256 hash is stored.
+		// The raw token is never persisted after creation - only its SHA-256 hash is stored.
 		// Since the original raw value cannot be recovered from the hash, the token
 		// embedded in any previously-flashed firmware image cannot be reused. A fresh
 		// token is generated here so the new firmware image always has valid credentials.
@@ -129,7 +129,7 @@ export class DownloadFirmware extends BaseRoute {
 			})
 			.execute();
 
-		// Create fresh token — raw for firmware, hash for DB
+		// Create fresh token - raw for firmware, hash for DB
 		const newKey = crypto.randomUUID().replace(/-/g, "");
 		const tokenHash = await hashToken(newKey, c.env.config.apiTokenSecret);
 		await qb

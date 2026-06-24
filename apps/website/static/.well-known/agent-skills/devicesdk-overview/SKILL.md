@@ -4,10 +4,10 @@ description: DeviceSDK is a free, open-source (AGPL-3.0), self-hosted IoT platfo
 ---
 
 ## What it is
-- **Server side** — a single self-hosted Bun process (one port, default 8080) that executes a TypeScript entrypoint class **in-process** per device connection. You run it yourself on a Raspberry Pi, NUC, NAS, or any Docker host (`ghcr.io/device-sdk/devicesdk`). There is no cloud/SaaS component. The one process serves the REST API (`/v1/*`), device + watcher WebSockets, the dashboard SPA (same-origin), and OpenAPI docs at `/api-docs`.
-- **Device side** — firmware for Pico and ESP32 with a HAL for GPIO, PWM, ADC, I2C, SPI, UART, and addressable LEDs (WS2812).
-- **Real-time watch WebSocket** — streams `status`, `log`, and `state` events from each device.
-- **Home Assistant bridge** — devices appear as `binary_sensor`, `sensor`, `switch`, `light` entities.
+- **Server side** - a single self-hosted Bun process (one port, default 8080) that executes a TypeScript entrypoint class **in-process** per device connection. You run it yourself on a Raspberry Pi, NUC, NAS, or any Docker host (`ghcr.io/device-sdk/devicesdk`). There is no cloud/SaaS component. The one process serves the REST API (`/v1/*`), device + watcher WebSockets, the dashboard SPA (same-origin), and OpenAPI docs at `/api-docs`.
+- **Device side** - firmware for Pico and ESP32 with a HAL for GPIO, PWM, ADC, I2C, SPI, UART, and addressable LEDs (WS2812).
+- **Real-time watch WebSocket** - streams `status`, `log`, and `state` events from each device.
+- **Home Assistant bridge** - devices appear as `binary_sensor`, `sensor`, `switch`, `light` entities.
 
 ## Entry points
 - Marketing site: <https://devicesdk.com>
@@ -18,6 +18,6 @@ description: DeviceSDK is a free, open-source (AGPL-3.0), self-hosted IoT platfo
 - Documentation: <https://devicesdk.com/docs>
 
 ## Related skills
-- `devicesdk-api` — REST API details and authentication.
-- `devicesdk-cli` — command reference and project layout.
-- `devicesdk-firmware` — hardware support and flashing workflow.
+- `devicesdk-api` - REST API details and authentication.
+- `devicesdk-cli` - command reference and project layout.
+- `devicesdk-firmware` - hardware support and flashing workflow.

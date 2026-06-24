@@ -20,7 +20,7 @@ const deviceTypeSchema: z.ZodType<DeviceType> = z.enum([
 ]);
 
 // Zod schema must stay in the CLI (core has no runtime deps). The type assertion
-// below ensures this schema shape matches `HaEntityDeclaration` from core — if
+// below ensures this schema shape matches `HaEntityDeclaration` from core - if
 // the two drift, `z.ZodType<HaEntityDeclaration>` will fail to typecheck.
 const HaEntityDeclarationSchema: z.ZodType<HaEntityDeclaration> = z.object({
 	entity_id: z
@@ -62,12 +62,12 @@ export const DeviceConfigSchema = z.object({
 			"'className' must be a valid TypeScript class name (letters, digits, _, $)",
 		),
 	// Catches the legacy field name from older devicesdk.ts files. `z.never()`
-	// rejects any provided value; `.optional()` lets `undefined` pass — so the
+	// rejects any provided value; `.optional()` lets `undefined` pass - so the
 	// only failure mode is "user still has the old `entrypoint` key".
 	entrypoint: z
 		.never({
 			error:
-				"'entrypoint' was renamed to 'className' in @devicesdk/cli — rename it in devicesdk.ts.",
+				"'entrypoint' was renamed to 'className' in @devicesdk/cli - rename it in devicesdk.ts.",
 		})
 		.optional(),
 	main: z

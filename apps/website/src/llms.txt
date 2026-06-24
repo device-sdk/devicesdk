@@ -4,16 +4,16 @@
 
 ## Instructions for AI coding agents
 
-- Device scripts run **in-process on the DeviceSDK server you host** (a Bun runtime), NOT as firmware on the chip. Reach hardware through `this.env.DEVICE` — don't try to drive GPIO from the chip directly.
-- Hardware access goes through `this.env.DEVICE` (typed as `DeviceSenderInterface`). Onboard LED is **virtual pin 99** on every supported board — use it instead of chip-specific GPIO.
+- Device scripts run **in-process on the DeviceSDK server you host** (a Bun runtime), NOT as firmware on the chip. Reach hardware through `this.env.DEVICE` - don't try to drive GPIO from the chip directly.
+- Hardware access goes through `this.env.DEVICE` (typed as `DeviceSenderInterface`). Onboard LED is **virtual pin 99** on every supported board - use it instead of chip-specific GPIO.
 - Inter-device RPC: `await this.env.DEVICES["other-slug"].method()`.
 - Secrets / config: `await this.env.VARS.get("KEY")` (set with `devicesdk env set KEY=VALUE`).
 - Per-device persistent state: `this.env.DEVICE.kv.get` / `.put` / `.delete`.
-- Lifecycle hooks: `onDeviceConnect()`, `onDeviceDisconnect()`, `onMessage(message: DeviceResponse)`, `onCron(name: string)`. The runtime is event-driven — there is no `main()` or polling loop.
+- Lifecycle hooks: `onDeviceConnect()`, `onDeviceDisconnect()`, `onMessage(message: DeviceResponse)`, `onCron(name: string)`. The runtime is event-driven - there is no `main()` or polling loop.
 - For periodic work, declare `crons = { name: "<5-field cron in UTC>" }` on your class.
 - Field name in `devicesdk.ts` is `className`, NOT `entrypoint` (renamed; old name is rejected).
 - `dutyCycle` for `setPwmState` is **0..1**, not 0..100.
-- Read `node_modules/@devicesdk/core/AGENTS.md` for version-matched API guidance — your training data may be stale.
+- Read `node_modules/@devicesdk/core/AGENTS.md` for version-matched API guidance - your training data may be stale.
 - Per-page Markdown mirrors are available at `<page-url>/index.md` so you can fetch raw docs without parsing HTML.
 
 ## Getting started
@@ -87,9 +87,9 @@
 
 ## Agent integrations
 
-- [MCP server (@devicesdk/mcp)](https://devicesdk.com/docs/mcp/index.md): drive DeviceSDK from Claude / Cursor / Continue / Windsurf via Model Context Protocol — install snippets per host, tool reference, auth model
+- [MCP server (@devicesdk/mcp)](https://devicesdk.com/docs/mcp/index.md): drive DeviceSDK from Claude / Cursor / Continue / Windsurf via Model Context Protocol - install snippets per host, tool reference, auth model
 
 ## Optional
 
-- [Full docs as a single file](https://devicesdk.com/llms-full.txt) — every page concatenated, ready to paste into a long-context model
-- [Agent skills manifest](https://devicesdk.com/.well-known/agent-skills/index.json) — discoverable skills following the agentskills.io schema
+- [Full docs as a single file](https://devicesdk.com/llms-full.txt) - every page concatenated, ready to paste into a long-context model
+- [Agent skills manifest](https://devicesdk.com/.well-known/agent-skills/index.json) - discoverable skills following the agentskills.io schema

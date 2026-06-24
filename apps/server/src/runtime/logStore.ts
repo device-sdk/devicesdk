@@ -142,7 +142,7 @@ export function persistAndBroadcastLog(
 
 /**
  * Fetches the most recent N log rows (newest first), optionally filtered by
- * level. No cursor — used by the watcher WS backfill where the client just
+ * level. No cursor - used by the watcher WS backfill where the client just
  * wants "the last N events I might have missed."
  */
 export function fetchRecentLogs(

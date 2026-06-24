@@ -74,7 +74,7 @@ async function call<T>(path: string, options?: ApiCallOptions): Promise<T> {
   }
 
   if (!response.ok) {
-    // Session expired — redirect to login instead of showing a generic error.
+    // Session expired - redirect to login instead of showing a generic error.
     // Skipped for the initial auth probe (suppressAuthRedirect), where a 401
     // is expected when the user is simply not logged in.
     if (response.status === 401 && !suppressAuthRedirect) {

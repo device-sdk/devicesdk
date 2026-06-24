@@ -1,6 +1,6 @@
 ---
 title: Privacy Policy
-description: How devicesdk.com handles data — and why the self-hosted software collects none
+description: How devicesdk.com handles data - and why the self-hosted software collects none
 layout: privacy
 social_image: /og-images/privacy.png
 ---
@@ -15,7 +15,7 @@ DeviceSDK is **free, open-source, self-hosted software**. We do not operate a cl
 
 The DeviceSDK software you download and run contains **no telemetry and no phone-home**. It does not send usage data, device data, or analytics back to us or anyone else.
 
-Everything you create — accounts, projects, devices, scripts, logs, environment variables, and telemetry — is stored **only** on the server you run, under your control. Your account on a DeviceSDK server is a local email/password account on *your* machine; it is not registered with us. We have no access to any of it.
+Everything you create - accounts, projects, devices, scripts, logs, environment variables, and telemetry - is stored **only** on the server you run, under your control. Your account on a DeviceSDK server is a local email/password account on *your* machine; it is not registered with us. We have no access to any of it.
 
 If you choose to enable an optional third-party integration (for example, sending data to a Discord webhook or to your own Home Assistant instance), that data flows directly from your server to the service you configured, never through us.
 

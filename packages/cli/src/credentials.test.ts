@@ -171,14 +171,14 @@ describe("credentials", () => {
 			readFileSpy.mockResolvedValue(Buffer.from(JSON.stringify(creds)));
 			refreshTokenMock.mockRejectedValue(
 				new DeviceSDKApiError(
-					"Session expired — run `devicesdk login`.",
+					"Session expired - run `devicesdk login`.",
 					401,
 					"invalid_refresh_token",
 				),
 			);
 
 			const result = await getToken();
-			// Sentinel is internal — it's not null and not a string, which is enough
+			// Sentinel is internal - it's not null and not a string, which is enough
 			// for requireAuth() to dispatch on it. We exercise the surfaced
 			// behaviour in the requireAuth describe block below.
 			expect(result).not.toBeNull();
@@ -220,7 +220,7 @@ describe("credentials", () => {
 			readFileSpy.mockResolvedValue(Buffer.from(JSON.stringify(creds)));
 			refreshTokenMock.mockRejectedValue(
 				new DeviceSDKApiError(
-					"Session expired — run `devicesdk login`.",
+					"Session expired - run `devicesdk login`.",
 					401,
 					"invalid_refresh_token",
 				),

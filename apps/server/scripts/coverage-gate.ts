@@ -4,14 +4,14 @@
  * on the "All files" totals (both function and line coverage).
  *
  * Why a script instead of bun's built-in `coverageThreshold`:
- *   - the numeric form gates EVERY file individually — the BaseRoute-pattern
+ *   - the numeric form gates EVERY file individually - the BaseRoute-pattern
  *     endpoints (inherited schema/handle members that aren't all exercised)
  *     can't reach the bar per-file even when the project total is well above it;
  *   - the `{ line, function }` table form is silently ignored on bun 1.3.14.
  * Parsing the aggregate row gives the "85% of the package" gate we actually want.
  *
  * Coverage scoping (which files count) lives in bunfig.toml's
- * coveragePathIgnorePatterns — the uploaded user-script fixtures, the published
+ * coveragePathIgnorePatterns - the uploaded user-script fixtures, the published
  * @devicesdk/core bundle, and the test harness are excluded there.
  */
 
@@ -29,7 +29,7 @@ const stderr = proc.stderr.toString();
 process.stdout.write(stdout);
 process.stderr.write(stderr);
 
-// A failing test run already failed — don't mask it behind a coverage check.
+// A failing test run already failed - don't mask it behind a coverage check.
 if (proc.exitCode !== 0) {
 	console.error(
 		`\n✖ Tests failed (exit ${proc.exitCode}); skipping coverage gate.`,

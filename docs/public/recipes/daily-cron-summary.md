@@ -54,8 +54,8 @@ const FRESH: Window = {
 
 export class DailySummary extends DeviceEntrypoint {
   crons = {
-    sample: "*/15 * * * *", // every 15 min UTC — collect a reading
-    summary: "0 8 * * *",    // every day at 08:00 UTC — post the summary
+    sample: "*/15 * * * *", // every 15 min UTC - collect a reading
+    summary: "0 8 * * *",    // every day at 08:00 UTC - post the summary
   };
 
   async onCron(name: string) {
@@ -86,12 +86,12 @@ export class DailySummary extends DeviceEntrypoint {
   private async postSummary() {
     const w = await this.env.DEVICE.kv.get<Window>("window");
     if (!w || w.count === 0) {
-      console.log("No samples in window — skipping summary.");
+      console.log("No samples in window - skipping summary.");
       return;
     }
     const url = await this.env.VARS.get("SUMMARY_WEBHOOK_URL");
     if (!url) {
-      console.error("SUMMARY_WEBHOOK_URL not set — run `devicesdk env set`.");
+      console.error("SUMMARY_WEBHOOK_URL not set - run `devicesdk env set`.");
       return;
     }
 
@@ -119,12 +119,12 @@ export class DailySummary extends DeviceEntrypoint {
 ## What this demonstrates
 
 - Multiple named crons in one device.
-- Accumulating state in KV across many invocations (the runtime is stateless — your class instance does *not* persist between events).
+- Accumulating state in KV across many invocations (the runtime is stateless - your class instance does *not* persist between events).
 - Posting to an external webhook with a properly-handled non-2xx response.
 - Resetting the aggregation window after a successful post.
 
 ## Notes
 
-- Crons fire in UTC. Pick a time that lines up with your timezone — `0 8 * * *` is 08:00 UTC, which is 09:00 BST or 03:00 CDT.
-- If the webhook is down at 08:00, the script logs the failure and **doesn't reset the window**. The next day's run will include yesterday's samples too — consider whether that matches your intent.
+- Crons fire in UTC. Pick a time that lines up with your timezone - `0 8 * * *` is 08:00 UTC, which is 09:00 BST or 03:00 CDT.
+- If the webhook is down at 08:00, the script logs the failure and **doesn't reset the window**. The next day's run will include yesterday's samples too - consider whether that matches your intent.
 - For multiple devices contributing to one summary, see the [two-device RPC recipe](../two-devices-rpc/).

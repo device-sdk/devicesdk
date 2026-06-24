@@ -27,7 +27,7 @@ export class DeleteUser extends BaseRoute {
 	public async handle(c: AppContext) {
 		const user = c.get("user");
 
-		// Self-hosted: no grace period — purge projects, devices, scripts,
+		// Self-hosted: no grace period - purge projects, devices, scripts,
 		// tokens, and sessions right away.
 		await purgeUserData(c.env, user.id);
 

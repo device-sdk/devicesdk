@@ -81,7 +81,7 @@ const mdns = config.mdnsEnabled
 	? startMdnsResponder({ hostname: config.mdnsHostname })
 	: undefined;
 
-// Graceful shutdown — send the mDNS goodbye so caches evict us promptly.
+// Graceful shutdown - send the mDNS goodbye so caches evict us promptly.
 let shuttingDown = false;
 function shutdown(signal: string) {
 	if (shuttingDown) return;
@@ -105,6 +105,6 @@ process.on("unhandledRejection", (reason, _promise) => {
 	);
 });
 process.on("uncaughtException", (error) => {
-	logger.error(error, "Uncaught exception — exiting");
+	logger.error(error, "Uncaught exception - exiting");
 	process.exit(1);
 });

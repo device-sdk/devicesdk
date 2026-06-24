@@ -5,12 +5,12 @@ import {
 } from "../../src/runtime/cronDispatch";
 import { nextCronTime } from "../../src/runtime/cronParser";
 
-/** UTC epoch ms for a Date.UTC tuple — keeps the cron assertions readable. */
+/** UTC epoch ms for a Date.UTC tuple - keeps the cron assertions readable. */
 function utc(y: number, mo: number, d: number, h = 0, mi = 0, s = 0): number {
 	return Date.UTC(y, mo - 1, d, h, mi, s);
 }
 
-describe("nextCronTime — standard expressions", () => {
+describe("nextCronTime - standard expressions", () => {
 	test("every minute advances to the next minute boundary", () => {
 		const after = utc(2026, 6, 12, 10, 30, 15);
 		const next = nextCronTime("* * * * *", after);
@@ -89,7 +89,7 @@ describe("nextCronTime — standard expressions", () => {
 	});
 });
 
-describe("nextCronTime — edge rollovers", () => {
+describe("nextCronTime - edge rollovers", () => {
 	test("end-of-month rollover to next month", () => {
 		// every minute, last minute of June → first minute of next slot crosses
 		// into July 1.
@@ -120,7 +120,7 @@ describe("nextCronTime — edge rollovers", () => {
 	});
 });
 
-describe("nextCronTime — invalid expressions throw", () => {
+describe("nextCronTime - invalid expressions throw", () => {
 	test("wrong field count", () => {
 		expect(() => nextCronTime("* * * *", 0)).toThrow();
 		expect(() => nextCronTime("* * * * * *", 0)).toThrow();
@@ -226,7 +226,7 @@ describe("resolveDueCrons", () => {
 
 	test("missed slots are skipped, not caught up (advance once to a future slot)", () => {
 		const now = 1_000_000;
-		// nextFireAt is way in the past — many slots were missed while offline.
+		// nextFireAt is way in the past - many slots were missed while offline.
 		const stored: CronStorage = {
 			tick: { cron: "* * * * *", nextFireAt: now - 10 * 60_000 },
 		};

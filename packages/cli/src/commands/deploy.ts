@@ -337,7 +337,7 @@ export default async function deploy(
 								: "Unknown error";
 					entityResults.push({ deviceId, error: msg });
 					if (!json)
-						console.error(`⚠ ${deviceId}: failed to upload entities — ${msg}`);
+						console.error(`⚠ ${deviceId}: failed to upload entities - ${msg}`);
 				}
 			}
 		}

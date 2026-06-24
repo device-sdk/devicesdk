@@ -117,7 +117,7 @@ describe("recalculateEsp32Checksum", () => {
 		const checksumOffset = APP_OFFSET + alignedSize - 1;
 		const first = bytes[checksumOffset];
 
-		// Flip a data byte, recompute — checksum must follow.
+		// Flip a data byte, recompute - checksum must follow.
 		const dataStart = APP_OFFSET + HEADER_SIZE + 8;
 		bytes[dataStart] ^= 0xff;
 		await recalculateEsp32Checksum(bytes);

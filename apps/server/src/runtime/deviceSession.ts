@@ -71,7 +71,7 @@ export interface SessionDeps {
 }
 
 /**
- * Live state and behavior for one device — the in-process replacement for the
+ * Live state and behavior for one device - the in-process replacement for the
  * per-device Durable Object (BaseDevice). One instance per `${projectId}:
  * ${deviceId}`, created lazily by DeviceHub and kept for the process lifetime.
  *
@@ -82,7 +82,7 @@ export interface SessionDeps {
  *
  * Deleted relative to the DO: hibernation recovery, the alarm-deferred user
  * event queue (existed only because the Worker Loader hangs inside
- * Hibernation-API handlers — in-process we dispatch directly), daily message
+ * Hibernation-API handlers - in-process we dispatch directly), daily message
  * limits, and Worker Loader stub lifecycle management. Handler ordering is
  * preserved by a per-session FIFO promise chain.
  */
@@ -102,7 +102,7 @@ export class DeviceSession {
 	private pendingCommands = new Map<string, PendingCommand>();
 	private logStream: LogStreamState = { logWriteCount: 0, lastLogCleanupAt: 0 };
 
-	// FIFO chain serializing user-handler dispatch — preserves the ordering
+	// FIFO chain serializing user-handler dispatch - preserves the ordering
 	// guarantee the DO's alarm-drained event queue provided.
 	private dispatchChain: Promise<void> = Promise.resolve();
 
@@ -193,7 +193,7 @@ export class DeviceSession {
 			});
 			return;
 		}
-		// Keepalive — never wakes user code (and never counts as usage).
+		// Keepalive - never wakes user code (and never counts as usage).
 		if (parsed.data.type === "ping") return;
 		const message = parsed.data as DeviceResponse;
 
@@ -338,7 +338,7 @@ export class DeviceSession {
 	private async getWorker(): Promise<IUserDeviceWorker> {
 		const meta = this.meta;
 		if (!meta) {
-			throw new Error("Device has not connected yet — no script metadata");
+			throw new Error("Device has not connected yet - no script metadata");
 		}
 		return this.getWorkerForMeta(meta);
 	}
@@ -470,7 +470,7 @@ export class DeviceSession {
 				type: "reboot",
 				payload: {},
 			};
-			// Don't close the WebSocket — the device reboots and the connection
+			// Don't close the WebSocket - the device reboots and the connection
 			// drops naturally. A close frame in the same TCP segment as the
 			// reboot command hard-faults the Pico (tcp_close inside lwIP recv).
 			this.deviceWs.send(JSON.stringify(rebootCommand));
@@ -523,8 +523,8 @@ export class DeviceSession {
 			this.deps.logger.error(error, "Failed to send initial status to watcher");
 		}
 
-		// Optional log history backfill. Single scan per connect — never per
-		// poll — so cost is bounded by reconnect rate, not client activity.
+		// Optional log history backfill. Single scan per connect - never per
+		// poll - so cost is bounded by reconnect rate, not client activity.
 		if (options.backfillLimit !== undefined) {
 			const limit = Number.isFinite(options.backfillLimit)
 				? Math.min(Math.max(options.backfillLimit, 1), 100)
@@ -596,7 +596,7 @@ export class DeviceSession {
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
-		// Deletes are idempotent — silently ignore reserved keys.
+		// Deletes are idempotent - silently ignore reserved keys.
 		if (key.startsWith(INTERNAL_KEY_PREFIX)) return false;
 		const before = this.deps.db
 			.query("SELECT 1 AS one FROM device_kv WHERE device_id = ?1 AND key = ?2")
@@ -642,7 +642,7 @@ export class DeviceSession {
 	 * the timer. Called after onDeviceConnect. Preserves nextFireAt for
 	 * unchanged entries so a reconnect doesn't push a near-due cron out by a
 	 * full period; a fire time in the past (slot elapsed while offline) is
-	 * recomputed to the next occurrence — missed slots are skipped, never
+	 * recomputed to the next occurrence - missed slots are skipped, never
 	 * caught up (documented contract).
 	 */
 	private async initializeCrons(worker: IUserDeviceWorker): Promise<void> {
@@ -704,7 +704,7 @@ export class DeviceSession {
 					};
 					changed = true;
 				} catch {
-					// Invalid expression — resolveDueCrons drops it on next fire.
+					// Invalid expression - resolveDueCrons drops it on next fire.
 				}
 			}
 		}
@@ -740,7 +740,7 @@ export class DeviceSession {
 	}
 
 	private onCronTimerFire(): void {
-		// Connection gate — disconnect cleared the timer, but guard anyway.
+		// Connection gate - disconnect cleared the timer, but guard anyway.
 		if (!this.deviceWs) return;
 
 		this.dispatch(async () => {
@@ -776,11 +776,11 @@ export class DeviceSession {
 					nextCronTime,
 				));
 			} catch (err) {
-				// Invalid cron expression — reschedule without advancing so no
+				// Invalid cron expression - reschedule without advancing so no
 				// firings are permanently lost; the script can be redeployed.
 				this.deps.logger.error(
 					err,
-					"Error resolving due crons — rescheduling",
+					"Error resolving due crons - rescheduling",
 					{
 						deviceId: this.deviceId,
 					},

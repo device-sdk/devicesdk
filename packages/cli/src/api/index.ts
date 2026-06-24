@@ -1,4 +1,4 @@
-// Public API barrel — re-exports every CLI ↔ API helper from focused modules.
+// Public API barrel - re-exports every CLI ↔ API helper from focused modules.
 // External callers should import from "../api.js" (the shim in src/api.ts) so
 // the import path stays stable; this barrel lets new consumers pull from
 // "../api/index.js" or "../api/{resource}.js" if they want narrower deps.

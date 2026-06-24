@@ -50,7 +50,7 @@ export class Device extends DeviceEntrypoint {
   }
 
   async onMessage(message: DeviceResponse) {
-    // \`message\` is a discriminated union — narrow on \`message.type\`.
+    // \`message\` is a discriminated union - narrow on \`message.type\`.
     if (message.type === "pin_state_update") {
       console.log(\`pin \${message.payload.pin} = \${message.payload.value}\`);
     }
@@ -223,7 +223,7 @@ dist/
 }
 
 function generateAgentsMd(projectId: string): string {
-	return `# ${projectId} — DeviceSDK project
+	return `# ${projectId} - DeviceSDK project
 
 This directory holds a [DeviceSDK](https://devicesdk.com) project. Read this
 file before generating or editing code.
@@ -232,11 +232,11 @@ file before generating or editing code.
 
 DeviceSDK splits a project into two halves:
 
-- **Device script** (the TypeScript files under \`src/devices/\`) — runs
+- **Device script** (the TypeScript files under \`src/devices/\`) - runs
   **in-process on your self-hosted DeviceSDK server**, **not on the
   microcontroller** and **not in Node.js**. It receives events from the device
   and sends commands back.
-- **Firmware** — runs on the microcontroller (Pico W, ESP32, etc.). DeviceSDK
+- **Firmware** - runs on the microcontroller (Pico W, ESP32, etc.). DeviceSDK
   ships precompiled firmware; you don't write C here. Firmware exposes
   hardware to the device script over WebSocket.
 
@@ -257,7 +257,7 @@ When the user says "the device", clarify whether they mean the *script*
 | \`devicesdk status\` | Show project + device state |
 
 After editing \`devicesdk.ts\`, run \`devicesdk build\` so \`devicesdk-env.d.ts\`
-regenerates — the inter-device RPC types come from there.
+regenerates - the inter-device RPC types come from there.
 
 ## Project layout
 
@@ -300,13 +300,13 @@ export class Thermostat extends DeviceEntrypoint {
 
 ## API surface (what's available on \`this\`)
 
-- \`this.env.DEVICE\` — hardware control + per-device KV. Methods include
+- \`this.env.DEVICE\` - hardware control + per-device KV. Methods include
   \`setGpioState(pin, "high"|"low")\`, \`setPwmState(pin, hz, duty)\`,
   \`getPinState(pin, "digital"|"analog")\`, \`i2cRead/Write\`, \`spiTransfer\`,
   \`uartWrite/Read\`, \`getTemperature()\`, \`pioWs2812Configure/Update\`,
   \`emitState(entityId, value)\`, \`reboot()\`, and \`kv.{get,put,delete}\`.
-- \`this.env.VARS\` — project-scoped env vars (\`get(key)\`, \`getAll()\`).
-- \`this.env.DEVICES\` — typed RPC to other devices in the project, e.g.
+- \`this.env.VARS\` - project-scoped env vars (\`get(key)\`, \`getAll()\`).
+- \`this.env.DEVICES\` - typed RPC to other devices in the project, e.g.
   \`await this.env.DEVICES["sensor-1"].readSomething()\`.
 - Lifecycle hooks: \`onDeviceConnect\`, \`onDeviceDisconnect\`,
   \`onMessage(message)\`, \`onCron(name)\`.
@@ -315,31 +315,31 @@ The full surface is documented at
 [devicesdk.com/docs/concepts/device-api/](https://devicesdk.com/docs/concepts/device-api/)
 and via JSDoc on every export in
 \`node_modules/@devicesdk/core/dist/index.d.ts\`. Read that .d.ts before
-inventing API names — agent training data is often stale.
+inventing API names - agent training data is often stale.
 
 ## Common mistakes
 
-- **Don't use \`node:fs\`, \`node:path\`, or any \`node:*\` import** — the
+- **Don't use \`node:fs\`, \`node:path\`, or any \`node:*\` import** - the
   runtime is not Node. Use \`fetch\` for HTTP, \`this.env.DEVICE.kv\` for
   storage, \`this.env.VARS\` for secrets.
 - **Don't \`npm install\` an Arduino-style library.** Hardware is reached only
   through \`this.env.DEVICE\`. Sensors that aren't directly supported usually
-  speak I2C — read their datasheet and use \`i2cRead\`/\`i2cWrite\`.
+  speak I2C - read their datasheet and use \`i2cRead\`/\`i2cWrite\`.
 - **Don't type \`onMessage(message: any)\`.** Use
   \`onMessage(message: DeviceResponse)\` and narrow on \`message.type\`. The
   union is exhaustive.
-- **Don't hardcode pin 25 for the LED on the Pico W** — the onboard LED is on
+- **Don't hardcode pin 25 for the LED on the Pico W** - the onboard LED is on
   the WiFi chip, not GPIO 25. Use **virtual pin 99** for portability across
   Pico W, ESP32-C3, ESP32-C61.
 - **Don't pass \`50\` for half PWM duty cycle.** \`dutyCycle\` is **0..1**;
   half is \`0.5\`.
-- **Don't rename \`devicesdk.ts\` to \`devicesdk.config.ts\`** — the loader
+- **Don't rename \`devicesdk.ts\` to \`devicesdk.config.ts\`** - the loader
   reads \`devicesdk.ts\` (or any parent \`devicesdk.ts\`).
-- **Don't use \`entrypoint:\` in \`devicesdk.ts\`** — the field was renamed to
+- **Don't use \`entrypoint:\` in \`devicesdk.ts\`** - the field was renamed to
   \`className:\`.
 - **Don't add long-running loops** in a hook. The runtime budgets CPU per
   event. For periodic work use a \`crons = { ... }\` declaration.
-- **Don't \`return\` a value from \`onMessage\`** — its return type is
+- **Don't \`return\` a value from \`onMessage\`** - its return type is
   \`void | Promise<void>\`. To respond to the device, call methods on
   \`this.env.DEVICE\`.
 
@@ -410,9 +410,9 @@ devicesdk env set KEY=VALUE
 
 ## Layout
 
-- \`devicesdk.ts\` — project + device configuration.
-- \`src/devices/\` — one TypeScript file per device entrypoint.
-- \`AGENTS.md\` — instructions for AI coding agents working on this project.
+- \`devicesdk.ts\` - project + device configuration.
+- \`src/devices/\` - one TypeScript file per device entrypoint.
+- \`AGENTS.md\` - instructions for AI coding agents working on this project.
 
 ## Docs
 

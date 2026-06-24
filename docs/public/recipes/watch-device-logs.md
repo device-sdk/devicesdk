@@ -20,7 +20,7 @@ devicesdk logs my-project sensor-1 --tail
 devicesdk logs my-project sensor-1 --tail --json | jq 'select(.entry.level == "error")'
 ```
 
-If you're inside a project directory, `devicesdk.ts` provides the project + device defaults — you can omit positionals:
+If you're inside a project directory, `devicesdk.ts` provides the project + device defaults - you can omit positionals:
 
 ```bash
 devicesdk logs --tail
@@ -65,10 +65,10 @@ ws.on("message", (raw) => {
 
 - **Triage a flaky device.** `devicesdk logs <project> <device> --tail` and look for `command_error` frames in the log stream.
 - **Hook into your own monitoring.** Connect to the watch WebSocket from a long-running worker; forward `state` frames to a database or alerting tool.
-- **Build a custom dashboard.** Same WebSocket, same auth — render whatever you want.
+- **Build a custom dashboard.** Same WebSocket, same auth - render whatever you want.
 
 ## Related
 
-- [Real-time watch guide](/docs/guides/real-time-watch/) — full WebSocket protocol reference.
-- [`emitState`](/docs/concepts/emit-state/) — how to push custom state into the stream.
-- [`devicesdk logs`](/docs/cli/logs/) — the CLI command reference.
+- [Real-time watch guide](/docs/guides/real-time-watch/) - full WebSocket protocol reference.
+- [`emitState`](/docs/concepts/emit-state/) - how to push custom state into the stream.
+- [`devicesdk logs`](/docs/cli/logs/) - the CLI command reference.

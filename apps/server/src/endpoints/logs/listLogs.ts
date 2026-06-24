@@ -6,7 +6,7 @@ import type { AppContext } from "../../types";
 /**
  * GET /v1/projects/:projectId/devices/:deviceId/logs
  *
- * **Deprecated** as of May 2026 — always returns 410 Gone with a `Link` header
+ * **Deprecated** as of May 2026 - always returns 410 Gone with a `Link` header
  * pointing at the watcher WebSocket. The polling pattern this endpoint enabled
  * burned the daily DO rows-read quota; see the comment block on
  * `BaseDevice.getLogs` in `durableObjects/lib/device.ts` for the full incident
@@ -25,7 +25,7 @@ import type { AppContext } from "../../types";
 export class ListLogs extends BaseRoute {
 	public schema = {
 		tags: ["Logs"],
-		summary: "Deprecated — use the watcher WebSocket",
+		summary: "Deprecated - use the watcher WebSocket",
 		operationId: "logs-list",
 		deprecated: true,
 		request: {
@@ -41,7 +41,7 @@ export class ListLogs extends BaseRoute {
 		},
 		responses: {
 			"410": {
-				description: "Endpoint deprecated — use the watcher WebSocket",
+				description: "Endpoint deprecated - use the watcher WebSocket",
 				...contentJson(
 					z.object({
 						success: z.literal(false),

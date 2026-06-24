@@ -310,7 +310,7 @@ function writeIndexMdMirror(page: PageData): void {
 		for (const childPath of page.children) {
 			const child = pages.find((p) => p.path === childPath);
 			if (!child) continue;
-			body += `- [${child.title}](${pageUrl(child.path)}index.md)${child.description ? ` — ${child.description}` : ""}\n`;
+			body += `- [${child.title}](${pageUrl(child.path)}index.md)${child.description ? ` - ${child.description}` : ""}\n`;
 		}
 	}
 
@@ -357,11 +357,11 @@ function writeLlmsTxt(): void {
 }
 
 function writeLlmsFull(): void {
-	const header = `# DeviceSDK — Full Documentation
+	const header = `# DeviceSDK - Full Documentation
 
 > Deploy TypeScript scripts to Raspberry Pi Pico and ESP32 microcontrollers. DeviceSDK is free, open-source (AGPL-3.0), and self-hosted: you run the server yourself (Docker on a Pi/NUC/NAS), and devices connect to it over WebSocket; your script handles events and issues commands.
 
-> AI agent context: device scripts run in-process on the DeviceSDK server you host (a Bun runtime) — NOT firmware on the chip. Hardware access goes through \`this.env.DEVICE\`. Onboard LED is virtual pin 99. Field in \`devicesdk.ts\` is \`className\`, not \`entrypoint\`. \`setPwmState\` \`dutyCycle\` is 0..1, not 0..100.
+> AI agent context: device scripts run in-process on the DeviceSDK server you host (a Bun runtime) - NOT firmware on the chip. Hardware access goes through \`this.env.DEVICE\`. Onboard LED is virtual pin 99. Field in \`devicesdk.ts\` is \`className\`, not \`entrypoint\`. \`setPwmState\` \`dutyCycle\` is 0..1, not 0..100.
 `;
 
 	const docsPages = pages

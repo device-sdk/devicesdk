@@ -2,10 +2,9 @@ import type { MiddlewareHandler } from "hono";
 import type { AppContext } from "../types";
 
 /**
- * In-memory fixed-window rate limiter. Replaces the D1-backed limiter from
- * the cloud deployment — on a single-process self-hosted server a Map is
- * authoritative. Scoped to brute-forceable auth routes only (login,
- * register, CLI device-code flow).
+ * In-memory fixed-window rate limiter. An in-process Map is authoritative
+ * for a single-process self-hosted server. Scoped to brute-forceable auth
+ * routes only (login, register, CLI device-code flow).
  */
 const windows = new Map<string, { count: number; resetAt: number }>();
 

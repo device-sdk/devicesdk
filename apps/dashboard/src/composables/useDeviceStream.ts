@@ -18,7 +18,7 @@ export interface UseDeviceStreamOptions {
  *
  * Auto-reconnects on disconnection with exponential backoff. When
  * `backfillLimit` is provided, replay frames (history) and live events are
- * delivered on the same socket — the dashboard's logs panel uses this to
+ * delivered on the same socket - the dashboard's logs panel uses this to
  * avoid the HTTP `/logs` endpoint, which was deprecated in May 2026.
  *
  * Frame format: `{ event, data, replay? }`
@@ -43,14 +43,14 @@ export function useDeviceStream(
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectDelay = 1000;
-  // `unmounted` is the one-way latch set only when the component goes away — it
+  // `unmounted` is the one-way latch set only when the component goes away - it
   // permanently kills the stream. `active` tracks whether a consumer *wants* a
   // connection right now: disconnect() flips it off (revivable) and connect()
   // flips it back on, so pause/resume works without recreating the composable.
   let unmounted = false;
   let active = false;
 
-  // WebSocket close codes that mean "your session is no longer valid" — the
+  // WebSocket close codes that mean "your session is no longer valid" - the
   // server rejected the upgrade for auth reasons. Mirrors lib/api.ts's 401
   // handling: stop retrying and bounce to login rather than reconnect forever
   // against a dead session.
@@ -152,7 +152,7 @@ export function useDeviceStream(
   }
 
   function disconnect() {
-    // Transient stop: stop retrying and close the socket, but stay revivable —
+    // Transient stop: stop retrying and close the socket, but stay revivable -
     // a later connect() can resume the stream on the same composable instance.
     active = false;
     reconnecting.value = false;

@@ -20,6 +20,6 @@ catalogs:
   zod4:
     zod: ^4.3.6
   tailwind3:
-    tailwindcss: ^3.4.1
+    tailwindcss: ^4.3.1
   tailwind4:
     tailwindcss: ^4.1.18

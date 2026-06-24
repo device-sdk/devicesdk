@@ -17,6 +17,7 @@ jobs:
   unit-tests:
     name: Host unit tests
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 15
     permissions:
       contents: read
 
@@ -40,6 +41,7 @@ jobs:
   python-tests:
     name: Python protocol tests
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 10
     permissions:
       contents: read
 
@@ -67,6 +69,7 @@ jobs:
     # install.sh probes during post-install verify — currently libusb-1.0-0
     # for openocd-esp32. Bake new prereqs into the image rather than the job.
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 60
     permissions:
       contents: read
     env:
@@ -170,6 +173,7 @@ jobs:
   detect-version-bump:
     name: Detect firmware version bump
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 5
     outputs:
       bumped: ${{ steps.check.outputs.bumped }}
       version: ${{ steps.check.outputs.version }}
@@ -206,6 +210,7 @@ jobs:
   publish-release:
     name: Publish firmware to GitHub Release
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 10
     needs: [build, detect-version-bump]
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.detect-version-bump.outputs.bumped == 'true')
     permissions:

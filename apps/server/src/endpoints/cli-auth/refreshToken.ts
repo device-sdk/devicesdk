@@ -1,4 +1,4 @@
-import { hashToken, legacyHashToken } from "../../foundation/tokenHash";
+import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext } from "../../types";
 import { generateAccessToken, generateRefreshToken } from "./utils";
 
@@ -21,15 +21,12 @@ export async function refreshToken(c: AppContext) {
 	}
 
 	const secret = c.env.config.apiTokenSecret;
-	const tokenHashes = [
-		await hashToken(refresh_token, secret),
-		await legacyHashToken(refresh_token),
-	];
+	const tokenHash = await hashToken(refresh_token, secret);
 
 	const cliToken = await c.env.DB.prepare(
-		"SELECT * FROM cli_tokens WHERE refresh_token_hash IN (?, ?) AND expires_at > ?",
+		"SELECT * FROM cli_tokens WHERE refresh_token_hash = ? AND expires_at > ?",
 	)
-		.bind(tokenHashes[0], tokenHashes[1], Date.now())
+		.bind(tokenHash, Date.now())
 		.first<CliToken>();
 
 	if (!cliToken) {

@@ -133,7 +133,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 ## Phase 2 — Important
 
 ### 14. Self-hosting / Docker deployment guide exists
-- **Status:** ❌ TBD
+- **Status:** ✅ Done — PR #178 added `docs/public/guides/self-hosting.md` covering Docker, Docker Compose, all env vars, Caddy/nginx reverse proxy setup, HTTPS/TLS, `SECURE_COOKIES`, SQLite backups, and multi-server LAN hostname/mDNS configuration.
 - **How to verify:**
   ```bash
   ls docs/public/guides/self-hosting.md
@@ -141,7 +141,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** Document covers reverse proxies, HTTPS/TLS, `SECURE_COOKIES`, backups, and multi-server LAN considerations.
 
 ### 15. Authentication / security guide exists
-- **Status:** ❌ TBD
+- **Status:** ✅ Done — PR #178 added `docs/public/guides/security.md` covering the local account model, first-user bootstrap risk, session cookie `Secure` flag, API token scoping, CLI tokens, in-process script execution trust model, and `ALLOW_REGISTRATION`. Also satisfies item 23.
 - **How to verify:**
   ```bash
   ls docs/public/guides/security.md
@@ -173,7 +173,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** Root `package.json` has `description`, `author`, `repository`, `bugs`, `homepage`.
 
 ### 19. Docker publishing uses semver tags
-- **Status:** ❌ TBD
+- **Status:** ✅ Done — PR #178 added `type=semver,pattern={{version}}` and `type=semver,pattern={{major}}.{{minor}}` to `docker/metadata-action` in `docker.yml`, and added `tags: ["v*"]` to the `on.push` trigger so the workflow runs on version tag pushes.
 - **How to verify:**
   ```bash
   grep -E 'semver|tags:|push:' .github/workflows/docker.yml
@@ -181,7 +181,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** Workflow tags images with semver on `v*` tag pushes, in addition to `latest` and SHA.
 
 ### 20. Stale branches and worktrees are pruned
-- **Status:** ❌ TBD
+- **Status:** 🔄 In Progress — `git branch -r --merged main` shows only `origin/detached`; all other remote branches have unmerged work. Worktrees under `.worktrees/` include several old PR-review detached worktrees (`pr-90`, `pr-91`, `pr-102`, `pr-103`, `pr-109`) and branches from completed work that have drifted. **Action required:** manually run `git worktree remove` for stale worktrees and `git branch -d` / `git push origin --delete` for merged remote branches after confirming they are no longer needed.
 - **How to verify:**
   ```bash
   git branch -a | wc -l
@@ -198,7 +198,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** `.gitignore` contains `.venv/` and `venv/`.
 
 ### 22. Dependency update automation is configured
-- **Status:** ❌ TBD
+- **Status:** ✅ Done — PR #178 added `.github/dependabot.yml` configured for the `npm` ecosystem (weekly, grouped dev deps, major bumps excluded for manual review) and `github-actions` (weekly). Renovate is not used.
 - **How to verify:**
   ```bash
   ls .github/dependabot.yml renovate.json
@@ -206,7 +206,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** Either Dependabot or Renovate is configured for at least npm/pnpm and GitHub Actions.
 
 ### 23. In-process script execution model is documented
-- **Status:** ❌ TBD
+- **Status:** ✅ Done — Covered by `docs/public/guides/security.md` (added in PR #178). The guide explicitly states scripts run in-process with full server privileges, explains the absence of sandboxing, and provides guidance for operators who want isolation (separate server instance). See also item 15.
 - **How to verify:**
   ```bash
   rg -i 'in-process|sandbox|trust model|full server privileges' docs/public README.md SECURITY.md
@@ -214,7 +214,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** User-facing docs clearly state that deployed device scripts run in-process with server privileges because it is a self-hosted, user-owned stack.
 
 ### 24. Legacy SHA-256 token fallback is removed or gated
-- **Status:** ❌ TBD — `legacyHashToken` is still active in `refreshToken.ts`, `revokeToken.ts`, and `auth.ts` as a fallback for tokens hashed before the HMAC-SHA-256 migration.
+- **Status:** ✅ Done — PR #178 removed `legacyHashToken` from `tokenHash.ts` and all callers (`auth.ts`, `refreshToken.ts`, `revokeToken.ts`). All token lookups now use a single HMAC-SHA-256 hash. Tokens stored before the migration will fail to authenticate and users must re-login — this is the intended behavior for a breaking cleanup.
 - **How to verify:**
   ```bash
   rg -i 'legacyHashToken|legacy.*hash' apps/server/src
@@ -242,7 +242,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** Patterns for `*.pem`, `*.key`, `*.p12`, and `.venv/` are present.
 
 ### 27. GitHub Action versions are aligned
-- **Status:** ❌ TBD — `.github/workflows/docker.yml` uses `actions/checkout@v4`; all other workflows use `v6`.
+- **Status:** ✅ Done — PR #178 updated `docker.yml` from `actions/checkout@v4` to `actions/checkout@v6`. All workflows now use `v6`.
 - **How to verify:**
   ```bash
   rg 'actions/checkout@v' .github/workflows
@@ -250,7 +250,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** All workflows use the same major version of `actions/checkout`.
 
 ### 28. Workflows have timeouts
-- **Status:** ❌ TBD — Only `server-e2e-tests` and `e2e-tests` jobs have `timeout-minutes`. `docker.yml`, `release.yml`, `website-deploy.yml`, and firmware workflows do not.
+- **Status:** ✅ Done — PR #178 added `timeout-minutes` to all jobs in `docker.yml` (30 min), `release.yml` (30 min), `website-deploy.yml` (20 min), `firmware-esp32.yml` (15/10/60/5/10 min per job), and `firmware-pico.yml` (15/30/5/10 min per job).
 - **How to verify:**
   ```bash
   rg 'timeout-minutes' .github/workflows
@@ -258,7 +258,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** `release.yml` and `docker.yml` (and ideally all workflows) define `timeout-minutes`.
 
 ### 29. Optional: per-file SPDX headers
-- **Status:** ❌ TBD
+- **Status:** ❌ TBD — Deferred. The project has a root `LICENSE` file and each published package has its own `LICENSE` file. Per-file SPDX headers would require touching hundreds of source files and are not required for open-source publication. File an issue if this is desired.
 - **How to verify:**
   ```bash
   rg -c 'SPDX-License-Identifier' packages/core/src apps/server/src packages/cli/src packages/mcp/src
@@ -266,7 +266,7 @@ Use this checklist to verify that each audit finding has been resolved before ma
 - **Pass criteria:** If the project adopts per-file headers, count matches total source files in those directories.
 
 ### 30. Optional: top-level `NOTICE` or `ATTRIBUTIONS.md`
-- **Status:** ❌ TBD
+- **Status:** ✅ Done — PR #178 added `NOTICE` listing `picojson` (BSD 2-Clause), `pico_sdk_import.cmake` (BSD 3-Clause, Raspberry Pi), and an npm dependency license summary.
 - **How to verify:**
   ```bash
   ls NOTICE ATTRIBUTIONS.md

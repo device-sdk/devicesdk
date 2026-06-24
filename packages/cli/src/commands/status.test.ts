@@ -6,10 +6,10 @@ vi.mock("../credentials.js", () => ({
 	requireAuth: vi.fn().mockResolvedValue("test-token"),
 }));
 
-const apiMocks = {
+const apiMocks = vi.hoisted(() => ({
 	listDevices: vi.fn(),
 	getDeviceStatus: vi.fn(),
-};
+}));
 
 vi.mock("../api.js", async (importOriginal) => {
 	const original = await importOriginal<typeof import("../api.js")>();

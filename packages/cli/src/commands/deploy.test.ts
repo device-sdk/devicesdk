@@ -9,12 +9,12 @@ vi.mock("../credentials.js", () => ({
 	requireAuth: vi.fn().mockResolvedValue("test-token"),
 }));
 
-const apiMocks = {
+const apiMocks = vi.hoisted(() => ({
 	getProject: vi.fn(),
 	createProject: vi.fn(),
 	uploadScript: vi.fn(),
 	uploadScriptsBatch: vi.fn(),
-};
+}));
 
 vi.mock("../api.js", async (importOriginal) => {
 	const original = await importOriginal<typeof import("../api.js")>();
@@ -66,7 +66,7 @@ vi.mock("../utils.js", () => ({
 	getConfigDir: vi.fn().mockReturnValue("/project"),
 }));
 
-const buildDeviceMock = vi.fn();
+const buildDeviceMock = vi.hoisted(() => vi.fn());
 vi.mock("./build.js", async (importOriginal) => {
 	const original = await importOriginal<typeof import("./build.js")>();
 	return {
@@ -126,7 +126,9 @@ describe("deploy command", () => {
 		});
 		mkdirSpy.mockImplementation(async () => undefined);
 		accessSpy.mockResolvedValue(undefined);
-		readFileSpy.mockResolvedValue(Buffer.from("const x = 1;"));
+		readFileSpy.mockResolvedValue(
+			"const x = 1;" as unknown as Awaited<ReturnType<typeof fs.readFile>>,
+		);
 	});
 
 	afterEach(() => {});

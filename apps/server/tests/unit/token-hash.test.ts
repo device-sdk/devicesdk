@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hashToken, legacyHashToken } from "../../src/foundation/tokenHash";
+import { hashToken } from "../../src/foundation/tokenHash";
 
 describe("tokenHash", () => {
 	const secret = "test-secret";
@@ -23,25 +23,5 @@ describe("tokenHash", () => {
 		const a = await hashToken("dsdk_token_a", secret);
 		const b = await hashToken("dsdk_token_b", secret);
 		expect(a).not.toBe(b);
-	});
-
-	test("legacy hash matches unsalted SHA-256", async () => {
-		const token = "dsdk_legacy_token";
-		const legacy = await legacyHashToken(token);
-		const expected = await crypto.subtle
-			.digest("SHA-256", new TextEncoder().encode(token))
-			.then((buf) =>
-				Array.from(new Uint8Array(buf))
-					.map((b) => b.toString(16).padStart(2, "0"))
-					.join(""),
-			);
-		expect(legacy).toBe(expected);
-	});
-
-	test("legacy hash differs from HMAC hash of the same token", async () => {
-		const token = "dsdk_verify_legacy";
-		const legacy = await legacyHashToken(token);
-		const hmac = await hashToken(token, secret);
-		expect(legacy).not.toBe(hmac);
 	});
 });

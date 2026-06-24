@@ -9,13 +9,13 @@ vi.mock("../credentials.js", () => ({
 	requireAuth: vi.fn().mockResolvedValue("test-token"),
 }));
 
-const apiMocks = {
+const apiMocks = vi.hoisted(() => ({
 	getProject: vi.fn(),
 	createProject: vi.fn(),
 	getDevice: vi.fn(),
 	createDevice: vi.fn(),
 	downloadDeviceFirmware: vi.fn(),
-};
+}));
 
 vi.mock("../api.js", async (importOriginal) => {
 	const original = await importOriginal<typeof import("../api.js")>();
@@ -51,15 +51,15 @@ vi.mock("../utils.js", () => ({
 	getConfigDir: vi.fn().mockReturnValue("/project"),
 }));
 
-const flashPicoMock = vi.fn();
+const flashPicoMock = vi.hoisted(() => vi.fn());
 vi.mock("../flash/pico.js", () => ({
 	flashPico: flashPicoMock,
 }));
 
-const flashEsp32Mocks = {
+const flashEsp32Mocks = vi.hoisted(() => ({
 	flashESP32: vi.fn(),
 	checkEsptoolInstalled: vi.fn(),
-};
+}));
 vi.mock("../flash/esp32.js", () => ({
 	flashESP32: flashEsp32Mocks.flashESP32,
 	checkEsptoolInstalled: flashEsp32Mocks.checkEsptoolInstalled,

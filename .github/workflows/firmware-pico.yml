@@ -27,10 +27,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Restore gtest build cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: firmware/pico/test/build/_deps
           key: pico-gtest-${{ hashFiles('firmware/pico/test/CMakeLists.txt') }}
@@ -52,7 +52,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Resolve PICO_SDK_PATH
         # `runner.*` context is not available in job-level `env:`; export it
@@ -64,7 +64,7 @@ jobs:
 
       - name: Restore pico-sdk cache
         id: restore-pico-sdk
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.PICO_SDK_PATH }}
           key: pico-sdk-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
@@ -77,7 +77,7 @@ jobs:
 
       - name: Save pico-sdk cache
         if: steps.restore-pico-sdk.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ${{ env.PICO_SDK_PATH }}
           key: pico-sdk-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
@@ -107,7 +107,7 @@ jobs:
       bumped: ${{ steps.check.outputs.bumped }}
       version: ${{ steps.check.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -151,7 +151,7 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/download-artifact@v8
         with:

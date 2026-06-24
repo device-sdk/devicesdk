@@ -18,8 +18,8 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
@@ -35,7 +35,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - name: Restore Turbo cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ github.sha }}
@@ -45,7 +45,7 @@ jobs:
       - run: pnpm build --filter '!@devicesdk/website' --filter '!./examples/*'
 
       - name: Create Release PR or Publish
-        uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1
         with:
           version: pnpm version-packages
           publish: pnpm release

@@ -29,7 +29,8 @@ type RemoteDevices<T> = {
 };
 
 /** @deprecated Use UserWorkerEnv instead */
-export type GetEnv<ProjectDevices = {}> = UserWorkerEnv<ProjectDevices>;
+export type GetEnv<ProjectDevices = Record<string, never>> =
+	UserWorkerEnv<ProjectDevices>;
 
 /**
  * Base class for a DeviceSDK device script. Extend it and export a named class

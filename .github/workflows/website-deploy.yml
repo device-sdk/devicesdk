@@ -21,6 +21,7 @@ jobs:
   deploy:
     name: Build and deploy to Cloudflare Pages
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 

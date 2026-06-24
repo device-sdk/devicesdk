@@ -61,7 +61,7 @@ export interface EnvVarsInterface {
  *
  * @see https://devicesdk.com/docs/concepts/entrypoints/
  */
-export type UserWorkerEnv<ProjectDevices = {}> = {
+export type UserWorkerEnv<ProjectDevices = Record<string, never>> = {
 	/** Hardware control + per-device KV. See {@link DeviceSenderInterface}. */
 	DEVICE: DeviceSenderInterface;
 	/** Other devices in this project, keyed by their slug. Methods return Promises. */
@@ -324,4 +324,4 @@ export interface DeviceSenderProps {
 	deviceId: string;
 }
 
-export type Content = {};
+export type Content = Record<string, never>;

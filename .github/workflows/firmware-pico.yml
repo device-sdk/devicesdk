@@ -21,6 +21,7 @@ jobs:
   unit-tests:
     name: Host unit tests
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 15
     permissions:
       contents: read
 
@@ -45,6 +46,7 @@ jobs:
     name: Build Pico firmware
     needs: unit-tests
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 30
     permissions:
       contents: read
 
@@ -100,6 +102,7 @@ jobs:
   detect-version-bump:
     name: Detect firmware version bump
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 5
     outputs:
       bumped: ${{ steps.check.outputs.bumped }}
       version: ${{ steps.check.outputs.version }}
@@ -136,6 +139,7 @@ jobs:
   publish-release:
     name: Publish firmware to GitHub Release
     runs-on: [self-hosted, linux, proxmox-ephemeral]
+    timeout-minutes: 10
     needs: [build, detect-version-bump]
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.detect-version-bump.outputs.bumped == 'true')
     permissions:

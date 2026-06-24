@@ -3,7 +3,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { FetchTypes } from "workers-qb";
 import type { AppContext, tableUser, tableUserSessions } from "../types";
 import { SESSION_COOKIE_NAME, SESSION_DURATION_MS } from "./consts";
-import { hashToken, legacyHashToken } from "./tokenHash";
+import { hashToken } from "./tokenHash";
 
 function getToken(c: AppContext): null | string {
 	const authHeader = c.req.header("Authorization");
@@ -141,10 +141,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 	// Check if it's a CLI token (dsdk_ prefix)
 	if (token.startsWith("dsdk_") && !token.startsWith("dsdk_refresh_")) {
 		const secret = c.env.config.apiTokenSecret;
-		const tokenHashes = [
-			await hashToken(token, secret),
-			await legacyHashToken(token),
-		];
+		const tokenHash = await hashToken(token, secret);
 
 		const cliToken = await c
 			.get("qb")
@@ -161,8 +158,8 @@ export async function authenticateUser(c: AppContext, next: Next) {
 				query: `SELECT ct.id, u.id as user_id, u.name, u.email, u.picture, u.verified_email, u.onboarding_completed, u.created_at as user_created_at
 				 FROM cli_tokens ct
 				 JOIN user u ON ct.user_id = u.id
-				 WHERE ct.access_token_hash IN (?1, ?2) AND ct.expires_at > ?3`,
-				args: [tokenHashes[0], tokenHashes[1], Date.now()],
+				 WHERE ct.access_token_hash = ?1 AND ct.expires_at > ?2`,
+				args: [tokenHash, Date.now()],
 				fetchType: FetchTypes.ONE,
 			})
 			.execute();
@@ -223,14 +220,9 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		.execute();
 
 	if (!session.results) {
-		// Hash the incoming token for comparison (HMAC first, legacy SHA-256 fallback).
 		const secret = c.env.config.apiTokenSecret;
-		const apiTokenHashes = [
-			await hashToken(token, secret),
-			await legacyHashToken(token),
-		];
+		const apiTokenHash = await hashToken(token, secret);
 
-		// Look up by hash
 		const tokenUser = await c
 			.get("qb")
 			.fetchOne<tableUser>({
@@ -241,8 +233,8 @@ export async function authenticateUser(c: AppContext, next: Next) {
 					on: "t.user_id = u.id",
 				},
 				where: {
-					conditions: ["t.token_hash IN (?1, ?2)"],
-					params: [apiTokenHashes[0], apiTokenHashes[1]],
+					conditions: ["t.token_hash = ?1"],
+					params: [apiTokenHash],
 				},
 			})
 			.execute();

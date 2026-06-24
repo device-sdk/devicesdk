@@ -1,4 +1,4 @@
-import { hashToken, legacyHashToken } from "../../foundation/tokenHash";
+import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext } from "../../types";
 
 export async function revokeToken(c: AppContext) {
@@ -8,14 +8,11 @@ export async function revokeToken(c: AppContext) {
 
 	if (refresh_token) {
 		const secret = c.env.config.apiTokenSecret;
-		const tokenHashes = [
-			await hashToken(refresh_token, secret),
-			await legacyHashToken(refresh_token),
-		];
+		const tokenHash = await hashToken(refresh_token, secret);
 		await c.env.DB.prepare(
-			"DELETE FROM cli_tokens WHERE refresh_token_hash IN (?, ?) AND user_id = ?",
+			"DELETE FROM cli_tokens WHERE refresh_token_hash = ? AND user_id = ?",
 		)
-			.bind(tokenHashes[0], tokenHashes[1], user.id)
+			.bind(tokenHash, user.id)
 			.run();
 	}
 

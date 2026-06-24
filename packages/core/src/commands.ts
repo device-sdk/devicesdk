@@ -130,7 +130,10 @@ export type ConfigureGpioInputMonitoringCommand = Command<
 >;
 
 // --- Temperature Sensor Commands ---
-export type GetTemperatureCommand = Command<"get_temperature", {}>;
+export type GetTemperatureCommand = Command<
+	"get_temperature",
+	Record<string, never>
+>;
 
 // --- Watchdog Commands ---
 export type WatchdogConfigureCommand = Command<
@@ -232,7 +235,7 @@ export type PioWs2812UpdateCommand = Command<
 >;
 
 // --- Device Commands ---
-export type RebootCommand = Command<"reboot", {}>;
+export type RebootCommand = Command<"reboot", Record<string, never>>;
 
 // --- Union of all possible commands ---
 export type DeviceCommand =

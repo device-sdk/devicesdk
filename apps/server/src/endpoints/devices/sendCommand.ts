@@ -1,3 +1,4 @@
+import type { DeviceCommand } from "@devicesdk/core";
 import { contentJson } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
@@ -106,7 +107,10 @@ export class SendDeviceCommand extends BaseRoute {
 
 		let doResult: { status: number; body: string };
 		try {
-			doResult = await stub.handleCommand({ type, payload });
+			doResult = await stub.handleCommand({ type, payload } as unknown as Omit<
+				DeviceCommand,
+				"id"
+			>);
 		} catch (err) {
 			logger.error(err as Error, "Unhandled error");
 			return c.json(

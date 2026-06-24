@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeviceSDKApiError } from "../api.js";
+import type { DeviceSDKConfig } from "../config.js";
 import { EXIT } from "../exitCodes.js";
 import deploy from "./deploy.js";
 
@@ -77,7 +78,7 @@ vi.mock("./build.js", async (importOriginal) => {
 describe("deploy command", () => {
 	const exitSpy = vi
 		.spyOn(process, "exit")
-		.mockImplementation((code?: number | string): never => {
+		.mockImplementation((code?: number | string | null): never => {
 			throw new Error(`exit:${code ?? 0}`);
 		});
 
@@ -150,7 +151,7 @@ describe("deploy command", () => {
 		vi.mocked(loadConfig).mockResolvedValueOnce({
 			projectId: "test-project",
 			devices: {},
-		});
+		} as unknown as DeviceSDKConfig);
 
 		await expect(deploy()).rejects.toThrowError(/exit:6/);
 		expect(exitSpy).toHaveBeenCalledWith(EXIT.CONFIG_INVALID);
@@ -158,7 +159,9 @@ describe("deploy command", () => {
 
 	it("deploys all devices in batch when no device filter is specified", async () => {
 		const { loadConfig } = await import("../utils.js");
-		vi.mocked(loadConfig).mockResolvedValueOnce(createMultiDeviceConfig());
+		vi.mocked(loadConfig).mockResolvedValueOnce(
+			createMultiDeviceConfig() as unknown as DeviceSDKConfig,
+		);
 		buildDeviceMock
 			.mockResolvedValueOnce({
 				size: 1024,
@@ -286,7 +289,9 @@ describe("deploy command", () => {
 
 	it("exits when uploadScriptsBatch fails", async () => {
 		const { loadConfig } = await import("../utils.js");
-		vi.mocked(loadConfig).mockResolvedValueOnce(createMultiDeviceConfig());
+		vi.mocked(loadConfig).mockResolvedValueOnce(
+			createMultiDeviceConfig() as unknown as DeviceSDKConfig,
+		);
 		buildDeviceMock
 			.mockResolvedValueOnce({
 				size: 1024,

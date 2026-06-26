@@ -85,7 +85,7 @@ await fetch('https://api.example.com/data');
 
 ### How long does deployment take?
 
-Typically 10-30 seconds to deploy globally.
+Typically 10-30 seconds for the script to be built, uploaded to your server, and active on connected devices.
 
 ### Can I rollback a deployment?
 
@@ -93,7 +93,7 @@ Yes. Rollback to any previous version instantly via the dashboard.
 
 ### How many devices can I have?
 
-No limit on device count in any tier.
+No limit. The server is yours — it's only bounded by the hardware you run it on.
 
 ### Can I deploy from CI/CD?
 
@@ -112,32 +112,21 @@ DEVICESDK_TOKEN=xxx devicesdk deploy
 
 ### Where is my data stored?
 
-- Code runs on a globally distributed runtime
-- Logs stored per your retention settings
-- Device state in KV storage
+Everything stays on your server — SQLite database, device scripts, logs, and KV state. Nothing leaves your network.
 
-### Can I use custom domains?
+### Does my server need to be on the internet?
 
-Not yet for device connections, but you can build web UIs on custom domains.
-
-### Is my code isolated from other users?
-
-Yes. Each project runs in isolated execution contexts.
+No. Devices connect over your LAN using WebSocket. If you want remote access, you can expose the server through a reverse proxy or VPN — but it's not required.
 
 ## Connectivity
 
 ### Does my network need special configuration?
 
-Most networks work out-of-box. Requirements:
-- Allow outbound WebSocket (port 443)
-- No captive portal blocking connections
+Most networks work out-of-box. Devices connect to your server over WebSocket on whatever port you configure (default 8080). The only requirement is that devices can reach your server's IP or mDNS hostname on your LAN.
 
 ### What's the expected latency?
 
-Typically 50-200ms round-trip, depending on:
-- Geographic distance
-- Network quality
-- Edge routing
+On a local network, round-trip latency is typically under 10ms. It depends on your LAN quality and the hardware your server runs on.
 
 ### What if my device loses connection?
 
@@ -244,7 +233,7 @@ Yes. We have migration guides for:
 
 ### Will you support MQTT?
 
-We use WebSockets for performance on the distributed runtime. MQTT compatibility is being evaluated.
+DeviceSDK uses WebSockets. MQTT support is not planned — WebSockets are simpler to self-host and cover all the same use cases.
 
 ### Can I export my data?
 

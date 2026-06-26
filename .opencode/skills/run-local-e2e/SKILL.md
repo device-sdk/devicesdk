@@ -1,6 +1,6 @@
 ---
 name: run-local-e2e
-description: Use when running the full DeviceSDK stack end-to-end on a developer laptop — local API + dashboard + CLI + flashing a real ESP32 device on the LAN that connects to the local API. Covers prereq discovery, OAuth bypass paths, firewall, and the ws/wss heuristic needed for plain-HTTP local dev.
+description: Use when running the full DeviceSDK stack end-to-end on a developer laptop - local API + dashboard + CLI + flashing a real ESP32 device on the LAN that connects to the local API. Covers prereq discovery, OAuth bypass paths, firewall, and the ws/wss heuristic needed for plain-HTTP local dev.
 ---
 
 # Run Local E2E
@@ -25,7 +25,7 @@ If the user only needs the API + dashboard tested without a real device, `pnpm
 test:e2e --filter @devicesdk/dashboard` (Playwright) is faster and doesn't
 require any of this.
 
-## Step 0 — Discovery (always run in parallel)
+## Step 0 - Discovery (always run in parallel)
 
 ```bash
 ip -4 -o addr show | awk '{print $2, $4}'              # find LAN IP
@@ -37,13 +37,13 @@ systemctl is-active firewalld ufw 2>&1                 # detect host firewall
 ```
 
 What you need before continuing:
-- LAN IP on `wlan0` (e.g. `192.168.1.238/24`) — this is the host the firmware will dial
+- LAN IP on `wlan0` (e.g. `192.168.1.238/24`) - this is the host the firmware will dial
 - ESP device on `/dev/ttyACM0` (Espressif native USB JTAG/serial enumerates as ACM, not USB)
 - `~/esp/esp-idf/export.sh` exists (ESP-IDF v5.5+)
 - The local server environment has the credentials/config it needs (see `apps/server/src/config.ts`)
 - `systemctl is-active firewalld ufw` tells you whether the host firewall will block the device
 
-## Step 1 — Servers
+## Step 1 - Servers
 
 ```bash
 pnpm dev --filter @devicesdk/server        # binds 0.0.0.0:8080 (Bun server)
@@ -57,9 +57,9 @@ until curl -sf -o /dev/null http://localhost:8080/; do sleep 1; done
 until curl -sf -o /dev/null http://localhost:9000/; do sleep 1; done
 ```
 
-## Step 2 — Host firewall
+## Step 2 - Host firewall
 
-If `ufw` is active, the device's TCP SYN on `:8080` will silently die — the
+If `ufw` is active, the device's TCP SYN on `:8080` will silently die - the
 symptom is `esp-tls: select() timeout` on serial even though plain `ws://` is
 in use. (The `esp-tls` label is misleading; that layer abstracts TCP too.)
 
@@ -70,9 +70,9 @@ sudo ufw allow from 192.168.1.0/24 to any port 8080 proto tcp comment "local dev
 
 Use the LAN's actual `/24` (from Step 0). Per-device (`from 192.168.1.242`) is
 more targeted; per-LAN is more flexible across reflashes. **Never** suggest
-`sudo ufw disable` as the default — it's a kill-switch, not a fix.
+`sudo ufw disable` as the default - it's a kill-switch, not a fix.
 
-## Step 3 — CLI login (interactive)
+## Step 3 - CLI login (interactive)
 
 ```bash
 DEVICESDK_API_URL=http://localhost:8080 npx devicesdk login --host http://localhost:8080
@@ -84,20 +84,20 @@ The CLI uses the device-authorization flow (`packages/cli/src/commands/login.ts`
 3. CLI polls `/v1/cli/auth/poll` until it gets `access_token` (`dsdk_<hex>`) + `refresh_token`
 4. Credentials are written to `~/.devicesdk/credentials.json` mode `0600`
 
-**The user must click through the browser** — there is no headless OAuth path.
+**The user must click through the browser** - there is no headless OAuth path.
 If you're running this autonomously and need a token without browser
 interaction, see Step 3a.
 
-### Step 3a — Token bypass (no browser)
+### Step 3a - Token bypass (no browser)
 
-Two CLI auth paths and they target different tables — keep them straight:
+Two CLI auth paths and they target different tables - keep them straight:
 
 | Token shape | Auth table | Where it's used |
 |---|---|---|
 | `dsdk_<hex>` | `cli_tokens` | What `devicesdk login` creates and `~/.devicesdk/credentials.json` stores |
 | `<32-hex>` (no prefix) | `tokens` | API tokens minted via `POST /v1/tokens`, used by **firmware Bearer** |
 
-Both authenticate at the API edge — the middleware in
+Both authenticate at the API edge - the middleware in
 `apps/server/src/foundation/auth.ts` branches on the `dsdk_` prefix.
 
 The CLI honors `DEVICESDK_TOKEN` in the env (`packages/cli/src/credentials.ts`)
@@ -122,14 +122,14 @@ sqlite3 data/devicesdk.sqlite "INSERT INTO tokens (id,user_id,token,token_hash,l
 echo "DEVICESDK_TOKEN=$TOKEN"
 ```
 
-Then `export DEVICESDK_TOKEN=...` and run `devicesdk` commands — also use the
+Then `export DEVICESDK_TOKEN=...` and run `devicesdk` commands - also use the
 same value for `DEVICESDK_API_TOKEN` in firmware `config.h`.
 
-## Step 4 — Mint API token for firmware
+## Step 4 - Mint API token for firmware
 
 If you used the browser flow, your CLI access token is `dsdk_…` and won't work
 as a firmware Bearer (it's for `cli_tokens`, but firmware traffic hits the same
-authenticator that accepts both — actually it does work, but it expires per
+authenticator that accepts both - actually it does work, but it expires per
 `cli_tokens.expires_at`, so **mint a long-lived API token instead**):
 
 ```bash
@@ -138,10 +138,10 @@ curl -sS -X POST http://localhost:8080/v1/tokens \
   -H "Authorization: Bearer $ACCESS" \
   -H "Content-Type: application/json" \
   -d '{"description":"esp32 local dev"}' | tee /tmp/api-token.json
-# response.result.token is the 32-hex API token — save it for config.h
+# response.result.token is the 32-hex API token - save it for config.h
 ```
 
-## Step 5 — Deploy a user script
+## Step 5 - Deploy a user script
 
 ```bash
 pnpm local:deploy   # = DEVICESDK_API_URL=http://localhost:8080 pnpm --filter @devicesdk/example-basic run deploy
@@ -149,14 +149,14 @@ pnpm local:deploy   # = DEVICESDK_API_URL=http://localhost:8080 pnpm --filter @d
 
 `devicesdk deploy` auto-creates the project + device on first run
 (`packages/cli/src/commands/deploy.ts`). Project and device IDs are **slugs**
-(e.g. `dummy`, `device`), not UUIDs — they come from `examples/basic/devicesdk.ts`.
+(e.g. `dummy`, `device`), not UUIDs - they come from `examples/basic/devicesdk.ts`.
 
 Match the example's `deviceType` to the actual board (`esp32c3`, `esp32c61`,
 `pico2-w`). Valid values are in `packages/cli/src/config.ts`. The deviceType is
-metadata used for type generation in `generateDeviceTypes` — runtime auth
+metadata used for type generation in `generateDeviceTypes` - runtime auth
 doesn't depend on it, but mismatches mislead future readers.
 
-## Step 6 — Firmware build (build from source — never patch binaries for ESP32)
+## Step 6 - Firmware build (build from source - never patch binaries for ESP32)
 
 Per `AGENTS.md` and `apps/server/src/foundation/esp32ImageChecksum.ts`, the
 API's binary-patching path produces unbootable images on some boards. Always
@@ -165,7 +165,7 @@ build from source for local dev.
 ### 6a. Edit `firmware/esp32/main/config.h`
 
 ```c
-#define DEVICESDK_WIFI_SSID     "Nau"               // 2.4GHz SSID — ESP32-C3 has no 5GHz radio
+#define DEVICESDK_WIFI_SSID     "Nau"               // 2.4GHz SSID - ESP32-C3 has no 5GHz radio
 #define DEVICESDK_WIFI_PASSWORD "<wifi-password>"
 #define DEVICESDK_API_TOKEN     "<32-hex from step 4>"
 #define DEVICESDK_API_HOST      "192.168.1.238:8080"  // <lan-ip>:<port>
@@ -173,9 +173,9 @@ build from source for local dev.
 #define DEVICESDK_DEVICE_ID  "device"            // SLUG, matches devicesdk.ts
 ```
 
-These are placeholders in git — **always `git restore firmware/esp32/main/config.h` after the flash succeeds** (`AGENTS.md`).
+These are placeholders in git - **always `git restore firmware/esp32/main/config.h` after the flash succeeds** (`AGENTS.md`).
 
-### 6b. ws/wss heuristic — required for local dev
+### 6b. ws/wss heuristic - required for local dev
 
 `firmware/esp32/main/devicesdk_main.c` builds the WS URI. Production hostnames have
 no port and use `wss://`; local dev has `host:port` and needs `ws://`. The fix
@@ -190,7 +190,7 @@ snprintf(uri, sizeof(uri), "%s://%s%s", use_tls ? "wss" : "ws", api_host, ws_pat
 ```
 
 If this isn't in the tree, every local-dev flash fails at the TCP-handshake
-stage with `ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST` — even though the "TLS"
+stage with `ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST` - even though the "TLS"
 label suggests a cert problem, the TLS layer is just the unified transport
 abstraction. Confirm by `grep -n 'use_tls' firmware/esp32/main/devicesdk_main.c`
 before building. If absent, restore from PR history or apply the diff above
@@ -201,7 +201,7 @@ before building. If absent, restore from PR history or apply the diff above
 ```bash
 cd firmware/esp32
 source ~/esp/esp-idf/export.sh
-idf.py set-target esp32c3   # only if changing target — slow rebuild
+idf.py set-target esp32c3   # only if changing target - slow rebuild
 idf.py build
 ```
 
@@ -220,7 +220,7 @@ idf.py build                        # rebuilds fresh
 A fresh ESP-IDF build is 2–4 minutes; incremental rebuilds (no `set-target`)
 are 10–30 s.
 
-## Step 7 — Flash
+## Step 7 - Flash
 
 ```bash
 python -m esptool --chip esp32c3 --port /dev/ttyACM0 -b 460800 \
@@ -232,35 +232,35 @@ python -m esptool --chip esp32c3 --port /dev/ttyACM0 -b 460800 \
 ```
 
 ESP32-C3 and C61 both use bootloader offset `0x0` (per `AGENTS.md` C3/C61
-specifics). Old ESP32s use `0x1000` — don't apply this layout there.
+specifics). Old ESP32s use `0x1000` - don't apply this layout there.
 
 After flash succeeds: **`git restore firmware/esp32/main/config.h`**
 immediately. The placeholders must go back into git before any commit.
 
-## Step 8 — Verify
+## Step 8 - Verify
 
 Three signals, in order of cost:
 
-1. **API log** — incoming connection from device IP, with WS upgrade:
+1. **API log** - incoming connection from device IP, with WS upgrade:
    ```bash
    # Look at the running Bun server output for the device IP and WebSocket upgrade line
    # expect: GET /v1/projects/<slug>/devices/<slug>/connect/websocket 101 Switching Protocols
    ```
 
-2. **API status endpoint** — confirms the server has the device active:
+2. **API status endpoint** - confirms the server has the device active:
    ```bash
    curl -sS -H "Authorization: Bearer $ACCESS" \
      http://localhost:8080/v1/projects/dummy/devices/device/status
    # expect: {"connected":true,"connected_since":...,"current_version_id":"<bundle-id>"}
    ```
 
-3. **Serial** — `timeout 12 cat /dev/ttyACM0` after `stty -F /dev/ttyACM0 raw -echo`. Reset via DTR/RTS toggle in pyserial if needed:
+3. **Serial** - `timeout 12 cat /dev/ttyACM0` after `stty -F /dev/ttyACM0 raw -echo`. Reset via DTR/RTS toggle in pyserial if needed:
    ```python
    import serial, time
    s = serial.Serial('/dev/ttyACM0', 115200)
    s.setDTR(False); s.setRTS(True); time.sleep(0.2); s.setRTS(False); s.close()
    ```
-   Look for `connected with <SSID>`, `got ip:<x.y.z.w>`, then no errors. Healthy device is *quiet* on serial — script logs only if it calls `console.log`.
+   Look for `connected with <SSID>`, `got ip:<x.y.z.w>`, then no errors. Healthy device is *quiet* on serial - script logs only if it calls `console.log`.
 
 ## Common failure modes
 
@@ -268,7 +268,7 @@ Three signals, in order of cost:
 |---|---|---|
 | Login times out, no approval page | CLI auth not configured or wrong API URL | Check `DEVICESDK_API_URL`, server logs, and `apps/server/src/config.ts` |
 | `esp-tls: select() timeout` on serial despite WS-not-WSS | host firewall blocks `:8080` | `sudo ufw allow from <lan>/24 to any port 8080 proto tcp` |
-| `connect() error: Host is unreachable` early after boot | Wifi not yet connected (normal during boot) — only worry if it persists past `got ip:` | Wait one reconnect cycle (10 s) |
+| `connect() error: Host is unreachable` early after boot | Wifi not yet connected (normal during boot) - only worry if it persists past `got ip:` | Wait one reconnect cycle (10 s) |
 | `ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST` after WiFi up | Firmware compiled before the ws/wss heuristic; binary still uses `wss://` against a port-bearing host | Verify the heuristic is in `devicesdk_main.c`, rebuild, reflash |
 | CMake "C compiler is broken" | Stale Docker artifacts under `firmware/esp32/build/` owned by root | `mv build build.stale-docker && idf.py build` |
 | `404 Not Found` on `GET /v1/projects/<slug>` after deploy | Trying to query before `pnpm local:deploy` ran or auto-create failed | Look for `Created project "<slug>"` in deploy output; otherwise CLI access token may be expired |
@@ -279,13 +279,13 @@ Three signals, in order of cost:
 
 Before reporting "done":
 
-1. `git status` — should show **only** intentional changes. Specifically,
+1. `git status` - should show **only** intentional changes. Specifically,
    `firmware/esp32/main/config.h` must be back to placeholders.
 2. Stop background dev servers. Leaving them running is annoying but not
    harmful.
 3. Decide which of the helper edits should persist:
    - **Keep**: `firmware/esp32/main/devicesdk_main.c` ws/wss heuristic (makes local dev work without binary patching).
-   - **Decide per task**: `examples/basic/devicesdk.ts` `deviceType` — only change if the example's target board actually changed.
+   - **Decide per task**: `examples/basic/devicesdk.ts` `deviceType` - only change if the example's target board actually changed.
 4. The ufw rule from Step 2 is narrow (LAN-only, single port) and persists.
    Document it if onboarding others.
 

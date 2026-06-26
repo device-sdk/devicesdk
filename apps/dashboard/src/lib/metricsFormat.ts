@@ -38,7 +38,7 @@ export function formatDuration(seconds: number): string {
   return `${(seconds / 86_400).toFixed(1)}d`;
 }
 
-// Shared chart scaffolding — a time x-axis with a compact-count y-axis.
+// Shared chart scaffolding - a time x-axis with a compact-count y-axis.
 function timeSeriesBase(): EChartsOption {
   return {
     grid: { top: 40, right: 16, bottom: 32, left: 56 },

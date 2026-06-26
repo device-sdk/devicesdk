@@ -59,7 +59,7 @@ type UserClass = new (
  * (classProxy.ts). The bundle file is version-keyed, so the ES module cache
  * never serves a stale script: a new deploy means a new path.
  *
- * User code runs in-process by design — it is the user's own code on the
+ * User code runs in-process by design - it is the user's own code on the
  * user's own server, the same trust level as the server itself.
  */
 export async function loadUserWorker(
@@ -125,7 +125,7 @@ export async function loadUserWorker(
 			if (blocked.has(name)) {
 				throw new Error(`Cannot call "${name}" remotely`);
 			}
-			// Only methods defined on the user's own class are callable —
+			// Only methods defined on the user's own class are callable -
 			// inherited DeviceEntrypoint/Object methods are not RPC surface.
 			const userProto = Object.getPrototypeOf(target);
 			if (!userProto || !Object.hasOwn(userProto, name)) {

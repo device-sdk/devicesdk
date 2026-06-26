@@ -70,7 +70,7 @@ Log levels are color-coded when output is a terminal:
 
 ## Tail Mode
 
-With `--tail` / `-f`, the command polls for new log entries every 2 seconds using cursor-based pagination. This is equivalent to `heroku logs --tail` — it anchors at the current position in the log stream and prints new lines as they arrive.
+With `--tail` / `-f`, the command polls for new log entries every 2 seconds using cursor-based pagination. This is equivalent to `heroku logs --tail` - it anchors at the current position in the log stream and prints new lines as they arrive.
 
 Press **Ctrl-C** to stop tailing.
 

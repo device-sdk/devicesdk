@@ -6,10 +6,9 @@ import { USAGE_RETENTION_MS } from "./foundation/usageMetrics";
 export const JANITOR_INTERVAL_MS = 60 * 60 * 1000; // hourly
 
 /**
- * In-process housekeeping — replaces the cloud deployment's scheduled cron.
- * Runs at boot and then hourly: drops expired sessions, expired CLI auth
- * codes, expired CLI tokens, device logs past retention, and usage buckets
- * past the longest metrics window.
+ * In-process housekeeping. Runs at boot and then hourly: drops expired
+ * sessions, expired CLI auth codes, expired CLI tokens, device logs past
+ * retention, and usage buckets past the longest metrics window.
  */
 export function runJanitor(qb: BunSqliteQB): void {
 	const now = Date.now();

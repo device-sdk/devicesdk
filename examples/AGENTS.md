@@ -1,4 +1,4 @@
-# AGENTS.md — `examples/`
+# AGENTS.md - `examples/`
 
 **Work in this folder from the end-user's perspective, not the SDK maintainer's.**
 
@@ -7,7 +7,7 @@ and run. When a task here involves running, deploying, or flashing an example,
 behave exactly as a customer would: drive everything through the public
 `devicesdk` CLI as a black box. Do **not** reach into monorepo internals
 (editing `packages/cli`, calling the API by hand, patching firmware, bypassing
-auth) to make an example work — if the end-user path is broken, that is itself
+auth) to make an example work - if the end-user path is broken, that is itself
 the bug to report, not something to route around.
 
 ## The end-user flow
@@ -25,7 +25,7 @@ Run these from inside the specific example directory (e.g.
    set `DEVICESDK_API_URL` / `DEVICESDK_TOKEN` for a non-interactive token),
    then continue.
 4. **Configure.** Set real WiFi credentials (and any other config) in
-   `devicesdk.ts` / the device script. **Never commit real secrets** — restore
+   `devicesdk.ts` / the device script. **Never commit real secrets** - restore
    the `YOUR_WIFI_*` placeholders before any commit.
 5. **Deploy.** `pnpm deploy` (`devicesdk deploy`) uploads the device script.
 6. **Flash.** `pnpm flash-remote` (`devicesdk flash <device>`). Pico flashes over
@@ -38,7 +38,7 @@ Run these from inside the specific example directory (e.g.
 - `DEVICESDK_API_URL` overrides the API endpoint; unset, the CLI uses the host
   saved in `~/.devicesdk/credentials.json`. The `local:*` / `flash-local`
   scripts point at `localhost:8080` for SDK contributors.
-- Examples are **not versioned** — they need no changeset entry (a PR that only
+- Examples are **not versioned** - they need no changeset entry (a PR that only
   touches `examples/` still needs an *empty* changeset to satisfy the CI gate;
   see root AGENTS.md).
 - Keep secrets out of git: WiFi creds, tokens, and `DEVICESDK_TOKEN` never get

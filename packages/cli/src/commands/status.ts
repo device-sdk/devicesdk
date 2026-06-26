@@ -38,7 +38,7 @@ function formatLastSeen(status: DeviceStatus): string {
 }
 
 function formatVersion(versionId: string | null): string {
-	if (!versionId) return "—";
+	if (!versionId) return "-";
 	return versionId.slice(0, 8);
 }
 
@@ -49,7 +49,7 @@ export default async function status(
 	try {
 		const token = await requireAuth();
 
-		// Resolve project ID — from flag, or from config file
+		// Resolve project ID - from flag, or from config file
 		let projectId: string;
 		if (options.project) {
 			projectId = options.project;
@@ -103,7 +103,7 @@ export default async function status(
 		}
 
 		// Fetch live status for each device in parallel
-		// Use allSettled so a single device failure doesn't abort the whole command —
+		// Use allSettled so a single device failure doesn't abort the whole command -
 		// failed devices are shown with a warning indicator instead of aborting.
 		const settledStatuses = await Promise.allSettled(
 			devicesToShow.map((d) => getDeviceStatus(token, projectId, d.device_id)),

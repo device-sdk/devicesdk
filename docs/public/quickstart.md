@@ -6,8 +6,8 @@ social_image: /og-images/docs/quickstart.png
 
 ## Prerequisites
 
-- **A running DeviceSDK server** — you host it yourself. [Step 1](#step-1-run-the-server) below stands one up with Docker Compose in a couple of minutes.
-- **Node.js 22 or newer** - [Download Node.js](https://nodejs.org/) — for the CLI.
+- **A running DeviceSDK server** - you host it yourself. [Step 1](#step-1-run-the-server) below stands one up with Docker Compose in a couple of minutes.
+- **Node.js 22 or newer** - [Download Node.js](https://nodejs.org/) - for the CLI.
 
 ## Step 1: Run the Server
 
@@ -17,11 +17,11 @@ DeviceSDK is self-hosted: you run the server, and everything (API, dashboard, de
 docker compose up -d
 ```
 
-Open `http://localhost:8080` in your browser and **create the first account** — the first registered user becomes the admin. After that you can set `ALLOW_REGISTRATION=false` to close signups.
+Open `http://localhost:8080` in your browser and **create the first account** - the first registered user becomes the admin. After that you can set `ALLOW_REGISTRATION=false` to close signups.
 
-The server runs anywhere Docker does — Raspberry Pi, NUC, or NAS. Behind an HTTPS reverse proxy, also set `SECURE_COOKIES=true`. State persists under `DATA_DIR` (`/data` in the container).
+The server runs anywhere Docker does - Raspberry Pi, NUC, or NAS. Behind an HTTPS reverse proxy, also set `SECURE_COOKIES=true`. State persists under `DATA_DIR` (`/data` in the container).
 
-The server advertises itself over **mDNS** as `devicesdk.local`, so once it's up you can reach it at `http://devicesdk.local:8080` from any machine on the LAN — no static IP needed. To run more than one DeviceSDK server on the same network, give each a distinct name with `MDNS_HOSTNAME` (e.g. `devicesdk-garage` → `devicesdk-garage.local`), or set `MDNS_ENABLED=false` to turn it off.
+The server advertises itself over **mDNS** as `devicesdk.local`, so once it's up you can reach it at `http://devicesdk.local:8080` from any machine on the LAN - no static IP needed. To run more than one DeviceSDK server on the same network, give each a distinct name with `MDNS_HOSTNAME` (e.g. `devicesdk-garage` → `devicesdk-garage.local`), or set `MDNS_ENABLED=false` to turn it off.
 
 ## Step 2: Connect the CLI to Your Server
 
@@ -64,7 +64,7 @@ Your scripts are uploaded to your server as a new immutable version, and connect
 
 ## Step 5: Stream Logs
 
-Tail device output directly from the terminal — the recommended debugging workflow after deploying:
+Tail device output directly from the terminal - the recommended debugging workflow after deploying:
 
 ```bash
 npx @devicesdk/cli logs <project-id> <device-id> --tail
@@ -74,7 +74,7 @@ New log entries stream in as they arrive. Press **Ctrl-C** to stop. See [`device
 
 ## Step 6: View in Dashboard
 
-Open your server's URL — `http://localhost:8080` (or your server's hostname) — to reach the dashboard your server serves. From there you can:
+Open your server's URL - `http://localhost:8080` (or your server's hostname) - to reach the dashboard your server serves. From there you can:
 - See your deployed projects
 - Monitor device connections
 - View message logs

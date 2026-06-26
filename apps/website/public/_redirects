@@ -1,0 +1,10 @@
+# Cloudflare Static Assets redirects
+# Format: <from> <to> <status>
+# See apps/website/CLAUDE.md "URL changes require a redirect" — every move/rename
+# of a content file MUST add an entry here so we don't lose Google index signal.
+
+/docs/resources/hardware/         /docs/hardware/        301
+/docs/resources/hardware/:slug    /docs/hardware/:slug   301
+/docs/resources/changelog/        /docs/changelog/       301
+/docs/guides/control-from-browser/ /docs/guides/         301
+/docs                              /docs/                301

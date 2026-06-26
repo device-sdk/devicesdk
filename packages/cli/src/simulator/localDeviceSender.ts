@@ -262,10 +262,10 @@ export class LocalDeviceSender implements DeviceSenderInterface {
 	}
 
 	async persistLog(_level: string, _message: string): Promise<void> {
-		// No-op in local simulator — logs go to console directly
+		// No-op in local simulator - logs go to console directly
 	}
 
 	async emitState(_entityId: string, _value: unknown): Promise<void> {
-		// No-op in local simulator — no watchers to notify
+		// No-op in local simulator - no watchers to notify
 	}
 }

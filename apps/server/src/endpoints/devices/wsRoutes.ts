@@ -24,7 +24,7 @@ interface WatchContext {
 type App = Hono<{ Bindings: Env; Variables: Variables }>;
 
 /**
- * Stable socket adapter — hono may hand a fresh WSContext wrapper to each
+ * Stable socket adapter - hono may hand a fresh WSContext wrapper to each
  * event callback, so sessions key identity off this closure-scoped object.
  */
 function makeStableSocket(): {

@@ -40,11 +40,11 @@ export DEVICESDK_TOKEN=dsdk_…
 devicesdk deploy
 ```
 
-Use a token with the *minimum* scope needed — most CI flows only need `deploy` and `flash`.
+Use a token with the *minimum* scope needed - most CI flows only need `deploy` and `flash`.
 
 ## Switching servers
 
-`DEVICESDK_API_URL` selects which DeviceSDK server the CLI talks to. There is **no default** — it simply overrides the host saved in `~/.devicesdk/credentials.json`. A token issued against one server is **not** accepted by another, so re-run `login` if you switch:
+`DEVICESDK_API_URL` selects which DeviceSDK server the CLI talks to. There is **no default** - it simply overrides the host saved in `~/.devicesdk/credentials.json`. A token issued against one server is **not** accepted by another, so re-run `login` if you switch:
 
 ```bash
 devicesdk login --host http://192.168.1.50:8080
@@ -52,6 +52,6 @@ devicesdk login --host http://192.168.1.50:8080
 
 ## Related
 
-- [`missing_credentials`](/docs/errors/missing_credentials/) — error reference for the unauthenticated path.
-- [`invalid_cli_token`](/docs/errors/invalid_cli_token/) — error reference for the expired/revoked path.
-- [`devicesdk env`](/docs/concepts/env-vars/) — for project-scoped *secrets*; tokens are user-scoped.
+- [`missing_credentials`](/docs/errors/missing_credentials/) - error reference for the unauthenticated path.
+- [`invalid_cli_token`](/docs/errors/invalid_cli_token/) - error reference for the expired/revoked path.
+- [`devicesdk env`](/docs/concepts/env-vars/) - for project-scoped *secrets*; tokens are user-scoped.

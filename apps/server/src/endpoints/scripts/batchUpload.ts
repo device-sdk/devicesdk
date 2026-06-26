@@ -138,7 +138,7 @@ export class BatchUploadScripts extends BaseRoute {
 					// `error` is the canonical contract field the CLI surfaces to
 					// users; `errors` keeps the structured per-device detail.
 					error: `Script validation failed for ${validationResults.length} device(s): ${validationResults
-						.map((v) => `${v.deviceId} — ${v.errors.join("; ")}`)
+						.map((v) => `${v.deviceId} - ${v.errors.join("; ")}`)
 						.join(" | ")}`,
 					errors: validationResults.map((v) => ({
 						device_id: v.deviceId,
@@ -181,7 +181,7 @@ export class BatchUploadScripts extends BaseRoute {
 			existingDevices.map((d) => [d.device_slug, d]),
 		);
 
-		// Enforce device count limit — check how many new devices would be created
+		// Enforce device count limit - check how many new devices would be created
 		const newDeviceCount = deviceIds.filter(
 			(id) => !existingDeviceMap.has(id),
 		).length;

@@ -94,7 +94,7 @@ If push is rejected:
 Create `.local/prep.md`:
 
 ```markdown
-# PR Prepare: #<PR> — <title>
+# PR Prepare: #<PR> - <title>
 
 ## Changes Made
 - <list of fixes applied>
@@ -107,8 +107,8 @@ Create `.local/prep.md`:
 - [x] pnpm check-types
 
 ## Findings Resolved
-- F1 (BLOCKER): <title> — Fixed in <commit>
-- F2 (IMPORTANT): <title> — Fixed in <commit>
+- F1 (BLOCKER): <title> - Fixed in <commit>
+- F2 (IMPORTANT): <title> - Fixed in <commit>
 
 ## Head SHA
 <sha>

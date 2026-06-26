@@ -12,7 +12,7 @@ npm install @devicesdk/core
 
 ### Device entrypoints
 
-Extend the `DeviceEntrypoint` class to write device scripts. Your script runs **in-process on the DeviceSDK server you host** (a Bun runtime) — **not on the microcontroller and not in Node.js**. It receives events from the device over WebSocket and can issue commands back through `this.env.DEVICE`.
+Extend the `DeviceEntrypoint` class to write device scripts. Your script runs **in-process on the DeviceSDK server you host** (a Bun runtime) - **not on the microcontroller and not in Node.js**. It receives events from the device over WebSocket and can issue commands back through `this.env.DEVICE`.
 
 ```typescript
 import { DeviceEntrypoint, type DeviceResponse } from "@devicesdk/core";
@@ -26,7 +26,7 @@ export class MyDevice extends DeviceEntrypoint {
   }
 
   // Called when a response/event is received from the device.
-  // `message` is a discriminated union — narrow on `message.type`.
+  // `message` is a discriminated union - narrow on `message.type`.
   async onMessage(message: DeviceResponse) {
     if (message.type === "pin_state_update") {
       console.log(`Pin ${message.payload.pin} = ${message.payload.value}`);

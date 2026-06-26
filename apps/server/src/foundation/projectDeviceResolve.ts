@@ -6,7 +6,7 @@ import type { AppContext, tableDevices, tableProjects } from "../types";
  * Every device endpoint needs the same two lookups: find the project by
  * `(user_id, project_slug)`, then find the device by `(project_id, device_slug)`.
  * This helper centralizes the pattern and returns a 404 JSON response on either
- * miss — callers must check `instanceof Response` and forward if so.
+ * miss - callers must check `instanceof Response` and forward if so.
  *
  * Usage:
  * ```ts

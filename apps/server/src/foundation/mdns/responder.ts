@@ -2,7 +2,7 @@
 //
 // Self-hosted devices (ESP32/Pico) can then be flashed with a stable hostname
 // like `devicesdk.local:8080` and resolve the server's current LAN IP over
-// mDNS — no static IP required. The advertised name is configurable so several
+// mDNS - no static IP required. The advertised name is configurable so several
 // DeviceSDK servers can coexist on one network (`devicesdk.local`,
 // `devicesdk-2.local`, …).
 //
@@ -72,7 +72,7 @@ export function buildResponseForQuery(
 
 /**
  * Start the responder. Binds the mDNS multicast group, answers matching
- * queries (unicast back to the querier — deterministic and sufficient for the
+ * queries (unicast back to the querier - deterministic and sufficient for the
  * one-shot resolvers in lwIP/ESP-IDF), and sends a gratuitous announcement on
  * start so caches populate before the first query.
  */

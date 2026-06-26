@@ -3,8 +3,7 @@ import type { Env } from "../types";
 /**
  * Deletes every trace of a user: projects, devices, device scripts, script
  * blobs, env vars, tokens, CLI tokens, and sessions. Called from the
- * delete-account endpoint (immediate — the cloud deployment's 7-day grace
- * period does not apply to a self-hosted server).
+ * delete-account endpoint; deletion is immediate with no grace period.
  */
 export async function purgeUserData(env: Env, userId: string): Promise<void> {
 	const projects = await env.DB.prepare(
@@ -30,7 +29,7 @@ export async function purgeUserData(env: Env, userId: string): Promise<void> {
 			.bind(project.id)
 			.run();
 
-		// Script blobs are keyed {userId}/... — delete everything under the
+		// Script blobs are keyed {userId}/... - delete everything under the
 		// project prefix (paginated; list caps each page).
 		const prefix = `${userId}/${project.project_slug}/`;
 		let cursor: string | undefined;

@@ -224,7 +224,7 @@ test.describe("Device details page", () => {
 
       // Logs panel is WS-only since May 2026; the legacy "Live" toggle is gone.
       // What remains: the level filter and an Online/Offline status chip.
-      // Scope to the logs tab panel — there are two other Online/Offline chips
+      // Scope to the logs tab panel - there are two other Online/Offline chips
       // on the page (header + overview "Status" row) that would trip strict mode.
       const logsPanel = page
         .locator(".q-tab-panel")

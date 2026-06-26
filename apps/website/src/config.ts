@@ -1,7 +1,7 @@
 export const SITE_URL = "https://devicesdk.com";
 export const SITE_LANGUAGE = "en-us";
 export const SITE_TITLE =
-	"DeviceSDK — Deploy TypeScript to ESP32 & Raspberry Pi Pico";
+	"DeviceSDK - Deploy TypeScript to ESP32 & Raspberry Pi Pico";
 export const SITE_DESCRIPTION =
 	"Free, open-source, self-hosted IoT platform. Write TypeScript device scripts, run the server on your own hardware (Raspberry Pi, NUC, NAS, Docker), and connect ESP32 & Pi Pico devices over WebSocket.";
 export const DASHBOARD_URL = "/docs/quickstart/";

@@ -84,7 +84,7 @@ export async function getToken(): Promise<
 			return newCredentials.accessToken;
 		} catch (error) {
 			// 4xx from the refresh endpoint means the stored token is no longer
-			// honoured by the server — surface "Session expired" so the CLI can
+			// honoured by the server - surface "Session expired" so the CLI can
 			// print one line instead of the generic "Authentication required".
 			if (
 				error instanceof DeviceSDKApiError &&
@@ -110,12 +110,12 @@ export async function requireAuth(): Promise<string> {
 	const docs = "https://devicesdk.com/docs/cli/login/";
 	if (token === SESSION_EXPIRED) {
 		if (json) {
-			emitJsonError("Session expired — run `devicesdk login`.", {
+			emitJsonError("Session expired - run `devicesdk login`.", {
 				code: "session_expired",
 				docs,
 			});
 		} else {
-			console.error("✗ Session expired — run `devicesdk login`.");
+			console.error("✗ Session expired - run `devicesdk login`.");
 		}
 		process.exit(EXIT.NOT_AUTHENTICATED);
 	}

@@ -327,7 +327,7 @@ describe("applyMigrations", () => {
 		]);
 	});
 
-	test("is idempotent — a second run applies nothing", () => {
+	test("is idempotent - a second run applies nothing", () => {
 		writeFileSync(
 			join(dir, "0001_first.sql"),
 			"CREATE TABLE t1 (id INTEGER PRIMARY KEY);",

@@ -67,11 +67,11 @@ export class Thermometer extends DeviceEntrypoint {
 ## What this demonstrates
 
 - The `ha.entities` array in `devicesdk.ts` declares HA-side metadata (entity_id, type, unit, device_class). DeviceSDK uploads it on `deploy`.
-- `emitState(entity_id, value)` pushes the value to anyone watching — the HA integration, the dashboard, anything subscribed to the device's watch WebSocket.
-- The `source: "user"` flag tells the runtime that values come from your script (rather than being auto-derived from a firmware event like `gpio_state_changed`). For GPIO-backed entities, you'd use `source: "gpio_state_changed"` and add a `pin` field — no `emitState` call needed.
+- `emitState(entity_id, value)` pushes the value to anyone watching - the HA integration, the dashboard, anything subscribed to the device's watch WebSocket.
+- The `source: "user"` flag tells the runtime that values come from your script (rather than being auto-derived from a firmware event like `gpio_state_changed`). For GPIO-backed entities, you'd use `source: "gpio_state_changed"` and add a `pin` field - no `emitState` call needed.
 
 ## Going further
 
-- Add a `binary_sensor` for a wired door reed switch — `source: "gpio_state_changed"`, `pin: 20`, `state_map: { high: "off", low: "on" }`.
-- Add a `light` entity for a WS2812 strip — `source: "user"`, `light_type: "ws2812"`, `num_leds: 30`.
+- Add a `binary_sensor` for a wired door reed switch - `source: "gpio_state_changed"`, `pin: 20`, `state_map: { high: "off", low: "on" }`.
+- Add a `light` entity for a WS2812 strip - `source: "user"`, `light_type: "ws2812"`, `num_leds: 30`.
 - See the [Home Assistant guide](/docs/guides/home-assistant/) for the full entity schema.

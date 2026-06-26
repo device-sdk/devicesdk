@@ -9,7 +9,7 @@ real time.
 
 On a LAN the connection is plain `ws://<server>:<port>`; for a bare hostname it uses TLS on
 443 (`wss://`). The firmware picks plain WS whenever the configured host contains an
-explicit `:port` — see [`main/devicesdk_main.c`](main/devicesdk_main.c) and the root `AGENTS.md`
+explicit `:port` - see [`main/devicesdk_main.c`](main/devicesdk_main.c) and the root `AGENTS.md`
 for the heuristic.
 
 ## You normally don't build this
@@ -22,7 +22,7 @@ devicesdk flash <device>
 
 The CLI downloads the prebuilt image for your board (`esp32-client.bin`,
 `esp32c3-client.bin`, or `esp32c61-client.bin`) and the server patches **your**
-configuration — Wi-Fi SSID/password, API token, server host, and project/device IDs —
+configuration - Wi-Fi SSID/password, API token, server host, and project/device IDs -
 into the binary before flashing it over serial (`esptool`). Prebuilt binaries are
 published to versioned GitHub Releases (tagged `firmware-esp32@vX.Y.Z`) only when
 the changeset "Version packages" PR bumps the firmware version, and bundled into the
@@ -49,7 +49,7 @@ idf.py -p /dev/ttyUSB0 flash monitor
 ```
 
 > The Wi-Fi/token/host/project/device values in [`main/config.h`](main/config.h) are
-> **placeholders**. They are patched per device at `devicesdk flash` time — do not commit
+> **placeholders**. They are patched per device at `devicesdk flash` time - do not commit
 > real credentials here. The onboard LED pin/type is configured via
 > `idf.py menuconfig` → *DeviceSDK Configuration* (defaults are set per target in
 > `sdkconfig.defaults.<target>`).
@@ -62,9 +62,9 @@ app into the per-target `<target>-client.bin` artifacts the CLI flashes (bootloa
 
 ### Onboard LED (boot blink codes)
 
-- **1 blink** — booting.
-- **2 blinks** — Wi-Fi connected.
-- **3 blinks** — connected to the DeviceSDK server.
+- **1 blink** - booting.
+- **2 blinks** - Wi-Fi connected.
+- **3 blinks** - connected to the DeviceSDK server.
 
 After connecting, the LED (virtual **pin 99**) is available for remote control.
 

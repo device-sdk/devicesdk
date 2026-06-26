@@ -1,4 +1,4 @@
-# @devicesdk/cli — DeviceSDK CLI
+# @devicesdk/cli - DeviceSDK CLI
 
 Build, run, deploy, and flash DeviceSDK IoT projects from the command line.
 
@@ -44,12 +44,12 @@ export default defineConfig({
 - Use `--config` or `DEVICESDK_CONFIG` to point to a custom config path.
 
 ## Key commands
-- `login` / `logout` / `whoami` — authenticate via device code flow (tokens in `~/.devicesdk/credentials.json`).
-- `init` — scaffold a config.
-- `build` — esbuild (ESM, es2022, unbundled) into `.devicesdk/build`.
-- `dev` — builds and runs the local simulator; picks a dynamic port if 8181 is busy.
-- `deploy` — builds and uploads scripts; creates the project if missing.
-- `flash` — downloads firmware and copies to a Raspberry Pi Pico in BOOTSEL mode; looks for volumes `RPI-RP2` or `RP2350`. Firmware is saved to `<project>/.devicesdk/firmware/<deviceId>.uf2` before flashing (default timeout 2 minutes).
+- `login` / `logout` / `whoami` - authenticate via device code flow (tokens in `~/.devicesdk/credentials.json`).
+- `init` - scaffold a config.
+- `build` - esbuild (ESM, es2022, unbundled) into `.devicesdk/build`.
+- `dev` - builds and runs the local simulator; picks a dynamic port if 8181 is busy.
+- `deploy` - builds and uploads scripts; creates the project if missing.
+- `flash` - downloads firmware and copies to a Raspberry Pi Pico in BOOTSEL mode; looks for volumes `RPI-RP2` or `RP2350`. Firmware is saved to `<project>/.devicesdk/firmware/<deviceId>.uf2` before flashing (default timeout 2 minutes).
 
 Run `devicesdk --help` or `devicesdk <command> --help` for full options.
 

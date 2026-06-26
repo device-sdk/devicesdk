@@ -21,13 +21,13 @@ export interface DnsQuestion {
 	type: number;
 	/** rrclass with the top (QU) bit masked off. */
 	qclass: number;
-	/** QU bit was set — the querier prefers a unicast response. */
+	/** QU bit was set - the querier prefers a unicast response. */
 	unicast: boolean;
 }
 
 export interface ParsedQuery {
 	id: number;
-	/** QR bit — true for responses, which we ignore. */
+	/** QR bit - true for responses, which we ignore. */
 	isResponse: boolean;
 	questions: DnsQuestion[];
 }
@@ -35,7 +35,7 @@ export interface ParsedQuery {
 /**
  * Parse a DNS message far enough to read its questions. Returns `null` for
  * malformed input (truncated header, name running off the end, bad pointer)
- * rather than throwing — a responder must never crash on a stray packet.
+ * rather than throwing - a responder must never crash on a stray packet.
  */
 export function parseQuery(buf: Uint8Array): ParsedQuery | null {
 	if (buf.length < 12) return null;

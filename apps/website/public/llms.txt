@@ -1,0 +1,95 @@
+# DeviceSDK
+
+> Deploy TypeScript scripts to Raspberry Pi Pico and ESP32 microcontrollers. Devices connect to a managed serverless runtime over WebSocket; your script handles events and issues commands. Targets: Pico W, Pico 2 W, ESP32, ESP32-C3, ESP32-C61.
+
+## Instructions for AI coding agents
+
+- Device scripts run in a **sandboxed serverless runtime**. They are NOT Node.js (no `node:*` imports, no filesystem) and NOT firmware running on the chip.
+- Hardware access goes through `this.env.DEVICE` (typed as `DeviceSenderInterface`). Onboard LED is **virtual pin 99** on every supported board — use it instead of chip-specific GPIO.
+- Inter-device RPC: `await this.env.DEVICES["other-slug"].method()`.
+- Secrets / config: `await this.env.VARS.get("KEY")` (set with `devicesdk env set KEY=VALUE`).
+- Per-device persistent state: `this.env.DEVICE.kv.get` / `.put` / `.delete`.
+- Lifecycle hooks: `onDeviceConnect()`, `onDeviceDisconnect()`, `onMessage(message: DeviceResponse)`, `onCron(name: string)`. The runtime is event-driven — there is no `main()` or polling loop.
+- For periodic work, declare `crons = { name: "<5-field cron in UTC>" }` on your class.
+- Field name in `devicesdk.ts` is `className`, NOT `entrypoint` (renamed; old name is rejected).
+- `dutyCycle` for `setPwmState` is **0..1**, not 0..100.
+- Read `node_modules/@devicesdk/core/AGENTS.md` for version-matched API guidance — your training data may be stale.
+- Per-page Markdown mirrors are available at `<page-url>/index.md` so you can fetch raw docs without parsing HTML.
+
+## Getting started
+
+- [Quickstart](https://devicesdk.com/docs/quickstart/index.md): zero to first deploy in 15 minutes
+- [Your first device](https://devicesdk.com/docs/first-device/index.md): writing a `DeviceEntrypoint` class
+- [Platform architecture](https://devicesdk.com/docs/concepts/architecture/index.md): how scripts, runtime, and firmware connect
+
+## CLI reference
+
+- [`devicesdk init`](https://devicesdk.com/docs/cli/init/index.md): scaffold a new project (also generates AGENTS.md, .mcp.json, .cursor/rules)
+- [`devicesdk dev`](https://devicesdk.com/docs/cli/dev/index.md): start the local simulator
+- [`devicesdk build`](https://devicesdk.com/docs/cli/build/index.md): bundle device scripts and regenerate `devicesdk-env.d.ts`
+- [`devicesdk deploy`](https://devicesdk.com/docs/cli/deploy/index.md): push to production
+- [`devicesdk flash`](https://devicesdk.com/docs/cli/flash/index.md): flash firmware onto a connected board
+- [`devicesdk logs`](https://devicesdk.com/docs/cli/logs/index.md): tail device logs (use `--tail` for streaming, `--json` for ND-JSON)
+- [`devicesdk status`](https://devicesdk.com/docs/cli/status/index.md): show project + device state
+- [`devicesdk inspect`](https://devicesdk.com/docs/cli/inspect/index.md): interactive hardware inspection
+- [`devicesdk login`](https://devicesdk.com/docs/cli/login/index.md): authenticate (also `logout`, `whoami`)
+
+## Concepts
+
+- [Device entrypoints](https://devicesdk.com/docs/concepts/entrypoints/index.md): lifecycle hooks, RPC, KV
+- [Device API surface](https://devicesdk.com/docs/concepts/device-api/index.md): every method on `this.env.DEVICE`, with examples
+- [Environment variables](https://devicesdk.com/docs/concepts/env-vars/index.md): project-scoped secrets via `this.env.VARS`
+- [Cron scheduling](https://devicesdk.com/docs/concepts/cron-scheduling/index.md): `crons = { name: "..." }` and `onCron`
+- [Emit state](https://devicesdk.com/docs/concepts/emit-state/index.md): publish telemetry to dashboard / Home Assistant
+- [Versioning](https://devicesdk.com/docs/concepts/versioning/index.md): immutable deploys
+- [Identifiers](https://devicesdk.com/docs/concepts/identifiers/index.md): how IDs are assigned and used
+- [Rate limits](https://devicesdk.com/docs/concepts/rate-limits/index.md)
+
+## Cookbook (task-shaped recipes)
+
+- [Read a BME280 temperature/humidity sensor](https://devicesdk.com/docs/recipes/read-bme280/index.md)
+- [Post sensor readings to a Discord webhook](https://devicesdk.com/docs/recipes/post-discord-webhook/index.md)
+- [Toggle an LED with a button](https://devicesdk.com/docs/recipes/button-toggles-led/index.md)
+- [Persist a counter across reboots (KV)](https://devicesdk.com/docs/recipes/persist-counter-kv/index.md)
+- [Send a daily summary on cron](https://devicesdk.com/docs/recipes/daily-cron-summary/index.md)
+- [Drive a WS2812 strip with a rainbow](https://devicesdk.com/docs/recipes/ws2812-rainbow/index.md)
+- [Show live data on a small OLED](https://devicesdk.com/docs/recipes/oled-live-data/index.md)
+- [Surface a sensor as a Home Assistant entity](https://devicesdk.com/docs/recipes/sensor-to-home-assistant/index.md)
+- [Two devices talking to each other (RPC)](https://devicesdk.com/docs/recipes/two-devices-rpc/index.md)
+- [Watch a device's state and logs in real time](https://devicesdk.com/docs/recipes/watch-device-logs/index.md)
+
+## Hardware
+
+- [Hardware overview](https://devicesdk.com/docs/hardware/index.md): supported boards and feature matrix
+- [Raspberry Pi Pico W](https://devicesdk.com/docs/hardware/pico-w/index.md)
+- [Raspberry Pi Pico 2 W](https://devicesdk.com/docs/hardware/pico-2-w/index.md)
+- [ESP32 DevKitC](https://devicesdk.com/docs/hardware/esp32/index.md)
+- [ESP32-C3 DevKitM-1](https://devicesdk.com/docs/hardware/esp32-c3/index.md)
+- [ESP32-C61 DevKitC-1](https://devicesdk.com/docs/hardware/esp32-c61/index.md)
+
+## Guides
+
+- [Inter-device communication (RPC)](https://devicesdk.com/docs/guides/inter-device-communication/index.md)
+- [Real-time watch (WebSocket stream)](https://devicesdk.com/docs/guides/real-time-watch/index.md)
+- [Home Assistant integration](https://devicesdk.com/docs/guides/home-assistant/index.md)
+- [Addressable LEDs (WS2812 / NeoPixel)](https://devicesdk.com/docs/guides/addressable-leds/index.md)
+- [Using I2C](https://devicesdk.com/docs/guides/using-i2c/index.md)
+- [Using SPI](https://devicesdk.com/docs/guides/using-spi/index.md)
+- [Using UART](https://devicesdk.com/docs/guides/using-uart/index.md)
+
+## Resources
+
+- [Troubleshooting](https://devicesdk.com/docs/resources/troubleshooting/index.md)
+- [FAQ](https://devicesdk.com/docs/resources/faq/index.md)
+- [Glossary](https://devicesdk.com/docs/resources/glossary/index.md)
+- [Changelog](https://devicesdk.com/docs/changelog/index.md)
+- [REST API (OpenAPI)](https://devicesdk.com/docs/api/openapi.json)
+
+## Agent integrations
+
+- [MCP server (@devicesdk/mcp)](https://devicesdk.com/docs/mcp/index.md): drive DeviceSDK from Claude / Cursor / Continue / Windsurf via Model Context Protocol — install snippets per host, tool reference, auth model
+
+## Optional
+
+- [Full docs as a single file](https://devicesdk.com/llms-full.txt) — every page concatenated, ready to paste into a long-context model
+- [Agent skills manifest](https://devicesdk.com/.well-known/agent-skills/index.json) — discoverable skills following the agentskills.io schema

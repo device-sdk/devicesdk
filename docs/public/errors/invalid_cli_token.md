@@ -8,7 +8,7 @@ social_image: /og-images/docs/errors/invalid_cli_token.png
 
 The request used a `dsdk_*`-prefixed token, but it didn't match any active CLI token in the database. CLI tokens are short-lived; they're paired with refresh tokens and rotate every few hours.
 
-The CLI itself usually handles this transparently — `devicesdk login` writes both an access token and a refresh token to `~/.devicesdk/credentials.json`, and subsequent calls auto-refresh. If you're seeing this code surface, it usually means refresh has also failed.
+The CLI itself usually handles this transparently - `devicesdk login` writes both an access token and a refresh token to `~/.devicesdk/credentials.json`, and subsequent calls auto-refresh. If you're seeing this code surface, it usually means refresh has also failed.
 
 ## Common causes and fixes
 
@@ -20,5 +20,5 @@ The CLI itself usually handles this transparently — `devicesdk login` writes b
 
 ## Related
 
-- [`invalid_token`](../invalid_token/) — generic-token variant of this error.
-- [`missing_credentials`](../missing_credentials/) — no token at all.
+- [`invalid_token`](../invalid_token/) - generic-token variant of this error.
+- [`missing_credentials`](../missing_credentials/) - no token at all.

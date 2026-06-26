@@ -1,7 +1,7 @@
 /**
  * Pure helper functions for cron schedule dispatch logic.
  *
- * These functions contain no I/O and no side effects — they are purely
+ * These functions contain no I/O and no side effects - they are purely
  * computational so they can be unit-tested without a Durable Object context
  * or a LOADER binding.
  *

@@ -98,7 +98,7 @@ export class SetEnvVars extends BaseRoute {
 
 		// Check total count won't exceed limit.
 		// Note: D1 doesn't support cross-statement transactions, so there is a race window
-		// under concurrent requests — two requests at 49 vars can both pass the count check
+		// under concurrent requests - two requests at 49 vars can both pass the count check
 		// and both insert, leaving the project at 51 vars. Accepted tradeoff: the cap may
 		// be exceeded by at most (trulyNewCount - 1) vars under concurrent load.
 		const existingCount = await c.env.DB.prepare(

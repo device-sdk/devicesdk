@@ -192,7 +192,7 @@ describe("listVersions + getVersion", () => {
 		expect(versions[0].is_current).toBe(true);
 		expect(versions[1].is_current).toBe(false);
 		expect(versions[2].is_current).toBe(false);
-		// created_at sorted descending (or equal — uploads can share a ms)
+		// created_at sorted descending (or equal - uploads can share a ms)
 		expect(versions[0].created_at).toBeGreaterThanOrEqual(
 			versions[2].created_at,
 		);

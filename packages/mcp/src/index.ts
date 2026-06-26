@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * @devicesdk/mcp — Model Context Protocol stdio server.
+ * @devicesdk/mcp - Model Context Protocol stdio server.
  *
  * Wraps the `devicesdk` CLI's --json modes as MCP tools so AI coding agents
  * (Claude Code, Cursor, Continue.dev, …) can interact with DeviceSDK projects
@@ -28,7 +28,7 @@ interface CliResult {
 async function runCli(args: string[]): Promise<CliResult> {
 	try {
 		// We pass DEVICESDK_OUTPUT=json instead of appending --json so the call
-		// works for every subcommand uniformly — including the ones (`env set`,
+		// works for every subcommand uniformly - including the ones (`env set`,
 		// `env unset`, `deploy`) that don't declare a `--json` flag and would
 		// otherwise be rejected by Commander as an unknown option.
 		const { stdout } = await execa("devicesdk", args, {

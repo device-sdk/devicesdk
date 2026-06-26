@@ -8,7 +8,7 @@ import { buildDevice } from "./build.js";
 // esbuild runs against scratch files on disk. The validator is the entire
 // reason for the metafile-driven export check, so a mock-based test would
 // only assert what we're testing.
-describe("buildDevice — named-export validator", () => {
+describe("buildDevice - named-export validator", () => {
 	let tmpRoot: string;
 	let entryFile: string;
 	let outDir: string;

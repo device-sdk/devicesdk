@@ -18,8 +18,8 @@ interface LoggerOptions {
 	maxFiles?: number;
 }
 
-// Bind the real console functions at module load — before consoleCapture
-// patches them — so server-side logs are never captured into device logs
+// Bind the real console functions at module load - before consoleCapture
+// patches them - so server-side logs are never captured into device logs
 // (and a failure inside the log-capture path can't recurse).
 const raw = {
 	log: console.log.bind(console),

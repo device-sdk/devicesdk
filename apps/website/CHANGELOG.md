@@ -15,7 +15,7 @@
   - **Public docs (`docs/public/`)**: corrected `troubleshooting.md` (dropped
     "edge script/edge location", Cloudflare-era queues, the dead
     `status.devicesdk.com` status page, the hardcoded port-443 firewall note, and
-    the request-quota framing — the server only rate-limits auth brute-force);
+    the request-quota framing - the server only rate-limits auth brute-force);
     fixed `concepts/env-vars.md` (`DeviceSender` → `DeviceEntrypoint` + import),
     `guides/home-assistant.md` (`defineConfig` import from `@devicesdk/cli`, repo
     URL), `cli/init.md` (documented the real `--no-git` flag, removed the
@@ -30,7 +30,7 @@
     → "Self-hosted"); fixed `export default class` hero/product code samples to
     the required named `export class`; "cloud KV" → "device KV"; rewrote the
     website `README.md` (it still described the old pure-HTML/jQuery/Wrangler
-    setup — it's a Hugo + Tailwind site now, still deployed to Cloudflare Pages).
+    setup - it's a Hugo + Tailwind site now, still deployed to Cloudflare Pages).
     Also pointed every "GitHub" link (the `githubUrl` param, nav/footer menus,
     footer license link, about page, terms/privacy) at the repo
     (`device-sdk/devicesdk-monorepo`) instead of the bare org root, and aligned a
@@ -40,7 +40,7 @@
     `--host`), `@devicesdk/mcp` (`auth.json` → `credentials.json`).
   - **Firmware (`firmware/pico/README.md`)**: rewrote the stale "devicesdk-client"
     README (cloud backend, port 8787, personal absolute paths) and scrubbed the
-    committed Wi-Fi credentials / API tokens it documented. Docs only — no
+    committed Wi-Fi credentials / API tokens it documented. Docs only - no
     firmware behavior change.
   - **Firmware (`firmware/esp32/`)**: rewrote the bare ESP-IDF "Hello World"
     `README.md` into a real DeviceSDK ESP32 firmware doc, rewrote the
@@ -51,7 +51,7 @@
 
 - 87d0c04: Docs & website content pass for the self-hosted, open-source pivot. The
   marketing site, README, and the public docs (`docs/public/`) described the old
-  Cloudflare-hosted, managed-runtime SaaS — they now describe running the
+  Cloudflare-hosted, managed-runtime SaaS - they now describe running the
   DeviceSDK server yourself.
   - **Marketing site**: homepage, product, solutions, about, community, and 404
     repositioned to "free, open-source (AGPL-3.0), self-hosted." Pricing and
@@ -61,7 +61,7 @@
     rewritten for self-hosted software (AGPL-3.0; no service collecting your
     data; no telemetry).
   - **Docs (`docs/public/`)**: architecture, concepts, CLI, quickstart, guides,
-    recipes, resources, and errors rewritten — in-process device runtime on your
+    recipes, resources, and errors rewritten - in-process device runtime on your
     own server (not a "globally distributed serverless runtime"), `devicesdk
 login --host`, `~/.devicesdk/credentials.json`, devices on `ws://<server>:8080`,
     and honest rate-limit/scaling sections. Obsolete `account_suspended` and
@@ -83,7 +83,7 @@ login --host`, `~/.devicesdk/credentials.json`, devices on `ws://<server>:8080`,
   - **Firmware**: ESP32 (`CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES`) and Pico W (`LWIP_IGMP` +
     `LWIP_DNS_SUPPORT_MDNS_QUERIES`) now resolve `.local` hostnames over mDNS, so a device
     flashed with `--host http://devicesdk.local:8080` keeps reaching the server across DHCP
-    lease changes. No connection-logic changes — the existing explicit-port heuristic already
+    lease changes. No connection-logic changes - the existing explicit-port heuristic already
     selects plain `ws://` for LAN hosts.
   - **Docs**: README, quickstart, and the `flash` CLI reference document flashing against the
     mDNS name; the roadmap marks server-side mDNS advertisement as shipped.
@@ -116,7 +116,7 @@ login --host`, `~/.devicesdk/credentials.json`, devices on `ws://<server>:8080`,
     SQLite replace Analytics Engine; plans/tiers/daily message limits removed.
   - Dashboard: local login/registration with first-run setup; served
     same-origin by the server; cost/billing UI removed.
-  - CLI: no default cloud endpoint — connect with `devicesdk login --host
+  - CLI: no default cloud endpoint - connect with `devicesdk login --host
 http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
   - Firmware: Pico gains plain `ws://` support when the host has an explicit
     port (ESP32 already had it); binaries now publish to rolling GitHub
@@ -134,11 +134,11 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
 ### Patch Changes
 
 - 7e66d0f: Infra and quality improvements (no user-visible changes):
-  - **API metrics** — emit Analytics Engine data points for command RPC latency, user-script init time, and Worker Loader failures. New `ANALYTICS` binding declared in `apps/api/wrangler.jsonc` (top-level + `env.production`); thin wrapper at `apps/api/src/foundation/analytics.ts` with three event kinds (`command_rpc`, `script_init`, `loader_failure`) using `event_kind` as the index for cross-cutting queries. Safe with the binding undefined (local dev / tests no-op).
-  - **`@devicesdk/core` unit tests** — add `vitest` to the package with runtime tests for `I2cDevice` and `SSD1306` (constructor defaults, the `esp32c3OledVariant` factory, pixel ops, drawing primitives, sparse encoding) and type-level guards for the `DeviceCommand` / `DeviceResponse` discriminated unions, including the `payload.mode`-discriminated `PinStateUpdate`. Wired into root `pnpm test` and `turbo run test`.
-  - **Pico firmware host tests in CI** — the existing gtest suite under `firmware/pico/test/` (base64, i2c command handlers, display update, ws client) is now built and run in `.github/workflows/firmware-pico.yml`, mirroring the ESP32 pattern. The `build` job depends on `unit-tests` so a regression blocks the firmware build.
-  - **Workflow consolidation** — `dashboard-tests.yml` is merged into `ci.yml` as `Component Tests` and `E2E Tests` jobs (gated on PR events, matching prior behavior). Old workflow file removed. Branch protection: required-status-check names change from `Dashboard Tests / *` to `CI / *` — update settings post-merge.
-  - **PR preview deploys** — new `.github/workflows/preview-deploys.yml` publishes per-PR preview URLs for the dashboard and website using `wrangler versions upload --tag pr-N`, gated on changed paths. Each preview posts (and updates) a sticky PR comment with the URL. Website's `preview_urls` flag flipped to `true` to enable preview URL emission; production traffic still routes via the custom domain.
+  - **API metrics** - emit Analytics Engine data points for command RPC latency, user-script init time, and Worker Loader failures. New `ANALYTICS` binding declared in `apps/api/wrangler.jsonc` (top-level + `env.production`); thin wrapper at `apps/api/src/foundation/analytics.ts` with three event kinds (`command_rpc`, `script_init`, `loader_failure`) using `event_kind` as the index for cross-cutting queries. Safe with the binding undefined (local dev / tests no-op).
+  - **`@devicesdk/core` unit tests** - add `vitest` to the package with runtime tests for `I2cDevice` and `SSD1306` (constructor defaults, the `esp32c3OledVariant` factory, pixel ops, drawing primitives, sparse encoding) and type-level guards for the `DeviceCommand` / `DeviceResponse` discriminated unions, including the `payload.mode`-discriminated `PinStateUpdate`. Wired into root `pnpm test` and `turbo run test`.
+  - **Pico firmware host tests in CI** - the existing gtest suite under `firmware/pico/test/` (base64, i2c command handlers, display update, ws client) is now built and run in `.github/workflows/firmware-pico.yml`, mirroring the ESP32 pattern. The `build` job depends on `unit-tests` so a regression blocks the firmware build.
+  - **Workflow consolidation** - `dashboard-tests.yml` is merged into `ci.yml` as `Component Tests` and `E2E Tests` jobs (gated on PR events, matching prior behavior). Old workflow file removed. Branch protection: required-status-check names change from `Dashboard Tests / *` to `CI / *` - update settings post-merge.
+  - **PR preview deploys** - new `.github/workflows/preview-deploys.yml` publishes per-PR preview URLs for the dashboard and website using `wrangler versions upload --tag pr-N`, gated on changed paths. Each preview posts (and updates) a sticky PR comment with the URL. Website's `preview_urls` flag flipped to `true` to enable preview URL emission; production traffic still routes via the custom domain.
 
 ## 0.1.0
 
@@ -146,8 +146,8 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
 
 - d03b5ae: Major AI-agent-friendliness pass across the SDK so users' coding agents (Claude, Cursor, Copilot, Aider, etc.) can work in DeviceSDK projects with the right context on the first try.
 
-  **`@devicesdk/core`** — additive only:
-  - Ships `AGENTS.md` inside the npm tarball (`node_modules/@devicesdk/core/AGENTS.md`) — version-matched API guidance for agents.
+  **`@devicesdk/core`** - additive only:
+  - Ships `AGENTS.md` inside the npm tarball (`node_modules/@devicesdk/core/AGENTS.md`) - version-matched API guidance for agents.
   - Ships the full `docs/` folder (guides, examples) inside the tarball.
   - JSDoc with runnable `@example` blocks added to every method on `DeviceSenderInterface`. Lifecycle hooks on `DeviceEntrypoint` (`onDeviceConnect`, `onDeviceDisconnect`, `onMessage`, `onCron`) now carry block-comment JSDoc that survives into the `.d.ts`.
   - New: branded ID types (`ProjectId`, `DeviceId`, `ScriptId`, `TokenId`) plus boundary constructors (`asProjectId`, `asDeviceId`, …) for nominal-style ID safety.
@@ -156,30 +156,30 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
   - Expanded npm `keywords` and pointed `homepage` at `/docs/`.
   - Fixed: README hello-world snippet referenced a nonexistent `this.ctx.device.log` API; now uses `console.log` and properly types `onMessage(message: DeviceResponse)`.
 
-  **`@devicesdk/cli`** — additive only:
+  **`@devicesdk/cli`** - additive only:
   - `devicesdk init` now scaffolds `AGENTS.md`, `CLAUDE.md` (one-line `@AGENTS.md`), `.cursor/rules/devicesdk.mdc`, `.mcp.json` (preconfigured for `@devicesdk/mcp`), and a project `README.md`.
-  - `devicesdk init` no longer scaffolds `onMessage(message: any)` — templates use `onMessage(message: DeviceResponse)` and demonstrate inter-device RPC.
+  - `devicesdk init` no longer scaffolds `onMessage(message: any)` - templates use `onMessage(message: DeviceResponse)` and demonstrate inter-device RPC.
   - `devicesdk build` now emits `import type { UserWorkerEnv }` instead of the deprecated `GetEnv` alias in `devicesdk-env.d.ts`.
   - New `--json` flag on `whoami`, `status`, `logs`, `env list` (output `{success, result|error}`). `logs --tail --json` emits NDJSON. `DEVICESDK_OUTPUT=json` works as a global toggle.
   - `DeviceSDKApiError` now carries an optional `docs` URL alongside the existing `code`. `parseErrorBody` extracts both. Added `invalid_cli_token` and `missing_credentials` to the auth-expired set so the CLI surfaces the right "run `devicesdk login`" hint.
   - Help text gained "More: <docs-url>" footers.
 
-  **`@devicesdk/mcp`** — new package:
+  **`@devicesdk/mcp`** - new package:
   - `npx -y @devicesdk/mcp` runs an MCP stdio server exposing 7 tools to coding agents: `devicesdk_whoami`, `devicesdk_status`, `devicesdk_logs_tail`, `devicesdk_env_list`, `devicesdk_env_set`, `devicesdk_deploy`, `devicesdk_docs_search`.
   - Each tool wraps the equivalent `devicesdk <cmd> --json` invocation; auth is inherited from the CLI's `~/.devicesdk/auth.json`.
 
-  **`@devicesdk/api`** — additive only:
+  **`@devicesdk/api`** - additive only:
   - `apps/api/src/foundation/auth.ts` now returns differentiated, machine-readable error codes (`missing_credentials`, `invalid_token`, `invalid_cli_token`, `account_suspended`, `account_deletion_pending`) and a `docs` URL pointing at the new `/docs/errors/<CODE>/` pages, in place of the previous catch-all `"Authentication error"` string.
   - `DeviceSender` (`apps/api/src/durableObjects/lib/deviceSender.ts`) now validates pin/range/I2C/SPI/UART/WS2812 arguments synchronously before round-tripping to firmware. Bad calls (`setGpioState(999, "high")`, `setPwmState(0, 0, 5.0)`, malformed I2C addresses, `pioWs2812Update([[256, 0, 0]])`, etc.) now throw a typed error with `code: "invalid_argument"` and a `docs` URL instead of silently returning a `command_error` event.
 
-  **Behaviour change to note**: scripts that previously relied on `setGpioState(badPin, …)` round-tripping and surfacing as a `command_error` event in `onMessage` will now throw synchronously from the `await` site. Catch the error or fix the argument — the `docs` field on the thrown Error points at the right reference page.
+  **Behaviour change to note**: scripts that previously relied on `setGpioState(badPin, …)` round-tripping and surfacing as a `command_error` event in `onMessage` will now throw synchronously from the `await` site. Catch the error or fix the argument - the `docs` field on the thrown Error points at the right reference page.
 
-  **`@devicesdk/website`** — content + agent affordances:
+  **`@devicesdk/website`** - content + agent affordances:
   - `/llms.txt` (curated index) and `/llms-full.txt` (full doc concat) now generated by Hugo. Per-page Markdown mirrors land at `<page-url>/index.md` so agents can fetch raw docs without parsing HTML.
   - New cookbook at `/docs/recipes/` with 10 task-shaped, single-page recipes (BME280, button→LED, KV counter, daily cron summary, WS2812 rainbow, OLED display, Discord webhook, HA entity, two-device RPC, watch device logs).
   - New CLI doc pages: `/docs/cli/dev/`, `/docs/cli/build/`, `/docs/cli/login/`. New guide `/docs/guides/using-i2c/`. New single-page reference `/docs/concepts/device-api/`. New error reference under `/docs/errors/`.
   - Changelog moved from `/docs/resources/changelog/` to `/docs/changelog/` (301 redirect added).
-  - Fixed `/docs/concepts/architecture/` page that documented a fictional `gpio_write` message protocol — now shows the real `set_gpio_state` shape and the typed helper `setGpioState`.
+  - Fixed `/docs/concepts/architecture/` page that documented a fictional `gpio_write` message protocol - now shows the real `set_gpio_state` shape and the typed helper `setGpioState`.
   - Fixed `/docs/quickstart/` page that had two `## Step 4` headings.
 
 - 8cc830a: Add modern motion across all marketing pages: drifting gradient mesh in heroes, staggered scroll reveals, card-lift hover, button shimmer, animated gradient headline accent, and a live-pulse on the "Private Beta" badge. Introduces a scroll-driven assembly scene on the homepage where TypeScript editor → CLI → edge runtime → ESP32 device fly in and connect with a packet streaming along an animated WebSocket beam. All motion respects `prefers-reduced-motion`. Documents the new motion vocabulary in `apps/website/CLAUDE.md`.
@@ -194,25 +194,25 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
 
 ### Patch Changes
 
-- 71aedb1: **Manual migration required:** in every `devicesdk.ts`, rename the `entrypoint:` field to `className:`. There is no alias — `devicesdk build/dev/deploy/flash` will fail fast with a rename hint until the file is updated. Also rename `pin_state` → `pin_state_update` if you have firmware older than this release flashed to a device.
+- 71aedb1: **Manual migration required:** in every `devicesdk.ts`, rename the `entrypoint:` field to `className:`. There is no alias - `devicesdk build/dev/deploy/flash` will fail fast with a rename hint until the file is updated. Also rename `pin_state` → `pin_state_update` if you have firmware older than this release flashed to a device.
 
-  Consolidated DX refactor — closes a half-dozen first-day pit-of-failure traps in the scaffold/build/flash flow:
-  - **@devicesdk/cli (BREAKING)**: rename the device config field `entrypoint` → `className`. The old field name was misleading (it sounds like a file path; it was actually a class name). No alias — projects that still reference `entrypoint` get a clear migration error from config parse. The scaffold (`devicesdk init`) now writes `main`, `className`, `deviceType`, and `wifi` placeholders together, producing a config that validates out of the box. Wifi placeholders (`YOUR_WIFI_SSID`, `YOUR_WIFI_PASSWORD`) are rejected at config parse so you can't accidentally deploy with the scaffold defaults.
+  Consolidated DX refactor - closes a half-dozen first-day pit-of-failure traps in the scaffold/build/flash flow:
+  - **@devicesdk/cli (BREAKING)**: rename the device config field `entrypoint` → `className`. The old field name was misleading (it sounds like a file path; it was actually a class name). No alias - projects that still reference `entrypoint` get a clear migration error from config parse. The scaffold (`devicesdk init`) now writes `main`, `className`, `deviceType`, and `wifi` placeholders together, producing a config that validates out of the box. Wifi placeholders (`YOUR_WIFI_SSID`, `YOUR_WIFI_PASSWORD`) are rejected at config parse so you can't accidentally deploy with the scaffold defaults.
   - **@devicesdk/cli**: scaffold templates now use named exports (`export class Device extends DeviceEntrypoint`). The Worker bundler imports user classes by name; a `export default class` produced a confusing "No matching export" error at deploy time. `devicesdk build` now validates the user file's exports up front and surfaces a tailored fix-up hint when the named export is missing.
-  - **@devicesdk/cli**: scaffold `tsconfig.json` no longer sets `rootDir: "./src"` — that conflicted with `include: ["devicesdk.ts"]` (a root-level file) and broke `tsc --noEmit` on a fresh project.
+  - **@devicesdk/cli**: scaffold `tsconfig.json` no longer sets `rootDir: "./src"` - that conflicted with `include: ["devicesdk.ts"]` (a root-level file) and broke `tsc --noEmit` on a fresh project.
   - **@devicesdk/cli + @devicesdk/api**: `devicesdk flash` now surfaces a tailored error when the API has no firmware artifact published for a Zod-accepted device_type. The API returns `code: "FIRMWARE_NOT_PUBLISHED"`; the CLI prints "Firmware for X is not yet published" with a build-from-source pointer instead of a bare 404.
-  - **@devicesdk/core**: `PinStateUpdate` is now a discriminated union by `payload.mode` — digital reads carry `value: "high" | "low"`, analog reads carry `value: number`. Aligns the typed contract with what firmware actually emits. Firmware (Pico + ESP32) now emits the `pin_state_update` discriminator that types and consumers (DO broadcaster, dashboard) already expected; the previous `pin_state` mismatch silently dropped state events.
-  - **@devicesdk/core**: ship `SSD1306.esp32c3OledVariant()` static factory — the 72×40 0.42″ panel always needs `columnOffset: 28`. Replaces the magic-number copy/paste in the docs.
+  - **@devicesdk/core**: `PinStateUpdate` is now a discriminated union by `payload.mode` - digital reads carry `value: "high" | "low"`, analog reads carry `value: number`. Aligns the typed contract with what firmware actually emits. Firmware (Pico + ESP32) now emits the `pin_state_update` discriminator that types and consumers (DO broadcaster, dashboard) already expected; the previous `pin_state` mismatch silently dropped state events.
+  - **@devicesdk/core**: ship `SSD1306.esp32c3OledVariant()` static factory - the 72×40 0.42″ panel always needs `columnOffset: 28`. Replaces the magic-number copy/paste in the docs.
   - **@devicesdk/website**: ESP32-C3 docs use the new `SSD1306.esp32c3OledVariant()` preset and note that the prebuilt `esp32c3-client.bin` may not be promoted yet (build from source in the meantime).
   - **@devicesdk/dashboard**: dashboard temperature template narrows on `payload.mode === 'analog'` to type-check against the new `PinStateUpdate` union.
 
-- 394d469: UX fixes batched from a new-user trial — eight small papercuts, one PR:
+- 394d469: UX fixes batched from a new-user trial - eight small papercuts, one PR:
   - **@devicesdk/cli**: `loadConfig` / `getConfigDir` now walk up parent directories to find `devicesdk.ts`, so `deploy`, `dev`, `flash`, `logs`, `status`, `inspect`, and `env` work from any subdirectory of a project. `--config` and `DEVICESDK_CONFIG` still short-circuit the walk.
-  - **@devicesdk/cli**: `devicesdk logs` accepts optional positionals — both default from `devicesdk.ts`. With one positional it's treated as the device slug (project comes from config); with two, it's `[project] [device]` as before. Multi-device projects without a positional get a friendly "pass one as positional" error listing the available device slugs.
-  - **@devicesdk/cli**: 4xx response bodies are no longer dumped to stderr on every API error. Auth-revoked sessions now print one line — `Session expired — run \`devicesdk login\`.`— instead of`Response body (401): { ... }`followed by paragraph-long advice. Run with`--verbose`to keep the raw dump for debugging. The`downloadDeviceFirmware`path picks up the same treatment, so`flash` is quieter on auth/server errors.
+  - **@devicesdk/cli**: `devicesdk logs` accepts optional positionals - both default from `devicesdk.ts`. With one positional it's treated as the device slug (project comes from config); with two, it's `[project] [device]` as before. Multi-device projects without a positional get a friendly "pass one as positional" error listing the available device slugs.
+  - **@devicesdk/cli**: 4xx response bodies are no longer dumped to stderr on every API error. Auth-revoked sessions now print one line - `Session expired - run \`devicesdk login\`.`- instead of`Response body (401): { ... }`followed by paragraph-long advice. Run with`--verbose`to keep the raw dump for debugging. The`downloadDeviceFirmware`path picks up the same treatment, so`flash` is quieter on auth/server errors.
   - **@devicesdk/cli**: `flash` permission-denied error mentions the Arch Linux `uucp` group (not just Debian's `dialout`) and links to the docs page that ships a persistent `99-devicesdk-serial.rules` snippet.
   - **@devicesdk/api**: the device runtime no longer prepends `[<projectId>:<deviceId>]` to every `console.log/info/warn/error/debug` call. Persisted log entries were already prefix-free; this drops the redundant tag from Wrangler tail / runtime stdout. Devices already carry their identity via the watcher URL.
-  - **@devicesdk/simulation**: when the local dev server restarts after a file edit, the simulator UI now auto-reconnects with exponential backoff (1 s → 30 s) and shows a "Local server restarted — reconnecting…" banner instead of silently going dead until the user refreshes the browser.
+  - **@devicesdk/simulation**: when the local dev server restarts after a file edit, the simulator UI now auto-reconnects with exponential backoff (1 s → 30 s) and shows a "Local server restarted - reconnecting…" banner instead of silently going dead until the user refreshes the browser.
   - **@devicesdk/website**: new `concepts/identifiers` page explains project slug vs device slug vs the underlying UUIDs in one place. The CLI reference index now points at it. The `flash` page documents serial-port permissions for both Debian-style (`dialout`) and Arch (`uucp`) systems, ships a copy-pasteable `99-devicesdk-serial.rules` udev snippet for CP210x / CH340 / FTDI bridges, and adds a "Verify connectivity" subsection pointing at `devicesdk status` after the LED sequence. The pin-read example on the first-device page is now a complete copy-pasteable snippet showing how to discriminate digital vs analog reads.
 
 ## 0.0.4
@@ -222,17 +222,17 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
 - fd6e829: ESP32-C3 0.42″ OLED ergonomics + local-dev fixes:
   - **firmware/esp32**: paint boot status (`Booting` → `WiFi` → `Server`) on the on-board OLED for FN4 / "0.42 OLED" boards. The firmware probes `0x3C` at boot via `i2c_master_probe`; boards without an OLED (DevKitM-1) get a fast NACK and silently skip. Replaces the WS2812-only feedback that was invisible on FN4 boards (no LED wired to GPIO 8).
   - **firmware/esp32**: detect plain-HTTP local API hosts (`<lan-ip>:<port>`) and dial `ws://` instead of `wss://`, so flashing against `localhost:8787` works without a TLS cert.
-  - **@devicesdk/api**: throw an explicit error from the `/v1/auth/google` route when `GOOGLE_ID`/`GOOGLE_SECRET` are missing — Sentry captures the misconfiguration cleanly instead of returning a generic chanfana validation error.
+  - **@devicesdk/api**: throw an explicit error from the `/v1/auth/google` route when `GOOGLE_ID`/`GOOGLE_SECRET` are missing - Sentry captures the misconfiguration cleanly instead of returning a generic chanfana validation error.
   - **@devicesdk/core**: update `columnOffset` comments to point at `28` (most common on FN4 0.42″ boards) and note `30`/`32` variants exist.
   - **@devicesdk/website**: document `columnOffset: 28` for the 0.42″ 72×40 panel and add a troubleshooting note for the leftmost vertical-stripe artifact (panel-offset mismatch / stale RAM).
 
 - c19ce77: Logs-quota runaway fix + layered rate-limit defense:
-  - **@devicesdk/api (breaking)**: deprecate `GET /v1/projects/:projectId/devices/:deviceId/logs` — the endpoint now returns `410 Gone` with `Link: …/watch>; rel="alternate"` and `code: "LOGS_DEPRECATED"`. The corresponding DO RPC `BaseDevice.getLogs` throws on call. A stale CLI `--tail` polling loop in May 2026 burned the daily Durable Object rows-read free-tier quota in ~5 hours each day; the polling pattern is now structurally impossible.
+  - **@devicesdk/api (breaking)**: deprecate `GET /v1/projects/:projectId/devices/:deviceId/logs` - the endpoint now returns `410 Gone` with `Link: …/watch>; rel="alternate"` and `code: "LOGS_DEPRECATED"`. The corresponding DO RPC `BaseDevice.getLogs` throws on call. A stale CLI `--tail` polling loop in May 2026 burned the daily Durable Object rows-read free-tier quota in ~5 hours each day; the polling pattern is now structurally impossible.
   - **@devicesdk/api**: watcher WebSocket (`/watch`) gains `?backfillLimit=N&backfillLevel=warn` query parameters. On connect the server emits up to N replay frames (`{ event: "log", data, replay: true }`, oldest-first) followed by a single `{ event: "history_complete" }` marker, then live broadcasts as before. One SQL scan per connection instead of per HTTP poll.
-  - **@devicesdk/api**: add `TieredCache` (`caches.default` L1 → KV L2 with back-fill) and a single `CACHE` KV namespace. Two consumers: `userBlockListMiddleware` (mounted post-auth — 429s blocked users at the edge of the worker without touching D1 or the DO) and `authCache.ts` (caches `authenticateUser` lookups for 60 s, dropping ~95% of D1 reads per request on active tokens). Logout / onboarding completion / account-deletion request all invalidate the entry.
+  - **@devicesdk/api**: add `TieredCache` (`caches.default` L1 → KV L2 with back-fill) and a single `CACHE` KV namespace. Two consumers: `userBlockListMiddleware` (mounted post-auth - 429s blocked users at the edge of the worker without touching D1 or the DO) and `authCache.ts` (caches `authenticateUser` lookups for 60 s, dropping ~95% of D1 reads per request on active tokens). Logout / onboarding completion / account-deletion request all invalidate the entry.
   - **@devicesdk/api**: when the per-user rate limit fires, also write a 1-hour cross-route block to `CACHE` so subsequent requests 429 immediately. Per-user rate limit is now scoped to `/logs` only (other routes are protected by tier limits inside their handlers and the WAF rule below).
   - **@devicesdk/cli (breaking)**: `devicesdk logs` and `devicesdk logs --tail` now use the watcher WebSocket exclusively. Both modes accept `--lines` and `--level`; the polling loop is gone. `--tail` reconnects with exponential backoff (1 s → 30 s) and bails with a non-zero exit code after 5 consecutive failures.
-  - **@devicesdk/dashboard**: device logs panel migrates to WS-only. `useDeviceStream` accepts `{ backfillLimit, backfillLevel }` and exposes a `historyLoaded` ref; the panel shows a "Loading recent logs…" spinner until `history_complete` fires. The "Live" toggle and "Load More" button are removed — backfill + live are one stream.
+  - **@devicesdk/dashboard**: device logs panel migrates to WS-only. `useDeviceStream` accepts `{ backfillLimit, backfillLevel }` and exposes a `historyLoaded` ref; the panel shows a "Loading recent logs…" spinner until `history_complete` fires. The "Live" toggle and "Load More" button are removed - backfill + live are one stream.
   - **@devicesdk/website**: documents the manual Cloudflare WAF rate-limit rule under `docs/internal/operations/cloudflare-waf.md` and the new auth-cache / block-list architecture in CLAUDE.md.
 
   **Manual deploy steps** (also in the PR description):
@@ -253,7 +253,7 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
 
 - 770f48d: Publish agent-readiness metadata: `/.well-known/oauth-protected-resource` (RFC 9728) describing the API's bearer-token auth surface, an `oauth-protected-resource` Link header and api-catalog entry so agents can discover it, and a WebMCP `search_docs` tool (via `navigator.modelContext.provideContext`) that proxies to the existing docs AI-Search MCP instance.
 
-  OIDC discovery and an OAuth authorization-server metadata document are deliberately not published — DeviceSDK does not operate an OAuth authorization server, so advertising one would mislead agents.
+  OIDC discovery and an OAuth authorization-server metadata document are deliberately not published - DeviceSDK does not operate an OAuth authorization server, so advertising one would mislead agents.
 
 ## 0.0.2
 
@@ -268,13 +268,13 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
 ### Patch Changes
 
 - 769f12d: Swap the DeviceSDK logo to the new chip-braces mark (DIP silhouette with `{ }` braces on the die). Three coordinated SVG variants from the brand package are now wired up:
-  - **Containerized favicon** (rounded-black square w/ white chip) — serves `apps/website/static/logo.svg` (browser tab, `/api/docs` favicon, OG card source) and `apps/dashboard/public/favicon.svg` (browser tab, in-app header, drawer, login page).
-  - **Inverse mark** (white chip, transparent bg) — serves `apps/website/assets/logo.svg`, rendered in the website's dark navbar and footer.
-  - **Primary mark** — stored at `.brand/` alongside the full brand spec HTML for future use.
+  - **Containerized favicon** (rounded-black square w/ white chip) - serves `apps/website/static/logo.svg` (browser tab, `/api/docs` favicon, OG card source) and `apps/dashboard/public/favicon.svg` (browser tab, in-app header, drawer, login page).
+  - **Inverse mark** (white chip, transparent bg) - serves `apps/website/assets/logo.svg`, rendered in the website's dark navbar and footer.
+  - **Primary mark** - stored at `.brand/` alongside the full brand spec HTML for future use.
 
   Also:
   - Inline the OG-card logo SVG directly in `apps/website/generate-og.js` so social-card regeneration no longer fetches `https://devicesdk.com/logo.svg` at build time.
-  - Delete 46 stale pre-rendered OG PNGs under `apps/website/static/og-images/` — they regenerate on the next `pnpm build --filter @devicesdk/website` with the new mark.
+  - Delete 46 stale pre-rendered OG PNGs under `apps/website/static/og-images/` - they regenerate on the next `pnpm build --filter @devicesdk/website` with the new mark.
   - Remove the dead lightning-bolt fallback branch in the website `header.html` / `footer.html` Hugo partials; the logo resource has existed for some time.
 
 - e53d79f: Add ESP32-C3 as a supported device type.
@@ -286,7 +286,7 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
 - f1aa0ee: Split the combined Hardware Compatibility page into one page per board and promote Hardware to a top-level docs section.
   - New URLs: `/docs/hardware/` (hub with cross-board feature matrix), `/docs/hardware/pico-w/`, `/docs/hardware/pico-2w/`, `/docs/hardware/esp32/`, `/docs/hardware/esp32-c3/`, `/docs/hardware/esp32-c61/`.
   - The old `/docs/resources/hardware/` URL now meta-refreshes to `/docs/hardware/` (Hugo alias) so external links keep working.
-  - Adds a dedicated ESP32-C3 page — previously the board was supported in firmware but had no documentation entry.
+  - Adds a dedicated ESP32-C3 page - previously the board was supported in firmware but had no documentation entry.
   - Sidebar on docs pages now shows Hardware as its own section with six links (Overview + 5 boards); the Hardware Compatibility entry moves out of Resources.
   - Cross-page links in `/docs/cli/flash/`, the SPI/UART/addressable-LED guides, and the docs index updated to the new URL.
 
@@ -298,6 +298,6 @@ http://<server>:8080` (stored in credentials) or `DEVICESDK_API_URL`.
 
   Implemented via a static `apps/website/static/_headers` file (honored by Cloudflare Workers Assets) and a static linkset JSON at `apps/website/static/.well-known/api-catalog`.
 
-  Also collapse `robots.txt` to a single wildcard `User-agent: *` group with a `Content-Signal: ai-train=yes, search=yes, ai-input=yes` line, replacing the per-bot enumeration. Stance is unchanged — fully open to every crawler, AI included.
+  Also collapse `robots.txt` to a single wildcard `User-agent: *` group with a `Content-Signal: ai-train=yes, search=yes, ai-input=yes` line, replacing the per-bot enumeration. Stance is unchanged - fully open to every crawler, AI included.
 
   Stop rendering `/docs/roadmap/` on the public site. The `docs/ROADMAP.md` source file stays in the repo for internal reference but is excluded from the build via Hugo's `build.render: never` frontmatter.

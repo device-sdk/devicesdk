@@ -108,7 +108,7 @@ describe("SSD1306", () => {
 
 		it("invert flips every byte", () => {
 			const d = new SSD1306({ address: "0x3C" });
-			// Buffer starts all zero — invert → all 0xff
+			// Buffer starts all zero - invert → all 0xff
 			d.invert();
 			expect(d.getBuffer().every((b) => b === 0xff)).toBe(true);
 			d.invert();

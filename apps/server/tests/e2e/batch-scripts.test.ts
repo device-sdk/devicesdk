@@ -30,7 +30,7 @@ beforeAll(async () => {
 
 afterAll(() => srv.stop());
 
-describe("batch upload — happy path", () => {
+describe("batch upload - happy path", () => {
 	test("uploads scripts for multiple devices in one project (auto-creates devices)", async () => {
 		const res = await srv.put(batchPath(), {
 			token,
@@ -100,7 +100,7 @@ describe("batch upload — happy path", () => {
 	});
 });
 
-describe("batch upload — validation failures (per-item reporting)", () => {
+describe("batch upload - validation failures (per-item reporting)", () => {
 	test("one invalid script among valid ones fails the whole batch atomically (400) with per-device errors", async () => {
 		const res = await srv.put(batchPath(), {
 			token,
@@ -167,7 +167,7 @@ describe("batch upload — validation failures (per-item reporting)", () => {
 	});
 });
 
-describe("batch upload — device slug format validation", () => {
+describe("batch upload - device slug format validation", () => {
 	test("an invalid device slug key → 400 before any work", async () => {
 		const res = await srv.put(batchPath(), {
 			token,
@@ -188,7 +188,7 @@ describe("batch upload — device slug format validation", () => {
 	});
 });
 
-describe("batch upload — project not found", () => {
+describe("batch upload - project not found", () => {
 	test("valid scripts but unknown project → 404", async () => {
 		const res = await srv.put(batchPath("no-such-project"), {
 			token,

@@ -78,7 +78,7 @@ export const usePinStateStore = defineStore("pinState", () => {
 		s.monitoring = monitoring;
 		// Seed the rest state directly (pull-up → HIGH, pull-down → LOW). Real
 		// hardware doesn't emit an edge event when a pull resistor is engaged,
-		// so we must bypass digitalChangeHandlers here — otherwise the firmware
+		// so we must bypass digitalChangeHandlers here - otherwise the firmware
 		// would receive a phantom gpio_state_changed on the first configure call.
 		if (monitoring.enabled && monitoring.pull !== "none") {
 			s.digitalState = monitoring.pull === "up" ? "high" : "low";

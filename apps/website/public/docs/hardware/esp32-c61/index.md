@@ -1,0 +1,85 @@
+---
+title: "ESP32-C61"
+description: "Single-core RISC-V with WiFi 6 and WS2812 via SPI backend"
+---
+
+# ESP32-C61
+
+> Single-core RISC-V with WiFi 6 and WS2812 via SPI backend
+
+
+The ESP32-C61 is Espressif's single-core RISC-V chip with 2.4 GHz WiFi 6 (802.11ax). It's the newest board in the DeviceSDK lineup, and the first with WiFi 6 support. Unlike the [ESP32-C3](/docs/hardware/esp32-c3/), the C61 has no RMT peripheral — DeviceSDK drives WS2812 addressable LEDs through the SPI backend instead.
+
+## Specs
+
+- **Chip**: ESP32-C61 (single-core RISC-V @ 160 MHz)
+- **RAM**: 256 KB SRAM
+- **Flash**: 4 MB typical
+- **WiFi**: 2.4 GHz 802.11 b/g/n/ax (**WiFi 6**)
+- **GPIO**: 22 pins
+- **ADC**: ADC1 (7 channels usable, 12-bit)
+- **PWM**: LEDC, 13-bit (shares timer `LEDC_TIMER_0` across all channels)
+- **I2C**: 1 controller
+- **SPI**: 2 controllers (SPI2 usable; also backs WS2812)
+- **UART**: 2 ports
+
+## Pin mapping
+
+Standard GPIO pin numbers. The ESP32-C61-DevKitC-1 reference board has its onboard WS2812 LED on **GPIO 5**.
+
+```typescript
+// ESP32-C61-DevKitC-1 onboard WS2812 LED
+await this.env.DEVICE.pioWs2812Configure(5, 1);
+await this.env.DEVICE.pioWs2812Update([[0, 64, 0]]); // dim green
+```
+
+## Feature support
+
+- ✅ GPIO digital I/O
+- ✅ GPIO input monitoring (pull up/down/none)
+- ✅ PWM (LEDC, 13-bit — **all channels share LEDC_TIMER_0**)
+- ✅ ADC — **ADC1 only**; ADC2 is unavailable whenever WiFi is active (all 10 ADC2 channels blocked)
+- ✅ I2C master — 1 bus, up to 16 cached device handles
+- ✅ I2C batch write
+- ✅ OLED display (SSD1306 / SH1106) via the drawing API in `@devicesdk/core`
+- ✅ SPI master (SPI2_HOST)
+- ✅ UART serial — 2 ports
+- ✅ On-die temperature sensor
+- ✅ Watchdog timer
+- ✅ Addressable LEDs (WS2812) via **SPI2 backend** — no RMT peripheral on C61
+- ✅ Device reboot
+
+## Platform-specific notes
+
+- **SPI2 serves double duty.** The same SPI2 host drives both your SPI peripherals and the WS2812 LED strip. If you need both, plan pin usage carefully.
+- **Shared LEDC timer.** All PWM channels share a single LEDC timer, so changing the frequency on one channel affects the others. Pick one frequency per project and stick to it.
+- **ADC2 is off-limits with WiFi.** All 10 ADC2 channels return errors while WiFi is up. Use ADC1 channels only.
+- **I2C handle cache.** The firmware caches up to 16 I2C device handles per bus, so repeated transactions to the same address are fast.
+- **Bootloader offset `0x0`.** Same layout as ESP32-C3. Pre-built artifact is `iotkit-client.bin`; see the [local flashing section in CLAUDE.md](/docs/cli/flash/#esp32-flashing-process) for the exact flash layout.
+
+## Flashing
+
+```bash
+pip install esptool
+devicesdk flash <device-id>
+```
+
+The DevKitC-1 auto-resets via USB-JTAG. For local dev (to avoid the checksum-invalidating binary patch), build from source:
+
+```bash
+cd firmware/esp32
+source ~/esp/esp-idf/export.sh
+idf.py build
+python -m esptool --chip esp32c61 -b 460800 --before default_reset --after hard_reset \
+  write_flash 0x0 build/bootloader/bootloader.bin \
+              0x8000 build/partition_table/partition-table.bin \
+              0x10000 build/iotkit-client.bin
+```
+
+See the [flash command reference](/docs/cli/flash/#esp32-flashing-process) for the canonical walkthrough.
+
+## Where to buy
+
+- [Espressif ESP32-C61-DevKitC-1](https://www.espressif.com/en/products/devkits) — reference board with onboard WS2812 on GPIO 5.
+- Resellers: [Adafruit](https://www.adafruit.com/), [SparkFun](https://www.sparkfun.com/), [Pimoroni](https://shop.pimoroni.com/).
+

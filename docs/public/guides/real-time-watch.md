@@ -2,7 +2,7 @@
 title: Real-Time Watch WebSocket
 description: >-
   Subscribe to a device's status, logs, and structured state events over a
-  single long-lived WebSocket — the same primitive the dashboard and Home
+  single long-lived WebSocket - the same primitive the dashboard and Home
   Assistant integration use.
 social_image: /og-images/docs/guides/real-time-watch.png
 ---
@@ -11,9 +11,9 @@ social_image: /og-images/docs/guides/real-time-watch.png
 
 The watch WebSocket is the canonical way to subscribe to a device's real-time events. A single connection delivers three categories of event:
 
-- `status` — device connected/disconnected
-- `log` — log entries from user code
-- `state` — structured entity state changes (GPIO input, temperature, custom telemetry)
+- `status` - device connected/disconnected
+- `log` - log entries from user code
+- `state` - structured entity state changes (GPIO input, temperature, custom telemetry)
 
 The endpoint is designed for always-on subscribers: the connection stays open between hardware events, so a dashboard tab, Home Assistant instance, or background watchdog can stay subscribed to your server indefinitely. Sessions live for the lifetime of the server process and keep serving watchers even while a device is offline.
 
@@ -34,8 +34,8 @@ Each frame arrives as a single JSON object:
 
 ## Authentication
 
-- **Browser** — the browser sends the session cookie automatically on the WebSocket upgrade. No extra work.
-- **API token** — pass the token as a query parameter: `ws://<server>:8080/v1/projects/.../watch?token=dsdk_...`. This is how the Home Assistant integration authenticates.
+- **Browser** - the browser sends the session cookie automatically on the WebSocket upgrade. No extra work.
+- **API token** - pass the token as a query parameter: `ws://<server>:8080/v1/projects/.../watch?token=dsdk_...`. This is how the Home Assistant integration authenticates.
 
 ## Quick test with `websocat`
 
@@ -65,4 +65,4 @@ State events are the structured alternative to parsing log text. The runtime aut
 - `pin_state_update` → `entity_id: "gpio_pin_<pin>_analog"`
 - `temperature_result` → `entity_id: "temperature"`
 
-User code can also emit custom state events from device scripts with `this.env.DEVICE.emitState(entity_id, value)` — see [Emit State](/docs/concepts/emit-state/) for details.
+User code can also emit custom state events from device scripts with `this.env.DEVICE.emitState(entity_id, value)` - see [Emit State](/docs/concepts/emit-state/) for details.

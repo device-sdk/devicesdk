@@ -13,7 +13,7 @@ export const scriptTemplates = [
 
 export const templateCode: Record<string, string> = {
   blink: `/**
- * Basic Blink — toggles the onboard LED every second.
+ * Basic Blink - toggles the onboard LED every second.
  *
  * Works out of the box on any DeviceSDK-supported board.
  * Pin 99 is the virtual onboard LED (no wiring required).
@@ -28,7 +28,7 @@ export default class BlinkDevice extends DeviceEntrypoint {
   private ledOn = false;
 
   async onDeviceConnect() {
-    console.info('Device connected — starting blink');
+    console.info('Device connected - starting blink');
     this.ledOn = false;
     await this.env.DEVICE.setGpioState(LED_PIN, 'low');
 
@@ -44,11 +44,11 @@ export default class BlinkDevice extends DeviceEntrypoint {
       clearInterval(this.blinkTimer);
       this.blinkTimer = null;
     }
-    console.info('Device disconnected — blink stopped');
+    console.info('Device disconnected - blink stopped');
   }
 }`,
   temperature: `/**
- * Temperature Monitor — reads an analog temperature sensor on an interval
+ * Temperature Monitor - reads an analog temperature sensor on an interval
  * and logs the value in °C and °F.
  *
  * Wiring (MCP9700A or compatible):
@@ -102,7 +102,7 @@ export default class TemperatureMonitor extends DeviceEntrypoint {
   }
 }`,
   i2c: `/**
- * I2C Sensor Reader — reads temperature and pressure from a BMP280 sensor.
+ * I2C Sensor Reader - reads temperature and pressure from a BMP280 sensor.
  *
  * Wiring (BMP280 breakout board):
  *   SDA → GP0
@@ -134,7 +134,7 @@ export default class I2CSensorReader extends DeviceEntrypoint {
 
     // BMP280: set normal mode + 1x oversampling for temp + pressure (0xB7 → ctrl_meas reg 0xF4)
     await this.env.DEVICE.i2cWrite(I2C_BUS, BMP280_ADDRESS, ['0xF4', '0xB7']);
-    console.info('BMP280 initialised — reading every 5s');
+    console.info('BMP280 initialised - reading every 5s');
 
     this.readTimer = setInterval(() => {
       this.readSensor().catch((err) => console.error('I2C read error:', err));
@@ -159,15 +159,15 @@ export default class I2CSensorReader extends DeviceEntrypoint {
     const adcP = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4);
     const adcT = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
 
-    // Simplified (no calibration compensation) — raw values for demo purposes
-    console.info(\`BMP280 raw — pressure ADC: \${adcP}, temperature ADC: \${adcT}\`);
+    // Simplified (no calibration compensation) - raw values for demo purposes
+    console.info(\`BMP280 raw - pressure ADC: \${adcP}, temperature ADC: \${adcT}\`);
     console.info('Note: add calibration compensation for accurate readings.');
   }
 
   async onMessage(_message: DeviceResponse) {}
 }`,
   pwm: `/**
- * PWM Motor Control — sweeps a servo or DC motor speed up and down.
+ * PWM Motor Control - sweeps a servo or DC motor speed up and down.
  *
  * Wiring (servo motor):
  *   Signal → GP15 (PWM)
@@ -193,7 +193,7 @@ export default class PwmMotorControl extends DeviceEntrypoint {
 
     // Initialise PWM at minimum position
     await this.env.DEVICE.setPwmState(PWM_PIN, FREQUENCY, this.dutyCycle);
-    console.info(\`PWM started on GP\${PWM_PIN} @ \${FREQUENCY} Hz — sweeping 5%–10%\`);
+    console.info(\`PWM started on GP\${PWM_PIN} @ \${FREQUENCY} Hz - sweeping 5%–10%\`);
 
     // Sweep duty cycle back and forth
     this.sweepTimer = setInterval(() => {
@@ -218,7 +218,7 @@ export default class PwmMotorControl extends DeviceEntrypoint {
   }
 }`,
   button: `/**
- * Button LED Toggle — press a button to toggle the onboard LED.
+ * Button LED Toggle - press a button to toggle the onboard LED.
  *
  * Wiring:
  *   Button: one leg → GP20, other leg → GND
@@ -277,7 +277,7 @@ export default class ButtonLedToggle extends DeviceEntrypoint {
   }
 }`,
   gpio: `/**
- * GPIO Input Monitor — logs state changes on multiple input pins.
+ * GPIO Input Monitor - logs state changes on multiple input pins.
  *
  * Wiring (example: two pushbuttons):
  *   Button A → GP16 → GND  (pull-up enabled)
@@ -287,7 +287,7 @@ export default class ButtonLedToggle extends DeviceEntrypoint {
  */
 import { DeviceEntrypoint, type DeviceResponse } from '@devicesdk/core';
 
-// Pins to monitor — add or remove as needed
+// Pins to monitor - add or remove as needed
 const MONITORED_PINS: number[] = [16, 17];
 
 export default class GpioInputMonitor extends DeviceEntrypoint {

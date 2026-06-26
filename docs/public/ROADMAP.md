@@ -46,12 +46,12 @@ build:
 
 The following features were implemented across the full stack (firmware, core types, device sender, API, CLI inspect, simulator):
 
-- **SPI master** (both platforms) — ESP32: SPI3_HOST; Pico: SPI0/SPI1. Configure, transfer, read, write.
-- **UART serial** (both platforms) — ESP32: 3 ports (UART0 reserved for debug); Pico: 2 ports. Configure, write, buffered read with timeout.
-- **On-die temperature sensor** (both platforms) — ESP32: built-in sensor via `temperature_sensor_get_celsius()`; Pico: ADC channel 4.
-- **Watchdog timer** (both platforms) — Configurable timeout, feed command. Pico limitation: cannot disable once enabled.
-- **I2C batch write for ESP32** — Parity with existing Pico implementation. Handled inline in websocket handler.
-- **PIO / WS2812 addressable LEDs** (Pico only) — PIO state machine driver for WS2812/NeoPixel LED strips.
+- **SPI master** (both platforms) - ESP32: SPI3_HOST; Pico: SPI0/SPI1. Configure, transfer, read, write.
+- **UART serial** (both platforms) - ESP32: 3 ports (UART0 reserved for debug); Pico: 2 ports. Configure, write, buffered read with timeout.
+- **On-die temperature sensor** (both platforms) - ESP32: built-in sensor via `temperature_sensor_get_celsius()`; Pico: ADC channel 4.
+- **Watchdog timer** (both platforms) - Configurable timeout, feed command. Pico limitation: cannot disable once enabled.
+- **I2C batch write for ESP32** - Parity with existing Pico implementation. Handled inline in websocket handler.
+- **PIO / WS2812 addressable LEDs** (Pico only) - PIO state machine driver for WS2812/NeoPixel LED strips.
 
 See [Using SPI](/docs/guides/using-spi/), [Using UART](/docs/guides/using-uart/), and [Addressable LEDs](/docs/guides/addressable-leds/) guides for usage details.
 
@@ -67,7 +67,7 @@ Features identified as hardware-capable but not yet planned for implementation.
 - **Hardware**: ESP32 has 4 GP timers + system timer; Pico has 4 x 32-bit + 1 x 64-bit alarms
 - **Firmware status**: Not implemented (GPIO monitoring is poll-based)
 - **Use cases**: Precise timing, pulse counting, frequency measurement, debouncing, servo control
-- **Effort**: Medium — interrupt-driven events need a new event delivery mechanism to the server
+- **Effort**: Medium - interrupt-driven events need a new event delivery mechanism to the server
 
 #### On-Device Flash Storage
 - **Hardware**: ESP32 has NVS partitions; Pico has 2-4 MB flash
@@ -89,32 +89,32 @@ Features identified as hardware-capable but not yet planned for implementation.
 - **Hardware**: Deep sleep with multiple wakeup sources (timer, GPIO, touch, ULP)
 - **Firmware status**: Not implemented
 - **Use cases**: Battery-powered sensors, solar-powered deployments, periodic reporting
-- **Effort**: High — fundamentally changes the connection model; device disconnects during sleep
+- **Effort**: High - fundamentally changes the connection model; device disconnects during sleep
 
 #### Bluetooth / BLE
 - **Hardware**: BLE 5.0 on some ESP32 variants
 - **Firmware status**: Not implemented; WiFi and BLE share the radio
 - **Use cases**: BLE beacons, BLE peripherals, BLE mesh, phone connectivity
-- **Effort**: Very High — entirely new communication stack alongside WiFi
+- **Effort**: Very High - entirely new communication stack alongside WiFi
 
 #### I2S (Audio)
 - **Hardware**: 2 I2S instances
 - **Firmware status**: Not implemented
 - **Use cases**: Digital microphones (INMP441), audio output (MAX98357), sound processing
-- **Effort**: High — streaming audio over WebSocket is bandwidth-intensive
+- **Effort**: High - streaming audio over WebSocket is bandwidth-intensive
 
 #### Touch Sensing
 - **Hardware**: 14 touch-capable pins on some ESP32 variants
 - **Firmware status**: Not implemented
 - **Use cases**: Capacitive touch buttons/sliders without external components
-- **Effort**: Medium — polling-based reads similar to ADC
+- **Effort**: Medium - polling-based reads similar to ADC
 - **Notes**: Not available on all ESP32 variants; C61 support needs verification
 
 #### TWAI/CAN Bus
 - **Hardware**: CAN 2.0B controller
 - **Firmware status**: Not implemented
 - **Use cases**: Automotive, industrial automation, robotics
-- **Effort**: Medium-High — needs transceiver hardware
+- **Effort**: Medium-High - needs transceiver hardware
 
 ### Pico Only
 
@@ -122,11 +122,11 @@ Features identified as hardware-capable but not yet planned for implementation.
 - **Hardware**: 12 DMA channels with configurable transfers
 - **Firmware status**: Not implemented
 - **Use cases**: High-speed data transfers (SPI displays, audio streaming, bulk sensor reads)
-- **Effort**: High — typically used transparently behind SPI/I2C drivers
+- **Effort**: High - typically used transparently behind SPI/I2C drivers
 - **Notes**: More of an internal optimization than a user-facing feature
 
 #### USB Host Mode
 - **Hardware**: USB 2.0 host + device on RP2040/RP2350
 - **Firmware status**: USB used for stdio only
 - **Use cases**: USB HID devices, USB storage, USB MIDI
-- **Effort**: Very High — complex USB stack; security implications
+- **Effort**: Very High - complex USB stack; security implications

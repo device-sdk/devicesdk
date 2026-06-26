@@ -14,5 +14,5 @@ should continue the sequence from the highest existing number; do not reuse
 
 1. Create `NNNN_descriptive_name.sql` with the next available number.
 2. Keep migrations idempotent where possible (e.g., `CREATE TABLE IF NOT EXISTS`).
-3. Do **not** run migration SQL through `workers-qb` Query objects — the query
+3. Do **not** run migration SQL through `workers-qb` Query objects - the query
    builder trims newlines, which breaks `--` comments. Use `db.exec()` directly.

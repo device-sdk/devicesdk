@@ -4,13 +4,13 @@ description: Schedule recurring work in device scripts using cron expressions
 social_image: /og-images/docs/concepts/cron-scheduling.png
 ---
 
-Device scripts can define named cron schedules to run recurring tasks — polling a sensor, sending a heartbeat, or clearing a buffer — without any external scheduler.
+Device scripts can define named cron schedules to run recurring tasks - polling a sensor, sending a heartbeat, or clearing a buffer - without any external scheduler.
 
 ## How It Works
 
 Cron schedules are initialized when a device connects. The server evaluates each expression and schedules the next fire time. When a cron fires, `onCron` is called with the schedule's name. After each firing, the next occurrence is computed and scheduled automatically.
 
-Crons are **connection-gated**: they start when the device connects and stop when it disconnects. A slot that comes due while the device is offline is **skipped, never caught up** — when the device reconnects, scheduling resumes from the next future slot.
+Crons are **connection-gated**: they start when the device connects and stop when it disconnects. A slot that comes due while the device is offline is **skipped, never caught up** - when the device reconnects, scheduling resumes from the next future slot.
 
 ## Defining Schedules
 
@@ -77,6 +77,6 @@ When both `day-of-month` and `day-of-week` are restricted (not `*`), the cron fi
 
 ## Limitations
 
-- All cron times are in **UTC** — there is no timezone support in cron expressions.
-- The minimum granularity is **1 minute** — sub-minute intervals are not supported.
+- All cron times are in **UTC** - there is no timezone support in cron expressions.
+- The minimum granularity is **1 minute** - sub-minute intervals are not supported.
 - Crons only fire while the device is **connected**. If the device is offline when a cron was due, the missed fire is skipped; it does not catch up.

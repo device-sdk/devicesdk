@@ -1,6 +1,6 @@
 # Contributing to DeviceSDK
 
-DeviceSDK is free, open-source, and self-hosted. We welcome contributions — bug
+DeviceSDK is free, open-source, and self-hosted. We welcome contributions - bug
 fixes, features, documentation, firmware improvements, and issue reports.
 
 This guide covers how to get started, the conventions we follow, and how to open
@@ -37,8 +37,8 @@ This is a pnpm + Turborepo monorepo:
 | `packages/cli` | `@devicesdk/cli` | `devicesdk` CLI (published to npm) |
 | `packages/mcp` | `@devicesdk/mcp` | Model Context Protocol server (published to npm) |
 | `packages/typescript-config` | `@repo/typescript-config` | Shared tsconfig base |
-| `firmware/esp32`, `firmware/pico` | — | ESP32 / Pico W firmware |
-| `examples/*` | — | Example device projects |
+| `firmware/esp32`, `firmware/pico` | - | ESP32 / Pico W firmware |
+| `examples/*` | - | Example device projects |
 
 The canonical developer guide is [`AGENTS.md`](./AGENTS.md). Read it before
 making non-trivial changes, especially for server endpoints, the database layer,

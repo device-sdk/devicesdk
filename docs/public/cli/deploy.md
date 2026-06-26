@@ -174,11 +174,11 @@ Common causes: missing imports, type errors in your entrypoint class, or an entr
 
 **Deployment stuck?**
 
-Check the dashboard for deployment status and error details. If a deployment appears hung, try deploying again — only one deployment per project runs at a time, and the previous one will be superseded.
+Check the dashboard for deployment status and error details. If a deployment appears hung, try deploying again - only one deployment per project runs at a time, and the previous one will be superseded.
 
 **Need to rollback?**
 
-Open the device in the dashboard and select a previous version to redeploy. From the CLI, check out the source for the version you want and run `devicesdk deploy` again — each deploy creates a new version, so re-deploying known-good code is the CLI rollback path.
+Open the device in the dashboard and select a previous version to redeploy. From the CLI, check out the source for the version you want and run `devicesdk deploy` again - each deploy creates a new version, so re-deploying known-good code is the CLI rollback path.
 
 ## Best Practices
 

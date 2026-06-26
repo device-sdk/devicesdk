@@ -7,7 +7,7 @@ description: Use when creating or modifying firmware code in firmware/pico/ or f
 
 ## HAL Abstraction Layer
 
-The Hardware Abstraction Layer (`firmware/pico/src/hal.h`) provides a platform-agnostic interface. All hardware access goes through HAL functions — never call platform APIs directly from command handlers.
+The Hardware Abstraction Layer (`firmware/pico/src/hal.h`) provides a platform-agnostic interface. All hardware access goes through HAL functions - never call platform APIs directly from command handlers.
 
 ### GPIO
 
@@ -51,10 +51,10 @@ The ESP32 HAL mirrors the Pico HAL but uses ESP-IDF APIs. Function names are pre
 Some ESP32 dev boards (e.g. ESP32-C61-DevKitC-1) use addressable RGB LEDs instead of simple GPIOs. This is handled via the `espressif/led_strip` component.
 
 **Key Kconfig options** (`firmware/esp32/main/Kconfig.projbuild`):
-- `CONFIG_DEVICESDK_LED_PIN` — GPIO pin for the onboard LED (default 8 for C61)
-- `CONFIG_DEVICESDK_LED_IS_ADDRESSABLE` — enables led_strip driver (default `y` for `IDF_TARGET_ESP32C61`)
+- `CONFIG_DEVICESDK_LED_PIN` - GPIO pin for the onboard LED (default 8 for C61)
+- `CONFIG_DEVICESDK_LED_IS_ADDRESSABLE` - enables led_strip driver (default `y` for `IDF_TARGET_ESP32C61`)
 
-**SOC peripheral availability** — check `build/config/sdkconfig.h`:
+**SOC peripheral availability** - check `build/config/sdkconfig.h`:
 - ESP32-C61: Has `CONFIG_SOC_GPSPI_SUPPORTED` but **NOT** `CONFIG_SOC_RMT_SUPPORTED`
 - ESP32 (original): Has both RMT and SPI
 - **Rule**: Use SPI backend (`led_strip_new_spi_device`) for C61, RMT backend for chips that support it
@@ -85,7 +85,7 @@ python -m esptool --chip esp32c61 -b 460800 --before default_reset --after hard_
   write_flash 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/devicesdk-client.bin
 ```
 
-For local dev, edit `config.h` with real credentials, build from source, flash, then restore placeholders. The API's binary-patching approach invalidates ESP-IDF checksums — see TROUBLESHOOT.md.
+For local dev, edit `config.h` with real credentials, build from source, flash, then restore placeholders. The API's binary-patching approach invalidates ESP-IDF checksums - see TROUBLESHOOT.md.
 
 ## Pin Validation (RP2040)
 

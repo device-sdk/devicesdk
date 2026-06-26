@@ -1,4 +1,4 @@
-// E2E seed script — run with Bun (`bun run seed.ts`), never Node.
+// E2E seed script - run with Bun (`bun run seed.ts`), never Node.
 //
 // global-setup.ts starts the Bun server (which creates + migrates the SQLite
 // database), then invokes this script to load deterministic test fixtures
@@ -20,7 +20,7 @@ const expires = now + 86_400_000; // +1 day
 
 // Order matters: children are deleted before parents and inserted after them.
 // Foreign keys are left off for the seed connection so the delete/insert order
-// is the only thing keeping referential integrity — which it does.
+// is the only thing keeping referential integrity - which it does.
 const statements = [
   "DELETE FROM rate_limits;",
   "DELETE FROM device_scripts;",

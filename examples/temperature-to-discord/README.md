@@ -34,7 +34,7 @@ npm install
 
 ### 2. Set your Discord webhook URL
 
-Store the webhook URL as a project-scoped environment variable — never hardcode it in source:
+Store the webhook URL as a project-scoped environment variable - never hardcode it in source:
 
 ```bash
 npx @devicesdk/cli env set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_URL
@@ -64,9 +64,9 @@ The device will join your WiFi, connect to DeviceSDK, and start posting to Disco
 
 ## Customizing
 
-- **Cron schedule** — change `crons = { reading: "*/5 * * * *" }` in `temperatureSensor.ts`. Standard 5-field cron in UTC.
-- **External sensor** — swap `getTemperature()` (which uses the Pico's built-in sensor) for `i2cRead(...)` against a BME280 or DHT22 if you want better accuracy. See the [I2C cookbook recipe](https://devicesdk.com/docs/recipes/read-bme280/).
-- **Different chat platform** — replace the `fetch` URL with a Slack incoming webhook, ntfy.sh topic, or anything that accepts a JSON POST.
+- **Cron schedule** - change `crons = { reading: "*/5 * * * *" }` in `temperatureSensor.ts`. Standard 5-field cron in UTC.
+- **External sensor** - swap `getTemperature()` (which uses the Pico's built-in sensor) for `i2cRead(...)` against a BME280 or DHT22 if you want better accuracy. See the [I2C cookbook recipe](https://devicesdk.com/docs/recipes/read-bme280/).
+- **Different chat platform** - replace the `fetch` URL with a Slack incoming webhook, ntfy.sh topic, or anything that accepts a JSON POST.
 
 ## Environment variables reference
 

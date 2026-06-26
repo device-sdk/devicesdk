@@ -1,0 +1,11 @@
+{
+	"name": "stale-stub-repro",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-04-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"durable_objects": {
+		"bindings": [{ "name": "DO", "class_name": "StaleStubDO" }]
+	},
+	"migrations": [{ "tag": "v1", "new_classes": ["StaleStubDO"] }],
+	"worker_loaders": [{ "binding": "LOADER" }]
+}

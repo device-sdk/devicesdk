@@ -39,7 +39,7 @@ export default ({ app }: { app: App }) => {
   // land here.
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
-    // Aborted requests (navigation/unmount) are expected — don't alarm the user.
+    // Aborted requests (navigation/unmount) are expected - don't alarm the user.
     if (reason instanceof DOMException && reason.name === 'AbortError') {
       event.preventDefault();
       return;

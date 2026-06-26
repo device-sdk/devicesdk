@@ -21,7 +21,7 @@ describe("whoami", () => {
 		logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		// process.exit throws so the command function aborts the way it would in
-		// a real shell — without actually killing the test runner.
+		// a real shell - without actually killing the test runner.
 		exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
 			throw new Error(`process.exit(${code})`);
 		}) as never);

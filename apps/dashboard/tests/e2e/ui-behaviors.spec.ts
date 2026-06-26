@@ -197,7 +197,7 @@ test.describe("UI behaviors", () => {
         timeout: 10000,
       });
 
-      // Click the menu button on smart-home row — use more_vert icon
+      // Click the menu button on smart-home row - use more_vert icon
       await page
         .locator(".q-table .q-tr")
         .filter({ hasText: "smart-home" })

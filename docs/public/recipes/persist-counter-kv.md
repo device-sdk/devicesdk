@@ -5,7 +5,7 @@ weight: 30
 social_image: /og-images/docs/recipes/persist-counter-kv.png
 ---
 
-Device scripts are event-driven and stateless — between events, nothing in your class survives. To carry state forward (a counter, last-seen value, configuration), use the per-device KV.
+Device scripts are event-driven and stateless - between events, nothing in your class survives. To carry state forward (a counter, last-seen value, configuration), use the per-device KV.
 
 ## `devicesdk.ts`
 
@@ -66,18 +66,18 @@ export class BootCounter extends DeviceEntrypoint {
 
 ## What this demonstrates
 
-- `this.env.DEVICE.kv.get<T>(key)` returns `T | undefined` — always handle the cold-start case.
+- `this.env.DEVICE.kv.get<T>(key)` returns `T | undefined` - always handle the cold-start case.
 - Values are JSON-serialised under the hood, so any JSON-safe shape (objects, arrays, numbers) works.
-- Calling `kv.put` from `onDeviceConnect` is fine — the runtime hangs onto the call until the device handshake completes.
+- Calling `kv.put` from `onDeviceConnect` is fine - the runtime hangs onto the call until the device handshake completes.
 
 ## What KV is and isn't
 
 - **Per device.** Two devices in the same project have separate KV namespaces. To share state across devices, use inter-device RPC or persist to your own backend.
 - **Persistent across reconnects, deploys, reboots.** A dropped WiFi link or a `devicesdk deploy` doesn't reset KV.
 - **Not transactional across keys.** If you need to update two related values atomically, store them under one key as an object (as in the example).
-- **Not real-time.** Reads are a few ms each — fine for events, not for tight loops. If you need sub-millisecond reads, keep the value in a `private` class field and write through to KV occasionally.
+- **Not real-time.** Reads are a few ms each - fine for events, not for tight loops. If you need sub-millisecond reads, keep the value in a `private` class field and write through to KV occasionally.
 
 ## Going further
 
-- Reset the counter on a button press — combine with the [button recipe](../button-toggles-led/).
-- Replicate state to your own backend on cron — combine with the [Discord recipe](../post-discord-webhook/).
+- Reset the counter on a button press - combine with the [button recipe](../button-toggles-led/).
+- Replicate state to your own backend on cron - combine with the [Discord recipe](../post-discord-webhook/).

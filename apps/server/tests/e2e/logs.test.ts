@@ -4,7 +4,7 @@ import { TestServer } from "../harness";
 // NOTE: GET /v1/projects/:projectId/devices/:deviceId/logs is **deprecated**
 // (see src/endpoints/logs/listLogs.ts). It now always returns 410 Gone with a
 // `Link` header pointing at the watcher WebSocket and performs NO database
-// lookups — clients migrate to `/watch?backfillLimit=N`. These tests pin that
+// lookups - clients migrate to `/watch?backfillLimit=N`. These tests pin that
 // contract so a future "un-deprecation" can't silently regress callers.
 
 let srv: TestServer;

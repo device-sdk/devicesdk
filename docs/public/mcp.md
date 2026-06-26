@@ -5,15 +5,15 @@ weight: 28
 social_image: /og-images/docs/mcp.png
 ---
 
-`@devicesdk/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes DeviceSDK as a set of tools your AI agent can call directly — list devices, deploy scripts, tail logs, set env vars, search the docs. The agent never has to learn the shell.
+`@devicesdk/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes DeviceSDK as a set of tools your AI agent can call directly - list devices, deploy scripts, tail logs, set env vars, search the docs. The agent never has to learn the shell.
 
-Because it wraps the CLI, it talks to whatever DeviceSDK server the CLI is configured against — the self-hosted server you logged into with `devicesdk login --host <url>`. There is no managed cloud.
+Because it wraps the CLI, it talks to whatever DeviceSDK server the CLI is configured against - the self-hosted server you logged into with `devicesdk login --host <url>`. There is no managed cloud.
 
 It's a thin wrapper over the `devicesdk` CLI's `--json` mode, so you get the same auth, the same error messages, and the same `{ success, result | error, code, docs }` shape the API returns.
 
 ## Quickstart
 
-If you ran `devicesdk init` recently, you already have a `.mcp.json` in your project pointing at `@devicesdk/mcp` — open the project in any MCP-aware tool and it just works.
+If you ran `devicesdk init` recently, you already have a `.mcp.json` in your project pointing at `@devicesdk/mcp` - open the project in any MCP-aware tool and it just works.
 
 For an existing project, drop this into a `.mcp.json` at the project root:
 
@@ -106,8 +106,8 @@ Any MCP-aware client that accepts a stdio server with a `command` + `args` will 
 
 The MCP server inherits the CLI's authentication. In order of precedence:
 
-1. **`DEVICESDK_TOKEN`** environment variable — a `dsdk_…` token, best for CI or when you want a tighter-scoped token for the agent than for your CLI. Pair it with `DEVICESDK_API_URL` to point at your server.
-2. **`~/.devicesdk/credentials.json`** — written by `devicesdk login --host <url>`; stores both the tokens and the server host. Refresh tokens rotate automatically.
+1. **`DEVICESDK_TOKEN`** environment variable - a `dsdk_…` token, best for CI or when you want a tighter-scoped token for the agent than for your CLI. Pair it with `DEVICESDK_API_URL` to point at your server.
+2. **`~/.devicesdk/credentials.json`** - written by `devicesdk login --host <url>`; stores both the tokens and the server host. Refresh tokens rotate automatically.
 
 If neither is present, every tool returns `{ success: false, code: "missing_credentials", docs: "..." }`.
 
@@ -132,7 +132,7 @@ To scope an agent more tightly, generate a token in the dashboard's *Tokens* pag
 | `devicesdk_whoami` | Show the currently-authenticated user. |
 | `devicesdk_status` | List devices in a project with their connection state, current version, and last-seen time. Defaults to the project in `devicesdk.ts` in the cwd. |
 | `devicesdk_logs_tail` | Fetch the most recent N log entries for a device (max 100). Filters by level. Returns the same shape as `devicesdk logs --json`. |
-| `devicesdk_env_list` | List env var keys for a project. The API never returns values, so neither does this tool — read them inside your script with `this.env.VARS.get`. |
+| `devicesdk_env_list` | List env var keys for a project. The API never returns values, so neither does this tool - read them inside your script with `this.env.VARS.get`. |
 | `devicesdk_env_set` | Set one or more `KEY=VALUE` pairs on a project. |
 | `devicesdk_deploy` | Build and deploy device scripts. Supports `--dry-run` and per-device targeting. |
 | `devicesdk_docs_search` | Resolve a free-text query to relevant URLs from `/llms.txt`. Use to point yourself at canonical references for further reading. |
@@ -148,7 +148,7 @@ Agent: [calls devicesdk_status → orchard has 4 devices: sensor-east is offline
        [calls devicesdk_logs_tail with level=error, lines=20, project=orchard, device=sensor-east]
        sensor-east lost connectivity 14 minutes ago. The last 20 error logs show
        "BME280 not detected at 0x76" repeating every minute since 09:14 UTC. That
-       error pattern matches the I2C-wiring case in /docs/recipes/read-bme280/ —
+       error pattern matches the I2C-wiring case in /docs/recipes/read-bme280/ -
        check the SDA/SCL wires haven't come loose.
 ```
 
@@ -165,8 +165,8 @@ Agent: [calls devicesdk_status → orchard has 4 devices: sensor-east is offline
 
 ## See also
 
-- [`devicesdk init`](/docs/cli/init/) — scaffolds `.mcp.json` for new projects.
-- [Cookbook](/docs/recipes/) — task-shaped recipes the agent can crib from.
-- [Error reference](/docs/errors/) — the codes the MCP tools surface.
-- [Agent skills manifest](/.well-known/agent-skills/index.json) — for hosts that consume the [agentskills.io](https://schemas.agentskills.io/) discovery schema.
+- [`devicesdk init`](/docs/cli/init/) - scaffolds `.mcp.json` for new projects.
+- [Cookbook](/docs/recipes/) - task-shaped recipes the agent can crib from.
+- [Error reference](/docs/errors/) - the codes the MCP tools surface.
+- [Agent skills manifest](/.well-known/agent-skills/index.json) - for hosts that consume the [agentskills.io](https://schemas.agentskills.io/) discovery schema.
 - npm: [`@devicesdk/mcp`](https://www.npmjs.com/package/@devicesdk/mcp), [`@devicesdk/cli`](https://www.npmjs.com/package/@devicesdk/cli)

@@ -88,7 +88,7 @@ export class SendDeviceCommand extends BaseRoute {
 				description: "Device is not connected",
 			},
 			"504": {
-				description: "Command timed out — no response from device",
+				description: "Command timed out - no response from device",
 			},
 		},
 	};
@@ -127,7 +127,7 @@ export class SendDeviceCommand extends BaseRoute {
 			return c.json(
 				{
 					success: false,
-					error: "Command timed out — device did not respond",
+					error: "Command timed out - device did not respond",
 				},
 				504,
 			);

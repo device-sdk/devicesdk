@@ -6,7 +6,7 @@ social_image: /og-images/docs/guides/inter-device-communication.png
 
 ## Overview
 
-Devices in the same project can call public methods on each other using `this.env.DEVICES`. The call routes through your DeviceSDK server, so both devices don't need to be online simultaneously — methods that only use KV storage work even when hardware is disconnected.
+Devices in the same project can call public methods on each other using `this.env.DEVICES`. The call routes through your DeviceSDK server, so both devices don't need to be online simultaneously - methods that only use KV storage work even when hardware is disconnected.
 
 ## Walkthrough: Sensor + Light Controller
 
@@ -115,7 +115,7 @@ devicesdk build
 The generated file looks like:
 
 ```typescript
-// devicesdk-env.d.ts — auto-generated, committed to repo
+// devicesdk-env.d.ts - auto-generated, committed to repo
 import type { LightController } from './src/devices/light';
 import type { Sensor } from './src/devices/sensor';
 import type { GetEnv } from '@devicesdk/core';
@@ -153,10 +153,10 @@ async onMessage(message: DeviceResponse) {
 ```
 
 Common errors:
-- **Device not found** — the target device slug doesn't exist in your project
-- **No deployed script** — the target device has no script deployed yet
-- **Method not found** — the method doesn't exist on the target device class
-- **Call depth exceeded** — too many chained calls (max depth: 3)
+- **Device not found** - the target device slug doesn't exist in your project
+- **No deployed script** - the target device has no script deployed yet
+- **Method not found** - the method doesn't exist on the target device class
+- **Call depth exceeded** - too many chained calls (max depth: 3)
 
 ## Patterns
 
@@ -165,10 +165,10 @@ Common errors:
 Write state via KV when hardware is offline, apply when it reconnects:
 
 ```typescript
-// From any device — works even when light hardware is disconnected
+// From any device - works even when light hardware is disconnected
 await this.env.DEVICES['light-controller'].updateDesiredState({ brightness: 80 });
 
-// In LightController.onDeviceConnect() — applied when hardware comes back
+// In LightController.onDeviceConnect() - applied when hardware comes back
 const desired = await this.env.DEVICE.kv.get('desired');
 if (desired) { /* apply to hardware */ }
 ```
@@ -190,12 +190,12 @@ async doSomething() {
 
 ## Limitations
 
-- **Same project only** — devices can only call other devices in the same project
-- **Max call depth: 3** — prevents infinite cycles between devices
-- **Serializable arguments** — RPC arguments and return values must be JSON-compatible (no functions, symbols, or class instances)
-- **No pub/sub yet** — RPC is point-to-point; project-wide event broadcasting is on the roadmap
+- **Same project only** - devices can only call other devices in the same project
+- **Max call depth: 3** - prevents infinite cycles between devices
+- **Serializable arguments** - RPC arguments and return values must be JSON-compatible (no functions, symbols, or class instances)
+- **No pub/sub yet** - RPC is point-to-point; project-wide event broadcasting is on the roadmap
 
 ## Next Steps
 
-- [Device Entrypoints](/docs/concepts/entrypoints/) — Lifecycle methods and environment bindings
-- [Platform Architecture](/docs/concepts/architecture/) — How the runtime works
+- [Device Entrypoints](/docs/concepts/entrypoints/) - Lifecycle methods and environment bindings
+- [Platform Architecture](/docs/concepts/architecture/) - How the runtime works

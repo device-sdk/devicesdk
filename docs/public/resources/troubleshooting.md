@@ -299,7 +299,7 @@ social_image: /og-images/docs/resources/troubleshooting.png
 
 ### "Rate limit exceeded"
 
-**Cause**: Too many failed authentication attempts in a short window — the server only rate-limits login/register (brute-force protection). There are no general per-request quotas.
+**Cause**: Too many failed authentication attempts in a short window - the server only rate-limits login/register (brute-force protection). There are no general per-request quotas.
 
 **Solution**: Wait a moment and retry. This applies only to authentication endpoints.
 
@@ -351,8 +351,8 @@ devicesdk deploy --verbose
 ### Check your server is up
 
 You run the server yourself, so check it directly:
-- `curl http://<server>:8080/health` — lightweight liveness probe, returns `{"success":true,"result":{"status":"ok"}}`
-- `curl http://<server>:8080/ready` — readiness probe that verifies SQLite is writable, returns `{"success":true,"result":{"status":"ready",...}}` (or 503 if the database is unavailable)
+- `curl http://<server>:8080/health` - lightweight liveness probe, returns `{"success":true,"result":{"status":"ok"}}`
+- `curl http://<server>:8080/ready` - readiness probe that verifies SQLite is writable, returns `{"success":true,"result":{"status":"ready",...}}` (or 503 if the database is unavailable)
 - Inspect the server logs (e.g. `docker compose logs -f`)
 
 ### Isolate the Problem

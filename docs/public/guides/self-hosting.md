@@ -28,7 +28,7 @@ docker run -d \
   ghcr.io/device-sdk/devicesdk:latest
 ```
 
-Open `http://localhost:8080` — the first visit creates the admin account. After that, `ALLOW_REGISTRATION=false` prevents further sign-ups.
+Open `http://localhost:8080` - the first visit creates the admin account. After that, `ALLOW_REGISTRATION=false` prevents further sign-ups.
 
 ## Docker Compose (recommended)
 
@@ -55,8 +55,8 @@ services:
 | `PORT` | `8080` | HTTP port the server listens on |
 | `DATA_DIR` | `./data` | Root for SQLite DB, scripts, firmware |
 | `ALLOW_REGISTRATION` | `true` | Allow new account sign-ups |
-| `SECURE_COOKIES` | `false` | Set `Secure` flag on session cookies — **must be `true` behind TLS** |
-| `TRUST_PROXY` | `false` | Trust `X-Forwarded-For` headers — enable only behind a reverse proxy |
+| `SECURE_COOKIES` | `false` | Set `Secure` flag on session cookies - **must be `true` behind TLS** |
+| `TRUST_PROXY` | `false` | Trust `X-Forwarded-For` headers - enable only behind a reverse proxy |
 | `API_TOKEN_SECRET` | auto-generated | HMAC secret for token hashing. Auto-generated and persisted to `DATA_DIR/.api-token-secret` on first start; override for multi-instance or reproducible deployments |
 | `MDNS_ENABLED` | `true` | Advertise server over mDNS for device auto-discovery |
 | `MDNS_HOSTNAME` | `devicesdk` | mDNS short hostname (devices reach `devicesdk.local`) |
@@ -66,7 +66,7 @@ services:
 
 For LAN-only installs you can skip TLS, but for anything reachable from the internet you **must** terminate TLS at a reverse proxy.
 
-### Caddy (simplest — automatic TLS)
+### Caddy (simplest - automatic TLS)
 
 ```caddyfile
 devicesdk.example.com {
@@ -141,7 +141,7 @@ Schedule regular backups with cron:
 
 ## Multi-server LAN considerations
 
-You can run multiple DeviceSDK servers on the same LAN. Each server is independent — devices connect to exactly one server.
+You can run multiple DeviceSDK servers on the same LAN. Each server is independent - devices connect to exactly one server.
 
 ### mDNS hostnames
 
@@ -160,7 +160,7 @@ If you mount `DATA_DIR` on a network share (NFS, SMB) shared by multiple servers
 
 ### `API_TOKEN_SECRET`
 
-HMAC token hashes are keyed with `API_TOKEN_SECRET`. If you run two servers, do **not** share the same secret — tokens issued by one server must not be accepted by the other. Each server auto-generates a unique secret and persists it under `DATA_DIR/.api-token-secret`.
+HMAC token hashes are keyed with `API_TOKEN_SECRET`. If you run two servers, do **not** share the same secret - tokens issued by one server must not be accepted by the other. Each server auto-generates a unique secret and persists it under `DATA_DIR/.api-token-secret`.
 
 ## Updating
 

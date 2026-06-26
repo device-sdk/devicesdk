@@ -55,7 +55,7 @@ describe("API tokens", () => {
 		expect((projects.body as { success: boolean }).success).toBe(true);
 	});
 
-	test("list returns metadata only (last_four/description) — never the raw token", async () => {
+	test("list returns metadata only (last_four/description) - never the raw token", async () => {
 		const created = await srv.post("/v1/tokens", {
 			token: owner.token,
 			body: { description: "listed-token" },

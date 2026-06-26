@@ -272,7 +272,7 @@ const dev = async (options: { config?: string; port?: string }) => {
 				try {
 					await proc;
 				} catch {
-					// Expected — process was killed
+					// Expected - process was killed
 				}
 			}
 

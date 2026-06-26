@@ -11,7 +11,7 @@ vi.mock("quasar", async () => {
 
 const errorHandlerBoot = (await import("@/boot/error-handler")).default;
 
-// Minimal Vue app stub — the boot file only touches app.config.{errorHandler,warnHandler},
+// Minimal Vue app stub - the boot file only touches app.config.{errorHandler,warnHandler},
 // so we only need to expose those two slots.
 function makeAppStub() {
   return {
@@ -49,7 +49,7 @@ describe("error-handler boot file", () => {
     };
     expect(call.type).toBe("negative");
     expect(call.message).toBe("kaboom");
-    // Vue's `info` arg names the lifecycle hook where the error occurred — surfacing
+    // Vue's `info` arg names the lifecycle hook where the error occurred - surfacing
     // it as caption helps users (and us) triage in the wild.
     expect(call.caption).toBe("at render function");
     expect(consoleSpy).toHaveBeenCalled();
@@ -69,7 +69,7 @@ describe("error-handler boot file", () => {
       caption?: string;
     };
     expect(call.message).toBe("An unexpected error occurred");
-    // Empty info string should NOT produce a caption — the conditional spread is the
+    // Empty info string should NOT produce a caption - the conditional spread is the
     // workaround for exactOptionalPropertyTypes that would otherwise reject `undefined`.
     expect(call.caption).toBeUndefined();
   });

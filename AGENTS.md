@@ -1,4 +1,4 @@
-# DeviceSDK — Agent Guide
+# DeviceSDK - Agent Guide
 
 This file provides guidance to AI coding agents (OpenCode, Claude Code, Cursor,
 etc.) when working with code in this repository.
@@ -9,7 +9,7 @@ DeviceSDK is a **self-hosted, open-source (AGPL-3.0)** IoT platform: users write
 TypeScript device scripts, deploy them via CLI to a server they run themselves
 (Raspberry Pi, NUC, Docker), and microcontrollers (ESP32/Pico) connect to that
 server over WebSocket. Distributed as a Docker image containing the Bun server +
-dashboard UI. There is no cloud/SaaS component — the Cloudflare-hosted era ended
+dashboard UI. There is no cloud/SaaS component - the Cloudflare-hosted era ended
 with the self-host refactor (see ROADMAP.md for direction; the old Workers
 implementation is preserved in pre-refactor git history).
 
@@ -54,36 +54,36 @@ Docker): `devicesdk.sqlite` (WAL),
 
 ## Monorepo Architecture
 
-pnpm + Turborepo. Bun is the **server runtime only** — the CLI/MCP run on plain
+pnpm + Turborepo. Bun is the **server runtime only** - the CLI/MCP run on plain
 Node for npm users.
 
-**`apps/server`** (`@devicesdk/server`) — THE backend. Bun + Hono + Chanfana
+**`apps/server`** (`@devicesdk/server`) - THE backend. Bun + Hono + Chanfana
 (OpenAPI) + Zod + bun:sqlite. One process, one port (8080): REST API under
 `/v1/*`, device + watcher WebSockets, dashboard SPA static serving, OpenAPI docs
 at `/api-docs`.
 
-**`apps/dashboard`** — Vue 3 + Quasar SPA. Local email/password auth
+**`apps/dashboard`** - Vue 3 + Quasar SPA. Local email/password auth
 (register/login). Built `dist/spa` is served same-origin by the server;
 `VITE_API_HOST` only matters for `quasar dev`.
 
-**`packages/core`** — published types + `DeviceEntrypoint` base class (user
+**`packages/core`** - published types + `DeviceEntrypoint` base class (user
 script surface). No runtime deps.
 
-**`packages/cli`** — `devicesdk` binary: login/build/deploy/flash/logs/status/dev.
+**`packages/cli`** - `devicesdk` binary: login/build/deploy/flash/logs/status/dev.
 No default API URL: precedence is `DEVICESDK_API_URL` env → `--host` flag → host
 stored in `~/.devicesdk/credentials.json` by `devicesdk login --host <url>`.
 `devicesdk dev` still uses the workerd simulator (convergence on the server
 runtime is a roadmap item).
 
-**`packages/mcp`** — MCP server wrapping the CLI for AI agents.
+**`packages/mcp`** - MCP server wrapping the CLI for AI agents.
 
-**`apps/simulation`** — Vue UI for the CLI dev simulator (built dist embedded in
+**`apps/simulation`** - Vue UI for the CLI dev simulator (built dist embedded in
 CLI).
 
-**`apps/website`** + **`docs/public`** — Vue 3 + Vite SSG marketing and docs site.
+**`apps/website`** + **`docs/public`** - Vue 3 + Vite SSG marketing and docs site.
 Website build consumes `apps/server/openapi.json`.
 
-**`firmware/esp32`, `firmware/pico`** — C/C++ WS clients. Both select **plain
+**`firmware/esp32`, `firmware/pico`** - C/C++ WS clients. Both select **plain
 `ws://` when the configured host contains an explicit port** (self-hosted LAN)
 and TLS-on-443 for bare hostnames. Binaries are published to versioned GitHub
 Releases (`firmware-esp32@vX.Y.Z`, `firmware-pico@vX.Y.Z` tags) only when the
@@ -92,7 +92,7 @@ image.
 
 ### Server architecture (apps/server)
 
-- **Boot**: `src/server.ts` — loadConfig → open SQLite (WAL) → `applyMigrations`
+- **Boot**: `src/server.ts` - loadConfig → open SQLite (WAL) → `applyMigrations`
   → construct services → `Bun.serve` → janitor interval. Services object is
   passed as `c.env` to Hono and **keeps the old Cloudflare binding names**
   (`SCRIPTS`, `FIRMWARES`, `DEVICE`, `DB`) so ported endpoint code reads
@@ -101,46 +101,46 @@ image.
   bun:sqlite, D1-shaped results) for `c.get("qb")`; `src/db/d1Compat.ts`
   (prepare/bind/first/all/run/batch facade) for `c.env.DB` call sites;
   `src/db/migrate.ts` runs `migrations/*.sql` sequentially. **Never run
-  migration SQL through workers-qb Query objects** — `trimQuery()` collapses
+  migration SQL through workers-qb Query objects** - `trimQuery()` collapses
   newlines so `--` comments swallow SQL (see TROUBLESHOOT.md).
-- **Auth**: `src/foundation/auth.ts` — Bearer token → session cookie → `dsdk_`
+- **Auth**: `src/foundation/auth.ts` - Bearer token → session cookie → `dsdk_`
   CLI token → API token hash. Local accounts via `Bun.password` (argon2id) in
   `src/endpoints/auth/localAuth.ts`; CLI device-code flow in
   `src/endpoints/cli-auth/`. First registered user is always allowed;
   `ALLOW_REGISTRATION=false` closes signups after that.
-- **Device runtime**: `src/runtime/` — replaces the old per-device Durable
+- **Device runtime**: `src/runtime/` - replaces the old per-device Durable
   Object:
-  - `deviceHub.ts` — session registry keyed `${projectId}:${deviceId}` (UUIDs);
+  - `deviceHub.ts` - session registry keyed `${projectId}:${deviceId}` (UUIDs);
     sessions live for the process lifetime and serve watchers/RPC even while the
     device is offline.
-  - `deviceSession.ts` — WS lifecycle, `pendingCommands` ack map (5s timeout),
+  - `deviceSession.ts` - WS lifecycle, `pendingCommands` ack map (5s timeout),
     **per-session FIFO promise chain** serializing user-handler dispatch,
-    connection-gated crons (missed slots are skipped, never caught up —
+    connection-gated crons (missed slots are skipped, never caught up -
     documented contract), `device_kv` storage with the `__internal:` prefix
     reserved, usage recording.
-  - `scriptHost.ts` — dynamic `import()` of version-keyed bundle files + direct
+  - `scriptHost.ts` - dynamic `import()` of version-keyed bundle files + direct
     class instantiation; replicates the old classProxy contract (DEVICES bridge
     with call-depth threading, VARS, BLOCKED_METHODS + own-prototype check for
     RPC).
-  - `consoleCapture.ts` — AsyncLocalStorage-scoped console patch: user
+  - `consoleCapture.ts` - AsyncLocalStorage-scoped console patch: user
     `console.*` lands in device logs + watcher stream. `logger.ts` binds the raw
     console at module load so server logs are never captured.
-  - `devicesBridge.ts` — inter-device RPC (same-project trust model,
+  - `devicesBridge.ts` - inter-device RPC (same-project trust model,
     `MAX_CALL_DEPTH` 3).
   - WS routes: `src/endpoints/devices/wsRoutes.ts` via the shared `src/ws.ts`
-    `createBunWebSocket` singleton — the same instance must feed both route
+    `createBunWebSocket` singleton - the same instance must feed both route
     handlers and `Bun.serve({ websocket })`, and the services object must carry
     the Bun `server` handle for upgrades.
 - **Watch protocol** (unchanged from the cloud era, dashboard + CLI depend on
   it): frames `{event: "log"|"status"|"state"|"history_complete", data,
   replay?}`; `?backfillLimit=N&backfillLevel=warn` replays history oldest-first
   then `history_complete`.
-- **Metrics**: `src/foundation/usageMetrics.ts` — 5-minute SQLite buckets in
+- **Metrics**: `src/foundation/usageMetrics.ts` - 5-minute SQLite buckets in
   `device_usage`; windows 1h/12h/7d. No cost estimation (that was a
   cloud-billing concept).
-- **Janitor**: `src/janitor.ts` hourly — expired sessions/CLI codes, old
+- **Janitor**: `src/janitor.ts` hourly - expired sessions/CLI codes, old
   logs/usage.
-- **mDNS**: `src/foundation/mdns/` — a zero-dependency multicast-DNS responder
+- **mDNS**: `src/foundation/mdns/` - a zero-dependency multicast-DNS responder
   (`node:dgram`) advertising the server as `<MDNS_HOSTNAME>.local` (default
   `devicesdk`) so LAN devices resolve it without a static IP. `dnsPacket.ts` is
   the pure wire codec; `responder.ts` wraps it in a socket. Started in
@@ -156,7 +156,7 @@ A script is a class with optional
 exposes `DEVICE` (command sender + `kv`), `DEVICES` (same-project RPC), `VARS`
 (env vars). Public methods on the class are callable cross-device; lifecycle
 methods are blocked from RPC. User scripts run **in-process** (user-owned code
-on the user's own server — that's the trust model).
+on the user's own server - that's the trust model).
 
 ## Source-of-Truth Locations
 
@@ -183,7 +183,7 @@ on the user's own server — that's the trust model).
 
 ## Open-source discipline
 
-- The repo is public and **tests are open-source** — add tests alongside the
+- The repo is public and **tests are open-source** - add tests alongside the
   code they cover. Server tests run via `bun test`
   (`pnpm test --filter @devicesdk/server`), the CLI via vitest, the dashboard
   via vitest/Playwright.
@@ -207,7 +207,7 @@ on the user's own server — that's the trust model).
 - When the user says "push", you may `git pull --rebase` to integrate latest
   changes (never discard other agents' work). When the user says "commit", scope
   to your changes only.
-- Create your **own** worktree per change (named after the change — see Git
+- Create your **own** worktree per change (named after the change - see Git
   Workflow). Never create, remove, or modify a worktree or branch you didn't
   create.
 - Do **not** switch branches unless explicitly requested.
@@ -233,10 +233,10 @@ on the user's own server — that's the trust model).
   private-with-changelog: `@devicesdk/server`, `@devicesdk/dashboard`,
   `@devicesdk/simulation`, `@devicesdk/website`). Create it early in the branch
   with `pnpm changeset` so CI can validate it.
-- **Example projects are ignored by changesets** (`@devicesdk/example-*`) — they
+- **Example projects are ignored by changesets** (`@devicesdk/example-*`) - they
   are not versioned and need no changeset entry.
 - **Firmware changes MUST include a changeset**
-  (`@devicesdk/firmware-esp32` / `@devicesdk/firmware-pico`) — the version bump
+  (`@devicesdk/firmware-esp32` / `@devicesdk/firmware-pico`) - the version bump
   triggers the firmware build + rolling-release publish (`firmware-*.yml`). No
   changeset = won't ship.
 - **Never set a `major` bump without explicit user consent.**
@@ -271,7 +271,7 @@ The monorepo uses `@changesets/cli` for versioning and release management.
 
 CI jobs labelled `[self-hosted, linux, proxmox-ephemeral]` run on a Proxmox VM
 image the user maintains out-of-band. If a workflow needs a missing system
-package, **ask the user to add it to the base image** — no passwordless sudo, no
+package, **ask the user to add it to the base image** - no passwordless sudo, no
 userspace workarounds unless explicitly chosen. `firmware-esp32.yml` keeps a
 comment near `runs-on:` listing required libs.
 
@@ -283,18 +283,18 @@ comment near `runs-on:` listing required libs.
 - **File size**: keep files under ~700 LOC.
 - **IDs**: `crypto.randomUUID()`; timestamps `Date.now()` (epoch ms).
 - Bun-specific APIs (`bun:sqlite`, `Bun.password`, `Bun.serve`,
-  `Bun.Transpiler`) belong in `apps/server` only — never in `packages/*` (those
+  `Bun.Transpiler`) belong in `apps/server` only - never in `packages/*` (those
   run on Node).
 
 ## Agent Configuration
 
 This repository is configured for OpenCode:
 
-- `opencode.json` — project configuration (loaded into every session).
-- `.opencode/skills/` — reusable skill prompts for common tasks (PR workflow,
+- `opencode.json` - project configuration (loaded into every session).
+- `.opencode/skills/` - reusable skill prompts for common tasks (PR workflow,
   API endpoints, firmware, Vue components, SQL queries, local E2E, website URL
   changes).
-- `.opencode/commands/` — slash commands (`/review-pr`, `/prepare-pr`,
+- `.opencode/commands/` - slash commands (`/review-pr`, `/prepare-pr`,
   `/merge-pr`, `/run-local-e2e`, `/pull`, `/feature`) that trigger the
   corresponding skills.
 

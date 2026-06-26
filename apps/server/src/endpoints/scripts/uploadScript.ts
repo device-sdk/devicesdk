@@ -138,7 +138,7 @@ export class UploadScript extends BaseRoute {
 		}
 
 		// Prune oldest non-current versions if at the limit (FIFO), then insert.
-		// This keeps the count at the limit rather than blocking uploads — the
+		// This keeps the count at the limit rather than blocking uploads - the
 		// FIFO pruning IS the enforcement mechanism for script version limits.
 		await pruneOldVersions(
 			c.env.DB,

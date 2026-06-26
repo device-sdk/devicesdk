@@ -4,7 +4,7 @@ description: RP2040 dual ARM Cortex-M0+ with 2.4GHz WiFi
 social_image: /og-images/docs/hardware/pico-w.png
 ---
 
-The Raspberry Pi Pico W pairs the RP2040 microcontroller with a CYW43439 radio. It's cheap, widely available, and covered end-to-end by DeviceSDK — GPIO, PWM, ADC, I2C, SPI, UART, the on-die temperature sensor, watchdog, and addressable LEDs (WS2812 via PIO) all work.
+The Raspberry Pi Pico W pairs the RP2040 microcontroller with a CYW43439 radio. It's cheap, widely available, and covered end-to-end by DeviceSDK - GPIO, PWM, ADC, I2C, SPI, UART, the on-die temperature sensor, watchdog, and addressable LEDs (WS2812 via PIO) all work.
 
 ## Specs
 
@@ -24,21 +24,21 @@ The Raspberry Pi Pico W pairs the RP2040 microcontroller with a CYW43439 radio. 
 Standard GPIO pin numbers (GP0–GP28) are used directly in `setGpioState` and `getPinState`.
 
 ```typescript
-// GPIO 25 — onboard LED
+// GPIO 25 - onboard LED
 await this.env.DEVICE.setGpioState(25, 'high');
 ```
 
 ### ADC-capable pins
 
-- **GP26** — ADC0
-- **GP27** — ADC1
-- **GP28** — ADC2
-- ADC channel 4 — internal on-die temperature sensor
+- **GP26** - ADC0
+- **GP27** - ADC1
+- **GP28** - ADC2
+- ADC channel 4 - internal on-die temperature sensor
 
 ### Reserved / special pins
 
-- **GP23–GP24** — WiFi module (do not use).
-- **GP25** — onboard LED (monochrome, driven directly by the CYW43 coprocessor; exposed as virtual pin 99 in some APIs).
+- **GP23–GP24** - WiFi module (do not use).
+- **GP25** - onboard LED (monochrome, driven directly by the CYW43 coprocessor; exposed as virtual pin 99 in some APIs).
 
 ## Feature support
 
@@ -46,21 +46,21 @@ await this.env.DEVICE.setGpioState(25, 'high');
 - ✅ GPIO input monitoring (pull up/down/none)
 - ✅ PWM (16-bit hardware)
 - ✅ ADC (GP26–GP28, 12-bit)
-- ✅ I2C master — 2 buses, compile-time pin-pair validation (6 valid pairs per bus)
+- ✅ I2C master - 2 buses, compile-time pin-pair validation (6 valid pairs per bus)
 - ✅ I2C batch write
 - ✅ OLED display (SSD1306 / SH1106) via the drawing API in `@devicesdk/core`
 - ✅ SPI master (SPI0 / SPI1)
 - ✅ UART serial (2 ports)
 - ✅ On-die temperature sensor (ADC channel 4)
-- ✅ Watchdog timer — **cannot be disabled once enabled**; keep feeding it
+- ✅ Watchdog timer - **cannot be disabled once enabled**; keep feeding it
 - ✅ Addressable LEDs (WS2812) via PIO state machine
 - ✅ Device reboot (via watchdog)
 
 ## Platform-specific notes
 
-- **I2C pin-pair validation.** The core types restrict SDA/SCL pairs to the 6 valid combinations per bus. Invalid pairs fail at compile time — see `packages/core/src/devices/pico.ts`.
+- **I2C pin-pair validation.** The core types restrict SDA/SCL pairs to the 6 valid combinations per bus. Invalid pairs fail at compile time - see `packages/core/src/devices/pico.ts`.
 - **GPIO monitoring on Core 1.** Input-state polling runs on the second core, so it doesn't compete with the WiFi driver on Core 0.
-- **Onboard LED via CYW43.** The LED is on the WiFi coprocessor, not a raw MCU pin. Treat it as on/off only — no PWM.
+- **Onboard LED via CYW43.** The LED is on the WiFi coprocessor, not a raw MCU pin. Treat it as on/off only - no PWM.
 
 ## Flashing
 
@@ -80,7 +80,7 @@ See the [flash command reference](/docs/cli/flash/#pico-flashing-process) for th
 
 ## Where to buy
 
-- [Raspberry Pi — Pico W](https://www.raspberrypi.com/products/raspberry-pi-pico/)
+- [Raspberry Pi - Pico W](https://www.raspberrypi.com/products/raspberry-pi-pico/)
 - Resellers: [Adafruit](https://www.adafruit.com/), [SparkFun](https://www.sparkfun.com/), [Pimoroni](https://shop.pimoroni.com/).
 
 Typical price: **$6–10 USD**.

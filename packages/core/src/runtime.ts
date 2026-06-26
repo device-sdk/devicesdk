@@ -74,7 +74,7 @@ export type UserWorkerEnv<ProjectDevices = Record<string, never>> = {
  * The hardware-control surface for the current device, exposed as `this.env.DEVICE`.
  *
  * Pin numbers are GPIO numbers as labeled on the board. Most boards expose a
- * **virtual pin 99** that maps to the onboard LED — use it instead of guessing
+ * **virtual pin 99** that maps to the onboard LED - use it instead of guessing
  * the chip-specific GPIO so your code is portable across Pico W, ESP32-C3, and
  * ESP32-C61.
  *
@@ -88,7 +88,7 @@ export type UserWorkerEnv<ProjectDevices = Record<string, never>> = {
 export interface DeviceSenderInterface {
 	/**
 	 * Send an arbitrary {@link DeviceCommand} without waiting for a response.
-	 * Prefer the typed convenience methods below — use this only for custom
+	 * Prefer the typed convenience methods below - use this only for custom
 	 * command types not yet wrapped.
 	 */
 	sendCommand(command: Omit<DeviceCommand, "id">): Promise<void>;
@@ -103,7 +103,7 @@ export interface DeviceSenderInterface {
 
 	/**
 	 * Soft-reboot the device. The connection drops and the device reconnects on its own.
-	 * Do not chain commands after this — they will be queued and re-sent on reconnect.
+	 * Do not chain commands after this - they will be queued and re-sent on reconnect.
 	 */
 	reboot(): Promise<void>;
 
@@ -113,7 +113,7 @@ export interface DeviceSenderInterface {
 	 * @param pin GPIO number on the device. **Use `99` for the onboard LED**
 	 *   (Pico W, Pico 2 W, ESP32-C3 DevKitM-1, ESP32-C61 DevKitC-1). Pico W GPIOs
 	 *   are 0–22, 26–28; ESP32 ranges depend on chip.
-	 * @param state `"high"` or `"low"` — string literal, not boolean.
+	 * @param state `"high"` or `"low"` - string literal, not boolean.
 	 * @example
 	 * // Turn on the onboard LED
 	 * await this.env.DEVICE.setGpioState(99, "high");
@@ -214,7 +214,7 @@ export interface DeviceSenderInterface {
 
 	/**
 	 * Configure the hardware watchdog. Once enabled with `enable=true`, the
-	 * watchdog cannot be disabled until reboot — call {@link watchdogFeed}
+	 * watchdog cannot be disabled until reboot - call {@link watchdogFeed}
 	 * within `timeoutMs` or the device hard-resets.
 	 *
 	 * @param timeoutMs Watchdog timeout in milliseconds. Range varies by chip
@@ -271,7 +271,7 @@ export interface DeviceSenderInterface {
 	 * Call once at startup, then drive the strip with {@link pioWs2812Update}.
 	 *
 	 * For ESP32 boards, the same protocol is driven through `setPwmState`-style
-	 * calls handled by the firmware's led_strip component — see the
+	 * calls handled by the firmware's led_strip component - see the
 	 * [Addressable LEDs guide](https://devicesdk.com/docs/guides/addressable-leds/).
 	 *
 	 * @example
@@ -295,15 +295,15 @@ export interface DeviceSenderInterface {
 
 	/**
 	 * Append a structured log entry visible in `devicesdk logs --tail` and the
-	 * dashboard. Prefer plain `console.log/info/warn/error` — those are captured
+	 * dashboard. Prefer plain `console.log/info/warn/error` - those are captured
 	 * automatically. Use this when you need to control the level explicitly.
 	 */
 	persistLog(level: string, message: string): Promise<void>;
 
 	/**
 	 * Emit a structured state event to real-time watchers (dashboard, Home
-	 * Assistant). Use this to expose custom telemetry — ADC readings, computed
-	 * values, sensor outputs — as entities in external integrations.
+	 * Assistant). Use this to expose custom telemetry - ADC readings, computed
+	 * values, sensor outputs - as entities in external integrations.
 	 *
 	 * `entityId` must match a declaration in `devicesdk.ts` under `ha.entities`
 	 * for it to surface in Home Assistant.

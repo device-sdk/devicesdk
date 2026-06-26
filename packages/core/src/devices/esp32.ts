@@ -1,5 +1,5 @@
 /**
- * ESP32 type hints — pin literal unions for the ESP32 family of chips.
+ * ESP32 type hints - pin literal unions for the ESP32 family of chips.
  *
  * DeviceSDK supports three ESP32 variants today: classic ESP32 (DevKitC),
  * ESP32-C3 (DevKitM-1), and ESP32-C61 (DevKitC-1). Each has a different set
@@ -12,7 +12,7 @@
  * await this.env.DEVICE.setGpioState(OnboardLED, "high");
  *
  * const safe: Esp32C3GpioPin = 4;   // ok
- * // const bad: Esp32C3GpioPin = 30; // compile error — out of range
+ * // const bad: Esp32C3GpioPin = 30; // compile error - out of range
  */
 
 export { OnboardLED } from "../index.js";
@@ -51,7 +51,7 @@ export type Esp32InputOnlyPin = 34 | 35 | 36 | 37 | 38 | 39;
 export type Esp32AdcPin = 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39;
 
 /**
- * Safe GPIOs on ESP32-C3 (DevKitM-1). The onboard WS2812 LED is on GPIO 8 —
+ * Safe GPIOs on ESP32-C3 (DevKitM-1). The onboard WS2812 LED is on GPIO 8 -
  * use {@link OnboardLED} (pin 99) for portable code; setting GPIO 8 directly
  * doesn't drive the LED. Pin 99 is the virtual onboard-LED pin.
  */
@@ -77,7 +77,7 @@ export type Esp32C3GpioPin =
 export type Esp32C3AdcPin = 0 | 1 | 2 | 3 | 4;
 
 /**
- * Safe GPIOs on ESP32-C61 (DevKitC-1). The onboard WS2812 LED is on GPIO 5 —
+ * Safe GPIOs on ESP32-C61 (DevKitC-1). The onboard WS2812 LED is on GPIO 5 -
  * use {@link OnboardLED} (pin 99) for portable code. Pin 99 is the virtual
  * onboard-LED pin.
  */

@@ -6,7 +6,7 @@ import { DeviceSession } from "./deviceSession";
 import { makeBridge } from "./devicesBridge";
 
 /**
- * The per-device surface the REST endpoints call — the same method names the
+ * The per-device surface the REST endpoints call - the same method names the
  * Durable Object stub used to expose, so endpoint call sites are unchanged.
  */
 export interface DeviceHandle {
@@ -30,7 +30,7 @@ export interface DeviceHubDeps {
  * Registry of device sessions, keyed `${projectId}:${deviceId}` (the same
  * identity the Durable Object namespace used). Replaces the DO: instead of
  * resolving a stub, callers get the in-process DeviceSession. Sessions are
- * created lazily on first touch and live for the process lifetime — they're
+ * created lazily on first touch and live for the process lifetime - they're
  * small, and a session with no live socket still serves watchers and RPC.
  */
 export class DeviceHub {
@@ -41,7 +41,7 @@ export class DeviceHub {
 		this.deps = deps;
 	}
 
-	/** Mark all devices disconnected — sessions don't survive a restart. */
+	/** Mark all devices disconnected - sessions don't survive a restart. */
 	resetConnectionState(): void {
 		this.deps.db.query("UPDATE devices SET connected = 0").run();
 	}

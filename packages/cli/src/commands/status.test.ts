@@ -146,7 +146,7 @@ describe("status command", () => {
 		expect(output).toMatch(/connected \d+s ago/); // formatRelativeTime: "connected 30s ago"
 	});
 
-	it("renders — for device with no version", async () => {
+	it("renders - for device with no version", async () => {
 		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
 		apiMocks.getDeviceStatus.mockResolvedValue(
 			makeStatus({ connected: false }),
@@ -155,7 +155,7 @@ describe("status command", () => {
 		await status({});
 
 		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
-		expect(output).toContain("—");
+		expect(output).toContain("-");
 		expect(output).toContain("never");
 	});
 

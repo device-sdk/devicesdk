@@ -35,7 +35,7 @@ export async function startAuth(c: AppContext) {
 		.bind(crypto.randomUUID(), deviceCode, userCode, currentMs, expiresAt)
 		.run();
 
-	// Approval page is served by this same server — derive the URL from the
+	// Approval page is served by this same server - derive the URL from the
 	// request so it works for any self-hosted host:port.
 	const requestUrl = new URL(c.req.url);
 	const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;

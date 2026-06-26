@@ -72,7 +72,7 @@ describe("inter-device RPC bridge", () => {
 	test("a device calls a public method on a sibling that never connected", async () => {
 		const watcher = await srv.connectWatcher(token, "rpc", "caller");
 		const caller = await srv.connectDevice(token, "rpc", "caller");
-		// callee has no live socket — RPC resolves against its deployed script.
+		// callee has no live socket - RPC resolves against its deployed script.
 		caller.sendConnected();
 		await watcher.waitFor((e) => e.event === "status");
 

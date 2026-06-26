@@ -121,7 +121,7 @@ describe("startMdnsResponder (socket)", () => {
 
 	test("replies unicast to a query on a fixed test port", async () => {
 		// Bind a known port and a fixed test address so the result does not
-		// depend on the host's real interfaces or multicast delivery — we send
+		// depend on the host's real interfaces or multicast delivery - we send
 		// the query unicast straight at the responder.
 		const PORT = 53531;
 		responder = startMdnsResponder({

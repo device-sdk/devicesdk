@@ -1,7 +1,7 @@
 import type { DeviceResponse } from "./responses.js";
 import type { Content, UserWorkerEnv } from "./runtime.js";
 
-// Backward-compat type aliases — deprecated, use UserWorkerEnv instead
+// Backward-compat type aliases - deprecated, use UserWorkerEnv instead
 
 // Lifecycle methods and internal properties excluded from the remote interface
 type LifecycleMethods =
@@ -41,7 +41,7 @@ export type GetEnv<ProjectDevices = Record<string, never>> =
  * are callable from other devices in the same project as RPC via
  * `this.env.DEVICES["other-slug"].method()`.
  *
- * Your script runs **in-process on your self-hosted DeviceSDK server** —
+ * Your script runs **in-process on your self-hosted DeviceSDK server** -
  * **not on the microcontroller and not in Node.js**. Avoid `node:*` imports,
  * filesystem access, and long-running loops; each event is handled serially.
  *
@@ -87,7 +87,7 @@ export class DeviceEntrypoint<Env = UserWorkerEnv> {
 	/**
 	 * Called when the physical device opens its WebSocket connection to the runtime.
 	 * Use this to push initial configuration (set pin modes, configure I2C buses,
-	 * subscribe to inputs). Avoid heavy work — keep each event handler bounded.
+	 * subscribe to inputs). Avoid heavy work - keep each event handler bounded.
 	 *
 	 * Override on your subclass; the default is a no-op.
 	 */
@@ -105,7 +105,7 @@ export class DeviceEntrypoint<Env = UserWorkerEnv> {
 	}
 
 	/**
-	 * Called for every event the device emits over WebSocket — sensor reads,
+	 * Called for every event the device emits over WebSocket - sensor reads,
 	 * GPIO transitions, command acks/errors, temperature readings, I2C results.
 	 *
 	 * `message` is a discriminated union; narrow on `message.type` before

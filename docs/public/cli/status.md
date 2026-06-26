@@ -20,12 +20,12 @@ devicesdk status [flags]
 
 The `status` command shows the live connection status of all devices in your project. For each device it displays:
 
-- **DEVICE** — the device slug
-- **STATUS** — `● online`, `○ offline`, or `⚠ error` (status fetch failed)
-- **VERSION** — the first 8 characters of the deployed script version ID
-- **LAST SEEN** — how long ago the device last connected (or "never" if it has never connected)
+- **DEVICE** - the device slug
+- **STATUS** - `● online`, `○ offline`, or `⚠ error` (status fetch failed)
+- **VERSION** - the first 8 characters of the deployed script version ID
+- **LAST SEEN** - how long ago the device last connected (or "never" if it has never connected)
 
-Device status is read in real time from your server — there is no caching.
+Device status is read in real time from your server - there is no caching.
 
 ## Examples
 
@@ -53,10 +53,10 @@ Project: my-project
   ─────────────────────────────────────────────────────
   temperature-sensor   ● online   a1b2c3d4  connected 2m ago
   humidity-sensor      ○ offline  a1b2c3d4  5h ago
-  door-sensor          ○ offline  —         never
+  door-sensor          ○ offline  -         never
 ```
 
 ## Exit Codes
 
-- `0` — success (even if all devices are offline)
-- `1` — project not found, device not found, or authentication error
+- `0` - success (even if all devices are offline)
+- `1` - project not found, device not found, or authentication error

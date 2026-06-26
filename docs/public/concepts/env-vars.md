@@ -4,14 +4,14 @@ description: Store secrets and configuration outside your device script source c
 social_image: /og-images/docs/concepts/env-vars.png
 ---
 
-Environment variables let you store secrets — API keys, webhook URLs, credentials — at the project level and access them from device scripts at runtime. Variables are never stored in your source code or script bundles.
+Environment variables let you store secrets - API keys, webhook URLs, credentials - at the project level and access them from device scripts at runtime. Variables are never stored in your source code or script bundles.
 
 ## Why use environment variables?
 
 Without environment variables, secrets end up hardcoded in your source:
 
 ```typescript
-// ❌ Secret in source code — visible in version history
+// ❌ Secret in source code - visible in version history
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL";
 ```
 
@@ -90,7 +90,7 @@ export class MySensor extends DeviceEntrypoint {
 }
 ```
 
-`get(key)` returns `string | undefined` — always check for `undefined` before using the value.
+`get(key)` returns `string | undefined` - always check for `undefined` before using the value.
 
 ## When do changes take effect?
 
@@ -102,6 +102,6 @@ To update variables without redeploying your script, update them with the CLI an
 
 ## Security notes
 
-- Variable **values are never returned** by the list API — they are only accessible inside the device script running on the server.
+- Variable **values are never returned** by the list API - they are only accessible inside the device script running on the server.
 - Variables are stored at the project level; all devices in a project share the same set of variables.
 - Device-level overrides (different values per device) are not supported in the current version.

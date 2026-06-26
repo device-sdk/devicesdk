@@ -64,12 +64,12 @@ export class CreateThing extends OpenAPIRoute {
 
 ## Schema Patterns
 
-- **Tags**: Group by resource — `["Devices"]`, `["Projects"]`, `["Scripts"]`, `["Tokens"]`
-- **operationId**: `{resource}-{action}` — `devices-create`, `projects-list`
+- **Tags**: Group by resource - `["Devices"]`, `["Projects"]`, `["Scripts"]`, `["Tokens"]`
+- **operationId**: `{resource}-{action}` - `devices-create`, `projects-list`
 - **request.params**: Route parameters from URL (e.g., `:projectId`, `:deviceId`)
 - **request.body**: Use `contentJson(z.object({...}))` for JSON request bodies
 - **responses**: Always include success response and error codes (400, 404, 409, etc.)
-- **Slug validation regex**: `/^[a-z][a-z0-9-]{0,35}$/` — lowercase alphanumeric with hyphens, starts with letter
+- **Slug validation regex**: `/^[a-z][a-z0-9-]{0,35}$/` - lowercase alphanumeric with hyphens, starts with letter
 
 ## Auth and Context
 
@@ -148,7 +148,7 @@ return c.json({ success: true, result: { ... } }, 201);
 return c.json({ success: false, error: "Project not found" }, 404);
 return c.json({ success: false, error: "Device already exists" }, 409);
 
-// Internal errors — throw ApiException
+// Internal errors - throw ApiException
 throw new ApiException("Failed to create device");
 ```
 
@@ -224,12 +224,12 @@ harness setup and fixture patterns.
 ## Existing Endpoint Resources
 
 Reference these for patterns:
-- `apps/server/src/endpoints/projects/` — CRUD with slug validation
-- `apps/server/src/endpoints/devices/` — CRUD + WebSocket connect + firmware download
-- `apps/server/src/endpoints/scripts/` — Upload, deploy, batch operations
-- `apps/server/src/endpoints/tokens/` — API token management (mask token values, show `last_four`)
-- `apps/server/src/endpoints/user/` — Simple user details passthrough
-- `apps/server/src/endpoints/cli-auth/` — Device code flow for CLI
+- `apps/server/src/endpoints/projects/` - CRUD with slug validation
+- `apps/server/src/endpoints/devices/` - CRUD + WebSocket connect + firmware download
+- `apps/server/src/endpoints/scripts/` - Upload, deploy, batch operations
+- `apps/server/src/endpoints/tokens/` - API token management (mask token values, show `last_four`)
+- `apps/server/src/endpoints/user/` - Simple user details passthrough
+- `apps/server/src/endpoints/cli-auth/` - Device code flow for CLI
 
 ## Checklist
 

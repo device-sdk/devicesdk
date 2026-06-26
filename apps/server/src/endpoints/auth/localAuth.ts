@@ -35,7 +35,7 @@ async function userCount(c: AppContext): Promise<number> {
 }
 
 /**
- * GET /v1/auth/status — pre-auth probe for the dashboard login page:
+ * GET /v1/auth/status - pre-auth probe for the dashboard login page:
  * whether any account exists (first-run setup) and whether registration
  * is open.
  */
@@ -50,7 +50,7 @@ export async function handleAuthStatus(c: AppContext) {
 	});
 }
 
-/** POST /v1/auth/register — create a local account + session. */
+/** POST /v1/auth/register - create a local account + session. */
 export async function handleRegister(c: AppContext) {
 	const body = RegisterSchema.safeParse(await c.req.json().catch(() => null));
 	if (!body.success) {
@@ -110,7 +110,7 @@ export async function handleRegister(c: AppContext) {
 	return c.json({ success: true, result: sanitizeUser(inserted.results) });
 }
 
-/** POST /v1/auth/login — verify password, issue a session. */
+/** POST /v1/auth/login - verify password, issue a session. */
 export async function handleLogin(c: AppContext) {
 	const body = LoginSchema.safeParse(await c.req.json().catch(() => null));
 	if (!body.success) {

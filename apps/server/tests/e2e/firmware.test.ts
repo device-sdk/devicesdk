@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { TestServer } from "../harness";
 
 // Placeholder ASCII strings copied verbatim from
-// src/endpoints/devices/downloadFirmware.ts — the blob must contain all six
+// src/endpoints/devices/downloadFirmware.ts - the blob must contain all six
 // for the patch step to succeed.
 const OLD_TOKEN = "e343ecb8036442e093a47718463c1716";
 const OLD_SSID = "8d477eda147344f8b9b8d3e3bef7505b";
@@ -237,7 +237,7 @@ describe("firmware download endpoint", () => {
 	test("400 (padAsciiToLength) when the host override exceeds 32 bytes", async () => {
 		const s = await srv.scaffold({ projectSlug: "fw-host", deviceSlug: "dh" });
 		await srv.services.FIRMWARES.put("esp32-client.bin", buildEsp32Blob());
-		// `host` has no Zod max, but HOST_LENGTH is 32 — so a 40-char host reaches
+		// `host` has no Zod max, but HOST_LENGTH is 32 - so a 40-char host reaches
 		// padAsciiToLength, which throws "Hostname too long" -> caught -> 400.
 		const res = await srv.post("/v1/projects/fw-host/devices/dh/firmware", {
 			token: s.auth.token,

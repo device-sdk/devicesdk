@@ -4,7 +4,7 @@ import { TestServer } from "../harness";
 let srv: TestServer;
 // Scaffolded project the test suite operates on. The env router is mounted at
 // /v1/projects/:projectId/env, but the handlers resolve :projectId against the
-// project_slug column — so the slug is what goes in the URL.
+// project_slug column - so the slug is what goes in the URL.
 let projectSlug: string;
 let token: string;
 

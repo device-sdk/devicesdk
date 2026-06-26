@@ -1,20 +1,20 @@
 # DeviceSDK Website
 
-Marketing and documentation website for [DeviceSDK](https://devicesdk.com) — the free,
+Marketing and documentation website for [DeviceSDK](https://devicesdk.com) - the free,
 open-source, **self-hosted** IoT platform. This is the public site at `devicesdk.com`; it
-is **not** part of the product (there is no hosted dashboard or managed cloud — users run
+is **not** part of the product (there is no hosted dashboard or managed cloud - users run
 the DeviceSDK server on their own hardware).
 
 ## Tech stack
 
-- **[Vue 3](https://vuejs.org/) + [Vite](https://vitejs.dev/) + [vite-ssg](https://github.com/antfu/vite-ssg)** —
+- **[Vue 3](https://vuejs.org/) + [Vite](https://vitejs.dev/) + [vite-ssg](https://github.com/antfu/vite-ssg)** -
   static site generation. Each route renders to static HTML at build time. Page content lives
   in `content/` and the user docs are sourced from `../../docs/public` (mounted at `/docs/`
   by `scripts/build-content.ts`).
-- **[Tailwind CSS v4](https://tailwindcss.com/)** — processed by `@tailwindcss/vite`.
-- **[Playwright](https://playwright.dev/)** — renders social-preview (OG) images at build
+- **[Tailwind CSS v4](https://tailwindcss.com/)** - processed by `@tailwindcss/vite`.
+- **[Playwright](https://playwright.dev/)** - renders social-preview (OG) images at build
   time (`generate-og.js`).
-- **Cloudflare** — hosting and deployment via Wrangler. (Only the website is on
+- **Cloudflare** - hosting and deployment via Wrangler. (Only the website is on
   Cloudflare; the DeviceSDK product itself is self-hosted and has no Cloudflare
   dependency.)
 

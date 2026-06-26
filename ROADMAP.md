@@ -13,7 +13,7 @@ nothing here is a commitment.
 The flagship integration. The server already persists Home Assistant entity
 declarations per device (`HaEntityDeclaration` in `@devicesdk/core`, the
 `device_entity_configs` table, and `GET/PUT .../entities`) and streams
-`state` frames over the watch WebSocket — the groundwork is in place.
+`state` frames over the watch WebSocket - the groundwork is in place.
 
 - **HACS custom integration** that points at a DeviceSDK server URL + API
   token, discovers projects/devices via the REST API, creates HA entities
@@ -26,7 +26,7 @@ declarations per device (`HaEntityDeclaration` in `@devicesdk/core`, the
 
 ## Discovery & onboarding
 
-- **mDNS advertisement** — _shipped:_ the server advertises an A record for
+- **mDNS advertisement** - _shipped:_ the server advertises an A record for
   `<MDNS_HOSTNAME>.local` (default `devicesdk.local`), and the ESP32/Pico
   firmware resolve `.local` over mDNS, so devices connect without a static IP.
   _Next:_ full DNS-SD service-type advertisement (`_devicesdk._tcp`) so the CLI
@@ -39,7 +39,7 @@ declarations per device (`HaEntityDeclaration` in `@devicesdk/core`, the
 `devicesdk dev` still runs the workerd-based simulator. Extract the server's
 in-process device runtime (`apps/server/src/runtime/`) into a shared
 `packages/device-engine` and run the simulator on it, so local dev semantics
-are byte-for-byte the production server's — and the workerd binary dependency
+are byte-for-byte the production server's - and the workerd binary dependency
 goes away.
 
 ## Firmware

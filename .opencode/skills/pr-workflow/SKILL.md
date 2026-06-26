@@ -19,9 +19,9 @@ Always pause between skills to evaluate technical direction, not just command su
 
 These three skills must be used in order:
 
-1. `review-pr` — review only, produce findings
-2. `prepare-pr` — rebase, fix, gate, push to PR head branch
-3. `merge-pr` — squash-merge, verify MERGED state, clean up
+1. `review-pr` - review only, produce findings
+2. `prepare-pr` - rebase, fix, gate, push to PR head branch
+3. `merge-pr` - squash-merge, verify MERGED state, clean up
 
 They are necessary, but not sufficient. Maintainers must steer between steps and understand the code before moving forward.
 
@@ -44,7 +44,7 @@ Do not continue if you cannot verify the problem is real or test the fix.
 
 ## Rebase and Conflict Resolution
 
-Before any substantive review or prep work, **always rebase the PR branch onto current `main` and resolve merge conflicts first**. A PR that cannot cleanly rebase is not ready for review — fix conflicts before evaluating correctness.
+Before any substantive review or prep work, **always rebase the PR branch onto current `main` and resolve merge conflicts first**. A PR that cannot cleanly rebase is not ready for review - fix conflicts before evaluating correctness.
 
 - During `prepare-pr`: rebase onto `main` as the first step, before fixing findings or running gates.
 - If conflicts are complex or touch areas you do not understand, stop and escalate.
@@ -84,10 +84,10 @@ pnpm check-types                 # TypeScript type checking
 
 Skills communicate via `.local/` artifacts:
 
-- `.local/review.md` — Human-readable review (sections A-J)
-- `.local/review.json` — Structured findings for `prepare-pr`
-- `.local/prep.md` — Prepare log with changes and verification
-- `.local/prep.env` — Prepared head SHA and metadata
+- `.local/review.md` - Human-readable review (sections A-J)
+- `.local/review.json` - Structured findings for `prepare-pr`
+- `.local/prep.md` - Prepare log with changes and verification
+- `.local/prep.env` - Prepared head SHA and metadata
 
 ### review.json Format
 
@@ -114,9 +114,9 @@ Skills communicate via `.local/` artifacts:
 ```
 
 Severity levels:
-- **BLOCKER** — Must be fixed before merge. Security issues, data loss, broken functionality.
-- **IMPORTANT** — Should be fixed. Missing tests, poor error handling, type safety gaps.
-- **NIT** — Nice to have. Style, naming, minor improvements.
+- **BLOCKER** - Must be fixed before merge. Security issues, data loss, broken functionality.
+- **IMPORTANT** - Should be fixed. Missing tests, poor error handling, type safety gaps.
+- **NIT** - Nice to have. Style, naming, minor improvements.
 
 ## Pre-review Safety
 
@@ -157,7 +157,7 @@ Severity levels:
    ├── Read PR metadata and diff
    ├── Analyze correctness, security, tests, docs
    ├── Produce .local/review.md + .local/review.json
-   └── PAUSE — Maintainer evaluates findings
+   └── PAUSE - Maintainer evaluates findings
 
 2. /prepare-pr <PR>
    ├── Rebase onto origin/main
@@ -165,7 +165,7 @@ Severity levels:
    ├── Run gates (build, lint, test, check-types)
    ├── Push with --force-with-lease
    ├── Produce .local/prep.md + .local/prep.env
-   └── PAUSE — Maintainer verifies readiness
+   └── PAUSE - Maintainer verifies readiness
 
 3. /merge-pr <PR>
    ├── Validate artifacts from review + prepare

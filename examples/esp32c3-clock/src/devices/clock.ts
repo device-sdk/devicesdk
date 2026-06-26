@@ -3,7 +3,7 @@ import { SSD1306 } from "@devicesdk/core/i2c";
 
 // A wall clock for the ESP32-C3 board with the built-in 0.42" 72×40 OLED.
 //
-// The device script runs on the server, so it always knows the wall-clock time —
+// The device script runs on the server, so it always knows the wall-clock time -
 // the microcontroller itself has no real-time clock. Once a minute a cron fires,
 // we format the current time + date for the configured timezone and push a fresh
 // frame to the screen. Seconds are intentionally never shown: the display only
@@ -12,7 +12,7 @@ import { SSD1306 } from "@devicesdk/core/i2c";
 // Board wiring (common ESP32-C3 "FN4 / 0.42-inch OLED" DevKits):
 //   On-board SSD1306 on I²C bus 0: SDA=5, SCL=6, addr 0x3C, 72×40, col offset 28.
 //   `SSD1306.esp32c3OledVariant()` bakes in the width/height/offset for this panel.
-//   Verify SDA/SCL against your board's silkscreen — a few variants swap them.
+//   Verify SDA/SCL against your board's silkscreen - a few variants swap them.
 
 // IANA timezone for the displayed time. Change this to yours, e.g.
 // "America/New_York", "Europe/London", "Asia/Tokyo". "UTC" is the safe default.
@@ -88,7 +88,7 @@ const centerX = (text: string): number =>
 function drawClockFace(display: SSD1306, time: string, date: string): void {
 	display.clear();
 
-	// time is "HH:MM" — render the four digits, skipping the ":" at index 2.
+	// time is "HH:MM" - render the four digits, skipping the ":" at index 2.
 	const d2x = CLOCK_X + DIGIT_W + TIME_GAP;
 	const colonX = CLOCK_X + PAIR_W + COLON_GAP;
 	const d3x = colonX + COLON_W + COLON_GAP;
@@ -173,7 +173,7 @@ export class ClockDevice extends DeviceEntrypoint {
 	// WebSocket disconnect/reconnect, re-running the SSD1306 power-on sequence
 	// each time, and a brown-out or device reboot resets the controller too. If we
 	// sent a framebuffer without re-init (init: false), any of those events would
-	// leave the panel configured for the firmware's geometry — our pixels would
+	// leave the panel configured for the firmware's geometry - our pixels would
 	// write to an un-initialized controller and render nothing, so the clock would
 	// silently go dark until the next reboot. Re-initializing is idempotent and
 	// cheap on the SSD1306 (no visible flicker), so paying it once a minute buys

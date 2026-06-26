@@ -1,3 +1,5 @@
 name = "devicesdk-website"
 compatibility_date = "2025-06-18"
-pages_build_output_dir = "dist"
+
+[assets]
+directory = "dist"

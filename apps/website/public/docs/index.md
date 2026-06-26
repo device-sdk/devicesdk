@@ -1,7 +1,6 @@
 ---
 title: "DeviceSDK Documentation"
 description: "Build IoT applications with TypeScript. From prototype to production in minutes."
-url: http://localhost:1313/docs/
 ---
 
 # DeviceSDK Documentation

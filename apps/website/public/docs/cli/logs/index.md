@@ -1,7 +1,6 @@
 ---
 title: "devicesdk logs"
 description: "View and stream log output from a deployed device"
-url: http://localhost:1313/docs/cli/logs/
 ---
 
 # devicesdk logs

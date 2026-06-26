@@ -1,7 +1,6 @@
 ---
 title: "Cron Scheduling"
 description: "Schedule recurring work in device scripts using cron expressions"
-url: http://localhost:1313/docs/concepts/cron-scheduling/
 ---
 
 # Cron Scheduling

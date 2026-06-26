@@ -1,7 +1,6 @@
 ---
 title: "devicesdk status"
 description: "Check the connection status of devices in your project"
-url: http://localhost:1313/docs/cli/status/
 ---
 
 # devicesdk status

@@ -1,7 +1,6 @@
 ---
 title: "About"
 description: "Building the future of IoT development. Making hardware programming as easy as web development."
-url: http://localhost:1313/about/
 ---
 
 # About

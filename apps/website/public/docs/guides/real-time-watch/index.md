@@ -1,7 +1,6 @@
 ---
 title: "Real-Time Watch WebSocket"
 description: "Subscribe to a device's status, logs, and structured state events over a single long-lived WebSocket — the same primitive the dashboard and Home Assistant integration use."
-url: http://localhost:1313/docs/guides/real-time-watch/
 ---
 
 # Real-Time Watch WebSocket

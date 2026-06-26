@@ -1,7 +1,6 @@
 ---
 title: "Hardware Compatibility"
 description: "Supported microcontrollers and hardware platforms"
-url: http://localhost:1313/docs/hardware/
 ---
 
 # Hardware Compatibility

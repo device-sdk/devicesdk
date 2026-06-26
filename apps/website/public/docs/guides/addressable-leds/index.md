@@ -1,7 +1,6 @@
 ---
 title: "Addressable LEDs"
 description: "Drive WS2812 and NeoPixel LED strips from your Pico device"
-url: http://localhost:1313/docs/guides/addressable-leds/
 ---
 
 # Addressable LEDs

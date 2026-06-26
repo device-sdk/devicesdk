@@ -1,7 +1,6 @@
 ---
 title: "Error reference"
 description: "Stable error codes returned by the DeviceSDK API and CLI"
-url: http://localhost:1313/docs/errors/
 ---
 
 # Error reference

@@ -1,7 +1,6 @@
 ---
 title: "devicesdk init"
 description: "Create a new DeviceSDK project"
-url: http://localhost:1313/docs/cli/init/
 ---
 
 # devicesdk init

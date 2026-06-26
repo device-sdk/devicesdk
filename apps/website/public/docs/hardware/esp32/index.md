@@ -1,7 +1,6 @@
 ---
 title: "ESP32"
 description: "Classic dual Xtensa LX6 with 2.4GHz WiFi"
-url: http://localhost:1313/docs/hardware/esp32/
 ---
 
 # ESP32

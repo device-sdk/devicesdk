@@ -1,7 +1,6 @@
 ---
 title: "Using SPI"
 description: "Communicate with SPI peripherals like displays, SD cards, and sensors"
-url: http://localhost:1313/docs/guides/using-spi/
 ---
 
 # Using SPI

@@ -1,7 +1,6 @@
 ---
 title: "devicesdk deploy"
 description: "Deploy device scripts to production"
-url: http://localhost:1313/docs/cli/deploy/
 ---
 
 # devicesdk deploy

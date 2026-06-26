@@ -1,18 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    groups:
-      devDependencies:
-        dependency-type: "development"
-    ignore:
-      # Major version bumps require manual review
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

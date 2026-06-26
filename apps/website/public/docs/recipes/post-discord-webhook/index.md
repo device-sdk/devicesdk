@@ -1,7 +1,6 @@
 ---
 title: "How do I post sensor readings to a Discord webhook?"
 description: "Read the chip temperature on a cron, POST to a webhook, handle non-2xx responses"
-url: http://localhost:1313/docs/recipes/post-discord-webhook/
 ---
 
 # How do I post sensor readings to a Discord webhook?

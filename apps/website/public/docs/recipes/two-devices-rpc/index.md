@@ -1,7 +1,6 @@
 ---
 title: "How do I make two devices talk to each other?"
 description: "Use this.env.DEVICES[\"other\"].method() — typed RPC mediated by the runtime"
-url: http://localhost:1313/docs/recipes/two-devices-rpc/
 ---
 
 # How do I make two devices talk to each other?

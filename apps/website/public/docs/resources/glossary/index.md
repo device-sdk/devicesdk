@@ -1,7 +1,6 @@
 ---
 title: "Glossary"
 description: "Key terms and definitions for DeviceSDK"
-url: http://localhost:1313/docs/resources/glossary/
 ---
 
 # Glossary

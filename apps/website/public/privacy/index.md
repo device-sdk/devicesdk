@@ -1,7 +1,6 @@
 ---
 title: "Privacy Policy"
 description: "DeviceSDK Privacy Policy"
-url: http://localhost:1313/privacy/
 ---
 
 # Privacy Policy

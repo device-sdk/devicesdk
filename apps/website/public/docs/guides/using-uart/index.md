@@ -1,7 +1,6 @@
 ---
 title: "Using UART"
 description: "Serial communication with GPS modules, Bluetooth adapters, and other peripherals"
-url: http://localhost:1313/docs/guides/using-uart/
 ---
 
 # Using UART

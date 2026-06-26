@@ -1,7 +1,6 @@
 ---
 title: "devicesdk inspect"
 description: "Interactive REPL for sending hardware commands to a connected device"
-url: http://localhost:1313/docs/cli/inspect/
 ---
 
 # devicesdk inspect

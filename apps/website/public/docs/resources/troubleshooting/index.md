@@ -1,7 +1,6 @@
 ---
 title: "Troubleshooting"
 description: "Common issues and solutions for DeviceSDK"
-url: http://localhost:1313/docs/resources/troubleshooting/
 ---
 
 # Troubleshooting

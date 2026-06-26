@@ -1,7 +1,6 @@
 ---
 title: "Platform Architecture"
 description: "Understanding how DeviceSDK works end-to-end"
-url: http://localhost:1313/docs/concepts/architecture/
 ---
 
 # Platform Architecture

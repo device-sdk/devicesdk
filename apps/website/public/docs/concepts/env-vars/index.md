@@ -1,7 +1,6 @@
 ---
 title: "Environment Variables"
 description: "Store secrets and configuration outside your device script source code"
-url: http://localhost:1313/docs/concepts/env-vars/
 ---
 
 # Environment Variables

@@ -1,7 +1,6 @@
 ---
 title: "CLI Reference"
 description: "Complete command-line interface reference for DeviceSDK"
-url: http://localhost:1313/docs/cli/
 ---
 
 # CLI Reference

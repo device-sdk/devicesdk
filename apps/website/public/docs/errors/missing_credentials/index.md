@@ -1,7 +1,6 @@
 ---
 title: "Error: missing_credentials"
 description: "The request had no Bearer token, session cookie, or CLI token."
-url: http://localhost:1313/docs/errors/missing_credentials/
 ---
 
 # Error: missing_credentials

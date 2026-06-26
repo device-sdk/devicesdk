@@ -1,7 +1,6 @@
 ---
 title: "Quickstart"
 description: "Get from zero to your first deployment in under 15 minutes"
-url: http://localhost:1313/docs/quickstart/
 ---
 
 # Quickstart

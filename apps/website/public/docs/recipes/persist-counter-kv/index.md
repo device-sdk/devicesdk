@@ -1,7 +1,6 @@
 ---
 title: "How do I persist a counter across device reboots?"
 description: "Use this.env.DEVICE.kv to keep state across reboots, deploys, and reconnects"
-url: http://localhost:1313/docs/recipes/persist-counter-kv/
 ---
 
 # How do I persist a counter across device reboots?

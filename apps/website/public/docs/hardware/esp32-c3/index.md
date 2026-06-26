@@ -1,7 +1,6 @@
 ---
 title: "ESP32-C3"
 description: "Single-core RISC-V with 2.4GHz WiFi and WS2812 via RMT"
-url: http://localhost:1313/docs/hardware/esp32-c3/
 ---
 
 # ESP32-C3

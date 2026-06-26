@@ -1,7 +1,6 @@
 ---
 title: "ESP32-C61"
 description: "Single-core RISC-V with WiFi 6 and WS2812 via SPI backend"
-url: http://localhost:1313/docs/hardware/esp32-c61/
 ---
 
 # ESP32-C61

@@ -1,7 +1,6 @@
 ---
 title: "Error: invalid_cli_token"
 description: "A `dsdk_*` CLI token is missing, expired, or revoked."
-url: http://localhost:1313/docs/errors/invalid_cli_token/
 ---
 
 # Error: invalid_cli_token

@@ -1,7 +1,6 @@
 ---
 title: "How do I send a daily summary on a cron schedule?"
 description: "Declare a UTC cron, accumulate values in KV, post a summary once per day"
-url: http://localhost:1313/docs/recipes/daily-cron-summary/
 ---
 
 # How do I send a daily summary on a cron schedule?

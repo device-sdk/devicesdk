@@ -1,7 +1,6 @@
 ---
 title: "How do I surface a sensor as a Home Assistant entity?"
 description: "Declare HA entities in devicesdk.ts, push values with emitState, consume via the HA integration"
-url: http://localhost:1313/docs/recipes/sensor-to-home-assistant/
 ---
 
 # How do I surface a sensor as a Home Assistant entity?

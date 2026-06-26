@@ -1,7 +1,6 @@
 ---
 title: "Script Versioning"
 description: "Understanding deployment versions and rollback"
-url: http://localhost:1313/docs/concepts/versioning/
 ---
 
 # Script Versioning

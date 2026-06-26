@@ -1,7 +1,6 @@
 ---
 title: "devicesdk login"
 description: "Authenticate the CLI with the DeviceSDK API"
-url: http://localhost:1313/docs/cli/login/
 ---
 
 # devicesdk login

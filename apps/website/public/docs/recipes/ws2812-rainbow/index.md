@@ -1,7 +1,6 @@
 ---
 title: "How do I drive a WS2812 strip with a rainbow effect?"
 description: "Configure the strip on the Pico's PIO, animate a slow hue shift via cron"
-url: http://localhost:1313/docs/recipes/ws2812-rainbow/
 ---
 
 # How do I drive a WS2812 strip with a rainbow effect?

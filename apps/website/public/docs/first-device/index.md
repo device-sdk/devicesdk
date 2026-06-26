@@ -1,7 +1,6 @@
 ---
 title: "Your First Device"
 description: "Learn how to build your first device entrypoint with DeviceSDK"
-url: http://localhost:1313/docs/first-device/
 ---
 
 # Your First Device

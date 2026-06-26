@@ -1,7 +1,6 @@
 ---
 title: "MCP server (@devicesdk/mcp)"
 description: "Drive DeviceSDK from Claude, Cursor, Continue, Windsurf and other MCP-aware coding agents"
-url: http://localhost:1313/docs/mcp/
 ---
 
 # MCP server (@devicesdk/mcp)

@@ -1,7 +1,6 @@
 ---
 title: "devicesdk flash"
 description: "Flash firmware to Raspberry Pi Pico and ESP32"
-url: http://localhost:1313/docs/cli/flash/
 ---
 
 # devicesdk flash

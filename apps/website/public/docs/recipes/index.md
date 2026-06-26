@@ -1,7 +1,6 @@
 ---
 title: "Cookbook"
 description: "Task-shaped recipes — one URL per how-to, complete runnable code"
-url: http://localhost:1313/docs/recipes/
 ---
 
 # Cookbook

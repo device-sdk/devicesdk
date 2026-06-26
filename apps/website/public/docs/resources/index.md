@@ -1,7 +1,6 @@
 ---
 title: "Resources"
 description: "Reference materials and support"
-url: http://localhost:1313/docs/resources/
 ---
 
 # Resources

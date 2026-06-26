@@ -1,7 +1,6 @@
 ---
 title: "Rate Limits"
 description: "API rate limits by plan tier and how to handle 429 responses"
-url: http://localhost:1313/docs/concepts/rate-limits/
 ---
 
 # Rate Limits

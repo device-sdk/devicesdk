@@ -1,7 +1,6 @@
 ---
 title: "Using I2C"
 description: "Connect I2C sensors and displays — buses, addresses, byte format, batch writes"
-url: http://localhost:1313/docs/guides/using-i2c/
 ---
 
 # Using I2C

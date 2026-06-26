@@ -1,7 +1,6 @@
 ---
 title: "Raspberry Pi Pico 2W"
 description: "RP2350 dual Cortex-M33 with 2.4GHz WiFi, Pico W pin-compatible"
-url: http://localhost:1313/docs/hardware/pico-2w/
 ---
 
 # Raspberry Pi Pico 2W

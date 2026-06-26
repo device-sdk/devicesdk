@@ -1,7 +1,6 @@
 ---
 title: "How do I read a BME280 temperature/humidity sensor on a Pico?"
 description: "I2C-based BME280 driver — configure the bus, read the chip ID, log readings on a cron"
-url: http://localhost:1313/docs/recipes/read-bme280/
 ---
 
 # How do I read a BME280 temperature/humidity sensor on a Pico?

@@ -1,7 +1,6 @@
 ---
 title: "Changelog"
 description: "Latest releases and updates for DeviceSDK"
-url: http://localhost:1313/docs/changelog/
 ---
 
 # Changelog

@@ -1,7 +1,6 @@
 ---
 title: "Error: invalid_token"
 description: "The token on the request does not match any active session, API token, or legacy token."
-url: http://localhost:1313/docs/errors/invalid_token/
 ---
 
 # Error: invalid_token

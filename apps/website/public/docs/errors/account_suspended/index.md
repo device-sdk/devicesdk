@@ -1,7 +1,6 @@
 ---
 title: "Error: account_suspended"
 description: "Your DeviceSDK account has been suspended."
-url: http://localhost:1313/docs/errors/account_suspended/
 ---
 
 # Error: account_suspended

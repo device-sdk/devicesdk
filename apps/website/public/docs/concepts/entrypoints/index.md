@@ -1,7 +1,6 @@
 ---
 title: "Device Entrypoints"
 description: "Understanding device entrypoint lifecycle and methods"
-url: http://localhost:1313/docs/concepts/entrypoints/
 ---
 
 # Device Entrypoints

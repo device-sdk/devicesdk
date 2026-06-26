@@ -1,7 +1,6 @@
 ---
 title: "devicesdk dev"
 description: "Run the local development simulator for DeviceSDK device scripts"
-url: http://localhost:1313/docs/cli/dev/
 ---
 
 # devicesdk dev

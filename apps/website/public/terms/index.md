@@ -1,7 +1,6 @@
 ---
 title: "Terms of Service"
 description: "DeviceSDK Terms of Service"
-url: http://localhost:1313/terms/
 ---
 
 # Terms of Service

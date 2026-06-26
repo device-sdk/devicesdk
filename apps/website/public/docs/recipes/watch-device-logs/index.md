@@ -1,7 +1,6 @@
 ---
 title: "How do I watch a device's state and logs in real time?"
 description: "Stream live logs and structured state via devicesdk logs --tail or the watch WebSocket"
-url: http://localhost:1313/docs/recipes/watch-device-logs/
 ---
 
 # How do I watch a device's state and logs in real time?

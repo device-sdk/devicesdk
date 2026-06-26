@@ -1,7 +1,6 @@
 ---
 title: "Home Assistant Integration"
 description: "Expose DeviceSDK devices as native entities in Home Assistant — sensors, switches, and lights that work with automations, dashboards, and voice assistants."
-url: http://localhost:1313/docs/guides/home-assistant/
 ---
 
 # Home Assistant Integration

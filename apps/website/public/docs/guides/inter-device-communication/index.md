@@ -1,7 +1,6 @@
 ---
 title: "Inter-Device Communication"
 description: "Call methods between devices with type-safe RPC"
-url: http://localhost:1313/docs/guides/inter-device-communication/
 ---
 
 # Inter-Device Communication

@@ -1,7 +1,6 @@
 ---
 title: "How do I toggle an LED with a button?"
 description: "Wire a button to an input pin, watch transitions, drive the onboard LED"
-url: http://localhost:1313/docs/recipes/button-toggles-led/
 ---
 
 # How do I toggle an LED with a button?

@@ -1,7 +1,6 @@
 ---
 title: "How do I show live data on a small OLED?"
 description: "Wire an SSD1306 OLED, render text, update once a minute from a sensor read"
-url: http://localhost:1313/docs/recipes/oled-live-data/
 ---
 
 # How do I show live data on a small OLED?

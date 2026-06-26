@@ -1,7 +1,6 @@
 ---
 title: "Emit State"
 description: "Publish structured state values from a device script so the dashboard, Home Assistant, and other watchers see them as entity updates."
-url: http://localhost:1313/docs/concepts/emit-state/
 ---
 
 # Emit State

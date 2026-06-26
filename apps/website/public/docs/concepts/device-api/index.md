@@ -1,7 +1,6 @@
 ---
 title: "Device API reference"
 description: "Every method on this.env.DEVICE — GPIO, PWM, I2C, SPI, UART, KV, watchdog"
-url: http://localhost:1313/docs/concepts/device-api/
 ---
 
 # Device API reference

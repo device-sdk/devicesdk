@@ -1,7 +1,6 @@
 ---
 title: "Project \u0026 Device Identifiers"
 description: "How project slugs and device slugs map to your devicesdk.ts config"
-url: http://localhost:1313/docs/concepts/identifiers/
 ---
 
 # Project & Device Identifiers

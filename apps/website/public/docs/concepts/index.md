@@ -1,7 +1,6 @@
 ---
 title: "Concepts"
 description: "Understand how DeviceSDK works"
-url: http://localhost:1313/docs/concepts/
 ---
 
 # Concepts

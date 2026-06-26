@@ -1,7 +1,6 @@
 ---
 title: "Raspberry Pi Pico W"
 description: "RP2040 dual ARM Cortex-M0+ with 2.4GHz WiFi"
-url: http://localhost:1313/docs/hardware/pico-w/
 ---
 
 # Raspberry Pi Pico W

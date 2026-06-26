@@ -1,7 +1,6 @@
 ---
 title: "Error: account_deletion_pending"
 description: "A deletion has been scheduled for this account; data will be removed soon."
-url: http://localhost:1313/docs/errors/account_deletion_pending/
 ---
 
 # Error: account_deletion_pending

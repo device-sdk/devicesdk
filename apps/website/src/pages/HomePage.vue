@@ -18,7 +18,7 @@
             <span class="gradient-pan">in TypeScript</span>
           </h1>
           <p class="mt-6 text-lg text-zinc-400 max-w-xl leading-relaxed">
-            Write TypeScript device scripts, run the open-source DeviceSDK server yourself — Raspberry Pi, NUC, NAS, any Docker host — and connect your ESP32 and Pico over WebSocket. Your hardware, your data, no cloud.
+            Write TypeScript device scripts, run the open-source DeviceSDK server yourself on a Raspberry Pi, NUC, NAS, or any Docker host, and connect your ESP32 and Pico over WebSocket. Your hardware, your data, no cloud.
           </p>
           <div class="mt-8 flex flex-col sm:flex-row gap-3">
             <a href="/docs/quickstart/" class="btn-primary nudge h-11 px-6">
@@ -68,7 +68,7 @@
     </div>
   </section>
 
-  <!-- Scroll Assembly Scene — pieces fly in and connect into a live IoT system -->
+  <!-- Scroll Assembly Scene, pieces fly in and connect into a live IoT system -->
   <section ref="assemblyScene" class="assembly-scene relative" data-scroll-scene="assembly" aria-label="How DeviceSDK connects code to hardware">
     <div class="assembly-sticky">
       <!-- Caption that swaps phrase as you scroll -->
@@ -78,7 +78,7 @@
           <span data-caption="0">Your TypeScript</span>
           <span data-caption="1">runs on your server</span>
           <span data-caption="2">streams to your hardware</span>
-          <span data-caption="3">— live.</span>
+          <span data-caption="3">live.</span>
         </h2>
       </div>
 
@@ -179,7 +179,7 @@
         <div class="card-lift bg-white border border-zinc-200 rounded-xl p-6">
           <div class="text-xs font-mono text-emerald-600 font-medium mb-3">02</div>
           <h3 class="text-base font-semibold text-zinc-900 mb-2">Test</h3>
-          <p class="text-sm text-zinc-500 mb-4">Local simulator with virtual hardware — no device needed</p>
+          <p class="text-sm text-zinc-500 mb-4">Local simulator with virtual hardware, no device needed</p>
           <div class="bg-zinc-900 rounded-lg p-3 font-mono text-xs text-zinc-300">
             <span class="text-zinc-500">$</span> devicesdk dev
           </div>
@@ -280,7 +280,7 @@
           <div class="badge badge-emerald mb-4">Persistent state</div>
           <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Built-in KV storage</h2>
           <p class="mt-4 text-zinc-400 text-lg leading-relaxed">
-            Every device gets a key-value store that persists across reboots and deployments — backed by SQLite on your own server. Store sensor readings, configuration, or device state, accessible from your code and the dashboard.
+            Every device gets a key-value store that persists across reboots and deployments, backed by SQLite on your own server. Store sensor readings, configuration, or device state, accessible from your code and the dashboard.
           </p>
         </div>
         <div class="code-window">
@@ -292,7 +292,7 @@
 <span class="syn-kw">const</span> ledOn = <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv
   .<span class="syn-fn">get</span>&lt;<span class="syn-type">boolean</span>&gt;(<span class="syn-str">"ledOn"</span>);
 
-<span class="syn-cm">// Write — persists across reboots</span>
+<span class="syn-cm">// Write, persists across reboots</span>
 <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv
   .<span class="syn-fn">put</span>(<span class="syn-str">"ledOn"</span>, !ledOn);
 
@@ -346,7 +346,7 @@
           <span class="text-zinc-400">For years.</span>
         </h2>
         <p class="mt-6 text-zinc-500 max-w-2xl mx-auto">
-          If your device script works today, it will work in five years — without you touching it. Breaking changes are bugs, not version bumps.
+          If your device script works today, it will work in five years, without you touching it. Breaking changes are bugs, not version bumps.
         </p>
       </div>
 
@@ -359,7 +359,7 @@
           </div>
           <h3 class="text-base font-semibold text-zinc-100 mb-2">No breaking changes</h3>
           <p class="text-sm text-zinc-400 leading-relaxed">
-            A breaking change is a bug, not a version bump. Your scripts keep running across every update — no surprise regressions, no emergency fixes at 2am.
+            A breaking change is a bug, not a version bump. Your scripts keep running across every update, no surprise regressions, no emergency fixes at 2am.
           </p>
         </div>
 
@@ -371,7 +371,7 @@
           </div>
           <h3 class="text-base font-semibold text-zinc-100 mb-2">Update when you want to</h3>
           <p class="text-sm text-zinc-400 leading-relaxed">
-            Releases are infrequent and intentional. If a new release has something you want, update. If not, skip it — your setup keeps working exactly as before.
+            Releases are infrequent and intentional. If a new release has something you want, update. If not, skip it. Your setup keeps working exactly as before.
           </p>
         </div>
 
@@ -383,7 +383,7 @@
           </div>
           <h3 class="text-base font-semibold text-zinc-100 mb-2">Compatibility flags</h3>
           <p class="text-sm text-zinc-400 leading-relaxed">
-            When behavior genuinely has to evolve, opt-in compatibility flags let you migrate on your own schedule. Inspired by Cloudflare Workers' compatibility dates — never a forced upgrade.
+            When behavior genuinely has to evolve, opt-in compatibility flags let you migrate on your own schedule. Inspired by Cloudflare Workers' compatibility dates, never a forced upgrade.
           </p>
         </div>
       </div>
@@ -399,7 +399,7 @@
         <span class="text-zinc-400">One container, one port.</span>
       </h2>
       <p class="mt-6 text-zinc-500 max-w-xl mx-auto">
-        DeviceSDK ships as a single Docker image — server, dashboard, and firmware in one. Bring it up on a Raspberry Pi, a NUC, a NAS, or any Docker host. The first account you create becomes the admin.
+        DeviceSDK ships as a single Docker image: server, dashboard, and firmware in one. Bring it up on a Raspberry Pi, a NUC, a NAS, or any Docker host. The first account you create becomes the admin.
       </p>
       <div class="code-window terminal text-left mt-8 max-w-xl mx-auto">
         <div class="code-window-bar">

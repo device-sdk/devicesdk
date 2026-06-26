@@ -16,16 +16,16 @@ DeviceSDK is a free, open-source (AGPL-3.0), self-hosted IoT platform. You write
 
 ### How is this different from other IoT platforms?
 
-- **TypeScript-first** — Full type safety and autocomplete for hardware APIs; catch wiring mistakes at compile time
-- **Self-hosted** — Runs on a Raspberry Pi or any Docker host; your data never leaves your network
-- **No breaking changes** — A device script that works today will work in five years; breaking changes are treated as bugs
-- **Slow, deliberate releases** — Updates ship when there is something worth shipping, not on a weekly cadence
-- **Compatibility flags** — When behavior must evolve, opt-in flags let you migrate on your own schedule
-- **Developer-friendly** — Built-in local simulator, modern CLI tooling, inter-device RPC with full TypeScript types
+- **TypeScript-first**: Full type safety and autocomplete for hardware APIs; catch wiring mistakes at compile time
+- **Self-hosted**: Runs on a Raspberry Pi or any Docker host; your data never leaves your network
+- **No breaking changes**: A device script that works today will work in five years; breaking changes are treated as bugs
+- **Slow, deliberate releases**: Updates ship when there is something worth shipping, not on a weekly cadence
+- **Compatibility flags**: When behavior must evolve, opt-in flags let you migrate on your own schedule
+- **Developer-friendly**: Built-in local simulator, modern CLI tooling, inter-device RPC with full TypeScript types
 
 ### Do I need a cloud account or paid subscription?
 
-No. DeviceSDK is entirely self-hosted and free. You run the server yourself — there is no SaaS component and no billing.
+No. DeviceSDK is entirely self-hosted and free. You run the server yourself, there is no SaaS component and no billing.
 
 ## Cost
 
@@ -35,7 +35,7 @@ DeviceSDK is free and open source. You only pay for the hardware you already own
 
 ### What does self-hosted mean?
 
-It means you run the server yourself. The DeviceSDK Docker image contains everything — the REST API, device WebSockets, and the dashboard UI — in a single container. You own all the data.
+It means you run the server yourself. The DeviceSDK Docker image contains everything: the REST API, device WebSockets, and the dashboard UI, in a single container. You own all the data.
 
 ## Supported Hardware
 
@@ -48,7 +48,7 @@ Currently supported:
 
 ### Can I use a Raspberry Pi (full Linux computer)?
 
-Not currently. DeviceSDK targets microcontrollers — devices running the DeviceSDK firmware over WebSocket. The *server* runs on a Raspberry Pi or any Linux/Docker host.
+Not currently. DeviceSDK targets microcontrollers, devices running the DeviceSDK firmware over WebSocket. The *server* runs on a Raspberry Pi or any Linux/Docker host.
 
 ### Can I request hardware support?
 
@@ -93,7 +93,7 @@ Yes. Rollback to any previous version instantly via the dashboard.
 
 ### How many devices can I have?
 
-No limit. The server is yours — it's only bounded by the hardware you run it on.
+No limit. The server is yours, bounded only by the hardware you run it on.
 
 ### Can I deploy from CI/CD?
 
@@ -112,11 +112,11 @@ DEVICESDK_TOKEN=xxx devicesdk deploy
 
 ### Where is my data stored?
 
-Everything stays on your server — SQLite database, device scripts, logs, and KV state. Nothing leaves your network.
+Everything stays on your server: SQLite database, device scripts, logs, and KV state. Nothing leaves your network.
 
 ### Does my server need to be on the internet?
 
-No. Devices connect over your LAN using WebSocket. If you want remote access, you can expose the server through a reverse proxy or VPN — but it's not required.
+No. Devices connect over your LAN using WebSocket. If you want remote access, you can expose the server through a reverse proxy or VPN, but it's not required.
 
 ## Connectivity
 
@@ -141,7 +141,7 @@ import type { Env } from '../../devicesdk-env';
 
 export class Sensor extends DeviceEntrypoint<Env> {
   async onMessage(message: DeviceResponse) {
-    // Call a method on another device — fully typed with autocomplete
+    // Call a method on another device, fully typed with autocomplete
     const result = await this.env.DEVICES['light-controller'].turnOn();
     console.info('Light status:', result.status);
   }
@@ -220,7 +220,7 @@ Yes! Share feedback in Discord or via email. We prioritize user-requested featur
 
 ### Is DeviceSDK open source?
 
-Yes. The entire platform — server, CLI, firmware, dashboard, and website — is open source under AGPL-3.0. [View the repository on GitHub](https://github.com/device-sdk/devicesdk-monorepo).
+Yes. The entire platform (server, CLI, firmware, dashboard, and website) is open source under AGPL-3.0. [View the repository on GitHub](https://github.com/device-sdk/devicesdk-monorepo).
 
 ## Migration
 
@@ -233,7 +233,7 @@ Yes. We have migration guides for:
 
 ### Will you support MQTT?
 
-DeviceSDK uses WebSockets. MQTT support is not planned — WebSockets are simpler to self-host and cover all the same use cases.
+DeviceSDK uses WebSockets. MQTT support is not planned. WebSockets are simpler to self-host and cover all the same use cases.
 
 ### Can I export my data?
 

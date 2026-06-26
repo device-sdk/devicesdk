@@ -2,19 +2,19 @@
 
 **Free, open-source, self-hosted IoT platform.** Write TypeScript device scripts, run the DeviceSDK server on your own hardware (Raspberry Pi, NUC, NAS, any Docker host), and connect ESP32 / Raspberry Pi Pico microcontrollers to it over WebSocket.
 
-No cloud, no SaaS, no per-message billing — your hardware, your data. Licensed under **AGPL-3.0-only**.
+No cloud, no SaaS, no per-message billing. Your hardware, your data. Licensed under **AGPL-3.0-only**.
 
 ## Philosophy
 
-**No breaking changes.** A device script that works today will work in five years. Breaking changes are treated as bugs. If one ever ships, it's a regression — not a feature.
+**No breaking changes.** A device script that works today will work in five years. Breaking changes are treated as bugs. If one ever ships, it's a regression, not a feature.
 
-**Update only when you want to.** Releases are infrequent and intentional. If a new release has something you want, update. If not, don't — your current setup keeps working exactly as before.
+**Update only when you want to.** Releases are infrequent and intentional. If a new release has something you want, update. If not, don't. Your current setup keeps working exactly as before.
 
 **Compatibility flags.** When behavior genuinely has to evolve, opt-in compatibility flags (inspired by Cloudflare Workers' compatibility dates) let you migrate on your own schedule. You will never wake up to a broken device because of a forced upgrade.
 
 ## Run the server
 
-The whole platform — REST API, device & watcher WebSockets, and the dashboard UI — is a single container listening on one port.
+The whole platform (REST API, device and watcher WebSockets, and the dashboard UI) is a single container listening on one port.
 
 ```bash
 docker compose up -d
@@ -23,7 +23,7 @@ docker compose up -d
 
 Devices on your LAN connect to `ws://<this-machine>:8080`. All state (SQLite database, device scripts, firmware images) is persisted under the `./data` volume you control.
 
-The server also advertises itself over **mDNS** as `devicesdk.local`, so you can reach it — and flash devices against it — without knowing its LAN IP (`http://devicesdk.local:8080`). Set `MDNS_HOSTNAME` to a different name to run several DeviceSDK servers on one network.
+The server also advertises itself over **mDNS** as `devicesdk.local`, so you can reach it and flash devices against it without knowing its LAN IP (`http://devicesdk.local:8080`). Set `MDNS_HOSTNAME` to a different name to run several DeviceSDK servers on one network.
 
 Useful environment variables (see `docker-compose.yml`):
 
@@ -40,7 +40,7 @@ See [docs/public/quickstart.md](docs/public/quickstart.md) for the full zero-to-
 
 ## Develop a device project
 
-The `devicesdk` CLI (npm, runs on Node) builds and deploys device scripts to **your** server. It has no default server URL — point it at your install once with `--host`:
+The `devicesdk` CLI (npm, runs on Node) builds and deploys device scripts to **your** server. It has no default server URL. Point it at your install once with `--host`:
 
 ```bash
 npx @devicesdk/cli login --host http://localhost:8080
@@ -68,21 +68,21 @@ docker build -t devicesdk .
 
 ## Project Structure
 
-pnpm + Turborepo monorepo. **Bun is the server runtime only** — the CLI and MCP run on plain Node for npm users.
+pnpm + Turborepo monorepo. **Bun is the server runtime only**: the CLI and MCP run on plain Node for npm users.
 
 | Package | Name | Description |
 |---|---|---|
-| `apps/server` | `@devicesdk/server` | The backend: Bun + Hono + Chanfana + Zod + `bun:sqlite`. One process, one port — REST API (`/v1/*`), device + watcher WebSockets, dashboard SPA, OpenAPI docs (`/api-docs`) |
-| `apps/dashboard` | `@devicesdk/dashboard` | Vue 3 + Quasar SPA — local email/password auth, project/device/token management. Served same-origin by the server |
+| `apps/server` | `@devicesdk/server` | The backend: Bun + Hono + Chanfana + Zod + `bun:sqlite`. One process, one port: REST API (`/v1/*`), device + watcher WebSockets, dashboard SPA, OpenAPI docs (`/api-docs`) |
+| `apps/dashboard` | `@devicesdk/dashboard` | Vue 3 + Quasar SPA: local email/password auth, project/device/token management. Served same-origin by the server |
 | `apps/simulation` | `@devicesdk/simulation` | Vue 3 device-simulation UI (static export consumed by the CLI `dev` command) |
 | `apps/website` | `@devicesdk/website` | Vue 3 + Vite SSG marketing & docs site |
 | `packages/core` | `@devicesdk/core` | Shared TypeScript types and the `DeviceEntrypoint` base class (published to npm) |
-| `packages/cli` | `@devicesdk/cli` | CLI tool (`devicesdk`) — login, init, build, dev, deploy, flash, logs, status, inspect |
+| `packages/cli` | `@devicesdk/cli` | CLI tool (`devicesdk`): login, init, build, dev, deploy, flash, logs, status, inspect |
 | `packages/mcp` | `@devicesdk/mcp` | Model Context Protocol server wrapping the CLI for AI agents |
 | `packages/typescript-config` | `@repo/typescript-config` | Shared tsconfig base |
-| `firmware/esp32` | — | ESP32 firmware (ESP-IDF, WebSocket client) |
-| `firmware/pico` | — | Raspberry Pi Pico W firmware (C++, lwIP WebSocket client) |
-| `examples/*` | — | Example device projects (`basic`, `temperature-to-discord`, `esp32c3-clock`) |
+| `firmware/esp32` | | ESP32 firmware (ESP-IDF, WebSocket client) |
+| `firmware/pico` | | Raspberry Pi Pico W firmware (C++, lwIP WebSocket client) |
+| `examples/*` | | Example device projects (`basic`, `temperature-to-discord`, `esp32c3-clock`) |
 
 ## Development
 
@@ -131,7 +131,7 @@ The `@devicesdk/cli` package provides the `devicesdk` command. The server URL is
 Devices running DeviceSDK firmware connect over WebSocket to the server you run. Each device
 connection is handled by an in-process **device session** that loads and runs your TypeScript
 device script. Because the server is yours and the scripts are your own code, scripts run
-**in-process** — there is no sandboxed cloud runtime.
+**in-process**: there is no sandboxed cloud runtime.
 
 Devices within the same project can call methods on each other via type-safe RPC
 (`this.env.DEVICES["other-device"].method()`). The CLI auto-generates `devicesdk-env.d.ts`
@@ -145,7 +145,7 @@ Vue 3 + Quasar (dashboard), Vue 3 (simulation UI), Vue 3 + Vite SSG (website).
 The Pico W and ESP32 firmware implement a WebSocket client that connects to your DeviceSDK
 server. Wi-Fi credentials and the server host are configured at flash time. The firmware uses
 plain `ws://` when the configured host includes an explicit port (self-hosted LAN) and TLS on
-443 for bare hostnames. The host can be an mDNS name — flashing with
+443 for bare hostnames. The host can be an mDNS name. Flashing with
 `--host http://devicesdk.local:8080` lets the device resolve the server over mDNS, so it keeps
 working even if the server's DHCP lease changes. Prebuilt binaries are published to rolling
 GitHub Releases and bundled into the Docker image; `devicesdk flash` fetches the matching binary
@@ -159,7 +159,7 @@ won't block `pnpm build`.
 - [Quickstart](docs/public/quickstart.md)
 - [CLI Reference](docs/public/cli/_index.md)
 - [Platform Architecture](docs/public/concepts/architecture.md)
-- [Roadmap](ROADMAP.md) — Home Assistant integration is the flagship next step
+- [Roadmap](ROADMAP.md): Home Assistant integration is the flagship next step
 
 ## License
 

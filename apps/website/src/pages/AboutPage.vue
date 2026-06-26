@@ -19,10 +19,10 @@
           Building IoT shouldn't require learning C firmware, wrestling with MQTT brokers, or renting a cloud you can't inspect. But that's exactly what developers face today.
         </p>
         <p>
-          We built DeviceSDK because we believe the best way to program hardware is with the tools you already know — and on infrastructure you actually own. TypeScript gives you type safety, autocomplete, and a massive ecosystem. The DeviceSDK server is open source (AGPL-3.0) and runs on your own hardware: a Raspberry Pi, a NUC, a NAS, or any Docker host. No cloud account, no per-message billing, no vendor lock-in.
+          We built DeviceSDK because we believe the best way to program hardware is with the tools you already know, on infrastructure you actually own. TypeScript gives you type safety, autocomplete, and a massive ecosystem. The DeviceSDK server is open source (AGPL-3.0) and runs on your own hardware: a Raspberry Pi, a NUC, a NAS, or any Docker host. No cloud account, no per-message billing, no vendor lock-in.
         </p>
         <p>
-          The result is a platform where you write a single TypeScript class, deploy it with one command to a server you run yourself, and it runs on real hardware — with built-in state management, display APIs, and sensor integration.
+          The result is a platform where you write a single TypeScript class, deploy it with one command to a server you run yourself, and it runs on real hardware, with built-in state management, display APIs, and sensor integration.
         </p>
       </div>
     </div>
@@ -34,13 +34,13 @@
       <h2 class="text-2xl font-bold text-zinc-900 tracking-tight mb-6">Stability is a feature</h2>
       <div class="space-y-4 text-zinc-600 leading-relaxed">
         <p>
-          Home Assistant and ESPHome are excellent projects — and DeviceSDK is designed to work alongside them. But they move fast, and fast-moving software occasionally breaks things. If you manage automations remotely for people who aren't developers, a weekly update cadence can feel like a liability. One misplaced click can take down the touchscreen that's the main way someone interacts with their home.
+          Home Assistant and ESPHome are excellent projects, and DeviceSDK is designed to work alongside them. But they move fast, and fast-moving software occasionally breaks things. If you manage automations remotely for people who aren't developers, a weekly update cadence can feel like a liability. One misplaced click can take down the touchscreen that's the main way someone interacts with their home.
         </p>
         <p>
           That experience shaped this project. DeviceSDK treats a breaking change as a bug, not a version bump. A device script that works today should work in five years without anyone touching it.
         </p>
         <p>
-          Releases are infrequent and intentional. If a new release has something you want, update. If not, skip it — your existing setup keeps working exactly as before. When behavior genuinely has to evolve, opt-in compatibility flags (inspired by Cloudflare Workers' compatibility dates) let you migrate on your own schedule.
+          Releases are infrequent and intentional. If a new release has something you want, update. If not, skip it. Your existing setup keeps working exactly as before. When behavior genuinely has to evolve, opt-in compatibility flags (inspired by Cloudflare Workers' compatibility dates) let you migrate on your own schedule.
         </p>
         <p>
           Set it, forget it, and trust it. That's the point.
@@ -82,7 +82,7 @@
             </li>
             <li class="flex items-start gap-2 text-zinc-300">
               <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-              Runs on your own hardware — your data never leaves your network
+              Runs on your own hardware, your data never leaves your network
             </li>
             <li class="flex items-start gap-2 text-zinc-300">
               <svg class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -127,7 +127,7 @@
   <section class="py-24 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
     <div class="max-w-3xl mx-auto text-center fade-up">
       <h2 class="text-3xl font-bold tracking-tight">Start building with DeviceSDK</h2>
-      <p class="mt-4 text-zinc-400 text-lg">Free and open source. No account, no cloud — run it yourself.</p>
+      <p class="mt-4 text-zinc-400 text-lg">Free and open source. No account, no cloud. Run it yourself.</p>
       <div class="mt-8">
         <a href="/docs/quickstart/" class="btn-primary h-11 px-8">Get started</a>
       </div>

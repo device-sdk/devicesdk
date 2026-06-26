@@ -1,7 +1,6 @@
 ---
 title: "Frequently Asked Questions"
 description: "Common questions about DeviceSDK"
-url: http://localhost:1313/docs/resources/faq/
 ---
 
 # Frequently Asked Questions

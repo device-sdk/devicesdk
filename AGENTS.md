@@ -288,7 +288,7 @@ comment near `runs-on:` listing required libs.
 
 ## Agent Configuration
 
-This repository is configured for OpenCode:
+This repository is configured for OpenCode and Claude Code:
 
 - `opencode.json` - project configuration (loaded into every session).
 - `.opencode/skills/` - reusable skill prompts for common tasks (PR workflow,
@@ -297,9 +297,11 @@ This repository is configured for OpenCode:
 - `.opencode/commands/` - slash commands (`/review-pr`, `/prepare-pr`,
   `/merge-pr`, `/run-local-e2e`, `/pull`, `/feature`) that trigger the
   corresponding skills.
+- `CLAUDE.md` - symlink to this file so Claude Code loads the same guidance
+  automatically.
 
-When working on the project, make sure these files are up to date and reference
-`AGENTS.md` rather than any legacy `CLAUDE.md` paths.
+When working on the project, make sure these files stay up to date and that any
+agent-specific guidance remains consistent with `AGENTS.md`.
 
 ## Troubleshooting Log
 

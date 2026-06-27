@@ -184,7 +184,7 @@ For heavy computation:
 
 ### Maximum message rate?
 
-No hard limit, but billing increases with messages. Optimize for efficiency.
+No hard limit. You run the server on your own hardware — message rate is bounded only by your network and hardware capacity.
 
 ## Support
 
@@ -196,23 +196,18 @@ No hard limit, but billing increases with messages. Optimize for efficiency.
 
 ### Is there paid support?
 
-Enterprise plans include priority support. Contact sales for details.
+Not currently. Community support is available via [GitHub issues](https://github.com/device-sdk/devicesdk-monorepo/issues) and [Discord](https://discord.gg/WuNhbXGsBy).
 
 ### Where do I report bugs?
 
-- GitHub issues for open source components
-- Discord for community help
-- Email for account/billing issues
+- GitHub issues for bugs and feature requests
+- Discord for community help and questions
 
 ## Roadmap
 
 ### What's coming next?
 
-- ESP32 support
-- More hardware platforms
-- Enhanced simulator
-- Mobile device apps
-- Advanced analytics
+See the [Roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md) for the current direction. Home Assistant integration and CLI dev-engine convergence are the main near-term items.
 
 ### Can I influence the roadmap?
 

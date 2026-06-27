@@ -14,7 +14,6 @@ The account owner has requested account deletion. DeviceSDK enters a grace perio
 
 ## What to do
 
-Email <support@devicesdk.com> if you want to cancel the deletion. Reference your account email and we'll roll it back; the account becomes fully usable again immediately.
+Because DeviceSDK is self-hosted, account deletion is managed on your own server. If you want to cancel the deletion, contact your server administrator, or — if you are the admin — cancel it by clearing the `deletion_requested_at` field in the `users` table of your `devicesdk.sqlite` database.
 
-If the deletion was intentional and you want to confirm finalisation, no action is required — the account and its data will be removed automatically once the grace window elapses.
-
+If the deletion was intentional, no action is required — the account and its data will be removed automatically once the grace window elapses.

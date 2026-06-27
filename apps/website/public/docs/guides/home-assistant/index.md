@@ -12,7 +12,7 @@ description: "Expose DeviceSDK devices as native entities in Home Assistant — 
 
 The DeviceSDK Home Assistant integration exposes your devices as native Home Assistant entities. A GPIO input becomes a `binary_sensor`, an ADC reading becomes a `sensor`, a GPIO output becomes a `switch`, a WS2812 strip becomes a `light`. Home Assistant automations, dashboards, and voice assistants can then read and control them without any extra glue code.
 
-Under the hood the integration subscribes to a real-time watch WebSocket for each device and sends commands through the standard REST API. Idle devices cost nothing in the managed runtime — the subscription hibernates between hardware events.
+Under the hood the integration subscribes to a real-time watch WebSocket for each device and sends commands through the standard REST API.
 
 ## Installation
 
@@ -106,7 +106,7 @@ Once entities appear in Home Assistant they behave like any other entity. Use th
 
 **Device shows "unavailable"** — The device has disconnected. Check the dashboard logs page for the last connection status. The integration watches the connection state and marks entities unavailable when the device is offline, matching standard Home Assistant behavior.
 
-**Command timeout on a switch or light** — The managed runtime returned 503 or 504. Confirm the device is connected; commands fail fast when the firmware is offline so Home Assistant automations don't hang.
+**Command timeout on a switch or light** — The server returned 503 or 504. Confirm the device is connected; commands fail fast when the firmware is offline so Home Assistant automations don't hang.
 
 **Custom sensor value not updating** — Verify your device script calls `this.env.DEVICE.emitState(entity_id, value)` with the exact `entity_id` from your `devicesdk.ts` declaration. Entity IDs are case-sensitive and must match.
 

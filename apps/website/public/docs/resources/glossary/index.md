@@ -26,13 +26,13 @@ Special mode on Raspberry Pi Pico that allows firmware flashing. Entered by hold
 ### CLI (Command-Line Interface)
 The `@devicesdk/cli` tool for developing, building, and deploying device applications from the terminal.
 
-### Serverless Runtime
-The globally distributed platform that runs DeviceSDK device scripts.
+### Device Runtime
+The in-process runtime on your self-hosted DeviceSDK server that loads and executes device scripts.
 
 ## D
 
 ### Dashboard
-Web interface at dash.devicesdk.com for managing projects, devices, deployments, and viewing logs.
+Web interface served by your DeviceSDK server for managing projects, devices, deployments, and viewing logs.
 
 ### Device
 A physical microcontroller (like Raspberry Pi Pico W) running DeviceSDK firmware and connected to your project.
@@ -47,15 +47,12 @@ A TypeScript class that handles device communication. Contains lifecycle methods
 Unique identifier for each device in your project. Set during firmware flashing.
 
 ### Deployment
-The process of uploading and activating device scripts to the edge network. Creates a new immutable version.
+The process of uploading and activating device scripts to your DeviceSDK server. Creates a new immutable version.
 
 ## E
 
-### Distributed Network
-A global network of locations where device scripts execute close to users and devices.
-
 ### Runtime
-The serverless JavaScript runtime environment where device scripts execute.
+The in-process JavaScript runtime on your DeviceSDK server where device scripts execute.
 
 ### Environment Bindings
 Objects accessible in device entrypoints like `this.env.DEVICE`, providing access to platform features. Standard `console` methods are also available for logging.
@@ -99,7 +96,7 @@ Functions in device entrypoints called at specific points: `onDeviceConnect`, `o
 ## M
 
 ### Message
-A unit of communication between device and cloud, sent via WebSocket. Billing is based on message count.
+A unit of communication between device and server, sent via WebSocket.
 
 ### Microcontroller
 A small computer on a single chip, like Raspberry Pi Pico, that runs embedded firmware.
@@ -113,7 +110,7 @@ Lifecycle method called when a device establishes a WebSocket connection.
 Lifecycle method called when a device's WebSocket connection closes.
 
 ### onMessage
-Lifecycle method called when a device sends a message to the cloud.
+Lifecycle method called when a device sends a message to the server.
 
 ## P
 
@@ -137,7 +134,7 @@ The microcontroller chip used in Raspberry Pi Pico, featuring dual ARM Cortex-M0
 ## S
 
 ### Script
-Compiled JavaScript code running on the runtime that handles device communication. Built from TypeScript entrypoints.
+Compiled JavaScript code running in-process on your server that handles device communication. Built from TypeScript entrypoints.
 
 ### Simulator
 Local development environment (`devicesdk dev`) that emulates device connections without physical hardware.
@@ -151,7 +148,7 @@ Environment for testing deployments before production. Implemented using separat
 ## T
 
 ### TLS (Transport Layer Security)
-Encryption protocol securing WebSocket connections between devices and runtime.
+Encryption protocol securing WebSocket connections between devices and server.
 
 ### TypeScript
 Primary programming language for DeviceSDK device entrypoints, providing type safety and modern features.
@@ -167,7 +164,7 @@ Record of all deployments in a project, including timestamps, authors, and deplo
 ## W
 
 ### WebSocket
-Persistent, bidirectional communication protocol connecting devices to the runtime.
+Persistent, bidirectional communication protocol connecting devices to the server.
 
 ### WiFi
 Wireless networking technology used by devices to connect to the internet. Currently supports 2.4GHz 802.11n.

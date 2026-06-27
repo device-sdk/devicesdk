@@ -14,7 +14,6 @@ The account that owns the credentials on the request has been suspended. While s
 
 ## What to do
 
-Email <support@devicesdk.com>. Reference your account email or user ID. We'll review and either reinstate the account or share the reason it was suspended.
+Because DeviceSDK is self-hosted, account suspension is managed by the server administrator (the person who runs your DeviceSDK instance). Contact your server admin to have the account reinstated or to understand why it was suspended.
 
-If you suspect the suspension is the result of a compromised credential, rotate any API tokens you control before contacting support.
-
+If you are the admin and need to reinstate an account, update the `suspended` flag in the `users` table of your `devicesdk.sqlite` database directly.

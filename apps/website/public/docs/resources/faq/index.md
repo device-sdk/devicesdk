@@ -196,7 +196,7 @@ No hard limit. You run the server on your own hardware; message rate is bounded 
 
 ### Is there paid support?
 
-Not currently. Community support is available via [GitHub issues](https://github.com/device-sdk/devicesdk-monorepo/issues) and [Discord](https://discord.gg/WuNhbXGsBy).
+Not currently. Community support is available via [GitHub issues](https://github.com/device-sdk/devicesdk/issues) and [Discord](https://discord.gg/WuNhbXGsBy).
 
 ### Where do I report bugs?
 
@@ -207,7 +207,7 @@ Not currently. Community support is available via [GitHub issues](https://github
 
 ### What's coming next?
 
-See the [Roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md) for the current direction. Home Assistant integration and CLI dev-engine convergence are the main near-term items.
+See the [Roadmap](https://github.com/device-sdk/devicesdk/blob/main/ROADMAP.md) for the current direction. Home Assistant integration and CLI dev-engine convergence are the main near-term items.
 
 ### Can I influence the roadmap?
 
@@ -215,7 +215,7 @@ Yes! Share feedback in Discord or via email. We prioritize user-requested featur
 
 ### Is DeviceSDK open source?
 
-Yes. The entire platform (server, CLI, firmware, dashboard, and website) is open source under AGPL-3.0. [View the repository on GitHub](https://github.com/device-sdk/devicesdk-monorepo).
+Yes. The entire platform (server, CLI, firmware, dashboard, and website) is open source under AGPL-3.0. [View the repository on GitHub](https://github.com/device-sdk/devicesdk).
 
 ## Migration
 

@@ -87,4 +87,4 @@ signal. See `apps/website/AGENTS.md` for the full rule and format.
 
 ## License
 
-AGPL-3.0-only. See the repository's [LICENSE](https://github.com/device-sdk/devicesdk-monorepo/blob/main/LICENSE).
+AGPL-3.0-only. See the repository's [LICENSE](https://github.com/device-sdk/devicesdk/blob/main/LICENSE).

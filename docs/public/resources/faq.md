@@ -30,7 +30,7 @@ No. DeviceSDK runs anywhere Docker (or Bun) runs: a Raspberry Pi, a NUC, a NAS, 
 
 ### Where does it run?
 
-Anywhere you can run the Docker image `ghcr.io/device-sdk/devicesdk-monorepo` - Raspberry Pi, NUC, NAS, or a plain Docker host. It's a single Bun process listening on one port (default **8080**).
+Anywhere you can run the Docker image `ghcr.io/device-sdk/devicesdk` - Raspberry Pi, NUC, NAS, or a plain Docker host. It's a single Bun process listening on one port (default **8080**).
 
 ### How do I start it?
 
@@ -39,7 +39,7 @@ Save the following as `docker-compose.yml` (no repo clone needed):
 ```yaml
 services:
   devicesdk:
-    image: ghcr.io/device-sdk/devicesdk-monorepo:latest
+    image: ghcr.io/device-sdk/devicesdk:latest
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -109,7 +109,7 @@ The Pi (or any Linux box) is what you run the **server** on. The device scripts 
 
 ### Can I request hardware support?
 
-Yes! Join our [Discord](https://discord.gg/WuNhbXGsBy) or open an issue on [GitHub](https://github.com/device-sdk/devicesdk-monorepo/issues).
+Yes! Join our [Discord](https://discord.gg/WuNhbXGsBy) or open an issue on [GitHub](https://github.com/device-sdk/devicesdk/issues).
 
 ## Development
 
@@ -177,7 +177,7 @@ Anyone with a dashboard account. DeviceSDK is single-tenant by design - all acco
 
 ### Can I expose the server beyond my LAN?
 
-Yes, but put it behind a reverse proxy or TLS terminator (or wait for the planned optional-HTTPS support - see the [roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md)). The server itself speaks HTTP on one port by default.
+Yes, but put it behind a reverse proxy or TLS terminator (or wait for the planned optional-HTTPS support - see the [roadmap](https://github.com/device-sdk/devicesdk/blob/main/ROADMAP.md)). The server itself speaks HTTP on one port by default.
 
 ## Connectivity
 
@@ -220,7 +220,7 @@ Yes. Call any notification service from your device scripts:
 
 ### Can I integrate with Home Assistant?
 
-Home Assistant integration is the flagship item on the [roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md). The server already persists Home Assistant entity declarations per device and streams `state` frames over the watch WebSocket.
+Home Assistant integration is the flagship item on the [roadmap](https://github.com/device-sdk/devicesdk/blob/main/ROADMAP.md). The server already persists Home Assistant entity declarations per device and streams `state` frames over the watch WebSocket.
 
 ### Is there a mobile app?
 
@@ -232,7 +232,7 @@ Not yet. The web dashboard is mobile-friendly.
 
 1. Check this FAQ and the [documentation](/docs/)
 2. Join the [Discord community](https://discord.gg/WuNhbXGsBy)
-3. Open an issue on [GitHub](https://github.com/device-sdk/devicesdk-monorepo/issues)
+3. Open an issue on [GitHub](https://github.com/device-sdk/devicesdk/issues)
 
 ### Where do I report bugs?
 
@@ -249,7 +249,7 @@ Not yet. The web dashboard is mobile-friendly.
 - Optional HTTPS for installs exposed beyond the LAN.
 - Firmware OTA updates.
 
-See the full [roadmap](https://github.com/device-sdk/devicesdk-monorepo/blob/main/ROADMAP.md) for details.
+See the full [roadmap](https://github.com/device-sdk/devicesdk/blob/main/ROADMAP.md) for details.
 
 ### Can I influence the roadmap?
 
@@ -257,10 +257,10 @@ Yes! Share feedback in Discord or via GitHub issues. It's open source - pull req
 
 ### Is DeviceSDK open source?
 
-Yes - the entire platform is open source under AGPL-3.0. See our [GitHub](https://github.com/device-sdk/devicesdk-monorepo/issues).
+Yes - the entire platform is open source under AGPL-3.0. See our [GitHub](https://github.com/device-sdk/devicesdk/issues).
 
 ## Still Have Questions?
 
 - [Join Discord](https://discord.gg/WuNhbXGsBy) for community help
-- [Open a GitHub issue](https://github.com/device-sdk/devicesdk-monorepo/issues) for bugs or features
+- [Open a GitHub issue](https://github.com/device-sdk/devicesdk/issues) for bugs or features
 - Check our [troubleshooting guide](/docs/resources/troubleshooting/)

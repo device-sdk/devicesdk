@@ -6,7 +6,7 @@ export const SITE_DESCRIPTION =
 	"Free, open-source, self-hosted IoT platform. Write TypeScript device scripts, run the server on your own hardware (Raspberry Pi, NUC, NAS, Docker), and connect ESP32 & Pi Pico devices over WebSocket.";
 export const DASHBOARD_URL = "/docs/quickstart/";
 export const DOCS_URL = "https://devicesdk.com/docs";
-export const GITHUB_URL = "https://github.com/device-sdk/devicesdk-monorepo";
+export const GITHUB_URL = "https://github.com/device-sdk/devicesdk";
 export const DISCORD_URL = "https://discord.gg/WuNhbXGsBy";
 export const TWITTER_URL = "https://x.com/devicesdk";
 

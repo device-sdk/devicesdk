@@ -59,7 +59,7 @@
       </div>
 
       <div class="mt-12 pt-8 border-t border-zinc-800">
-        <p class="text-sm text-zinc-600 text-center">&copy; {{ currentYear }} DeviceSDK &middot; Open source under <a href="https://github.com/device-sdk/devicesdk-monorepo/blob/main/LICENSE" target="_blank" rel="noopener" class="hover:text-zinc-400 transition-colors">AGPL-3.0</a></p>
+        <p class="text-sm text-zinc-600 text-center">&copy; {{ currentYear }} DeviceSDK &middot; Open source under <a href="https://github.com/device-sdk/devicesdk/blob/main/LICENSE" target="_blank" rel="noopener" class="hover:text-zinc-400 transition-colors">AGPL-3.0</a></p>
       </div>
     </div>
   </footer>

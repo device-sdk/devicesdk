@@ -241,7 +241,7 @@ on the user's own server - that's the trust model).
   changeset = won't ship.
 - **Never set a `major` bump without explicit user consent.**
 - **Finish the change by opening a PR into `main`** (`gh pr create --base main`)
-  when the `origin` remote points to `github.com/device-sdk/devicesdk-monorepo`.
+  when the `origin` remote points to `github.com/device-sdk/devicesdk`.
   If the remote URL is a fork or any other repository, do not open a PR
   automatically. Instead, tell the user the task is finished and ask how they
   would like to proceed (e.g. push to their fork, open a PR against upstream, or

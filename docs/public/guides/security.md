@@ -93,4 +93,4 @@ DeviceSDK is designed for single-user or small trusted-group deployments. If you
 
 ## Reporting vulnerabilities
 
-Report security issues to **security@devicesdk.com**. See [SECURITY.md](https://github.com/device-sdk/devicesdk-monorepo/blob/main/SECURITY.md) for the full policy.
+Report security issues to **security@devicesdk.com**. See [SECURITY.md](https://github.com/device-sdk/devicesdk/blob/main/SECURITY.md) for the full policy.

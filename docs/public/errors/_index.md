@@ -27,4 +27,4 @@ catch (err) {
 - [`invalid_token`](./invalid_token/) - token does not match any active session/API/legacy entry
 - [`invalid_cli_token`](./invalid_cli_token/) - CLI token (`dsdk_*`) is missing, expired, or revoked
 
-If you hit an error code that isn't listed here, please [open an issue](https://github.com/device-sdk/devicesdk-monorepo/issues) so we can document it.
+If you hit an error code that isn't listed here, please [open an issue](https://github.com/device-sdk/devicesdk/issues) so we can document it.

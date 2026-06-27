@@ -113,7 +113,7 @@
         </div>
         <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
           <span class="text-zinc-400">Issues &amp; contributions</span>
-          <span class="text-zinc-300">github.com/device-sdk/devicesdk-monorepo</span>
+          <span class="text-zinc-300">github.com/device-sdk/devicesdk</span>
         </div>
         <div class="flex items-center justify-between">
           <span class="text-zinc-400">Community</span>

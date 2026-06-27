@@ -35,7 +35,7 @@ RUN cd apps/server \
 # builds before the first firmware release exists (the firmware flash endpoint
 # then reports "not published" until binaries are dropped into /data/firmwares).
 FROM oven/bun:1.3.14-slim AS firmware
-ARG FIRMWARE_REPO=device-sdk/devicesdk-monorepo
+ARG FIRMWARE_REPO=device-sdk/devicesdk
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /firmwares && cd /firmwares \

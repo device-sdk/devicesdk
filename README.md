@@ -14,7 +14,22 @@ No cloud, no SaaS, no per-message billing. Your hardware, your data. Licensed un
 
 ## Run the server
 
-The whole platform (REST API, device and watcher WebSockets, and the dashboard UI) is a single container listening on one port.
+The whole platform (REST API, device and watcher WebSockets, and the dashboard UI) is a single container listening on one port. Save the following as `docker-compose.yml` (no repo clone needed):
+
+```yaml
+services:
+  devicesdk:
+    image: ghcr.io/device-sdk/devicesdk:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      ALLOW_REGISTRATION: "true"
+```
+
+Then start it:
 
 ```bash
 docker compose up -d
@@ -25,7 +40,7 @@ Devices on your LAN connect to `ws://<this-machine>:8080`. All state (SQLite dat
 
 The server also advertises itself over **mDNS** as `devicesdk.local`, so you can reach it and flash devices against it without knowing its LAN IP (`http://devicesdk.local:8080`). Set `MDNS_HOSTNAME` to a different name to run several DeviceSDK servers on one network.
 
-Useful environment variables (see `docker-compose.yml`):
+Useful environment variables:
 
 | Variable | Default | Purpose |
 |---|---|---|

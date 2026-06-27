@@ -11,7 +11,24 @@ social_image: /og-images/docs/quickstart.png
 
 ## Step 1: Run the Server
 
-DeviceSDK is self-hosted: you run the server, and everything (API, dashboard, device WebSockets) lives in one process on one port. The quickest path is Docker Compose:
+DeviceSDK is self-hosted: you run the server, and everything (API, dashboard, device WebSockets) lives in one process on one port. The quickest path is Docker Compose - no repo clone needed.
+
+Copy the following into a file named `docker-compose.yml`:
+
+```yaml
+services:
+  devicesdk:
+    image: ghcr.io/device-sdk/devicesdk:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      ALLOW_REGISTRATION: "true"
+```
+
+Then start it:
 
 ```bash
 docker compose up -d

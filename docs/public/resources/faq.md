@@ -34,6 +34,23 @@ Anywhere you can run the Docker image `ghcr.io/device-sdk/devicesdk` - Raspberry
 
 ### How do I start it?
 
+Save the following as `docker-compose.yml` (no repo clone needed):
+
+```yaml
+services:
+  devicesdk:
+    image: ghcr.io/device-sdk/devicesdk:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      ALLOW_REGISTRATION: "true"
+```
+
+Then run:
+
 ```bash
 docker compose up -d
 ```

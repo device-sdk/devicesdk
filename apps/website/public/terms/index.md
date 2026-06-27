@@ -7,15 +7,15 @@ description: "Terms governing the DeviceSDK open-source software and the devices
 
 **Effective Date:** June 12, 2026
 
-DeviceSDK is **free, open-source software** that you run yourself. We do **not** operate a hosted service, store your data, or manage your account — you download the software, run it on your own hardware, and your devices connect to *your* server.
+DeviceSDK is **free, open-source software** that you run yourself. We do **not** operate a hosted service, store your data, or manage your account: you download the software, run it on your own hardware, and your devices connect to *your* server.
 
-These Terms cover two things only: (1) the terms under which the DeviceSDK software is licensed to you, and (2) your use of the marketing and documentation website at **devicesdk.com** (the "Website"). They do **not** create a service relationship — there is no SaaS, subscription, or account to manage with us.
+These Terms cover two things only: (1) the terms under which the DeviceSDK software is licensed to you, and (2) your use of the marketing and documentation website at **devicesdk.com** (the "Website"). They do **not** create a service relationship; there is no SaaS, subscription, or account to manage with us.
 
 ## 1. The Software License
 
 The DeviceSDK software (server, CLI, dashboard, firmware, and libraries) is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0-only)**. Your rights to use, modify, and distribute the software are governed entirely by that license, the full text of which ships in the `LICENSE` file of the source repository.
 
-In short, the AGPL-3.0 lets you run, study, modify, and share the software, provided that if you distribute it — or make a modified version available to others over a network — you also make the corresponding source code available under the same license. If any provision of these Terms conflicts with the AGPL-3.0 as applied to the software, the AGPL-3.0 controls.
+In short, the AGPL-3.0 lets you run, study, modify, and share the software, provided that if you distribute it, or make a modified version available to others over a network, you also make the corresponding source code available under the same license. If any provision of these Terms conflicts with the AGPL-3.0 as applied to the software, the AGPL-3.0 controls.
 
 ## 2. No Warranty
 

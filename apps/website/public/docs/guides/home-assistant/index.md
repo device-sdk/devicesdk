@@ -1,11 +1,11 @@
 ---
 title: "Home Assistant Integration"
-description: "Expose DeviceSDK devices as native entities in Home Assistant — sensors, switches, and lights that work with automations, dashboards, and voice assistants."
+description: "Expose DeviceSDK devices as native entities in Home Assistant: sensors, switches, and lights that work with automations, dashboards, and voice assistants."
 ---
 
 # Home Assistant Integration
 
-> Expose DeviceSDK devices as native entities in Home Assistant — sensors, switches, and lights that work with automations, dashboards, and voice assistants.
+> Expose DeviceSDK devices as native entities in Home Assistant: sensors, switches, and lights that work with automations, dashboards, and voice assistants.
 
 
 ## Overview
@@ -18,7 +18,7 @@ Under the hood the integration subscribes to a real-time watch WebSocket for eac
 
 The integration is distributed via [HACS](https://hacs.xyz) (Home Assistant Community Store). Open HACS in your Home Assistant instance, add the DeviceSDK custom repository, and install the integration. Then add it from **Settings → Devices & Services → Add Integration** and paste an API token.
 
-Create an API token from the dashboard: **Account → API Tokens → Create token**. Tokens are shown exactly once — copy it immediately.
+Create an API token from the dashboard: **Account → API Tokens → Create token**. Tokens are shown exactly once; copy it immediately.
 
 ## Declaring entities
 
@@ -89,9 +89,9 @@ After `devicesdk deploy`, Home Assistant discovers the entities on its next refr
 | GPIO digital input | `binary_sensor` | `gpio_state_changed` | Requires `pin`; optional `state_map`. |
 | ADC / analog read | `sensor` | `pin_state_update` | Requires `pin`; set `unit` for display. |
 | Onboard temperature | `sensor` (temperature) | `temperature_result` | Celsius. |
-| GPIO digital output | `switch` | — | Requires `pin`. |
-| PWM output | `light` | — | `light_type: "pwm"`, set `pin` + `pwm_frequency`. |
-| WS2812 LED strip | `light` (RGB) | — | `light_type: "ws2812"`, set `num_leds`. |
+| GPIO digital output | `switch` | n/a | Requires `pin`. |
+| PWM output | `light` | n/a | `light_type: "pwm"`, set `pin` + `pwm_frequency`. |
+| WS2812 LED strip | `light` (RGB) | n/a | `light_type: "ws2812"`, set `num_leds`. |
 | Custom telemetry | `sensor` | `user` | Fed by `this.env.DEVICE.emitState(entity_id, value)`. |
 
 See the [Emit State](/docs/concepts/emit-state/) concept for custom telemetry.
@@ -102,11 +102,11 @@ Once entities appear in Home Assistant they behave like any other entity. Use th
 
 ## Troubleshooting
 
-**Entity missing after deploy** — Reload the DeviceSDK integration in **Settings → Devices & Services**. Home Assistant caches the entity list between refreshes.
+**Entity missing after deploy:** Reload the DeviceSDK integration in **Settings → Devices & Services**. Home Assistant caches the entity list between refreshes.
 
-**Device shows "unavailable"** — The device has disconnected. Check the dashboard logs page for the last connection status. The integration watches the connection state and marks entities unavailable when the device is offline, matching standard Home Assistant behavior.
+**Device shows "unavailable":** The device has disconnected. Check the dashboard logs page for the last connection status. The integration watches the connection state and marks entities unavailable when the device is offline, matching standard Home Assistant behavior.
 
-**Command timeout on a switch or light** — The server returned 503 or 504. Confirm the device is connected; commands fail fast when the firmware is offline so Home Assistant automations don't hang.
+**Command timeout on a switch or light:** The server returned 503 or 504. Confirm the device is connected; commands fail fast when the firmware is offline so Home Assistant automations don't hang.
 
-**Custom sensor value not updating** — Verify your device script calls `this.env.DEVICE.emitState(entity_id, value)` with the exact `entity_id` from your `devicesdk.ts` declaration. Entity IDs are case-sensitive and must match.
+**Custom sensor value not updating:** Verify your device script calls `this.env.DEVICE.emitState(entity_id, value)` with the exact `entity_id` from your `devicesdk.ts` declaration. Entity IDs are case-sensitive and must match.
 

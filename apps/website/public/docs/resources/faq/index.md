@@ -184,7 +184,7 @@ For heavy computation:
 
 ### Maximum message rate?
 
-No hard limit. You run the server on your own hardware — message rate is bounded only by your network and hardware capacity.
+No hard limit. You run the server on your own hardware; message rate is bounded only by your network and hardware capacity.
 
 ## Support
 

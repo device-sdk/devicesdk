@@ -7,7 +7,7 @@ description: "Auth brute-force rate limits on a self-hosted DeviceSDK server"
 
 DeviceSDK is self-hosted: you run the server, so there are **no plan tiers, no per-message quotas, and no usage billing**. The only rate limiting the server applies is **brute-force protection on authentication endpoints**, to slow password and token-guessing attacks.
 
-Everything else — how many devices you connect, how many messages they send, how often your scripts run — is bounded only by the hardware you run the server on.
+Everything else (how many devices you connect, how many messages they send, how often your scripts run) is bounded only by the hardware you run the server on.
 
 ## Authentication rate limits
 

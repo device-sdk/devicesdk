@@ -25,7 +25,7 @@ docker run -d \
   -v ~/devicesdk-data:/data \
   -e ALLOW_REGISTRATION=false \
   -e SECURE_COOKIES=true \
-  ghcr.io/device-sdk/devicesdk:latest
+  ghcr.io/device-sdk/devicesdk-monorepo:latest
 ```
 
 Open `http://localhost:8080` - the first visit creates the admin account. After that, `ALLOW_REGISTRATION=false` prevents further sign-ups.
@@ -37,7 +37,7 @@ Save this as `docker-compose.yml` and run `docker compose up -d`:
 ```yaml
 services:
   devicesdk:
-    image: ghcr.io/device-sdk/devicesdk:latest
+    image: ghcr.io/device-sdk/devicesdk-monorepo:latest
     restart: unless-stopped
     ports:
       - "8080:8080"

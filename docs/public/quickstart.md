@@ -18,7 +18,7 @@ Copy the following into a file named `docker-compose.yml`:
 ```yaml
 services:
   devicesdk:
-    image: ghcr.io/device-sdk/devicesdk:latest
+    image: ghcr.io/device-sdk/devicesdk-monorepo:latest
     restart: unless-stopped
     ports:
       - "8080:8080"

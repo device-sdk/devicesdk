@@ -19,7 +19,7 @@ The whole platform (REST API, device and watcher WebSockets, and the dashboard U
 ```yaml
 services:
   devicesdk:
-    image: ghcr.io/device-sdk/devicesdk:latest
+    image: ghcr.io/device-sdk/devicesdk-monorepo:latest
     restart: unless-stopped
     ports:
       - "8080:8080"

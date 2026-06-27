@@ -14,9 +14,9 @@ The DeviceSDK API rejected the request because it could not find any of the thre
 
 ## Common causes and fixes
 
-- **You're calling the API directly without an auth header.** Add `Authorization: Bearer <token>`. Get a token with `devicesdk login --host http://<server>:8080` (writes to `~/.devicesdk/credentials.json`) or from your server's dashboard *Tokens* page.
-- **You're running the CLI without logging in.** The CLI has no default server. Run `devicesdk login --host http://<server>:8080` and re-try.
-- **No server is configured.** The host comes from (in order) `DEVICESDK_API_URL`, the `--host` flag, or the host saved in `~/.devicesdk/credentials.json` by `devicesdk login`. If none is set, requests have nowhere to authenticate - log in with `--host` pointing at your server.
+- **You're calling the API directly without an auth header.** Add `Authorization: Bearer <token>`. Get a token with `devicesdk login` (writes to `~/.devicesdk/credentials.json`) or from your server's dashboard *Tokens* page.
+- **You're running the CLI without logging in.** Run `devicesdk login` (the CLI auto-discovers your server via mDNS) and re-try. If mDNS isn't available on your network, run `devicesdk login --host http://<server>:8080`.
+- **No server is configured.** The host comes from (in order) `DEVICESDK_API_URL`, the `--host` flag, the host saved in `~/.devicesdk/credentials.json`, or mDNS auto-discovery. If none resolves, log in first: `devicesdk login`.
 - **Your script is running in CI without a token.** Issue a token from your server's dashboard and set `DEVICESDK_TOKEN` on the CI runner (point it at your server with `DEVICESDK_API_URL`).
 
 ## Related

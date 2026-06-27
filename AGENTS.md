@@ -70,10 +70,11 @@ at `/api-docs`.
 script surface). No runtime deps.
 
 **`packages/cli`** - `devicesdk` binary: login/build/deploy/flash/logs/status/dev.
-No default API URL: precedence is `DEVICESDK_API_URL` env → `--host` flag → host
-stored in `~/.devicesdk/credentials.json` by `devicesdk login --host <url>`.
-`devicesdk dev` still uses the workerd simulator (convergence on the server
-runtime is a roadmap item).
+Host resolution precedence: `DEVICESDK_API_URL` env → `--host` flag → host stored
+in `~/.devicesdk/credentials.json` → mDNS auto-discovery (`devicesdk.local`).
+`devicesdk login` without `--host` works on most LANs via mDNS; pass `--host` for
+non-default setups or when mDNS is unavailable. `devicesdk dev` still uses the
+workerd simulator (convergence on the server runtime is a roadmap item).
 
 **`packages/mcp`** - MCP server wrapping the CLI for AI agents.
 

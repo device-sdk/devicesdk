@@ -11,9 +11,13 @@ social_image: /og-images/docs/resources/troubleshooting.png
 **Symptom**: `devicesdk login` fails or shows "Unauthorized"
 
 **Solutions**:
-1. Clear existing credentials and log in again, pointing at your server:
+1. Clear existing credentials and log in again:
    ```bash
    devicesdk logout
+   devicesdk login
+   ```
+   If mDNS isn't available on your network, pass `--host` explicitly:
+   ```bash
    devicesdk login --host http://<server>:8080
    ```
 

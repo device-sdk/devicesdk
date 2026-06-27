@@ -32,6 +32,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The release-PR merge that triggers a publish is a plain push to main with
+      # no git tag, so the type=semver patterns below produce nothing. Read the
+      # version straight from the server package.json (the image's source of
+      # truth) so the image is always tagged with its release version.
+      - id: version
+        run: |
+          version=$(node -p "require('./apps/server/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "minor=${version%.*}" >> "$GITHUB_OUTPUT"
+
       - id: meta
         uses: docker/metadata-action@v6
         with:
@@ -39,6 +49,8 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=${{ steps.version.outputs.minor }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 

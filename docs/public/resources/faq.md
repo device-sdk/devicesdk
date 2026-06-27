@@ -30,9 +30,26 @@ No. DeviceSDK runs anywhere Docker (or Bun) runs: a Raspberry Pi, a NUC, a NAS, 
 
 ### Where does it run?
 
-Anywhere you can run the Docker image `ghcr.io/device-sdk/devicesdk` - Raspberry Pi, NUC, NAS, or a plain Docker host. It's a single Bun process listening on one port (default **8080**).
+Anywhere you can run the Docker image `ghcr.io/device-sdk/devicesdk-monorepo` - Raspberry Pi, NUC, NAS, or a plain Docker host. It's a single Bun process listening on one port (default **8080**).
 
 ### How do I start it?
+
+Save the following as `docker-compose.yml` (no repo clone needed):
+
+```yaml
+services:
+  devicesdk:
+    image: ghcr.io/device-sdk/devicesdk-monorepo:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      ALLOW_REGISTRATION: "true"
+```
+
+Then run:
 
 ```bash
 docker compose up -d

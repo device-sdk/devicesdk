@@ -34,7 +34,7 @@ The server is a single **Bun** process (`@devicesdk/server`: Hono + Chanfana + Z
 - the dashboard SPA, same-origin at `/`
 - OpenAPI docs at `/api-docs`
 
-It's distributed as a multi-arch Docker image (`ghcr.io/device-sdk/devicesdk`). All state
+It's distributed as a multi-arch Docker image (`ghcr.io/device-sdk/devicesdk-monorepo`). All state
 lives under `DATA_DIR` (`/data` in Docker): the SQLite database (`devicesdk.sqlite`, WAL
 mode), deployed script bundles under `scripts/`, and firmware images under `firmwares/`.
 

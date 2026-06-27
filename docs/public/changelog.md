@@ -6,7 +6,7 @@ social_image: /og-images/docs/changelog.png
 
 ## June 2026
 
-- **DeviceSDK is now free, open-source, and self-hosted.** The managed cloud has been replaced by a server you run yourself. Everything - REST API, device & watcher WebSockets, and the dashboard - is now a single **Bun** process on one port (default `8080`), distributed as a multi-arch **Docker image** (`ghcr.io/device-sdk/devicesdk`) that runs on a Raspberry Pi, NUC, NAS, or any Docker host. All state (SQLite database, device scripts, firmware) lives under a `/data` volume you control.
+- **DeviceSDK is now free, open-source, and self-hosted.** The managed cloud has been replaced by a server you run yourself. Everything - REST API, device & watcher WebSockets, and the dashboard - is now a single **Bun** process on one port (default `8080`), distributed as a multi-arch **Docker image** (`ghcr.io/device-sdk/devicesdk-monorepo`) that runs on a Raspberry Pi, NUC, NAS, or any Docker host. All state (SQLite database, device scripts, firmware) lives under a `/data` volume you control.
   - **Open source under AGPL-3.0.** See the [LICENSE](https://github.com/device-sdk/devicesdk-monorepo/blob/main/LICENSE) in the repository.
   - **Install:** `docker compose up -d`, open `http://localhost:8080`, and the first account you register becomes the admin. Set `ALLOW_REGISTRATION=false` to close sign-ups afterwards.
   - **Local accounts** - register/login with email + password on the dashboard your server serves. Google sign-in and the hosted dashboard are gone.

@@ -42,13 +42,20 @@ The server advertises itself over **mDNS** as `devicesdk.local`, so once it's up
 
 ## Step 2: Connect the CLI to Your Server
 
-Point the CLI at the server you just started and authenticate:
+Authenticate the CLI against the server you just started:
 
 ```bash
-npx @devicesdk/cli login --host http://localhost:8080
+npx @devicesdk/cli login
 ```
 
-This runs a browser device-code flow against **your** server and saves an access/refresh token plus the host to `~/.devicesdk/credentials.json`. Replace `localhost` with the server's hostname or LAN IP when the CLI runs on a different machine.
+The CLI auto-discovers your DeviceSDK server over mDNS (`devicesdk.local` by default). If that doesn't work - your network doesn't support mDNS, you set a custom `MDNS_HOSTNAME`, or the CLI is running on the same machine as the server - pass `--host` explicitly:
+
+```bash
+npx @devicesdk/cli login --host http://devicesdk.local:8080  # explicit mDNS name
+npx @devicesdk/cli login --host http://localhost:8080         # CLI on same machine as server
+```
+
+Either way, this runs a browser device-code flow against **your** server and saves an access/refresh token plus the host to `~/.devicesdk/credentials.json`.
 
 ## Step 3: Create Your First Project
 

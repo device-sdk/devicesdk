@@ -55,10 +55,12 @@ See [docs/public/quickstart.md](docs/public/quickstart.md) for the full zero-to-
 
 ## Develop a device project
 
-The `devicesdk` CLI (npm, runs on Node) builds and deploys device scripts to **your** server. It has no default server URL. Point it at your install once with `--host`:
+The `devicesdk` CLI (npm, runs on Node) builds and deploys device scripts to **your** server. Run `devicesdk login` to authenticate - the CLI discovers your server over mDNS automatically. Pass `--host` only if mDNS isn't available on your network, you set a custom `MDNS_HOSTNAME`, or the CLI runs on the same machine as the server:
 
 ```bash
-npx @devicesdk/cli login --host http://localhost:8080
+npx @devicesdk/cli login                               # auto-discovers via mDNS
+# if mDNS doesn't work: npx @devicesdk/cli login --host http://devicesdk.local:8080
+# same machine as server: npx @devicesdk/cli login --host http://localhost:8080
 npx @devicesdk/cli init hello-world
 cd hello-world
 npx @devicesdk/cli deploy
@@ -132,7 +134,7 @@ The `@devicesdk/cli` package provides the `devicesdk` command. The server URL is
 
 | Command | Description |
 |---|---|
-| `login` | Authenticate the CLI against your server (`--host` required on first use) |
+| `login` | Authenticate the CLI against your server (auto-discovers via mDNS; pass `--host` to pin a specific server) |
 | `init` | Scaffold a new project |
 | `build` | Bundle device scripts with esbuild |
 | `dev` | Local dev server with the workerd-based simulator |

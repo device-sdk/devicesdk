@@ -31,6 +31,13 @@ jobs:
           path: firmware/esp32/test/build/_deps
           key: esp32-gtest-${{ hashFiles('firmware/esp32/test/CMakeLists.txt') }}
 
+      - name: Clear stale CMake sub-build caches
+        # CMakeCache.txt files inside _deps embed the absolute workspace path.
+        # After a repo rename the path changes, so CMake rejects the cached
+        # sub-build. Deleting just the CMakeCache files forces a reconfigure
+        # while keeping the downloaded googletest sources.
+        run: find firmware/esp32/test/build/_deps -name 'CMakeCache.txt' -delete 2>/dev/null || true
+
       - name: Build and run tests
         working-directory: firmware/esp32/test
         run: |

@@ -1,5 +1,63 @@
 # @devicesdk/website
 
+## 0.1.4
+
+### Patch Changes
+
+- e299282: Baseline community, security, and licensing cleanup:
+  - Added `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and `SECURITY.md`.
+  - Fixed root `README.md` tech-stack copy (website is Vue 3 + Vite SSG, not Hugo).
+  - Replaced remaining `CLAUDE.md` references with `AGENTS.md` across docs and firmware readmes.
+  - Updated `firmware/pico/IMPLEMENTATIONS.md` and `src/ca_cert.h` comments for the self-hosted era.
+  - Added the AGPL-3.0-only license to every workspace `package.json` and copied `LICENSE` into `packages/core`, `packages/cli`, `packages/mcp`, and `packages/typescript-config`.
+  - Excluded `examples/*` from the root `pnpm build` to avoid CLI-dependent example builds in the default task.
+  - Removed `apps/server/openapi.json` from git, gitignored the generated file, and updated website-deploy triggers to rebuild it from server sources.
+  - Hardened Docker defaults: `ALLOW_REGISTRATION=false`, `SECURE_COOKIES=true`, non-root runtime user, and a `/health` `HEALTHCHECK`.
+  - Added GitHub issue/PR templates and `CODEOWNERS`.
+  - Scoped Device WebSocket `versionId` lookup to the device (`device_id` filter).
+  - Scoped CLI token revocation to the authenticated user (`user_id` filter).
+
+- 2961dac: Improve docs discoverability and navigation.
+  - The docs sidebar is now generated from `content.json`, so it stays in sync
+    with every page under `docs/public/`.
+  - Sections can be expanded/collapsed and the active section is opened
+    automatically.
+  - Added previous/next links at the bottom of every docs page.
+  - Docs landing and section landing pages now show auto-generated card grids
+    for their child pages instead of hand-curated, easy-to-stale lists.
+  - Added the missing `/docs/guides/` section index.
+  - Fixed broken or outdated links on the docs landing page (e.g. changelog URL).
+  - Made the sidebar and table-of-contents panes scrollable on desktop.
+  - Fixed mobile layout issues: docs content no longer overflows the viewport,
+    tables scroll horizontally, and the mobile sidebar/TOC drawers use the
+    dynamic viewport height so they fill the screen on browsers with collapsing
+    toolbars.
+
+- fbc1020: docs: quickstart and README now show the docker-compose.yml inline so users can get started without cloning the repo
+- 6d9ed45: Gate website and Docker deployments on the changeset release PR merge, not on every push to main.
+- 097dc34: Fix website deploy CI: install Bun before building so the server's openapi generation step succeeds.
+- b8b3ced: Fix website deploy CI: use `pnpm run deploy` so pnpm invokes the package script instead of its own built-in deploy subcommand.
+- 1c9f5fa: Switch website deploy from Cloudflare Pages to Workers with static assets.
+- ed53ef4: Migrate the marketing website from Hugo to a Vue.js + Vite SSG stack.
+
+  The site is now built with `vite-ssg`, renders every route to static HTML in
+  `dist/`, and is deployed to Cloudflare Pages via `wrangler pages deploy`. All
+  existing pages, URLs, Tailwind styling, SEO/meta tags, sitemap, `llms.txt`,
+  `llms-full.txt`, per-page `index.md` mirrors, OG images, and `.well-known`
+  outputs are preserved. Docs continue to be sourced from `../../docs/public/`.
+
+- ed53ef4: Align `@devicesdk/website` changeset integration with the rest of the monorepo.
+  - Fill in package metadata (`description`, `author`, `homepage`, `bugs`,
+    `repository`, `keywords`) so the website package is documented the same way
+    as `@devicesdk/cli`.
+  - Add a dedicated "Changesets" section to `AGENTS.md` explaining public vs
+    private packages and the website's changelog-only lifecycle.
+  - Update `.changeset/README.md` and the feature skill to mention website
+    changesets.
+  - Fix `lint` and `check-types` scripts to run `build-content` first so
+    `src/generated/content.json` and `src/generated/routes.ts` exist in fresh
+    CI checkouts.
+
 ## 0.1.3
 
 ### Patch Changes

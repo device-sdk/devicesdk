@@ -32,7 +32,7 @@ catch (err) {
 - [`account_suspended`](./account_suspended/) — user account has been suspended
 - [`account_deletion_pending`](./account_deletion_pending/) — user requested account deletion; request hasn't elapsed yet
 
-If you hit an error code that isn't listed here, please [open an issue](https://github.com/device-sdk/devicesdk-monorepo/issues) so we can document it.
+If you hit an error code that isn't listed here, please [open an issue](https://github.com/device-sdk/devicesdk/issues) so we can document it.
 
 
 ## Pages in this section

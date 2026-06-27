@@ -38,6 +38,7 @@ jobs:
       - name: Build and run tests
         working-directory: firmware/pico/test
         run: |
+          find build -name CMakeCache.txt -delete 2>/dev/null || true
           cmake -B build
           cmake --build build -j$(nproc)
           ./build/run_tests

@@ -49,4 +49,4 @@ We may update this Privacy Policy from time to time. Material changes will be re
 
 Questions about this policy can be raised on GitHub:
 
-**GitHub:** [github.com/device-sdk/devicesdk-monorepo](https://github.com/device-sdk/devicesdk-monorepo)
+**GitHub:** [github.com/device-sdk/devicesdk](https://github.com/device-sdk/devicesdk)

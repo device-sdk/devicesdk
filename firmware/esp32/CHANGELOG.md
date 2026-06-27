@@ -44,7 +44,7 @@
     setup - it's a Hugo + Tailwind site now, still deployed to Cloudflare Pages).
     Also pointed every "GitHub" link (the `githubUrl` param, nav/footer menus,
     footer license link, about page, terms/privacy) at the repo
-    (`device-sdk/devicesdk-monorepo`) instead of the bare org root, and aligned a
+    (`device-sdk/devicesdk`) instead of the bare org root, and aligned a
     "KV namespace" → "KV store" code comment with the rest of the self-host copy.
   - **Package READMEs**: `@devicesdk/core` ("sandboxed serverless runtime" →
     in-process on the self-hosted server), `@devicesdk/cli` (`login` now needs

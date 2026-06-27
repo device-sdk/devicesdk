@@ -6,7 +6,7 @@
 	"license": "AGPL-3.0-only",
 	"homepage": "https://devicesdk.com/docs/",
 	"bugs": {
-		"url": "https://github.com/device-sdk/devicesdk-monorepo/issues"
+		"url": "https://github.com/device-sdk/devicesdk/issues"
 	},
 	"keywords": [
 		"mcp",
@@ -30,7 +30,7 @@
 	"private": false,
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/device-sdk/devicesdk-monorepo.git",
+		"url": "git+https://github.com/device-sdk/devicesdk.git",
 		"directory": "packages/mcp"
 	},
 	"type": "module",

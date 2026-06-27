@@ -7,7 +7,7 @@
 # Devices on your LAN connect to ws://<this-machine>:8080.
 services:
   devicesdk:
-    image: ghcr.io/device-sdk/devicesdk-monorepo:latest
+    image: ghcr.io/device-sdk/devicesdk:latest
     # To build from source instead:
     # build: .
     ports:

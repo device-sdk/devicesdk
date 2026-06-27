@@ -19,7 +19,7 @@ The whole platform (REST API, device and watcher WebSockets, and the dashboard U
 ```yaml
 services:
   devicesdk:
-    image: ghcr.io/device-sdk/devicesdk-monorepo:latest
+    image: ghcr.io/device-sdk/devicesdk:latest
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -72,7 +72,7 @@ npx @devicesdk/cli logs <project-id> <device-id> --tail
 **Prerequisites:** Node.js 22+, [pnpm](https://pnpm.io/) 9.x, and [Bun](https://bun.sh/) 1.3.14+ (server runtime).
 
 ```bash
-git clone https://github.com/device-sdk/devicesdk-monorepo && cd devicesdk-monorepo
+git clone https://github.com/device-sdk/devicesdk && cd devicesdk
 pnpm install
 pnpm build
 ```

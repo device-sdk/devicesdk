@@ -55,4 +55,4 @@ To the extent these Terms (as distinct from the AGPL-3.0, which has its own term
 
 Questions about these Terms or the project can be raised on GitHub:
 
-**GitHub:** [github.com/device-sdk/devicesdk-monorepo](https://github.com/device-sdk/devicesdk-monorepo)
+**GitHub:** [github.com/device-sdk/devicesdk](https://github.com/device-sdk/devicesdk)

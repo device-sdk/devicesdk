@@ -6,7 +6,7 @@
 	"license": "AGPL-3.0-only",
 	"homepage": "https://devicesdk.com/",
 	"bugs": {
-		"url": "https://github.com/device-sdk/devicesdk-monorepo/issues"
+		"url": "https://github.com/device-sdk/devicesdk/issues"
 	},
 	"keywords": [
 		"devicesdk",
@@ -20,7 +20,7 @@
 	"private": true,
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/device-sdk/devicesdk-monorepo.git",
+		"url": "git+https://github.com/device-sdk/devicesdk.git",
 		"directory": "apps/website"
 	},
 	"type": "module",

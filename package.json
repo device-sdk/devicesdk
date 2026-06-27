@@ -4,11 +4,11 @@
 	"description": "DeviceSDK monorepo — self-hosted IoT platform (server, CLI, firmware, dashboard, website).",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/device-sdk/devicesdk-monorepo"
+		"url": "https://github.com/device-sdk/devicesdk"
 	},
 	"homepage": "https://devicesdk.com",
 	"bugs": {
-		"url": "https://github.com/device-sdk/devicesdk-monorepo/issues"
+		"url": "https://github.com/device-sdk/devicesdk/issues"
 	},
 	"author": "DeviceSDK <hello@devicesdk.com>",
 	"scripts": {

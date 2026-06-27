@@ -7,7 +7,7 @@ social_image: /og-images/docs/mcp.png
 
 `@devicesdk/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes DeviceSDK as a set of tools your AI agent can call directly - list devices, deploy scripts, tail logs, set env vars, search the docs. The agent never has to learn the shell.
 
-Because it wraps the CLI, it talks to whatever DeviceSDK server the CLI is configured against - the self-hosted server you logged into with `devicesdk login --host <url>`. There is no managed cloud.
+Because it wraps the CLI, it talks to whatever DeviceSDK server the CLI is configured against - the self-hosted server you authenticated against with `devicesdk login` (the CLI auto-discovers it via mDNS, or you can pass `--host <url>`). There is no managed cloud.
 
 It's a thin wrapper over the `devicesdk` CLI's `--json` mode, so you get the same auth, the same error messages, and the same `{ success, result | error, code, docs }` shape the API returns.
 
@@ -28,7 +28,7 @@ For an existing project, drop this into a `.mcp.json` at the project root:
 }
 ```
 
-Then reload your agent and run `devicesdk login --host http://<server>:8080` once so the MCP server can find your auth token and the server URL to target.
+Then reload your agent and run `devicesdk login` once so the MCP server can find your auth token and server URL. The CLI auto-discovers your server via mDNS; if that doesn't work on your network, pass `--host http://<server>:8080`.
 
 ## Install per host
 
@@ -107,7 +107,7 @@ Any MCP-aware client that accepts a stdio server with a `command` + `args` will 
 The MCP server inherits the CLI's authentication. In order of precedence:
 
 1. **`DEVICESDK_TOKEN`** environment variable - a `dsdk_…` token, best for CI or when you want a tighter-scoped token for the agent than for your CLI. Pair it with `DEVICESDK_API_URL` to point at your server.
-2. **`~/.devicesdk/credentials.json`** - written by `devicesdk login --host <url>`; stores both the tokens and the server host. Refresh tokens rotate automatically.
+2. **`~/.devicesdk/credentials.json`** - written by `devicesdk login` (with or without `--host`); stores both the tokens and the server host. Refresh tokens rotate automatically.
 
 If neither is present, every tool returns `{ success: false, code: "missing_credentials", docs: "..." }`.
 

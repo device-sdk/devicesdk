@@ -14,7 +14,8 @@ Or run on-demand: `npx @devicesdk/cli --help`
 
 ## Quick start
 ```bash
-devicesdk login --host http://localhost:8080   # point at your server (no default URL)
+devicesdk login              # auto-discovers server via mDNS
+# if mDNS doesn't work: devicesdk login --host http://localhost:8080
 devicesdk init               # creates devicesdk.ts
 devicesdk build              # outputs to .devicesdk/build
 devicesdk dev                # local simulator (workerd)

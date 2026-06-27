@@ -19,11 +19,12 @@ Run these from inside the specific example directory (e.g.
    a dep). `pnpm exec devicesdk …` / the `pnpm <script>` shortcuts then run it.
 2. **Check auth.** `pnpm exec devicesdk whoami`. If it reports you're not logged
    in, move to step 3; otherwise skip it.
-3. **Log in.** `devicesdk login --host http://localhost:8080` prompts for the
-   local admin email and password you created on the server. Ask the user to
-   run it themselves with `! devicesdk login --host http://localhost:8080` (or
-   set `DEVICESDK_API_URL` / `DEVICESDK_TOKEN` for a non-interactive token),
-   then continue.
+3. **Log in.** `devicesdk login` discovers the server over mDNS and prompts for
+   the local admin email and password you created on the server. Ask the user
+   to run it themselves with `! devicesdk login` (or `! devicesdk login --host
+   http://localhost:8080` if the CLI and server are on the same machine, or if
+   mDNS isn't available on the network). Set `DEVICESDK_API_URL` /
+   `DEVICESDK_TOKEN` for a non-interactive token instead.
 4. **Configure.** Set real WiFi credentials (and any other config) in
    `devicesdk.ts` / the device script. **Never commit real secrets** - restore
    the `YOUR_WIFI_*` placeholders before any commit.

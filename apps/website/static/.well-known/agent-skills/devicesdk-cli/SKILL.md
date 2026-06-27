@@ -4,7 +4,7 @@ description: The devicesdk CLI (npm i -g @devicesdk/cli) builds, deploys, flashe
 ---
 
 ## Commands
-- `devicesdk login --host http://<server>:8080` - authenticate against your self-hosted server (device-code flow); stores host + token in `~/.devicesdk/credentials.json`. There is no default API URL, so `--host` is required the first time.
+- `devicesdk login` - authenticate against your self-hosted server (device-code flow); the CLI auto-discovers it via mDNS (`devicesdk.local` by default). Pass `--host http://<server>:8080` only when mDNS isn't available on your network, you use a custom `MDNS_HOSTNAME`, or the CLI runs on the same machine as the server. Stores host + token in `~/.devicesdk/credentials.json`.
 - `devicesdk logout` / `devicesdk whoami` - session management.
 - `devicesdk init [name]` - scaffold a new project with a sample device script.
 - `devicesdk dev` - run the local simulator with live reload.
@@ -21,7 +21,7 @@ description: The devicesdk CLI (npm i -g @devicesdk/cli) builds, deploys, flashe
 - `.devicesdk/build/` - esbuild output (gitignored).
 
 ## Host selection
-The target server is resolved in this order: `DEVICESDK_API_URL` env var → `--host` flag → the host stored in `~/.devicesdk/credentials.json` by `devicesdk login --host <url>`. There is no built-in default - you always point the CLI at the server you run. For CI, supply `DEVICESDK_TOKEN` (and a host via `DEVICESDK_API_URL` or `--host`).
+The target server is resolved in this order: `DEVICESDK_API_URL` env var → `--host` flag → the host stored in `~/.devicesdk/credentials.json` → mDNS auto-discovery (`devicesdk.local` by default). mDNS is the last resort, so running `devicesdk login` with no flags works on most home/office LANs. For CI, supply `DEVICESDK_TOKEN` and `DEVICESDK_API_URL` (mDNS is unreliable in CI environments).
 
 ## See also
 - Examples: <https://devicesdk.com/examples>

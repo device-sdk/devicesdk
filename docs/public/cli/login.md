@@ -7,17 +7,30 @@ social_image: /og-images/docs/cli/login.png
 ## Usage
 
 ```bash
-devicesdk login --host http://<server>:8080
+devicesdk login [--host http://<server>:8080]
 devicesdk logout
 devicesdk whoami [--json]
 ```
 
 ## Description
 
-DeviceSDK is self-hosted, so the CLI has **no default server URL**. On first use you must tell it which server to talk to with `--host`:
+DeviceSDK is self-hosted, so the CLI needs to know which server to talk to. On most networks you can just run:
 
 ```bash
-devicesdk login --host http://<server>:8080
+devicesdk login
+```
+
+The CLI auto-discovers your server over mDNS (default name: `devicesdk.local`). Pass `--host` when:
+
+- your network doesn't support mDNS (common on some corporate or VPN setups)
+- you set a custom `MDNS_HOSTNAME` on the server
+- the CLI is running on the same machine as the server
+- you want to target a server that isn't the default `devicesdk.local`
+
+```bash
+devicesdk login --host http://devicesdk.local:8080   # explicit mDNS name
+devicesdk login --host http://localhost:8080          # CLI on same machine
+devicesdk login --host http://192.168.1.42:8080       # by IP
 ```
 
 `devicesdk login` opens your browser to run a device-code flow against **your** server, then writes the access/refresh token pair **and the host** to `~/.devicesdk/credentials.json` (file mode `0600`). Subsequent CLI calls reuse the saved host and tokens automatically; the access token rotates on its own via the refresh token.
@@ -44,7 +57,7 @@ Use a token with the *minimum* scope needed - most CI flows only need `deploy` a
 
 ## Switching servers
 
-`DEVICESDK_API_URL` selects which DeviceSDK server the CLI talks to. There is **no default** - it simply overrides the host saved in `~/.devicesdk/credentials.json`. A token issued against one server is **not** accepted by another, so re-run `login` if you switch:
+`DEVICESDK_API_URL` overrides the host saved in `~/.devicesdk/credentials.json`. A token issued against one server is **not** accepted by another, so re-run `login` if you switch:
 
 ```bash
 devicesdk login --host http://192.168.1.50:8080

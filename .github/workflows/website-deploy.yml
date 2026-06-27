@@ -3,12 +3,6 @@ name: Deploy Website
 on:
   push:
     branches: [main]
-    paths:
-      - 'apps/website/**'
-      - 'docs/public/**'
-      - 'apps/server/src/**'
-      - 'apps/server/scripts/generate-openapi.ts'
-      - '.github/workflows/website-deploy.yml'
 
 concurrency:
   group: website-deploy-${{ github.ref }}
@@ -20,6 +14,8 @@ permissions:
 jobs:
   deploy:
     name: Build and deploy to Cloudflare Workers
+    # Only deploy when the changeset release PR is merged, not on every push.
+    if: startsWith(github.event.head_commit.message, 'chore: version packages')
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     timeout-minutes: 20
     steps:

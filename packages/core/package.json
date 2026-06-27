@@ -1,6 +1,6 @@
 {
 	"name": "@devicesdk/core",
-	"version": "1.4.3",
+	"version": "1.4.4",
 	"description": "Core TypeScript types and device abstractions for DeviceSDK IoT applications.",
 	"author": "DeviceSDK <hello@devicesdk.com>",
 	"license": "AGPL-3.0-only",

@@ -4328,37 +4328,20 @@ DeviceSDK is a platform for building IoT applications with TypeScript. It runs y
 ### How is this different from other IoT platforms?
 
 - **TypeScript-first** - Full TypeScript support, not just configuration
-- **Distributed execution** - Code runs globally, near your devices
+- **Self-hosted** - Runs on your own hardware; your data never leaves your network
 - **Developer-friendly** - Built-in simulator, modern tooling
-- **Pay per message** - No uptime charges
+- **Free and open source** - AGPL-3.0, no subscriptions, no per-message billing
 - **Simple integration** - Use your preferred APIs and services
 
 ### Do I need to know any specific cloud platform?
 
-No. DeviceSDK provides a simple API and does not require provider-specific knowledge.
+No. DeviceSDK is self-hosted and has no cloud dependency.
 
-## Pricing
+## Cost
 
 ### How much does it cost?
 
-- **Free tier**: 500 messages/day free
-- **Paid tier**: Starting at $5/month, includes 5 million messages/month. Additional messages at $3 per million.
-
-See [pricing page](/pricing/) for details.
-
-### What counts as a message?
-
-Any communication between your code and device:
-- Commands sent to device (1 message)
-- Data received from device (1 message)
-
-### Do I pay for offline devices?
-
-No. You only pay for messages sent and received. Offline devices cost nothing.
-
-### Can I set spending limits?
-
-Yes. Configure daily and monthly limits in the dashboard to avoid surprises.
+DeviceSDK is free and open source (AGPL-3.0). You run the server yourself on any hardware — Raspberry Pi, NUC, NAS, or any Docker host. There are no subscriptions, no per-message billing, and no usage tiers.
 
 ## Supported Hardware
 

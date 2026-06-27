@@ -322,17 +322,7 @@
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url><url>
-    <loc>http://localhost:1313/early-access/</loc>
-    <lastmod>2026-02-05T21:38:46+00:00</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
-  </url><url>
     <loc>http://localhost:1313/examples/</loc>
-    <lastmod>2026-02-05T21:38:46+00:00</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
-  </url><url>
-    <loc>http://localhost:1313/pricing/</loc>
     <lastmod>2026-02-05T21:38:46+00:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>

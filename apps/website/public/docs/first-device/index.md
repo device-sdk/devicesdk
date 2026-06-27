@@ -10,7 +10,7 @@ description: "Learn how to build your first device entrypoint with DeviceSDK"
 
 ## What is a Device Entrypoint?
 
-A device entrypoint is a TypeScript class that handles communication between your devices and your cloud code.
+A device entrypoint is a TypeScript class that handles communication between your devices and your server-side script.
 
 ## Basic Structure
 

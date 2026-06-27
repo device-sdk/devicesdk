@@ -1,97 +1,56 @@
 ---
 title: "Terms of Service"
-description: "DeviceSDK Terms of Service"
+description: "Terms governing the DeviceSDK open-source software and the devicesdk.com website"
 ---
 
 # Terms of Service
 
-> DeviceSDK Terms of Service
+**Effective Date:** June 12, 2026
 
+DeviceSDK is **free, open-source software** that you run yourself. We do **not** operate a hosted service, store your data, or manage your account: you download the software, run it on your own hardware, and your devices connect to *your* server.
 
-# Terms of Service
+These Terms cover two things only: (1) the terms under which the DeviceSDK software is licensed to you, and (2) your use of the marketing and documentation website at **devicesdk.com** (the "Website"). They do **not** create a service relationship; there is no SaaS, subscription, or account to manage with us.
 
-**Effective Date:** April 12, 2026
+## 1. The Software License
 
-These Terms of Service ("Terms") govern your use of the DeviceSDK platform, including the API, dashboard, CLI tools, firmware, and related services (collectively, the "Service") operated by DeviceSDK ("we", "us", or "our").
+The DeviceSDK software (server, CLI, dashboard, firmware, and libraries) is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0-only)**. Your rights to use, modify, and distribute the software are governed entirely by that license, the full text of which ships in the `LICENSE` file of the source repository.
 
-By creating an account or using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.
+In short, the AGPL-3.0 lets you run, study, modify, and share the software, provided that if you distribute it, or make a modified version available to others over a network, you also make the corresponding source code available under the same license. If any provision of these Terms conflicts with the AGPL-3.0 as applied to the software, the AGPL-3.0 controls.
 
-## 1. Account Registration
+## 2. No Warranty
 
-- You must provide accurate information when creating an account via Google OAuth.
-- You are responsible for all activity under your account.
-- You must be at least 16 years old to use the Service.
-- You are responsible for maintaining the security of your API tokens and device credentials.
+As stated in the AGPL-3.0, the software is provided **"as is", without warranty of any kind**, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement.
 
-## 2. Acceptable Use
+You run DeviceSDK on your own infrastructure and connect your own hardware to it. **You are solely responsible** for how you deploy and operate it, including the security of the server you run, the scripts you write and deploy, and the behaviour of the physical devices you control. We are not responsible for damage to hardware, data loss, or unintended device behaviour resulting from software you run or scripts you deploy.
 
-You agree to use the Service only for lawful purposes. You may **not**:
+Do not use DeviceSDK to operate critical safety systems (medical devices, industrial safety controllers, or any system where failure could cause physical harm) without independent safeguards appropriate to that risk.
 
-- Use the Service to operate critical safety systems (medical devices, industrial safety controllers, or any system where failure could cause physical harm) without explicit written authorization.
-- Attempt to gain unauthorized access to other users' accounts, projects, or devices.
-- Reverse engineer, decompile, or disassemble the Service or its firmware beyond what is permitted by applicable law.
-- Use the Service to transmit malware, conduct network attacks, or interfere with other users.
-- Exceed published rate limits or attempt to circumvent usage restrictions.
-- Resell or redistribute access to the Service without our written permission.
+## 3. Your Data Stays Yours
 
-## 3. Device Scripts and Intellectual Property
+Because DeviceSDK is self-hosted, the projects, devices, scripts, logs, and telemetry you create live on **your** server. We never receive them. The DeviceSDK software contains no telemetry or phone-home. See the [Privacy Policy](/privacy) for how the Website itself handles data.
 
-- **Your scripts:** You retain all rights to the device scripts you upload. We do not claim ownership of your code.
-- **Our platform:** The Service, including its software, firmware, API, documentation, and branding, is owned by DeviceSDK and protected by intellectual property laws. You may not copy, modify, or distribute our platform code except as expressly permitted.
-- **License to run:** By uploading a script, you grant us a limited license to store, execute, and deliver your script to your connected devices as part of providing the Service.
+## 4. Acceptable Use of the Website
 
-## 4. Service Availability
+The Website is provided for informational purposes. You agree not to attempt to disrupt, attack, or gain unauthorised access to the Website or its infrastructure, and not to use it in violation of applicable law.
 
-- We strive to maintain high availability but do not guarantee uninterrupted service.
-- We may perform scheduled maintenance with reasonable advance notice.
-- We reserve the right to modify, suspend, or discontinue features of the Service at any time.
+## 5. Trademarks
 
-## 5. Usage Limits
+The AGPL-3.0 grants rights to the software's source code; it does **not** grant rights to the "DeviceSDK" name or logo. You may make accurate references to DeviceSDK (for example, "compatible with DeviceSDK"), but please don't use the name or branding in a way that implies endorsement or that could cause confusion about the origin of a product.
 
-- Free-tier accounts are subject to resource limits (projects, devices, environment variables, script versions, API rate limits) as documented in our platform.
-- We reserve the right to adjust limits at any time. Material changes will be communicated in advance.
+## 6. Contributions
 
-## 6. Account Suspension and Termination
+If you contribute code, documentation, or other material to the project, you agree your contribution is provided under the project's license (AGPL-3.0-only) unless the repository states otherwise.
 
-We may suspend or terminate your account if you:
+## 7. Changes to These Terms
 
-- Violate these Terms or our Acceptable Use policy
-- Engage in activity that threatens the security or stability of the Service
-- Fail to respond to abuse reports within a reasonable timeframe
+We may update these Terms from time to time. Material changes will be reflected by updating the effective date above and posting the revised Terms here.
 
-You may delete your account at any time from the Account page. Upon deletion, all your projects, devices, tokens, scripts, and associated data will be permanently removed within 30 days.
+## 8. Governing Law
 
-## 7. Limitation of Liability
+To the extent these Terms (as distinct from the AGPL-3.0, which has its own terms) require a governing law, they are governed by the laws applicable at the maintainers' principal place of business, without regard to conflict-of-law principles.
 
-**To the maximum extent permitted by law:**
+## 9. Contact
 
-- The Service is provided "as is" and "as available" without warranties of any kind, whether express or implied.
-- We are not liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Service.
-- Our total liability for any claim related to the Service shall not exceed the amount you paid us in the 12 months preceding the claim, or $100, whichever is greater.
-- We are not responsible for damage to hardware, data loss on devices, or unintended device behavior caused by scripts you deploy.
+Questions about these Terms or the project can be raised on GitHub:
 
-## 8. Indemnification
-
-You agree to indemnify and hold us harmless from any claims, damages, or expenses arising from your use of the Service, your violation of these Terms, or your device scripts.
-
-## 9. Privacy
-
-Your use of the Service is also governed by our [Privacy Policy](/privacy), which describes how we collect, use, and protect your data.
-
-## 10. Changes to These Terms
-
-We may update these Terms from time to time. We will notify you of material changes by email or by posting a notice on the Service. Continued use of the Service after changes take effect constitutes acceptance of the revised Terms.
-
-## 11. Governing Law
-
-These Terms are governed by the laws of the State of Delaware, United States, without regard to conflict of law principles.
-
-## 12. Contact Us
-
-If you have questions about these Terms, contact us at:
-
-**Email:** [support@devicesdk.com](mailto:support@devicesdk.com)
-
-
-## Pages in this section
-
+**GitHub:** [github.com/device-sdk/devicesdk-monorepo](https://github.com/device-sdk/devicesdk-monorepo)

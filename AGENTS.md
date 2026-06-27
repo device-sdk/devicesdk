@@ -285,6 +285,7 @@ comment near `runs-on:` listing required libs.
 - Bun-specific APIs (`bun:sqlite`, `Bun.password`, `Bun.serve`,
   `Bun.Transpiler`) belong in `apps/server` only - never in `packages/*` (those
   run on Node).
+- **No em-dashes**: Never write em-dashes (`—`). Use a hyphen (` - `), a colon, a semicolon, or restructure the sentence.
 
 ## Agent Configuration
 

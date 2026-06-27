@@ -3,7 +3,7 @@
 	"version": "0.4.0",
 	"description": "DeviceSDK Control Panel",
 	"productName": "DeviceSDK",
-	"author": "Gabriel Massadas <g4bryrm98@gmail.com>",
+	"author": "DeviceSDK <hello@devicesdk.com>",
 	"type": "module",
 	"private": true,
 	"scripts": {

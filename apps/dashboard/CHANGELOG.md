@@ -1,5 +1,11 @@
 # @devicesdk/dashboard
 
+## 0.4.1
+
+### Patch Changes
+
+- 53f67d9: chore: OSS readiness phase 3 - fix personal email, remove early-access page, update stale SaaS-era content
+
 ## 0.4.0
 
 ### Minor Changes

@@ -3,7 +3,7 @@
 ### Local `devicesdk flash` workflow needs a merged firmware binary and `DEVICESDK_DEVICE_HOST`
 **Date**: 2026-06-15
 **Question/Problem**: Running the local CLI flash path (`pnpm flash-local` / `devicesdk flash <device>`) against a self-hosted server fails in two ways: (1) the server returns `Token placeholder not found in firmware`, or (2) esptool flashes successfully but the ESP32 crashes with `Invalid ESP-IDF image magic` / checksum errors.
-**Root Cause**: The server's `/v1/projects/:p/devices/:d/firmware` endpoint performs byte-level replacement of placeholder credentials in the firmware artifact stored under `data/firmwares/` (or seeded from `FIRMWARES_DIST_DIR`). The placeholder values are the ones baked into `firmware/esp32/main/config.h`. The CLI's `flashESP32()` writes the downloaded file to offset `0x0`, so the artifact must be a **merged binary** (bootloader at 0x0 + partition table at 0x8000 + app at 0x10000). A plain `iotkit-client.bin` (app-only) has the app at file offset 0x0, so credential placeholders are in the wrong place and the image checksum is recalculated against garbage. Additionally, the example's `flash-local` script defaults `--host` to `localhost:8080`, which tells the flashed device to dial `localhost` instead of the laptop's LAN IP.
+**Root Cause**: The server's `/v1/projects/:p/devices/:d/firmware` endpoint performs byte-level replacement of placeholder credentials in the firmware artifact stored under `data/firmwares/` (or seeded from `FIRMWARES_DIST_DIR`). The placeholder values are the ones baked into `firmware/esp32/main/config.h`. The CLI's `flashESP32()` writes the downloaded file to offset `0x0`, so the artifact must be a **merged binary** (bootloader at 0x0 + partition table at 0x8000 + app at 0x10000). A plain `esp32c3-client.bin` (app-only) has the app at file offset 0x0, so credential placeholders are in the wrong place and the image checksum is recalculated against garbage. Additionally, the example's `flash-local` script defaults `--host` to `localhost:8080`, which tells the flashed device to dial `localhost` instead of the laptop's LAN IP.
 **Solution**:
 1. Build the firmware with placeholder credentials in `config.h` (`idf.py build`).
 2. Produce a merged binary:
@@ -13,10 +13,10 @@
    ```
 3. Place the merged binary in a firmwares dist directory as `<device_type>-client.bin`:
    ```bash
-   mkdir -p /home/gabriel/devicesdk/firmwares-dist
-   cp firmware/esp32/build/esp32c3-client.bin /home/gabriel/devicesdk/firmwares-dist/
+   mkdir -p ~/devicesdk/firmwares-dist
+   cp firmware/esp32/build/esp32c3-client.bin ~/devicesdk/firmwares-dist/
    ```
-4. Start the server with `FIRMWARES_DIST_DIR=/home/gabriel/devicesdk/firmwares-dist` so it seeds the artifact.
+4. Start the server with `FIRMWARES_DIST_DIR=~/devicesdk/firmwares-dist` so it seeds the artifact.
 5. Flash with the LAN host set:
    ```bash
    cd examples/esp32c3-clock

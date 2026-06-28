@@ -1,5 +1,9 @@
 # DeviceSDK
 
+[![CI](https://github.com/device-sdk/devicesdk/actions/workflows/ci.yml/badge.svg)](https://github.com/device-sdk/devicesdk/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![npm (@devicesdk/cli)](https://img.shields.io/npm/v/@devicesdk/cli?label=%40devicesdk%2Fcli)](https://www.npmjs.com/package/@devicesdk/cli)
+
 **Free, open-source, self-hosted IoT platform.** Write TypeScript device scripts, run the DeviceSDK server on your own hardware (Raspberry Pi, NUC, NAS, any Docker host), and connect ESP32 / Raspberry Pi Pico microcontrollers to it over WebSocket.
 
 No cloud, no SaaS, no per-message billing. Your hardware, your data. Licensed under **AGPL-3.0-only**.

@@ -87,6 +87,13 @@ describe("nextCronTime - standard expressions", () => {
 		const next = nextCronTime("0 0 1 1 *", after);
 		expect(next).toBe(utc(2027, 1, 1, 0, 0, 0));
 	});
+
+	test("dow range 0-7 is accepted (7 normalizes to Sunday)", () => {
+		// 2026-06-12 is a Friday; any-day every-minute within a 0-7 dow range fires.
+		expect(() =>
+			nextCronTime("0 0 * * 0-7", utc(2026, 6, 12, 0, 0, 0)),
+		).not.toThrow();
+	});
 });
 
 describe("nextCronTime - edge rollovers", () => {
@@ -141,6 +148,19 @@ describe("nextCronTime - invalid expressions throw", () => {
 	test("impossible date never resolves within a year", () => {
 		// Feb 30 doesn't exist.
 		expect(() => nextCronTime("0 0 30 2 *", 0)).toThrow();
+	});
+
+	test("range with an out-of-range upper bound throws (no unbounded loop)", () => {
+		expect(() => nextCronTime("1-999999999 * * * *", 0)).toThrow();
+	});
+
+	test("step over an out-of-range range throws", () => {
+		expect(() => nextCronTime("1-999999999/2 * * * *", 0)).toThrow();
+	});
+
+	test("range below the field minimum throws", () => {
+		// hours are [0,23]; an upper bound of 999 is rejected
+		expect(() => nextCronTime("0 0-999 * * *", 0)).toThrow();
 	});
 });
 

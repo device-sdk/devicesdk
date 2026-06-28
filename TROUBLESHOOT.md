@@ -1,5 +1,18 @@
 # Troubleshooting Log
 
+### Workflow `if:` with a colon-containing literal fails to start (zero jobs, "workflow file issue")
+**Date**: 2026-06-28
+**Question/Problem**: `website-deploy.yml` never deployed the site. Every run showed conclusion `failure` with **zero jobs** and no logs; GitHub said "This run likely failed because of a workflow file issue." Other workflows on the same commits ran fine, and the gating commit subject clearly started with `chore: version packages`.
+**Root Cause**: The job gate was written inline: `if: startsWith(github.event.head_commit.message, 'chore: version packages')`. In YAML, a single-quoted string is only a quoted scalar when the quote starts the value. Here the value starts with `startsWith(...`, so the whole thing is a **plain scalar** and the `: ` (colon-space) inside the literal `'chore: version packages'` is parsed as a mapping separator. The file is invalid YAML, so the run fails at startup before any job is created. `python3 -c "import yaml; yaml.safe_load(open(f))"` reproduces it: `mapping values are not allowed here`.
+**Solution**: Make the expression a folded block so the colon is safe (the pattern `docker.yml` already used):
+```yaml
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'chore: version packages')
+```
+Adding `workflow_dispatch:` to `on:` (plus the `event_name` check) also lets you deploy the current `main` manually without waiting for the next release commit, since the fix commit itself does not start with `chore: version packages`.
+**Rule**: Never put a raw `: ` inside an inline (unquoted) workflow `if:`/expression. Use a folded `>-` block or wrap the whole value in double quotes. Validate workflows with a YAML parser locally - a startup failure produces no job logs to debug.
+
 ### Local `devicesdk flash` workflow needs a merged firmware binary and `DEVICESDK_DEVICE_HOST`
 **Date**: 2026-06-15
 **Question/Problem**: Running the local CLI flash path (`pnpm flash-local` / `devicesdk flash <device>`) against a self-hosted server fails in two ways: (1) the server returns `Token placeholder not found in firmware`, or (2) esptool flashes successfully but the ESP32 crashes with `Invalid ESP-IDF image magic` / checksum errors.

@@ -3,6 +3,7 @@ name: Deploy Website
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: website-deploy-${{ github.ref }}
@@ -14,8 +15,15 @@ permissions:
 jobs:
   deploy:
     name: Build and deploy to Cloudflare Workers
-    # Only deploy when the changeset release PR is merged, not on every push.
-    if: startsWith(github.event.head_commit.message, 'chore: version packages')
+    # On branch pushes, only deploy when the changeset release PR is merged
+    # (commit subject starts with "chore: version packages"); manual dispatches
+    # always run. The expression MUST stay a folded `>-` block: an inline
+    # `if: startsWith(..., 'chore: version packages')` is invalid YAML because
+    # the `: ` inside the literal is parsed as a mapping separator, which makes
+    # the whole workflow fail to start (zero jobs, no logs).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'chore: version packages')
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     timeout-minutes: 20
     steps:

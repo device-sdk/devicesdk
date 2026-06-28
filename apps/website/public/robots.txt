@@ -1,9 +1,0 @@
-# DeviceSDK — robots.txt
-# Fully open: all crawlers (including AI) may access everything.
-# Content signals per contentsignals.org; directives per RFC 9309.
-
-Sitemap: https://devicesdk.com/sitemap.xml
-
-User-agent: *
-Allow: /
-Content-Signal: ai-train=yes, search=yes, ai-input=yes

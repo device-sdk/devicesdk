@@ -153,6 +153,28 @@ describe("credentials", () => {
 			);
 		});
 
+		it("should preserve the stored host when refreshing an expired token", async () => {
+			const creds = makeCredentials({
+				expiresAt: Date.now() - 1000, // expired
+				host: "http://192.168.1.50:8080",
+			});
+			readFileSpy.mockResolvedValue(Buffer.from(JSON.stringify(creds)));
+			refreshTokenMock.mockResolvedValue({
+				access_token: "new-access-token",
+				refresh_token: "new-refresh-token",
+				expires_in: 3600,
+				token_type: "Bearer",
+			});
+
+			await getToken();
+
+			expect(writeFileSpy).toHaveBeenCalledWith(
+				expect.stringContaining("credentials.json"),
+				expect.stringContaining("http://192.168.1.50:8080"),
+				{ mode: 0o600 },
+			);
+		});
+
 		it("should return null when token is expired and refresh fails (network)", async () => {
 			const creds = makeCredentials({
 				expiresAt: Date.now() - 1000, // expired

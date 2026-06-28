@@ -1,5 +1,13 @@
 # @devicesdk/cli
 
+## 0.7.2
+
+### Patch Changes
+
+- ee33066: Fix: the CLI no longer loses the stored server host (`--host`) when it
+  auto-refreshes an expired access token. Previously, commands run more than ~24h
+  after login would fall back to mDNS discovery and fail on networks without mDNS.
+
 ## 0.7.1
 
 ### Patch Changes

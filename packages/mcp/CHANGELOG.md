@@ -1,5 +1,12 @@
 # @devicesdk/mcp
 
+## 0.2.6
+
+### Patch Changes
+
+- Updated dependencies [ee33066]
+  - @devicesdk/cli@0.7.2
+
 ## 0.2.5
 
 ### Patch Changes

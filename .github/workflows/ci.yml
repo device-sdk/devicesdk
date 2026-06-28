@@ -202,9 +202,19 @@ jobs:
         # which requires passwordless sudo. Browser binaries still cache to ~/.cache.
         run: npx playwright install chromium
         working-directory: apps/dashboard
+      # The same pnpm-store corruption that can crash install can also crash
+      # native modules (esbuild/rollup) inside quasar dev during the test run.
+      # Retry once with a full store wipe + reinstall if the first attempt fails.
       - name: Run E2E tests
-        run: npx playwright test --config tests/e2e/playwright.config.ts
-        working-directory: apps/dashboard
+        run: |
+          for attempt in 1 2; do
+            (cd apps/dashboard && npx playwright test --config tests/e2e/playwright.config.ts) && exit 0
+            echo "E2E attempt $attempt failed; wiping pnpm store and reinstalling"
+            rm -rf "$(pnpm store path)" || true
+            pnpm install --frozen-lockfile
+            pnpm build --filter @devicesdk/core
+          done
+          exit 1
       - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v7

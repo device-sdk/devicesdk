@@ -1,5 +1,11 @@
 # @devicesdk/core
 
+## 1.4.5
+
+### Patch Changes
+
+- 79dcc96: Update all GitHub repo and Docker image references from `device-sdk/devicesdk-monorepo` to `device-sdk/devicesdk` following the GitHub repository rename.
+
 ## 1.4.4
 
 ### Patch Changes

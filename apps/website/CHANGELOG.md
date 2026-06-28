@@ -1,5 +1,20 @@
 # @devicesdk/website
 
+## 0.1.5
+
+### Patch Changes
+
+- 2905d82: docs: recommend `devicesdk login` without `--host` as the default path
+
+  The CLI already auto-discovers the server over mDNS, so `--host` is only needed
+  when mDNS is unavailable (some corporate/VPN networks), when using a custom
+  `MDNS_HOSTNAME`, or when the CLI runs on the same machine as the server. Updated
+  README, quickstart, CLI login reference, MCP docs, troubleshooting guide, error
+  reference, examples, and agent skills manifest to reflect this.
+
+- 53f67d9: chore: OSS readiness phase 3 - fix personal email, remove early-access page, update stale SaaS-era content
+- 79dcc96: Update all GitHub repo and Docker image references from `device-sdk/devicesdk-monorepo` to `device-sdk/devicesdk` following the GitHub repository rename.
+
 ## 0.1.4
 
 ### Patch Changes

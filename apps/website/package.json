@@ -1,6 +1,6 @@
 {
 	"name": "@devicesdk/website",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"description": "DeviceSDK marketing website and documentation (Vue 3 + Vite SSG)",
 	"author": "DeviceSDK <hello@devicesdk.com>",
 	"license": "AGPL-3.0-only",

@@ -1,5 +1,14 @@
 # @devicesdk/mcp
 
+## 0.2.5
+
+### Patch Changes
+
+- 79dcc96: Update all GitHub repo and Docker image references from `device-sdk/devicesdk-monorepo` to `device-sdk/devicesdk` following the GitHub repository rename.
+- Updated dependencies [2905d82]
+- Updated dependencies [79dcc96]
+  - @devicesdk/cli@0.7.1
+
 ## 0.2.4
 
 ### Patch Changes

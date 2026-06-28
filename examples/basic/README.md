@@ -44,8 +44,8 @@ To switch which device file is active, edit the `main:` field in `devicesdk.ts`.
 `pnpm deploy` and `pnpm flash-remote` target whichever server you logged into. Run `devicesdk login` to authenticate - the CLI discovers your server over mDNS automatically. Use `--host` if mDNS doesn't work on your network, you're using a custom hostname, or the CLI runs on the same machine as the server:
 
 ```bash
-devicesdk login                                      # auto-discovers via mDNS
-devicesdk login --host http://devicesdk.local:8080   # explicit mDNS name
+devicesdk login                                      # mDNS auto-discovery (devicesdk.local) - the default
+devicesdk login --host http://localhost:8080         # CLI on same machine as the server
 devicesdk login --host http://192.168.1.42:8080      # by IP
 ```
 

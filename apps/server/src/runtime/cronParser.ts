@@ -15,6 +15,27 @@
  */
 
 /**
+ * Rejects range bounds that fall outside the field's [min, max] so a cron like
+ * "1-999999999" cannot force a multi-million-iteration loop on the event loop.
+ */
+function assertInRange(
+	start: number,
+	end: number,
+	min: number,
+	max: number,
+	part: string,
+): void {
+	if (Number.isNaN(start) || Number.isNaN(end)) {
+		throw new Error(`Invalid cron range: ${part}`);
+	}
+	if (start < min || start > max || end < min || end > max) {
+		throw new Error(
+			`Cron range ${start}-${end} out of bounds [${min}, ${max}] in: ${part}`,
+		);
+	}
+}
+
+/**
  * Parses a single cron field into the set of valid integer values.
  */
 function parseCronField(field: string, min: number, max: number): number[] {
@@ -43,6 +64,7 @@ function parseCronField(field: string, min: number, max: number): number[] {
 					start = parseInt(rangePart, 10);
 				}
 			}
+			assertInRange(start, end, min, max, part);
 			for (let i = start; i <= end; i += step) {
 				values.add(i);
 			}
@@ -51,9 +73,7 @@ function parseCronField(field: string, min: number, max: number): number[] {
 			const dashIdx = part.indexOf("-");
 			const start = parseInt(part.slice(0, dashIdx), 10);
 			const end = parseInt(part.slice(dashIdx + 1), 10);
-			if (Number.isNaN(start) || Number.isNaN(end)) {
-				throw new Error(`Invalid cron range: ${part}`);
-			}
+			assertInRange(start, end, min, max, part);
 			for (let i = start; i <= end; i++) {
 				values.add(i);
 			}

@@ -28,8 +28,8 @@ The CLI auto-discovers your server over mDNS (default name: `devicesdk.local`). 
 - you want to target a server that isn't the default `devicesdk.local`
 
 ```bash
-devicesdk login --host http://devicesdk.local:8080   # explicit mDNS name
-devicesdk login --host http://localhost:8080          # CLI on same machine
+devicesdk login                                       # mDNS auto-discovery (devicesdk.local) - the default, no flag needed
+devicesdk login --host http://localhost:8080          # CLI on same machine as the server
 devicesdk login --host http://192.168.1.42:8080       # by IP
 ```
 

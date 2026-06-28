@@ -79,6 +79,7 @@ export async function getToken(): Promise<
 				refreshToken: response.refresh_token,
 				expiresAt: Date.now() + response.expires_in * 1000,
 				email: credentials.email,
+				host: credentials.host,
 			};
 			await saveCredentials(newCredentials);
 			return newCredentials.accessToken;

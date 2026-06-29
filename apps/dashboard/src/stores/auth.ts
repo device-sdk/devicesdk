@@ -35,10 +35,10 @@ export const useAuthStore = defineStore('auth', () => {
   };
 
   const signIn = async (email: string, password: string): Promise<User> => {
-    const signedIn = await authService.login(email, password);
-    user.value = signedIn;
-    networkError.value = false;
-    return signedIn;
+    await authService.login(email, password);
+    const fullUser = await fetchUser();
+    if (!fullUser) throw new Error('Login succeeded but failed to load user profile.');
+    return fullUser;
   };
 
   const register = async (
@@ -46,10 +46,10 @@ export const useAuthStore = defineStore('auth', () => {
     password: string,
     name?: string,
   ): Promise<User> => {
-    const created = await authService.register(email, password, name);
-    user.value = created;
-    networkError.value = false;
-    return created;
+    await authService.register(email, password, name);
+    const fullUser = await fetchUser();
+    if (!fullUser) throw new Error('Registration succeeded but failed to load user profile.');
+    return fullUser;
   };
 
   const signOut = async () => {

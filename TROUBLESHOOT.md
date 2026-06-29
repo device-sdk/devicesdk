@@ -1,5 +1,12 @@
 # Troubleshooting Log
 
+### Dashboard won't load: assets served with empty MIME type (cors drops `Bun.file` Content-Type)
+**Date**: 2026-06-29
+**Question/Problem**: Opening the self-hosted dashboard (`docker compose up`, `http://localhost:8080`) shows a blank page. Console: `Refused to apply style from '.../assets/index-*.css' because its MIME type ('') is not a supported stylesheet MIME type` and `Failed to load module script: ... responded with a MIME type of ""`. The `/assets/*.css` and `*.js` responses have an **empty `Content-Type`**.
+**Root Cause**: `serveSpa` returned `new Response(Bun.file(candidate))` and relied on the **implicit** Content-Type that `Bun.file` derives from the extension (e.g. `text/css;charset=utf-8`). That implicit header does NOT survive Hono's `cors` middleware, which is mounted on `*` (`app.use("*", cors(...))`): when cors runs it reconstructs the response from the body stream and the implicit type is lost, leaving an empty Content-Type. `secureHeaders` sets `X-Content-Type-Options: nosniff`, so the browser then refuses the stylesheet and module scripts. The `index.html` fallback and `c.json` responses were unaffected because they set Content-Type explicitly. Isolated `new Response(Bun.file("x.css")).headers.get("content-type")` looks correct - the drop only happens once the response passes through cors. Reproduce with a Hono app that mounts `cors()` then serves a `Bun.file`.
+**Solution**: Set the header explicitly in `serveSpa`: `new Response(file, { headers: { "Content-Type": file.type || "application/octet-stream" } })`. Verified end-to-end with `curl -D-` against a real server (`PUBLIC_DIR` set) and an e2e regression test in `apps/server/tests/e2e/misc-foundation.test.ts`.
+**Rule**: Never rely on `Bun.file`'s implicit Content-Type for responses that pass through Hono middleware that touches the response (cors, etc.). Always pin `Content-Type` explicitly on raw `new Response(...)` returns.
+
 ### Workflow `if:` with a colon-containing literal fails to start (zero jobs, "workflow file issue")
 **Date**: 2026-06-28
 **Question/Problem**: `website-deploy.yml` never deployed the site. Every run showed conclusion `failure` with **zero jobs** and no logs; GitHub said "This run likely failed because of a workflow file issue." Other workflows on the same commits ran fine, and the gating commit subject clearly started with `chore: version packages`.

@@ -28,7 +28,14 @@ export async function serveSpa(c: AppContext): Promise<Response> {
 	if (candidate === root || candidate.startsWith(root + sep)) {
 		const file = Bun.file(candidate);
 		if (await file.exists()) {
-			return new Response(file);
+			// Set Content-Type explicitly from the file extension. Bun.file
+			// derives a MIME type on the blob, but the cors middleware (mounted
+			// on "*") reconstructs the response and drops that implicit header,
+			// leaving assets served with an empty Content-Type. With nosniff the
+			// browser then refuses .css/.js modules, so we pin the header here.
+			return new Response(file, {
+				headers: { "Content-Type": file.type || "application/octet-stream" },
+			});
 		}
 	}
 

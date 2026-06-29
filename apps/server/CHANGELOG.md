@@ -1,5 +1,20 @@
 # @devicesdk/server
 
+## 0.2.3
+
+### Patch Changes
+
+- c64cc11: Harden the cron parser: a range or stepped range with bounds outside the
+  field's valid limits (e.g. `1-999999999 * * * *`) now throws immediately
+  instead of expanding into a multi-million-entry set, which could stall the
+  server event loop.
+- 20987e9: Fix the dashboard failing to load when served by the server: the CORS
+  middleware (mounted on every route) reconstructed static-asset responses and
+  dropped the implicit Content-Type that `Bun.file` derives from the extension,
+  so `/assets/*.css` and `*.js` were served with an empty Content-Type. Combined
+  with `nosniff`, browsers refused the stylesheet and module scripts. `serveSpa`
+  now sets the Content-Type explicitly.
+
 ## 0.2.2
 
 ### Patch Changes

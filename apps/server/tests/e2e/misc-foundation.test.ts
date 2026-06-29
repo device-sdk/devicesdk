@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { TestServer } from "../harness";
 
 let srv: TestServer;
@@ -46,6 +49,57 @@ describe("serveSpa fallback (no PUBLIC_DIR configured)", () => {
 		const res = await srv.get("/dashboard/projects/abc");
 		expect(res.status).toBe(404);
 		expect((res.body as { error: string }).error).toContain("PUBLIC_DIR");
+	});
+});
+
+describe("serveSpa static assets (PUBLIC_DIR configured)", () => {
+	let spaSrv: TestServer;
+	let publicDir: string;
+
+	beforeAll(async () => {
+		publicDir = mkdtempSync(join(tmpdir(), "dsdk-spa-"));
+		mkdirSync(join(publicDir, "assets"), { recursive: true });
+		writeFileSync(
+			join(publicDir, "index.html"),
+			"<!doctype html><html></html>",
+		);
+		writeFileSync(
+			join(publicDir, "assets", "index-abc.css"),
+			"body{color:red}",
+		);
+		writeFileSync(
+			join(publicDir, "assets", "index-abc.js"),
+			"export const x = 1;",
+		);
+		spaSrv = await TestServer.start({ PUBLIC_DIR: publicDir });
+	});
+
+	afterAll(async () => {
+		await spaSrv.stop();
+		rmSync(publicDir, { recursive: true, force: true });
+	});
+
+	// Regression: the cors middleware (mounted on "*") reconstructs the response
+	// and drops the implicit Content-Type that Bun.file derives from the blob, so
+	// assets must pin the header explicitly. With nosniff, an empty Content-Type
+	// makes browsers refuse .css/.js, breaking the dashboard. See spa.ts.
+	test("serves CSS with a text/css Content-Type", async () => {
+		const res = await spaSrv.get("/assets/index-abc.css");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("text/css");
+	});
+
+	test("serves JS with a JavaScript Content-Type", async () => {
+		const res = await spaSrv.get("/assets/index-abc.js");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("javascript");
+	});
+
+	test("falls back to index.html for client-side routes", async () => {
+		const res = await spaSrv.get("/dashboard/projects/abc");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("text/html");
+		expect(res.text.toLowerCase()).toContain("<!doctype html");
 	});
 });
 

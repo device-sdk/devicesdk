@@ -1,6 +1,6 @@
 {
 	"name": "@devicesdk/server",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "Self-hosted DeviceSDK server (Bun): REST API, device WebSockets, dashboard hosting",
 	"type": "module",
 	"private": true,

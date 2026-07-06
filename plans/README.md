@@ -7,7 +7,10 @@ agent SEO/discoverability` on 2026-07-02 (commit `321ef7e`); plan 003 from
 plans 004-006 from `/improve plan new sensors and iot protocols` on 2026-07-05
 (commit `321ef7e`); plan 007 from `/improve plan mqtt transport option` on
 2026-07-05 (commit `bbd724d`); plan 008 from `/improve plan ssl support for
-device websockets` on 2026-07-06 (commit `bbd724d`).
+device websockets` on 2026-07-06 (commit `bbd724d`); plans 009-011 from
+`/improve next` (direction audit) on 2026-07-06 (commit `bbd724d`); plans
+012-013 from a second `/improve next` (direction audit) on 2026-07-06
+(commit `bbd724d`).
 Execute in the
 order below unless dependencies say otherwise. Each executor: read the plan
 fully before starting, honor its STOP conditions, and update your row when
@@ -25,6 +28,11 @@ done.
 | 006  | OneWire (DS18B20) + DHT11/DHT22 protocol support (core + server + CLI + both firmwares) | P2 | L | — | TODO |
 | 007  | MQTT device transport as a lazy-loaded aedes plugin (core contract + server + CLI + both firmwares) | P1 | L | — | TODO |
 | 008  | TLS by default: TLS-only server listener, pinned self-signed cert in firmware, CLI TOFU pinning | P1 | L | — | TODO |
+| 009  | DNS-SD `_devicesdk._tcp` advertisement + CLI browse discovery | P2 | S-M | — (best before 001) | TODO |
+| 010  | OTA firmware updates for ESP32 (server push, A/B partitions, rollback-safe) | P1 | L | coordinate with 008 | TODO |
+| 011  | Design spike: extract device runtime into packages/device-engine (kill workerd) | P3 | M | — (avoid overlap with 007) | TODO |
+| 012  | Device KV inspector: REST list/delete endpoints + dashboard Storage tab | P2 | S | — | TODO |
+| 013  | Design spike: multi-user project sharing (household roles, report-only) | P3 | M | — (coordinate with 003 tokens) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -102,6 +110,29 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   if executed near 006, land them sequentially to avoid firmware merge
   conflicts (`devicesdk_main.c` / `main.cpp` connection paths).
 
+- 009 has no hard dependency but should execute **before 001** so the Home
+  Assistant config flow can list `zeroconf: ["_devicesdk._tcp.local."]` from
+  day one; if 001 lands first, add zeroconf to the HA integration afterward.
+  Whichever of 008/009 lands second adds a `tls=1` TXT key + CLI handling
+  (see plan 009 maintenance notes).
+- 010 has no hard dependency but **shares a breaking one-time USB reflash
+  with 008** (new OTA partition table vs TLS pinning): landing both in the
+  same firmware release means users reflash once. If 008 lands first, 010's
+  OTA fetch must be re-specified for pinned TLS (STOP condition in the plan).
+  010 also notes that 007-transport (MQTT) devices cannot receive the OTA
+  push frame - OTA-over-MQTT is a recorded follow-up, not in scope.
+- 011 modifies nothing in production; its only scheduling concern is that
+  plan 007 touches `apps/server/src/runtime/` - do not run 011's inventory
+  while 007 is mid-flight.
+- 012 is independent of all other plans. It adds two routes to
+  `apps/server/src/endpoints/devices/` and a tab to
+  `DeviceDetailsPage.vue`; nothing else queues changes to those exact
+  surfaces, so no sequencing constraint.
+- 013 is report-only (like 011). Its token-scoping section must cover plan
+  003's OAuth tokens if 003 has landed by then, and its ownership inventory
+  goes stale as 003/007/012 add endpoints - the plan tells the executor to
+  re-run the inventory grep rather than trust prior counts.
+
 ## Findings considered and rejected
 
 - (001 run) _None._ Targeted `plan <description>` invocation, not an audit.
@@ -152,3 +183,42 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   the Docker image) - rejected in favor of bundled-but-lazy: the enable flow
   stays one env var, while `DATA_DIR/plugins/` still provides the external
   extension point.
+- (009-011 run) **Backup/restore of DATA_DIR** (D3) - offered (S-M, VACUUM
+  INTO snapshot + CLI commands), not selected by the owner this round.
+  Roadmap item; revisit on request.
+- (009-011 run) **Captive-portal Wi-Fi provisioning** (D5) - offered (L), not
+  selected. Best sequenced after OTA (plan 010) exists so provisioning bugs
+  are field-fixable; revisit then.
+- (009-011 run) **Prometheus /metrics endpoint** (D6) - offered (S, exports
+  existing `device_usage` buckets), not selected. Nearly free; revisit on
+  request.
+- (009-011 run) **Home Assistant OS add-on** - considered, not offered:
+  pointless before plan 001 (HACS integration) ships.
+- (009-011 run) **ESP32 fragmented WS frame reassembly** - considered, not
+  offered as direction: it is a bug/tech-debt item for a standard audit, not
+  a roadmap feature.
+- (012-013 run) **REST-callable script public methods ("actions API", D7)** -
+  offered (M; `POST .../devices/:id/call/:method` reusing the RPC
+  blocked-method guard), not selected by the owner this round. Strongest
+  grounding of the round: plan 001 defers the `number` HA entity precisely
+  because no such command exists, and `HaEntityType` already ships
+  `"number"`. Revisit when plan 001's number entity is wanted.
+- (012-013 run) **New board support: ESP32-S3 / Pico 2 (D10)** - offered
+  (L per family, roadmap-stated), not selected. Best sequenced after the
+  firmware churn from plans 006/007/008/010 settles.
+- (012-013 run) **CLI rollback/versions command** - rejected: the server API
+  (`deployVersion`) and a full dashboard rollback UI (DeviceDetailsPage
+  Versions tab) already exist; the CLI gap is a minor DX nicety.
+- (012-013 run) **Self-hosting docs pass** (roadmap item) - rejected as
+  already delivered: FAQ, architecture, and rate-limits docs read fully
+  self-hosted after the OSS-readiness PRs (#198/#203); no hosted-era setup
+  content found.
+- (012-013 run) **Example automation gallery** (roadmap item) - rejected as a
+  plan: `docs/public/recipes/` already holds 10 recipes; growing it is
+  incremental content work, not plan-shaped.
+- (012-013 run) **Pico `i2c_batch_write` parity gap** - recorded, not
+  direction: the command is in the published union
+  (`packages/core/src/commands.ts:86`) and implemented on ESP32, but the Pico
+  stubs it with "Batch write not yet implemented"
+  (`firmware/pico/src/multicore/core1_worker.cpp:663`). Bug-fix candidate for
+  a standard audit; note plan 004's I2C drivers could hit it on Pico.

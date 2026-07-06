@@ -5,7 +5,9 @@ integration` on 2026-06-29 (commit `c64cc11`); plan 002 from `/improve plan
 agent SEO/discoverability` on 2026-07-02 (commit `321ef7e`); plan 003 from
 `/improve plan bundled stateless MCP server` on 2026-07-05 (commit `321ef7e`);
 plans 004-006 from `/improve plan new sensors and iot protocols` on 2026-07-05
-(commit `321ef7e`).
+(commit `321ef7e`); plan 007 from `/improve plan mqtt transport option` on
+2026-07-05 (commit `bbd724d`); plan 008 from `/improve plan ssl support for
+device websockets` on 2026-07-06 (commit `bbd724d`).
 Execute in the
 order below unless dependencies say otherwise. Each executor: read the plan
 fully before starting, honor its STOP conditions, and update your row when
@@ -21,6 +23,8 @@ done.
 | 004  | I2C sensor driver library in @devicesdk/core (BME280, SHT3x, BH1750, ADS1115, INA219) | P1 | M | — | TODO |
 | 005  | Modbus RTU master over existing UART commands | P2 | S-M | 004 (soft: bytes.ts helpers) | TODO |
 | 006  | OneWire (DS18B20) + DHT11/DHT22 protocol support (core + server + CLI + both firmwares) | P2 | L | — | TODO |
+| 007  | MQTT device transport as a lazy-loaded aedes plugin (core contract + server + CLI + both firmwares) | P1 | L | — | TODO |
+| 008  | TLS by default: TLS-only server listener, pinned self-signed cert in firmware, CLI TOFU pinning | P1 | L | — | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -35,6 +39,35 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   entities, and controllable switch/light entities), plus pytest tests.
   The `number` entity type is explicitly deferred (no server-side command to set
   a value exists yet - see plan 001 "Deferred / out of scope").
+
+## Scope decisions for plan 007 (set by the owner, 2026-07-05)
+
+- **Broker**: embedded in the server process via the **aedes** npm package
+  (Bun 1.3.14 compatibility spike-verified), NOT an in-house broker and NOT
+  an external user-provided broker.
+- **Optionality**: aedes lives in a new workspace package
+  `@devicesdk/transport-mqtt`, dynamically imported only when
+  `MQTT_ENABLED=1` (default off; laziness through `bun build` verified). The
+  server also scans `DATA_DIR/plugins/*.js` as a third-party transport
+  plugin surface. No static aedes import in `apps/server/src`.
+- **Scope**: full stack in one phased plan (server + CLI `devicesdk.ts`
+  `transport` option + firmware patching + ESP32 + Pico clients). Default
+  transport stays `websocket`.
+
+## Scope decisions for plan 008 (set by the owner, 2026-07-06)
+
+- **TLS is the default and exclusive mode**: `TLS_ENABLED` defaults to true;
+  when true or unset, the single listener on `PORT` speaks only TLS
+  (HTTPS/WSS); when false, only plain HTTP. Never both, never a second port.
+  Deliberate breaking change (software not yet widely used): already-flashed
+  devices must be reflashed, CLI hosts stored as `http://` must re-login.
+- **Cert generation is in-house zero-dep** (WebCrypto + minimal DER/X.509
+  writer, mdns-responder style). Advisor recommendation accepted implicitly;
+  openssl-CLI and npm-dep options rejected (see below).
+- **Device trust = pinning**: server cert PEM patched into firmware via a new
+  2048-byte placeholder region; hostname verification skipped on pinned
+  paths; CLI pins via trust-on-first-use at login; browsers get the standard
+  self-signed interstitial.
 
 ## Dependency notes
 
@@ -61,6 +94,13 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   validation is an explicit owner step before the release PR merges.
 - 004 pairs well with 001: every driver's readings can be exposed to Home
   Assistant via the existing `emitState` + entity declarations.
+- 007 is independent of all other plans. It is NOT the "server-side MQTT
+  bridge" rejected in the 004-006 run (that was outbound bridging of device
+  state to an external broker for ecosystem integration); 007 makes MQTT an
+  inbound device transport alternative to the per-device WebSocket, with the
+  broker embedded in the server. 007 touches both firmwares like 006 does -
+  if executed near 006, land them sequentially to avoid firmware merge
+  conflicts (`devicesdk_main.c` / `main.cpp` connection paths).
 
 ## Findings considered and rejected
 
@@ -88,5 +128,27 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   rejected in favor of `io.github.device-sdk/*` (GitHub OIDC works in the
   existing release workflow with zero new secrets; DNS auth needs interactive
   key management).
-</content>
-</invoke>
+- (007 run) **In-house minimal MQTT 3.1.1 broker** (mdns-responder style,
+  zero-dep) - offered; owner chose aedes for less protocol code to maintain.
+- (007 run) **External user-provided broker (Mosquitto etc.)** - rejected:
+  connect/disconnect detection would degrade to last-will messages, weakening
+  connection-gated crons and usage accounting, and it breaks the
+  single-container self-host story.
+- (008 run) **Dual listeners (plain + TLS side by side)** - advisor's initial
+  proposal; owner chose exclusive modes instead (one listener, protocol picked
+  by `TLS_ENABLED`), accepting the breaking change.
+- (008 run) **Cert generation via openssl CLI** - rejected: bare-metal
+  (non-Docker) installs cannot rely on the binary being present.
+- (008 run) **Cert generation via npm package** - rejected: node-forge and
+  selfsigned are unmaintained, and the owner wants no heavy static deps.
+- (008 run) **Per-flash TLS opt-out flag** - not needed: with a single
+  exclusive listener the server mode dictates what devices must speak, so the
+  firmware download always matches the server's current mode.
+- (008 run) **Reverse-proxy-only TLS (docs-only fix)** - rejected as the
+  primary path: does not protect the LAN hop that devices actually use, and
+  self-signed certs at a proxy still fail firmware trust. Kept as a
+  documented deployment option (`TLS_ENABLED=false` + `TRUST_PROXY=1`).
+- (007 run) **Strictly-external plugin distribution** (mqtt transport not in
+  the Docker image) - rejected in favor of bundled-but-lazy: the enable flow
+  stays one env var, while `DATA_DIR/plugins/` still provides the external
+  extension point.

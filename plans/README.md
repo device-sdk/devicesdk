@@ -21,7 +21,7 @@ done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 003  | Bundled stateless MCP server at /mcp (Streamable HTTP, OAuth 2.1, removes @devicesdk/mcp) | P1 | L | — | TODO |
+| 003  | Bundled stateless MCP server at /mcp (Streamable HTTP, OAuth 2.1, removes @devicesdk/mcp) | P1 | L | — | DONE |
 | 002  | Agent discoverability: Claude Code plugin, README/agent metadata (4 phases; Phase 1 MCP-registry publish REJECTED) | P1 | M | 003 | TODO |
 | 001  | Home Assistant HACS custom integration (full v1, phased) | P1 | L | — | TODO |
 | 004  | I2C sensor driver library in @devicesdk/core (BME280, SHT3x, BH1750, ADS1115, INA219) | P1 | M | — | TODO |

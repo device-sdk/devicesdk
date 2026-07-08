@@ -10,7 +10,8 @@ plans 004-006 from `/improve plan new sensors and iot protocols` on 2026-07-05
 device websockets` on 2026-07-06 (commit `bbd724d`); plans 009-011 from
 `/improve next` (direction audit) on 2026-07-06 (commit `bbd724d`); plans
 012-013 from a second `/improve next` (direction audit) on 2026-07-06
-(commit `bbd724d`).
+(commit `bbd724d`); plans 014-015 from a third `/improve next` (direction
+audit) on 2026-07-06 (commit `e6d6454`).
 Execute in the
 order below unless dependencies say otherwise. Each executor: read the plan
 fully before starting, honor its STOP conditions, and update your row when
@@ -33,6 +34,8 @@ done.
 | 011  | Design spike: extract device runtime into packages/device-engine (kill workerd) | P3 | M | — (avoid overlap with 007) | TODO |
 | 012  | Device KV inspector: REST list/delete endpoints + dashboard Storage tab | P2 | S | — | TODO |
 | 013  | Design spike: multi-user project sharing (household roles, report-only) | P3 | M | — (coordinate with 003 tokens) | TODO |
+| 014  | Persist entity state: last-known + history + watch backfill + dashboard charts | P1 | M | — (best before 001 executes) | TODO |
+| 015  | Flash devices from the dashboard: WebSerial ESP32 + patched UF2 download | P2 | M | — (retest after 008) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -132,6 +135,21 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   003's OAuth tokens if 003 has landed by then, and its ownership inventory
   goes stale as 003/007/012 add endpoints - the plan tells the executor to
   re-run the inventory grep rather than trust prior counts.
+- 014 has no hard dependency but is best landed **before 001 executes**: the
+  watcher state replay it adds gives the HA integration last-known entity
+  state on (re)connect for free. If 001 lands first, file a follow-up for the
+  HA client to consume replayed state frames. 014 touches
+  `apps/server/src/runtime/` - do not run it concurrently with 007 or 011
+  work in that directory. 014 and 012 both add device endpoints/tabs; merge
+  order does not matter, expect trivial conflicts in `router.ts` and the
+  DeviceDetailsPage tab strip.
+- 015 is dashboard-only (zero server/firmware changes; the existing firmware
+  download endpoint already patches images server-side). Its WebSerial path
+  requires a secure context, so on LAN installs it fully lights up only after
+  008 (TLS by default) ships - the plan feature-detects and falls back to
+  download + CLI instructions until then. Retest the flow after 008 lands.
+  Complements 010: once OTA exists, USB flashing is first-boot-only, which is
+  exactly the step 015 removes the toolchain from.
 
 ## Findings considered and rejected
 
@@ -222,3 +240,16 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   stubs it with "Batch write not yet implemented"
   (`firmware/pico/src/multicore/core1_worker.cpp:663`). Bug-fix candidate for
   a standard audit; note plan 004's I2C drivers could hit it on Pico.
+- (014-015 run) **Offline/error alerting (webhook + ntfy egress)** - offered
+  (S-M; zero notification code exists in the server, `devices.connected` +
+  `device_logs` levels provide the triggers), not selected by the owner this
+  round. Note the overlap: once plan 001 ships, HA covers alerting for HA
+  users; standalone alerting remains open. Revisit on request.
+- (014-015 run) **Real code editor in the dashboard Script tab** - offered
+  (S-M; today a plain `q-input` textarea at `DeviceDetailsPage.vue:163-177`,
+  no highlighting, errors only at deploy), not selected. CodeMirror 6 +
+  inline scriptValidator feedback is the sketched v1; revisit on request.
+- (014-015 run) **OTA for Pico W** - considered, deferred by the advisor
+  (not offered for selection): plan 010 (ESP32 OTA) has not executed yet and
+  the Pico needs a custom boot-stage story (no A/B bootloader). Revisit after
+  010 lands.

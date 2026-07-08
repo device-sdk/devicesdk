@@ -9,6 +9,7 @@ vi.mock("../credentials.js", () => ({
 
 const apiMocks = {
 	createProject: vi.fn(),
+	getApiUrl: vi.fn(),
 };
 
 vi.mock("../api.js", async (importOriginal) => {
@@ -17,6 +18,11 @@ vi.mock("../api.js", async (importOriginal) => {
 		...original,
 		createProject: (...args: Parameters<typeof original.createProject>) =>
 			apiMocks.createProject(...args),
+		// Real getApiUrl() does mDNS discovery and process.exit(1) when no host
+		// is configured - never let a unit test touch that. init() only calls
+		// it after createProject() already succeeded, so a resolved host is
+		// always the realistic case here.
+		getApiUrl: () => apiMocks.getApiUrl(),
 	};
 });
 
@@ -39,6 +45,7 @@ describe("init command", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		apiMocks.createProject.mockResolvedValue({});
+		apiMocks.getApiUrl.mockResolvedValue("http://localhost:8080");
 		execaMock.mockResolvedValue({});
 		// Default: all files don't exist (access throws ENOENT)
 		accessSpy.mockRejectedValue(
@@ -166,6 +173,56 @@ describe("init command", () => {
 		const written = writeFileSpy.mock.calls.map(([p]) => String(p));
 		// Empty template has no devices → no src/devices/*.ts files
 		expect(written.some((p) => p.includes("src/devices"))).toBe(false);
+		expect(exitSpy).not.toHaveBeenCalled();
+	});
+
+	it("generates .mcp.json pointing at the server's bundled /mcp endpoint (HTTP, not npx)", async () => {
+		apiMocks.getApiUrl.mockResolvedValue("http://devicesdk.example:8080");
+
+		await init();
+
+		const call = writeFileSpy.mock.calls.find(([p]) =>
+			String(p).endsWith(".mcp.json"),
+		);
+		expect(call).toBeDefined();
+		const content = JSON.parse(String(call?.[1]));
+		expect(content).toEqual({
+			mcpServers: {
+				devicesdk: {
+					type: "http",
+					url: "http://devicesdk.example:8080/mcp",
+				},
+			},
+		});
+		// No more npx/@devicesdk/mcp - that package is removed.
+		expect(String(call?.[1])).not.toContain("@devicesdk/mcp");
+		expect(String(call?.[1])).not.toContain("npx");
+	});
+
+	it("falls back to the default mDNS hostname if getApiUrl() resolves empty", async () => {
+		apiMocks.getApiUrl.mockResolvedValue("");
+
+		await init();
+
+		const call = writeFileSpy.mock.calls.find(([p]) =>
+			String(p).endsWith(".mcp.json"),
+		);
+		const content = JSON.parse(String(call?.[1]));
+		expect(content.mcpServers.devicesdk.url).toBe(
+			"http://devicesdk.local:8080/mcp",
+		);
+	});
+
+	it("does not overwrite an existing .mcp.json", async () => {
+		accessSpy.mockImplementation(async (p: Parameters<typeof fs.access>[0]) => {
+			if (String(p).endsWith(".mcp.json")) return undefined; // already exists
+			throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+		});
+
+		await init();
+
+		const written = writeFileSpy.mock.calls.map(([p]) => String(p));
+		expect(written.some((p) => p.endsWith(".mcp.json"))).toBe(false);
 		expect(exitSpy).not.toHaveBeenCalled();
 	});
 });

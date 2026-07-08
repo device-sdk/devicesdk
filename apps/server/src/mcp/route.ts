@@ -69,7 +69,10 @@ function buildLoopback(appLike: AppRequester, c: AppContext): LoopbackFn {
 export function createMcpPostRoute(appLike: AppRequester) {
 	return async (c: AppContext) => {
 		const loopback = buildLoopback(appLike, c);
-		const server = buildMcpServer({ loopback });
+		const server = buildMcpServer({
+			loopback,
+			docsIndexPath: c.env.config.docsIndexPath,
+		});
 		const transport = new StreamableHTTPTransport({
 			// Stateless mode (MCP SDK): no session id is generated or validated.
 			sessionIdGenerator: undefined,

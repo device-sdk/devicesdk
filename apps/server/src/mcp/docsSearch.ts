@@ -1,6 +1,5 @@
 import { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
-import { loadConfig } from "../config";
 
 export interface DocsSearchRow {
 	path: string;
@@ -15,19 +14,27 @@ export type DocsSearchResult =
 
 const SITE_URL = "https://devicesdk.com";
 
-let cachedDb: Database | null | undefined;
+let cachedPath: string | undefined;
+let cachedDb: Database | null = null;
 
-/** Lazily opens the read-only docs index on first query, caching the handle. */
-function getDb(): Database | null {
-	if (cachedDb !== undefined) return cachedDb;
+/**
+ * Lazily opens the read-only docs index, caching the handle for as long as
+ * `docsIndexPath` doesn't change. Keyed by path (rather than a bare boolean)
+ * so multiple servers in one process - e.g. the e2e test harness, which boots
+ * a fresh server with its own DOCS_INDEX_PATH per test file - each get their
+ * own handle instead of racing over a single global cache.
+ */
+function getDb(docsIndexPath: string): Database | null {
+	if (cachedPath === docsIndexPath) return cachedDb;
 
-	const path = loadConfig().docsIndexPath;
-	if (!existsSync(path)) {
+	cachedDb?.close();
+	cachedPath = docsIndexPath;
+	if (!existsSync(docsIndexPath)) {
 		cachedDb = null;
 		return cachedDb;
 	}
 	try {
-		cachedDb = new Database(path, { readonly: true });
+		cachedDb = new Database(docsIndexPath, { readonly: true });
 	} catch {
 		cachedDb = null;
 	}
@@ -36,12 +43,13 @@ function getDb(): Database | null {
 
 /**
  * Test-only: drops the cached DB handle so a subsequent `searchDocs` call
- * re-reads `DOCS_INDEX_PATH` from config instead of reusing whatever was
- * cached by an earlier call (mirrors foundation/logger.ts's `resetLogger`).
+ * reopens `docsIndexPath` instead of reusing whatever was cached by an
+ * earlier call (mirrors foundation/logger.ts's `resetLogger`).
  */
 export function resetDocsSearchCache(): void {
 	cachedDb?.close();
-	cachedDb = undefined;
+	cachedDb = null;
+	cachedPath = undefined;
 }
 
 /**
@@ -69,8 +77,11 @@ const SEARCH_SQL =
  * structured `{ success: false }` result, matching the same convention every
  * other devicesdk_* tool uses.
  */
-export function searchDocs(query: string): DocsSearchResult {
-	const db = getDb();
+export function searchDocs(
+	query: string,
+	docsIndexPath: string,
+): DocsSearchResult {
+	const db = getDb(docsIndexPath);
 	if (!db) {
 		return {
 			success: false,

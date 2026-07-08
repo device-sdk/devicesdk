@@ -27,6 +27,8 @@ export type LoopbackFn = (
 
 export interface ToolDeps {
 	loopback: LoopbackFn;
+	/** Path to the build-time SQLite FTS5 docs index (see ../config.ts). */
+	docsIndexPath: string;
 }
 
 interface ApiEnvelope {
@@ -115,7 +117,7 @@ const COMMAND_TYPES = [
 
 /** Registers every devicesdk_* tool on `server`, wired to the given loopback. */
 export function registerTools(server: McpServer, deps: ToolDeps): void {
-	const { loopback } = deps;
+	const { loopback, docsIndexPath } = deps;
 
 	// --- Read-only tools -----------------------------------------------
 
@@ -306,7 +308,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 			annotations: { readOnlyHint: true, title: "Search DeviceSDK docs" },
 		},
 		async ({ query }) => {
-			const result = searchDocs(query);
+			const result = searchDocs(query, docsIndexPath);
 			return {
 				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
 				isError: !result.success,

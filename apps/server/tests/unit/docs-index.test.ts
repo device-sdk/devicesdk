@@ -72,13 +72,6 @@ Welcome to the fruit documentation. See the guides for apples and bananas.
 			`indexer failed (exit ${proc.exitCode}): ${proc.stderr.toString()}`,
 		);
 	}
-
-	// Point the tool under test (devicesdk_docs_search) at this fixture index.
-	// resetDocsSearchCache() guarantees this test file sees its own fixture
-	// regardless of whatever a previous test (in this file or, if bun:test
-	// ever shares a module registry across files, another one) already cached.
-	process.env.DOCS_INDEX_PATH = indexPath;
-	resetDocsSearchCache();
 });
 
 afterAll(() => {
@@ -120,7 +113,7 @@ describe("build-docs-index: indexing", () => {
 
 describe("devicesdk_docs_search (searchDocs) against the fixture index", () => {
 	test("BM25 ranks the banana-focused page above the apple-focused page", () => {
-		const result = searchDocs("banana");
+		const result = searchDocs("banana", indexPath);
 		expect(result.success).toBe(true);
 		if (!result.success) return;
 		expect(result.result.matches.length).toBeGreaterThan(0);
@@ -128,7 +121,7 @@ describe("devicesdk_docs_search (searchDocs) against the fixture index", () => {
 	});
 
 	test("returns a snippet and a devicesdk.com URL for each match", () => {
-		const result = searchDocs("banana");
+		const result = searchDocs("banana", indexPath);
 		expect(result.success).toBe(true);
 		if (!result.success) return;
 		const first = result.result.matches[0];
@@ -138,8 +131,10 @@ describe("devicesdk_docs_search (searchDocs) against the fixture index", () => {
 	});
 
 	test("a query full of FTS5 operator syntax never throws - result set or empty", () => {
-		expect(() => searchDocs('AND ( * NEAR "unterminated')).not.toThrow();
-		const result = searchDocs('AND ( * NEAR "unterminated');
+		expect(() =>
+			searchDocs('AND ( * NEAR "unterminated', indexPath),
+		).not.toThrow();
+		const result = searchDocs('AND ( * NEAR "unterminated', indexPath);
 		expect(result.success).toBe(true);
 		if (result.success) {
 			expect(Array.isArray(result.result.matches)).toBe(true);
@@ -147,23 +142,17 @@ describe("devicesdk_docs_search (searchDocs) against the fixture index", () => {
 	});
 
 	test("empty query is a structured failure, not a throw", () => {
-		const result = searchDocs("   ");
+		const result = searchDocs("   ", indexPath);
 		expect(result.success).toBe(false);
 	});
 });
 
 describe("devicesdk_docs_search: missing index file", () => {
-	afterAll(() => {
-		// Restore the fixture index for any test file sharing this process.
-		process.env.DOCS_INDEX_PATH = indexPath;
-		resetDocsSearchCache();
-	});
-
 	test("reports docs_index_missing instead of throwing", () => {
-		process.env.DOCS_INDEX_PATH = join(fixtureDir, "does-not-exist.sqlite");
-		resetDocsSearchCache();
-
-		const result = searchDocs("banana");
+		const result = searchDocs(
+			"banana",
+			join(fixtureDir, "does-not-exist.sqlite"),
+		);
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			expect(result.code).toBe("docs_index_missing");

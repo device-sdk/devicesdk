@@ -87,6 +87,6 @@ categories of licenses in the dependency tree are:
 - ISC
 
 No GPL or AGPL dependencies are used in the published npm packages
-(@devicesdk/core, @devicesdk/cli, @devicesdk/mcp). The server application
+(@devicesdk/core, @devicesdk/cli). The server application
 (apps/server) is licensed under AGPL-3.0 and may include AGPL-compatible
 dependencies.

@@ -87,7 +87,7 @@
 
 ## Agent integrations
 
-- [MCP server (@devicesdk/mcp)](https://devicesdk.com/docs/mcp/index.md): drive DeviceSDK from Claude / Cursor / Continue / Windsurf via Model Context Protocol - install snippets per host, tool reference, auth model
+- [MCP server (built into DeviceSDK)](https://devicesdk.com/docs/mcp/index.md): connect any MCP-aware agent to your server's own `/mcp` endpoint over Streamable HTTP - no install, OAuth 2.1 or API-token auth, offline docs search
 
 ## Optional
 

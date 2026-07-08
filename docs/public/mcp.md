@@ -126,7 +126,7 @@ If your host doesn't support OAuth, or you want a static credential (CI, headles
 | `devicesdk_upload_script` | Upload a new script version and deploy it immediately. |
 | `devicesdk_deploy_version` | Activate a previously-uploaded version (rollback or promote). |
 | `devicesdk_send_command` | Send a hardware command (GPIO, I2C, SPI, UART, display, reboot, ...) to a connected device and wait for its response. |
-| `devicesdk_device_logs` | Point-in-time device logs. Currently always returns a deprecation notice pointing at the live watcher WebSocket - use the dashboard's live log view instead until a snapshot API exists. |
+| `devicesdk_device_logs` | Point-in-time page of persisted device logs, newest first, with cursor pagination and level filtering. For live tailing, use the dashboard's log view (backed by the watcher WebSocket) instead. |
 | `devicesdk_docs_search` | Full-text search over an **offline** copy of these docs matching your server's version - no internet call, so results can lag the live site until your server image is updated. |
 
 Every tool returns the same `{ success, result | error, code? }` shape the REST API does; the MCP result's `isError` mirrors `success`.

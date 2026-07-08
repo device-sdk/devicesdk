@@ -198,11 +198,10 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 		{
 			title: "Device logs",
 			description:
-				"Fetch device logs. NOTE: as of the current server version this REST endpoint " +
-				"is deprecated and always returns a 410 response pointing at the live watcher " +
-				"WebSocket (/v1/projects/:projectId/devices/:deviceId/watch) instead of a log " +
-				"page - there is no point-in-time log snapshot API today. Kept as a tool for " +
-				"API symmetry; expect isError:true with a LOGS_DEPRECATED code.",
+				"Fetch a page of persisted device logs, newest first. Optionally filter by " +
+				"level and page backwards in time with the returned cursor. For live tailing, " +
+				"use the watcher WebSocket (/v1/projects/:projectId/devices/:deviceId/watch) " +
+				"instead - this tool is a point-in-time snapshot.",
 			inputSchema: {
 				projectId: projectIdParam,
 				deviceId: deviceIdParam,

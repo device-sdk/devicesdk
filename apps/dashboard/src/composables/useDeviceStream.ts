@@ -18,8 +18,9 @@ export interface UseDeviceStreamOptions {
  *
  * Auto-reconnects on disconnection with exponential backoff. When
  * `backfillLimit` is provided, replay frames (history) and live events are
- * delivered on the same socket - the dashboard's logs panel uses this to
- * avoid the HTTP `/logs` endpoint, which was deprecated in May 2026.
+ * delivered on the same socket - the dashboard's logs panel uses this single
+ * socket for both history and live tailing instead of paging the HTTP
+ * `/logs` endpoint, which exists but only returns a point-in-time snapshot.
  *
  * Frame format: `{ event, data, replay? }`
  *   - event "status"           → connection state changes

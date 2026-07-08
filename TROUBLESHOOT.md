@@ -366,10 +366,11 @@ uint8_t com_pins = (height == 32) ? 0x02 : 0x12;
 **Rule**: For any new SSD1306-family panel that isn't the canonical 128×32, expect alternating COM pins. The clue that you have the wrong config is diagnostic patterns that show up as every-other-row stripes, not as rectangles.
 
 ### `devicesdk logs --tail` exits / fails behind a corporate proxy
-**Date**: 2026-05-01
+**Date**: 2026-05-01 (superseded 2026-07-08, see below)
 **Question/Problem**: Since May 2026 the CLI `logs` and `logs --tail` commands open a WebSocket to `/v1/projects/.../devices/.../watch` instead of polling the deprecated `/logs` HTTP endpoint. Some corporate proxies strip the `Upgrade: websocket` header or block 101 responses, leaving the CLI unable to connect.
-**Root Cause**: The deprecation removed the HTTP polling fallback. The watcher endpoint is the only path that delivers logs.
-**Solution**: Open your self-hosted dashboard at `http(s)://<your-server>/projects/<slug>/devices/<slug>` - the logs panel uses the same WebSocket and works in any browser the user can already reach. If neither WS nor the dashboard is reachable, raise the issue with the network operator (the watcher socket is required for the runtime UI). Do **not** reintroduce a polling fallback - the burn pattern that triggered the migration would recur.
+**Root Cause**: At the time, the `/logs` HTTP endpoint had just been made a permanent 410 - it was Cloudflare-era, where every `device_logs` read/write billed against a Durable Object's daily rows-read/rows-written quota, and naive polling clients had burned through it (see the row-budget entry above). The watcher WebSocket was the only path left that delivered logs.
+**Solution (2026-05-01, now historical)**: Open your self-hosted dashboard, which uses the same WebSocket. Do not reintroduce a polling fallback.
+**Update (2026-07-08)**: The self-host refactor replaced the Durable Object with the server's own local SQLite (`device_logs` table) - there is no external rows-read quota to protect anymore, so `GET /v1/projects/:projectId/devices/:deviceId/logs` (cursor/limit/level paged, newest first) is un-deprecated and works normally again; see `apps/server/src/endpoints/logs/listLogs.ts`. It is intentionally **not** wired back into `devicesdk logs --tail` (that command still wants live push, which only the watcher WebSocket provides) - it exists for scripts, cron jobs, and the bundled MCP server's `devicesdk_device_logs` tool, which don't want to hold a socket open. If a corporate proxy blocks the WS, a caller can now poll this endpoint directly as a workaround; the CLI itself is unchanged.
 
 ### Firmware R2 upload fails with "The file … does not exist" in CI
 **Date**: 2026-05-29

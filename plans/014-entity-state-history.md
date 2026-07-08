@@ -173,8 +173,9 @@ Repo conventions that apply:
   deliberate non-goal. Only user `emitState` persists.
 - `packages/core` - the `emitState` contract and types are unchanged.
 - `packages/cli` - no CLI changes; you only run its tests as a regression gate.
-- `apps/server/src/endpoints/logs/` - the deprecated 410 endpoint is
-  unrelated; do not "un-deprecate" it or model the history endpoint on it.
+- `apps/server/src/endpoints/logs/` - the log-only paging endpoint is
+  unrelated to entity state; do not extend it to cover entity history or
+  model the new history endpoint on it.
 - Firmware directories, `apps/website`, `apps/simulation`.
 - Any change to the shape of existing watch frames (`log`, `status`,
   `history_complete`) or existing REST responses.

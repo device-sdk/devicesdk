@@ -84,11 +84,12 @@ const props = defineProps<{
 const $q = useQuasar();
 const levelFilter = ref<string | null>(null);
 
-// Logs are now WS-only. The watcher WebSocket sends up to `backfillLimit`
-// recent entries on connect (replay frames) followed by `history_complete`,
-// then live events. The legacy HTTP `/logs` endpoint returns 410 — see
-// apps/api/src/durableObjects/lib/device.ts `getLogs` for the full incident
-// write-up.
+// This panel stays WS-only for live tailing. The watcher WebSocket sends up
+// to `backfillLimit` recent entries on connect (replay frames) followed by
+// `history_complete`, then live events. A stateless paging GET also exists
+// at /v1/projects/:projectId/devices/:deviceId/logs (see
+// apps/server/src/endpoints/logs/listLogs.ts) for scripts and MCP tools that
+// don't want to hold a socket open, but the dashboard has no need for it.
 const {
   streamedLogs,
   deviceStatus,

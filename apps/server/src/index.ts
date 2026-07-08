@@ -34,6 +34,13 @@ import {
 import { logger } from "./foundation/logger";
 import { rateLimitMiddleware } from "./foundation/rateLimit";
 import { createMcpPostRoute, mcpMethodNotAllowed } from "./mcp/route";
+import { getAuthorizePage, postAuthorizeAction } from "./oauth/authorizePage";
+import {
+	authorizationServerMetadata,
+	protectedResourceMetadata,
+} from "./oauth/metadata";
+import { handleRegisterClient } from "./oauth/register";
+import { handleTokenExchange } from "./oauth/token";
 import { serveSpa } from "./spa";
 import type { Env, Variables } from "./types";
 
@@ -142,12 +149,32 @@ app.post("/cli/auth", cliAuthUser, handleApproval);
 
 // Bundled MCP server: stateless Streamable HTTP at POST /mcp. mcpAuth wraps
 // authenticateUser so a 401 carries a WWW-Authenticate header pointing MCP
-// clients at the OAuth discovery document (added in a later commit).
+// clients at the OAuth discovery document below.
 // GET/DELETE are unsupported by this stateless server (no SSE stream to
 // resume, no session to terminate) - 405 rather than reaching the transport.
 app.post("/mcp", mcpAuth, createMcpPostRoute(app));
 app.get("/mcp", mcpMethodNotAllowed);
 app.delete("/mcp", mcpMethodNotAllowed);
+
+// OAuth 2.1 authorization server for MCP clients (additive to static API
+// tokens - see foundation/auth.ts). Discovery metadata is unauthenticated;
+// /oauth/authorize requires a dashboard session (cliAuthUser redirects to
+// login otherwise, exactly like /cli/auth above); /oauth/register and
+// /oauth/token are unauthenticated but rate-limited.
+app.get("/.well-known/oauth-protected-resource", protectedResourceMetadata);
+// RFC 9728 section 3 path-suffixed form, for clients that request the
+// metadata document scoped to the specific resource path.
+app.get("/.well-known/oauth-protected-resource/mcp", protectedResourceMetadata);
+app.get("/.well-known/oauth-authorization-server", authorizationServerMetadata);
+
+app.use("/oauth/register", rateLimitMiddleware(10, 60_000));
+app.post("/oauth/register", handleRegisterClient);
+
+app.get("/oauth/authorize", cliAuthUser, getAuthorizePage);
+app.post("/oauth/authorize", cliAuthUser, postAuthorizeAction);
+
+app.use("/oauth/token", rateLimitMiddleware(30, 60_000));
+app.post("/oauth/token", handleTokenExchange);
 
 // Health / readiness probes - unauthenticated so load balancers and the
 // troubleshooting docs can verify the server without credentials.

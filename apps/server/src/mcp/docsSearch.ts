@@ -35,6 +35,16 @@ function getDb(): Database | null {
 }
 
 /**
+ * Test-only: drops the cached DB handle so a subsequent `searchDocs` call
+ * re-reads `DOCS_INDEX_PATH` from config instead of reusing whatever was
+ * cached by an earlier call (mirrors foundation/logger.ts's `resetLogger`).
+ */
+export function resetDocsSearchCache(): void {
+	cachedDb?.close();
+	cachedDb = undefined;
+}
+
+/**
  * Sanitizes a free-text query for FTS5's own query syntax, which throws on
  * stray quotes/operators (a bare `"` or a dangling `AND` is a syntax error,
  * not a "no results" case). Splitting into alphanumeric tokens and

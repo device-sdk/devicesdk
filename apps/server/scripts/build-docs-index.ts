@@ -307,6 +307,11 @@ function main(): void {
 	}
 }
 
-main();
+// Only run as a side effect when executed directly (`bun run scripts/build-docs-index.ts`),
+// never when a test imports this module for its exported helpers below - a
+// bare import must not rebuild the production index or process.exit().
+if (import.meta.main) {
+	main();
+}
 
 export { resolveRoutePath, shouldSkipPage, splitFrontmatter, stripMarkdown };

@@ -93,6 +93,27 @@ export type tableTokens = {
 	managed?: number;
 	token_hash?: string;
 	last_four?: string;
+	/** NULL = never expires (all pre-existing and dashboard-created tokens). */
+	expires_at?: number | null;
+};
+
+export type tableOauthClients = {
+	id: string;
+	client_name: string;
+	/** JSON-encoded array of exact-match redirect URIs. */
+	redirect_uris: string;
+	created_at: number;
+};
+
+export type tableOauthAuthCodes = {
+	id: string;
+	code_hash: string;
+	client_id: string;
+	user_id: string;
+	redirect_uri: string;
+	code_challenge: string;
+	created_at: number;
+	expires_at: number;
 };
 
 export type tableProjectEnvVars = {

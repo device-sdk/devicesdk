@@ -25,9 +25,15 @@ import { projectsRouter } from "./endpoints/projects/router";
 import { batchScriptsRouter, scriptsRouter } from "./endpoints/scripts/router";
 import { tokensRouter } from "./endpoints/tokens/router";
 import { userRouter } from "./endpoints/user/router";
-import { authenticateUser, cliAuthUser, handleLogout } from "./foundation/auth";
+import {
+	authenticateUser,
+	cliAuthUser,
+	handleLogout,
+	mcpAuth,
+} from "./foundation/auth";
 import { logger } from "./foundation/logger";
 import { rateLimitMiddleware } from "./foundation/rateLimit";
+import { createMcpPostRoute, mcpMethodNotAllowed } from "./mcp/route";
 import { serveSpa } from "./spa";
 import type { Env, Variables } from "./types";
 
@@ -133,6 +139,15 @@ app.route("/v1/cli/auth", cliAuthRouterPreAuth);
 // CLI approval page (requires auth - redirects to dashboard login if not authenticated)
 app.get("/cli/auth", cliAuthUser, getApprovalPage);
 app.post("/cli/auth", cliAuthUser, handleApproval);
+
+// Bundled MCP server: stateless Streamable HTTP at POST /mcp. mcpAuth wraps
+// authenticateUser so a 401 carries a WWW-Authenticate header pointing MCP
+// clients at the OAuth discovery document (added in a later commit).
+// GET/DELETE are unsupported by this stateless server (no SSE stream to
+// resume, no session to terminate) - 405 rather than reaching the transport.
+app.post("/mcp", mcpAuth, createMcpPostRoute(app));
+app.get("/mcp", mcpMethodNotAllowed);
+app.delete("/mcp", mcpMethodNotAllowed);
 
 // Health / readiness probes - unauthenticated so load balancers and the
 // troubleshooting docs can verify the server without credentials.

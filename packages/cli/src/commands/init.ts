@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { execa } from "execa";
-import { createProject, DeviceSDKApiError } from "../api.js";
+import { createProject, DeviceSDKApiError, getApiUrl } from "../api.js";
 import { requireAuth } from "../credentials.js";
 import { EXIT } from "../exitCodes.js";
 
@@ -377,13 +377,23 @@ alwaysApply: true
 `;
 }
 
-function generateMcpJson(): string {
+/**
+ * Scaffolds .mcp.json pointing at this server's own bundled /mcp endpoint
+ * (Streamable HTTP - no npm package to install, no separate process). By the
+ * time this is called in init(), createProject() has already resolved and
+ * cached a host via getApiUrl() (env var, --host flag, or
+ * ~/.devicesdk/credentials.json), so this reuses that resolution instead of
+ * re-triggering mDNS discovery. Falls back to the default mDNS hostname if,
+ * for any reason, no host could be determined.
+ */
+async function generateMcpJson(): Promise<string> {
+	const host = (await getApiUrl()) || "http://devicesdk.local:8080";
 	return JSON.stringify(
 		{
 			mcpServers: {
 				devicesdk: {
-					command: "npx",
-					args: ["-y", "@devicesdk/mcp"],
+					type: "http",
+					url: `${host}/mcp`,
 				},
 			},
 		},
@@ -529,12 +539,12 @@ export default async function init(
 		}
 
 		// Generate .mcp.json so users with MCP-aware agents (OpenCode, Claude
-		// Code, Cursor) get the @devicesdk/mcp server preconfigured.
+		// Code, Cursor) get this server's bundled /mcp endpoint preconfigured.
 		const mcpJsonPath = path.join(projectDir, ".mcp.json");
 		try {
 			await fs.access(mcpJsonPath);
 		} catch {
-			await fs.writeFile(mcpJsonPath, generateMcpJson());
+			await fs.writeFile(mcpJsonPath, await generateMcpJson());
 			console.log("✓ Generated .mcp.json");
 		}
 

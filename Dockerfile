@@ -26,6 +26,12 @@ WORKDIR /repo
 COPY --from=build /repo /repo
 RUN cd apps/server \
 	&& bun build src/server.ts --target=bun --outfile /out/server.js
+# Build-time SQLite FTS5 index of docs/public/**/*.md for devicesdk_docs_search
+# (offline, version-pinned to this image - see apps/server/scripts/build-docs-index.ts).
+# Docs reach the build context via stage 1's `COPY . .` (.dockerignore does not
+# exclude docs/, since apps/server's docs-index build needs docs/public).
+RUN cd apps/server \
+	&& bun run scripts/build-docs-index.ts ../../docs/public /out/docs-index.sqlite
 
 # ---- stage 2.5: fetch prebuilt firmware binaries (best-effort) ----
 # Firmware workflows publish versioned releases (tags firmware-esp32@vX.Y.Z /
@@ -65,6 +71,7 @@ RUN mkdir -p /firmwares && cd /firmwares \
 FROM oven/bun:1.3.14-slim
 WORKDIR /app
 COPY --from=serverbuild /out/server.js /app/server.js
+COPY --from=serverbuild /out/docs-index.sqlite /app/docs-index.sqlite
 COPY --from=build /repo/apps/server/migrations /app/migrations
 COPY --from=build /repo/apps/dashboard/dist/spa /app/public
 COPY --from=firmware /firmwares /app/firmwares-dist
@@ -73,7 +80,8 @@ ENV PORT=8080 \
 	DATA_DIR=/data \
 	PUBLIC_DIR=/app/public \
 	MIGRATIONS_DIR=/app/migrations \
-	FIRMWARES_DIST_DIR=/app/firmwares-dist
+	FIRMWARES_DIST_DIR=/app/firmwares-dist \
+	DOCS_INDEX_PATH=/app/docs-index.sqlite
 
 # Run as an unprivileged user. The bun image ships a `bun` group/user (uid 1000),
 # so reuse it rather than creating a new account that may collide with the host.

@@ -89,17 +89,16 @@ docker build -t devicesdk .
 
 ## Project Structure
 
-pnpm + Turborepo monorepo. **Bun is the server runtime only**: the CLI and MCP run on plain Node for npm users.
+pnpm + Turborepo monorepo. **Bun is the server runtime only**: the CLI runs on plain Node for npm users.
 
 | Package | Name | Description |
 |---|---|---|
-| `apps/server` | `@devicesdk/server` | The backend: Bun + Hono + Chanfana + Zod + `bun:sqlite`. One process, one port: REST API (`/v1/*`), device + watcher WebSockets, dashboard SPA, OpenAPI docs (`/api-docs`) |
+| `apps/server` | `@devicesdk/server` | The backend: Bun + Hono + Chanfana + Zod + `bun:sqlite`. One process, one port: REST API (`/v1/*`), device + watcher WebSockets, dashboard SPA, OpenAPI docs (`/api-docs`), and a bundled MCP server (`/mcp`) for AI coding agents |
 | `apps/dashboard` | `@devicesdk/dashboard` | Vue 3 + Quasar SPA: local email/password auth, project/device/token management. Served same-origin by the server |
 | `apps/simulation` | `@devicesdk/simulation` | Vue 3 device-simulation UI (static export consumed by the CLI `dev` command) |
 | `apps/website` | `@devicesdk/website` | Vue 3 + Vite SSG marketing & docs site |
 | `packages/core` | `@devicesdk/core` | Shared TypeScript types and the `DeviceEntrypoint` base class (published to npm) |
 | `packages/cli` | `@devicesdk/cli` | CLI tool (`devicesdk`): login, init, build, dev, deploy, flash, logs, status, inspect |
-| `packages/mcp` | `@devicesdk/mcp` | Model Context Protocol server wrapping the CLI for AI agents |
 | `packages/typescript-config` | `@repo/typescript-config` | Shared tsconfig base |
 | `firmware/esp32` | | ESP32 firmware (ESP-IDF, WebSocket client) |
 | `firmware/pico` | | Raspberry Pi Pico W firmware (C++, lwIP WebSocket client) |

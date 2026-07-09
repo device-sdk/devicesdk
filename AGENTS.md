@@ -54,13 +54,14 @@ Docker): `devicesdk.sqlite` (WAL),
 
 ## Monorepo Architecture
 
-pnpm + Turborepo. Bun is the **server runtime only** - the CLI/MCP run on plain
+pnpm + Turborepo. Bun is the **server runtime only** - the CLI runs on plain
 Node for npm users.
 
 **`apps/server`** (`@devicesdk/server`) - THE backend. Bun + Hono + Chanfana
 (OpenAPI) + Zod + bun:sqlite. One process, one port (8080): REST API under
 `/v1/*`, device + watcher WebSockets, dashboard SPA static serving, OpenAPI docs
-at `/api-docs`.
+at `/api-docs`, and a bundled MCP server at `/mcp` (OAuth 2.1 or static API
+tokens) for AI coding agents.
 
 **`apps/dashboard`** - Vue 3 + Quasar SPA. Local email/password auth
 (register/login). Built `dist/spa` is served same-origin by the server;
@@ -75,8 +76,6 @@ in `~/.devicesdk/credentials.json` → mDNS auto-discovery (`devicesdk.local`).
 `devicesdk login` without `--host` works on most LANs via mDNS; pass `--host` for
 non-default setups or when mDNS is unavailable. `devicesdk dev` still uses the
 workerd simulator (convergence on the server runtime is a roadmap item).
-
-**`packages/mcp`** - MCP server wrapping the CLI for AI agents.
 
 **`apps/simulation`** - Vue UI for the CLI dev simulator (built dist embedded in
 CLI).
@@ -139,8 +138,27 @@ image.
 - **Metrics**: `src/foundation/usageMetrics.ts` - 5-minute SQLite buckets in
   `device_usage`; windows 1h/12h/7d. No cost estimation (that was a
   cloud-billing concept).
-- **Janitor**: `src/janitor.ts` hourly - expired sessions/CLI codes, old
-  logs/usage.
+- **MCP**: `src/mcp/` - stateless Streamable HTTP MCP server at `POST /mcp`
+  (`@modelcontextprotocol/sdk` + `@hono/mcp`, `sessionIdGenerator: undefined`,
+  `enableJsonResponse: true` - a fresh `McpServer` per request, no
+  `Mcp-Session-Id`, no server-to-client push). Every `devicesdk_*` tool
+  re-enters the REST API in-process (`app.request(path, init, c.env)`,
+  forwarding the caller's own Authorization/Cookie header) instead of
+  duplicating query logic - one source of truth for validation and response
+  shapes. `devicesdk_docs_search` queries a SQLite FTS5 index built at server
+  build time from `docs/public/**/*.md` (`scripts/build-docs-index.ts`), not
+  a network call. GET/DELETE /mcp are 405 (stateless - nothing to resume or
+  terminate).
+- **OAuth**: `src/oauth/` - a minimal OAuth 2.1 authorization server
+  additive to static API tokens: PKCE-required authorization-code grant, open
+  (rate-limited) dynamic client registration (RFC 7591), no refresh tokens.
+  Access tokens are `tokens` rows with `managed=1` and a real `expires_at`
+  (30 days) - revocable from the dashboard's Tokens page like any other
+  token. `foundation/auth.ts`'s `mcpAuth` wrapper adds a `WWW-Authenticate`
+  header on 401s so MCP clients discover
+  `/.well-known/oauth-protected-resource` automatically.
+- **Janitor**: `src/janitor.ts` hourly - expired sessions/CLI codes, OAuth
+  codes, expired API tokens, old logs/usage.
 - **mDNS**: `src/foundation/mdns/` - a zero-dependency multicast-DNS responder
   (`node:dgram`) advertising the server as `<MDNS_HOSTNAME>.local` (default
   `devicesdk`) so LAN devices resolve it without a static IP. `dnsPacket.ts` is
@@ -177,6 +195,9 @@ on the user's own server - that's the trust model).
 | Usage metrics | `apps/server/src/foundation/usageMetrics.ts` |
 | Watch WebSocket routes | `apps/server/src/endpoints/devices/wsRoutes.ts` |
 | Dashboard watch composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
+| Bundled MCP server (`/mcp`) | `apps/server/src/mcp/` |
+| OAuth 2.1 authorization server | `apps/server/src/oauth/` |
+| Docs FTS5 index builder | `apps/server/scripts/build-docs-index.ts` |
 | HA entity types/persistence | `packages/core` + `apps/server/src/endpoints/devices/{get,upsert}DeviceEntities.ts` |
 | ESP32/Pico image checksum patching | `apps/server/src/foundation/{esp32ImageChecksum,picoUf2Checksum}.ts` |
 | Endpoint patterns | `apps/server/src/endpoints/` (Hono + Chanfana + Zod) |
@@ -230,7 +251,7 @@ on the user's own server - that's the trust model).
 
 - **Before every commit**, run `pnpm lint`. Do not commit if linting fails.
 - **Every PR must include a changeset** referencing every workspace package
-  touched (npm-published: `@devicesdk/core`, `@devicesdk/cli`, `@devicesdk/mcp`;
+  touched (npm-published: `@devicesdk/core`, `@devicesdk/cli`;
   private-with-changelog: `@devicesdk/server`, `@devicesdk/dashboard`,
   `@devicesdk/simulation`, `@devicesdk/website`). Create it early in the branch
   with `pnpm changeset` so CI can validate it.
@@ -253,7 +274,7 @@ on the user's own server - that's the trust model).
 The monorepo uses `@changesets/cli` for versioning and release management.
 
 - **Public packages** (`private: false`) are published to npm by `pnpm release`:
-  `@devicesdk/core`, `@devicesdk/cli`, `@devicesdk/mcp`.
+  `@devicesdk/core`, `@devicesdk/cli`.
 - **Private packages** (`private: true`) are version-bumped and get changelog
   entries, but are **not** published to npm. This includes the runtime apps:
   `@devicesdk/server`, `@devicesdk/dashboard`, `@devicesdk/simulation`, and

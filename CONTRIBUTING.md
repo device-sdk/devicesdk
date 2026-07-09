@@ -29,13 +29,12 @@ This is a pnpm + Turborepo monorepo:
 
 | Path | Package | Purpose |
 |---|---|---|
-| `apps/server` | `@devicesdk/server` | Bun backend: REST API, device WebSockets, dashboard hosting |
+| `apps/server` | `@devicesdk/server` | Bun backend: REST API, device WebSockets, dashboard hosting, bundled MCP server (`/mcp`) |
 | `apps/dashboard` | `@devicesdk/dashboard` | Vue 3 + Quasar dashboard SPA |
 | `apps/website` | `@devicesdk/website` | Vue 3 + Vite SSG marketing and docs site |
 | `apps/simulation` | `@devicesdk/simulation` | CLI dev simulator UI |
 | `packages/core` | `@devicesdk/core` | Shared types and `DeviceEntrypoint` base class (published to npm) |
 | `packages/cli` | `@devicesdk/cli` | `devicesdk` CLI (published to npm) |
-| `packages/mcp` | `@devicesdk/mcp` | Model Context Protocol server (published to npm) |
 | `packages/typescript-config` | `@repo/typescript-config` | Shared tsconfig base |
 | `firmware/esp32`, `firmware/pico` | - | ESP32 / Pico W firmware |
 | `examples/*` | - | Example device projects |

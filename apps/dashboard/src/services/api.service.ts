@@ -500,7 +500,8 @@ export const logService = {
    * Pass `backfillLimit` to receive up to N recent log entries on connect as
    * `{ event: "log", data, replay: true }` frames followed by a single
    * `{ event: "history_complete" }` marker. Subsequent live events arrive on
-   * the same socket. This replaces the deprecated HTTP `/logs` endpoint.
+   * the same socket - the dashboard uses this instead of paging the HTTP
+   * `/logs` endpoint, which only returns a point-in-time snapshot.
    */
   getWatchUrl(
     projectId: string,

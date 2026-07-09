@@ -120,6 +120,30 @@ export async function cliAuthUser(c: AppContext, next: Next) {
 	}
 }
 
+/**
+ * Wraps authenticateUser for the /mcp endpoint: on a 401, adds a
+ * `WWW-Authenticate` header pointing MCP clients at the OAuth
+ * protected-resource metadata document so they start OAuth discovery
+ * automatically instead of just failing. Session-cookie auth also passing
+ * this check through to /mcp is harmless (same-origin browser only); no
+ * attempt is made to exclude it.
+ */
+export async function mcpAuth(c: AppContext, next: Next) {
+	const response = await authenticateUser(c, next);
+
+	if (response instanceof Response && response.status === 401) {
+		const origin = new URL(c.req.url).origin;
+		const headers = new Headers(response.headers);
+		headers.set(
+			"WWW-Authenticate",
+			`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+		);
+		return new Response(response.body, { status: 401, headers });
+	}
+
+	return response;
+}
+
 export async function authenticateUser(c: AppContext, next: Next) {
 	const token = getToken(c);
 
@@ -233,8 +257,13 @@ export async function authenticateUser(c: AppContext, next: Next) {
 					on: "t.user_id = u.id",
 				},
 				where: {
-					conditions: ["t.token_hash = ?1"],
-					params: [apiTokenHash],
+					// NULL expires_at = never expires (pre-existing + dashboard-created
+					// tokens); OAuth-minted tokens (see src/oauth/) set a real expiry.
+					conditions: [
+						"t.token_hash = ?1",
+						"(t.expires_at IS NULL OR t.expires_at > ?2)",
+					],
+					params: [apiTokenHash, Date.now()],
 				},
 			})
 			.execute();

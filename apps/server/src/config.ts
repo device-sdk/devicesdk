@@ -34,6 +34,13 @@ export interface ServerConfig {
 	firmwaresDir: string;
 	migrationsDir: string;
 	/**
+	 * Path to the build-time SQLite FTS5 docs index queried by
+	 * devicesdk_docs_search (see scripts/build-docs-index.ts). Missing file is
+	 * tolerated (dev checkouts that haven't run the server build) - the tool
+	 * reports it as a hint to run the build rather than throwing.
+	 */
+	docsIndexPath: string;
+	/**
 	 * Server-side secret used for HMAC-SHA-256 hashing of API/CLI tokens.
 	 * Prefer the API_TOKEN_SECRET env var; when omitted a random secret is
 	 * generated once and persisted under DATA_DIR so token hashes remain
@@ -91,6 +98,9 @@ export function loadConfig(
 		// import.meta.url no longer sits next to the migrations directory.
 		migrationsDir:
 			env.MIGRATIONS_DIR || new URL("../migrations", import.meta.url).pathname,
+		docsIndexPath:
+			env.DOCS_INDEX_PATH ||
+			new URL("../dist/docs-index.sqlite", import.meta.url).pathname,
 		apiTokenSecret: loadOrCreateApiTokenSecret(env, dataDir),
 	};
 }

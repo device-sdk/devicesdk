@@ -30,7 +30,7 @@ Creates a new project directory with:
 - `.gitignore`
 - `AGENTS.md` - version-matched guidance for AI coding agents working in the project
 - `.cursor/rules/devicesdk.mdc` - Cursor rules pointing at `AGENTS.md`
-- `.mcp.json` - preconfigures the `@devicesdk/mcp` server for MCP-aware agents
+- `.mcp.json` - points MCP-aware agents at this server's bundled `/mcp` endpoint
 - `README.md` - quick reference for humans
 
 ## Interactive Mode
@@ -98,7 +98,7 @@ my-project/
 ├── .cursor/
 │   └── rules/
 │       └── devicesdk.mdc # Cursor rules
-├── .mcp.json             # MCP config (preconfigures @devicesdk/mcp)
+├── .mcp.json             # MCP config (points at this server's /mcp endpoint)
 ├── README.md             # Human-facing readme
 ├── .devicesdk/           # Build output (generated)
 ├── tsconfig.json

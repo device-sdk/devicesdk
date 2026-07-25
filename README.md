@@ -55,7 +55,7 @@ Useful environment variables:
 | `MDNS_HOSTNAME` | `devicesdk` | Advertised mDNS name (`<name>.local`); change to run multiple servers on one LAN |
 | `MDNS_ENABLED` | `true` | Set `false` to disable mDNS advertisement |
 
-See [docs/public/quickstart.md](docs/public/quickstart.md) for the full zero-to-first-deploy walkthrough.
+See the [Quickstart](https://docs.devicesdk.com/quickstart/) for the full zero-to-first-deploy walkthrough.
 
 ## Develop a device project
 
@@ -176,9 +176,9 @@ won't block `pnpm build`.
 
 ## Documentation
 
-- [Quickstart](docs/public/quickstart.md)
-- [CLI Reference](docs/public/cli/_index.md)
-- [Platform Architecture](docs/public/concepts/architecture.md)
+- [Quickstart](https://docs.devicesdk.com/quickstart/)
+- [CLI Reference](https://docs.devicesdk.com/cli/)
+- [Platform Architecture](https://docs.devicesdk.com/concepts/architecture/)
 - [Roadmap](ROADMAP.md): Home Assistant integration is the flagship next step
 
 ## License

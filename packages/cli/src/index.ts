@@ -32,7 +32,7 @@ program
 	.addHelpText(
 		"after",
 		`
-Docs: https://devicesdk.com/docs/cli/
+Docs: https://docs.devicesdk.com/cli/
 Set DEVICESDK_OUTPUT=json to make every read command emit machine-readable JSON.`,
 	);
 
@@ -56,7 +56,7 @@ With no --host, the CLI will try to discover a server on the LAN via mDNS
 (default: devicesdk.local on port 8080). Set DEVICESDK_MDNS_HOSTNAME and
 DEVICESDK_MDNS_PORT to override the defaults.
 
-More: https://devicesdk.com/docs/cli/login/`,
+More: https://docs.devicesdk.com/cli/login/`,
 	)
 	.action(login);
 
@@ -69,7 +69,7 @@ program
 Examples:
   $ devicesdk logout
 
-More: https://devicesdk.com/docs/cli/login/`,
+More: https://docs.devicesdk.com/cli/login/`,
 	)
 	.action(logout);
 
@@ -84,7 +84,7 @@ Examples:
   $ devicesdk whoami
   $ devicesdk whoami --json
 
-More: https://devicesdk.com/docs/cli/login/`,
+More: https://docs.devicesdk.com/cli/login/`,
 	)
 	.action((options) => whoami(options));
 
@@ -110,7 +110,7 @@ Examples:
   $ devicesdk init --template multi-device my-farm
   $ devicesdk init --no-git empty-scaffold
 
-More: https://devicesdk.com/docs/cli/init/`,
+More: https://docs.devicesdk.com/cli/init/`,
 	)
 	.action((projectId, options) => init(projectId, options));
 
@@ -191,7 +191,7 @@ Examples:
   $ devicesdk logs my-project sensor-1 --level error -n 200
   $ devicesdk logs --tail --json | jq             # NDJSON stream
 
-More: https://devicesdk.com/docs/cli/logs/`,
+More: https://docs.devicesdk.com/cli/logs/`,
 	)
 	.action((arg1, arg2, options) => {
 		// One positional → treat as device-id (project from config).
@@ -257,7 +257,7 @@ Examples:
   $ devicesdk status --device sensor-1
   $ devicesdk status --json | jq '.result.devices[].connected'
 
-More: https://devicesdk.com/docs/cli/status/`,
+More: https://docs.devicesdk.com/cli/status/`,
 	)
 	.action(status);
 
@@ -315,7 +315,7 @@ Examples:
   $ devicesdk env list --project my-project
   $ devicesdk env list --json
 
-More: https://devicesdk.com/docs/concepts/env-vars/`,
+More: https://docs.devicesdk.com/concepts/env-vars/`,
 	)
 	.action((options) => envList(options));
 

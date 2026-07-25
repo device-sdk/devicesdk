@@ -129,7 +129,7 @@
       <h2 class="text-3xl font-bold tracking-tight">Start building with DeviceSDK</h2>
       <p class="mt-4 text-zinc-400 text-lg">Free and open source. No account, no cloud. Run it yourself.</p>
       <div class="mt-8">
-        <a href="/docs/quickstart/" class="btn-primary h-11 px-8">Get started</a>
+        <a href="https://docs.devicesdk.com/quickstart/" class="btn-primary h-11 px-8">Get started</a>
       </div>
     </div>
   </section>

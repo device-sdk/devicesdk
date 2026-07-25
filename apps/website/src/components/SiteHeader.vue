@@ -36,7 +36,7 @@
             <span class="flex-1 text-left">Search the docs</span>
             <kbd class="text-[10px] font-mono px-1.5 py-0.5 rounded border border-zinc-700 bg-zinc-800 text-zinc-400">⌘K</kbd>
           </button>
-          <a :href="DASHBOARD_URL" class="btn-primary text-[13px] h-8 px-3">
+          <a :href="QUICKSTART_URL" class="btn-primary text-[13px] h-8 px-3">
             Get Started
           </a>
         </div>
@@ -74,7 +74,7 @@
           {{ item.name }}
         </a>
         <div class="pt-3 border-t border-zinc-800">
-          <a :href="DASHBOARD_URL" class="block w-full btn-primary text-center">Get Started</a>
+          <a :href="QUICKSTART_URL" class="block w-full btn-primary text-center">Get Started</a>
         </div>
       </div>
     </div>
@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { DASHBOARD_URL, MAIN_MENU } from "@/config";
+import { QUICKSTART_URL, MAIN_MENU } from "@/config";
 
 function isExternal(url: string): boolean {
   return url.startsWith("http");

@@ -135,10 +135,10 @@ implement `onCron(name)`.
 
 ## Where to find more
 
-- Cookbook recipes: <https://devicesdk.com/docs/recipes/>
-- Concept docs: <https://devicesdk.com/docs/concepts/>
-- CLI reference: <https://devicesdk.com/docs/cli/>
-- Hardware specifics: <https://devicesdk.com/docs/hardware/>
+- Cookbook recipes: <https://docs.devicesdk.com/recipes/>
+- Concept docs: <https://docs.devicesdk.com/concepts/>
+- CLI reference: <https://docs.devicesdk.com/cli/>
+- Hardware specifics: <https://docs.devicesdk.com/hardware/>
 - This file lives at `node_modules/@devicesdk/core/AGENTS.md` - version-matched
   to whatever you installed. Check the version on
   `node_modules/@devicesdk/core/package.json` if behavior surprises you.

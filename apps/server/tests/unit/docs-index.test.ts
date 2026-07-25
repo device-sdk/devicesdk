@@ -90,13 +90,13 @@ describe("build-docs-index: indexing", () => {
 		db.close();
 	});
 
-	test("path mapping: dir/page.md -> /docs/dir/page/, _index.md -> /docs/", () => {
+	test("path mapping: dir/page.md -> /dir/page/, _index.md -> /", () => {
 		const db = new Database(indexPath, { readonly: true });
 		const rows = db.query("SELECT path FROM docs_fts ORDER BY path").all() as {
 			path: string;
 		}[];
 		const paths = rows.map((r) => r.path).sort();
-		expect(paths).toEqual(["/docs/", "/docs/page-a/", "/docs/sub/page-b/"]);
+		expect(paths).toEqual(["/", "/page-a/", "/sub/page-b/"]);
 		db.close();
 	});
 
@@ -104,7 +104,7 @@ describe("build-docs-index: indexing", () => {
 		const db = new Database(indexPath, { readonly: true });
 		const row = db
 			.query("SELECT title, description FROM docs_fts WHERE path = ?1")
-			.get("/docs/page-a/") as { title: string; description: string };
+			.get("/page-a/") as { title: string; description: string };
 		expect(row.title).toBe("Banana Guide");
 		expect(row.description).toBe("Everything about bananas");
 		db.close();
@@ -117,7 +117,7 @@ describe("devicesdk_docs_search (searchDocs) against the fixture index", () => {
 		expect(result.success).toBe(true);
 		if (!result.success) return;
 		expect(result.result.matches.length).toBeGreaterThan(0);
-		expect(result.result.matches[0].path).toBe("/docs/page-a/");
+		expect(result.result.matches[0].path).toBe("/page-a/");
 	});
 
 	test("returns a snippet and a devicesdk.com URL for each match", () => {
@@ -125,7 +125,7 @@ describe("devicesdk_docs_search (searchDocs) against the fixture index", () => {
 		expect(result.success).toBe(true);
 		if (!result.success) return;
 		const first = result.result.matches[0];
-		expect(first.url).toBe("https://devicesdk.com/docs/page-a/");
+		expect(first.url).toBe("https://docs.devicesdk.com/page-a/");
 		expect(typeof first.snippet).toBe("string");
 		expect(first.snippet.length).toBeGreaterThan(0);
 	});

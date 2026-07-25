@@ -281,7 +281,7 @@ describe("credentials", () => {
 				expect(payload).toMatchObject({
 					success: false,
 					code: "not_authenticated",
-					docs: "https://devicesdk.com/docs/cli/login/",
+					docs: "https://docs.devicesdk.com/cli/login/",
 				});
 				expect(payload.error).toMatch(/Authentication required/);
 				// Stderr must stay clean so MCP / agents see only the JSON.
@@ -306,7 +306,7 @@ describe("credentials", () => {
 				expect(payload).toMatchObject({
 					success: false,
 					code: "session_expired",
-					docs: "https://devicesdk.com/docs/cli/login/",
+					docs: "https://docs.devicesdk.com/cli/login/",
 				});
 				expect(consoleErrorSpy).not.toHaveBeenCalled();
 			});

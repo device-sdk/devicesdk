@@ -26,12 +26,12 @@ WORKDIR /repo
 COPY --from=build /repo /repo
 RUN cd apps/server \
 	&& bun build src/server.ts --target=bun --outfile /out/server.js
-# Build-time SQLite FTS5 index of docs/public/**/*.md for devicesdk_docs_search
-# (offline, version-pinned to this image - see apps/server/scripts/build-docs-index.ts).
-# Docs reach the build context via stage 1's `COPY . .` (.dockerignore does not
-# exclude docs/, since apps/server's docs-index build needs docs/public).
+# Build-time SQLite FTS5 index of apps/docs/src/content/docs/**/*.md for
+# devicesdk_docs_search (offline, version-pinned to this image - see
+# apps/server/scripts/build-docs-index.ts). Docs reach the build context via
+# stage 1's `COPY . .` (apps/docs is not excluded by .dockerignore).
 RUN cd apps/server \
-	&& bun run scripts/build-docs-index.ts ../../docs/public /out/docs-index.sqlite
+	&& bun run scripts/build-docs-index.ts apps/docs/src/content/docs /out/docs-index.sqlite
 
 # ---- stage 2.5: fetch prebuilt firmware binaries (best-effort) ----
 # Firmware workflows publish versioned releases (tags firmware-esp32@vX.Y.Z /

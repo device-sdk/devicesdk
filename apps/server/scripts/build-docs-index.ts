@@ -1,23 +1,23 @@
 #!/usr/bin/env bun
 /**
- * Builds a SQLite FTS5 full-text index of docs/public/**\/*.md at build time.
- * The index is shipped inside the Docker image and queried locally (BM25, no
- * network call) by devicesdk_docs_search - so docs search works offline and
- * always matches the docs the running server version shipped with, even if
- * the live devicesdk.com site has since moved on.
+ * Builds a SQLite FTS5 full-text index of apps/docs/src/content/docs/**\/*.md
+ * at build time. The index is shipped inside the Docker image and queried
+ * locally (BM25, no network call) by devicesdk_docs_search - so docs search
+ * works offline and always matches the docs the running server version shipped
+ * with, even if the live docs.devicesdk.com site has since moved on.
  *
- * Path-to-URL mapping mirrors apps/website/scripts/build-content.ts's
- * routePathFromRel/resolveRoutePath (docs are mounted at the "/docs" prefix
- * there). Keep the two in sync if either changes - a mismatch here means the
- * index ships URLs that don't match the live site.
+ * Path-to-URL mapping mirrors the new docs app (Astro/Nimbus) where the
+ * filesystem under src/content/docs is mounted at the root of
+ * https://docs.devicesdk.com/. Keep the two in sync if either changes -
+ * a mismatch here means the index ships URLs that don't match the live site.
  *
  * Frontmatter parsing is a minimal hand-rolled YAML subset (no gray-matter/js-yaml
  * dependency in apps/server - Bun-only deps stay minimal here): simple
  * `key: value` scalars, optionally single/double-quoted, plus `>-` folded
- * multi-line scalars (the only block-scalar style used in docs/public today)
- * and a nested `build:` map for the `render: never` skip flag. This covers
- * every frontmatter shape actually used under docs/public as of this writing;
- * anything fancier is intentionally ignored rather than mis-parsed.
+ * multi-line scalars and a nested `build:` map for the `render: never` skip
+ * flag. This covers every frontmatter shape actually used in the migrated
+ * docs content as of this writing; anything fancier is intentionally ignored
+ * rather than mis-parsed.
  */
 import { Database } from "bun:sqlite";
 import {
@@ -30,9 +30,10 @@ import {
 } from "node:fs";
 import { dirname, extname, join, parse, resolve } from "node:path";
 
-/** apps/server/scripts/ -> repo root -> docs/public (three levels up). */
+/** apps/server/scripts/ -> apps/docs/src/content/docs (three levels up, then apps/docs/...). */
 function defaultInputDir(): string {
-	return new URL("../../../docs/public", import.meta.url).pathname;
+	return new URL("../../../apps/docs/src/content/docs", import.meta.url)
+		.pathname;
 }
 
 /** apps/server/scripts/ -> apps/server/dist/docs-index.sqlite (one level up). */
@@ -188,12 +189,12 @@ function shouldSkipPage(fm: Frontmatter): boolean {
 	return fm.draft === true || fm.buildRenderNever === true;
 }
 
-/** Mirrors build-content.ts's routePathFromRel for the "/docs" prefix. */
+/** Mirrors the new docs app: src/content/docs/* maps to the root of docs.devicesdk.com. */
 function routePathFromRel(relPath: string, prefix: string): string {
 	const parsed = parse(relPath);
 	const dir = parsed.dir ? parsed.dir.replace(/\\/g, "/") : "";
 	const name = parsed.name;
-	if (name === "_index") {
+	if (name === "_index" || name === "index") {
 		if (!dir) return prefix ? `${prefix.replace(/\/+$/, "")}/` : "/";
 		return `${prefix}/${dir}/`.replace(/\/+/g, "/");
 	}
@@ -283,7 +284,7 @@ function main(): void {
 
 			const title = fm.title || parse(relPath).name;
 			const description = fm.description ?? "";
-			const path = resolveRoutePath(relPath, "/docs", fm);
+			const path = resolveRoutePath(relPath, "", fm);
 			const content = stripMarkdown(body);
 
 			insert.run(path, title, description, content);

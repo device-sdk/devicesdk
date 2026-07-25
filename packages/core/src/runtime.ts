@@ -8,7 +8,7 @@ import type { DeviceResponse } from "./responses.js";
  * Scope: a single device. To share state across devices, use inter-device RPC
  * (`this.env.DEVICES["other-id"].method()`) or persist to your own backend.
  *
- * @see https://devicesdk.com/docs/concepts/entrypoints/
+ * @see https://docs.devicesdk.com/concepts/entrypoints/
  */
 export interface KVInterface {
 	/**
@@ -37,7 +37,7 @@ export interface KVInterface {
  * read here at runtime. Values are returned as strings; cast/parse if you need
  * a number or JSON. Keys must match `[A-Z][A-Z0-9_]{0,63}` (see `ENV_VAR_KEY_REGEX`).
  *
- * @see https://devicesdk.com/docs/concepts/env-vars/
+ * @see https://docs.devicesdk.com/concepts/env-vars/
  */
 export interface EnvVarsInterface {
 	/**
@@ -59,7 +59,7 @@ export interface EnvVarsInterface {
  * Generic over `ProjectDevices` so inter-device RPC is type-checked. The CLI
  * regenerates `ProjectDevices` from your `devicesdk.ts` config on every build.
  *
- * @see https://devicesdk.com/docs/concepts/entrypoints/
+ * @see https://docs.devicesdk.com/concepts/entrypoints/
  */
 export type UserWorkerEnv<ProjectDevices = Record<string, never>> = {
 	/** Hardware control + per-device KV. See {@link DeviceSenderInterface}. */
@@ -83,7 +83,7 @@ export type UserWorkerEnv<ProjectDevices = Record<string, never>> = {
  * response event. If the device is offline, the runtime queues the command and
  * delivers it when the device reconnects.
  *
- * @see https://devicesdk.com/docs/concepts/device-api/
+ * @see https://docs.devicesdk.com/concepts/device-api/
  */
 export interface DeviceSenderInterface {
 	/**
@@ -272,7 +272,7 @@ export interface DeviceSenderInterface {
 	 *
 	 * For ESP32 boards, the same protocol is driven through `setPwmState`-style
 	 * calls handled by the firmware's led_strip component - see the
-	 * [Addressable LEDs guide](https://devicesdk.com/docs/guides/addressable-leds/).
+	 * [Addressable LEDs guide](https://docs.devicesdk.com/guides/addressable-leds/).
 	 *
 	 * @example
 	 * await this.env.DEVICE.pioWs2812Configure(2, 30); // 30 LEDs on GP2
@@ -313,7 +313,7 @@ export interface DeviceSenderInterface {
 	 * //   ha: { entities: [{ entity_id: "soil_moisture", type: "sensor", source: "user", unit: "%", name: "Soil moisture" }] }
 	 * await this.env.DEVICE.emitState("soil_moisture", 42);
 	 *
-	 * @see https://devicesdk.com/docs/concepts/emit-state/
+	 * @see https://docs.devicesdk.com/concepts/emit-state/
 	 */
 	emitState(entityId: string, value: unknown): Promise<void>;
 }

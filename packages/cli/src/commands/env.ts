@@ -29,7 +29,7 @@ export async function envSet(
 	options: EnvOptions,
 ): Promise<void> {
 	const json = isJsonMode(options);
-	const docs = "https://devicesdk.com/docs/concepts/env-vars/";
+	const docs = "https://docs.devicesdk.com/concepts/env-vars/";
 	try {
 		if (pairs.length === 0) {
 			const msg = "Provide at least one KEY=VALUE pair.";
@@ -123,7 +123,7 @@ export async function envList(options: EnvOptions): Promise<void> {
 			if (json)
 				emitJsonError(error.message, {
 					code: error.code,
-					docs: "https://devicesdk.com/docs/concepts/env-vars/",
+					docs: "https://docs.devicesdk.com/concepts/env-vars/",
 				});
 			else console.error(`✗ ${error.message}`);
 			process.exit(EXIT.GENERIC);
@@ -137,7 +137,7 @@ export async function envUnset(
 	options: EnvOptions,
 ): Promise<void> {
 	const json = isJsonMode(options);
-	const docs = "https://devicesdk.com/docs/concepts/env-vars/";
+	const docs = "https://docs.devicesdk.com/concepts/env-vars/";
 	try {
 		const token = await requireAuth();
 		const projectId = await resolveProjectId(options);

@@ -62,6 +62,6 @@ DEVICESDK_DEVICE_HOST=192.168.1.42:8080 pnpm flash-local   # set to your laptop'
 
 ## See also
 
-- [Quickstart](https://devicesdk.com/docs/quickstart/)
-- [Device Entrypoints](https://devicesdk.com/docs/concepts/entrypoints/)
-- [Cookbook](https://devicesdk.com/docs/recipes/)
+- [Quickstart](https://docs.devicesdk.com/quickstart/)
+- [Device Entrypoints](https://docs.devicesdk.com/concepts/entrypoints/)
+- [Cookbook](https://docs.devicesdk.com/recipes/)

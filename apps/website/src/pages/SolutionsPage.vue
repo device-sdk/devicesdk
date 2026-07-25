@@ -153,7 +153,7 @@
       <h2 class="text-3xl font-bold tracking-tight">What will you build?</h2>
       <p class="mt-4 text-zinc-400 text-lg">Start with an example, customize it, and deploy in minutes.</p>
       <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-        <a href="/docs/quickstart/" class="btn-primary h-11 px-6">Get started free</a>
+        <a href="https://docs.devicesdk.com/quickstart/" class="btn-primary h-11 px-6">Get started free</a>
         <a href="/examples/" class="btn-secondary h-11 px-6">Browse examples</a>
       </div>
     </div>

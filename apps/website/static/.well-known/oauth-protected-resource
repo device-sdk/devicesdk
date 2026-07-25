@@ -1,8 +1,8 @@
 {
-  "resource": "https://devicesdk.com/docs/api/",
+  "resource": "https://devicesdk.com/api/",
   "authorization_servers": [],
   "bearer_methods_supported": ["header"],
   "resource_name": "DeviceSDK API (self-hosted)",
-  "resource_documentation": "https://devicesdk.com/docs/api/",
+  "resource_documentation": "https://devicesdk.com/api/",
   "scopes_supported": []
 }

@@ -5,7 +5,6 @@ import generated from "@/generated/content.json";
 export interface PageData {
 	path: string;
 	sourcePath: string;
-	sourceType: "content" | "docs";
 	isSection: boolean;
 	title: string;
 	description: string;

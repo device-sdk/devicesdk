@@ -57,7 +57,7 @@ export async function loadConfig(
 	// Honour DEVICESDK_OUTPUT=json so JSON consumers (the MCP server, agents,
 	// scripts) get a parseable failure rather than stderr noise + empty stdout.
 	const json = isJsonMode();
-	const docs = "https://devicesdk.com/docs/cli/init/";
+	const docs = "https://docs.devicesdk.com/cli/init/";
 
 	try {
 		await fs.access(resolvedPath);

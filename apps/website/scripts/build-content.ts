@@ -10,7 +10,6 @@ import anchor from "markdown-it-anchor";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const CONTENT_DIR = path.join(ROOT, "content");
-const DOCS_DIR = path.join(ROOT, "..", "..", "docs", "public");
 const STATIC_DIR = path.join(ROOT, "static");
 const GENERATED_DIR = path.join(ROOT, "src", "generated");
 const LLMS_SOURCE = path.join(ROOT, "src", "llms.txt");
@@ -27,7 +26,6 @@ interface TocItem {
 interface PageData {
 	path: string;
 	sourcePath: string;
-	sourceType: "content" | "docs";
 	isSection: boolean;
 	title: string;
 	description: string;
@@ -224,37 +222,6 @@ async function collectPages(): Promise<PageData[]> {
 		pages.push({
 			path: routePath,
 			sourcePath: abs,
-			sourceType: "content",
-			isSection: path.basename(rel, ".md") === "_index",
-			title,
-			description,
-			socialImage,
-			html,
-			rawMarkdown: parsed.content,
-			tocHtml,
-			children: [],
-			weight: Number(data.weight) || 0,
-			lastmod: await getLastmod(abs),
-		});
-	}
-
-	const docsFiles = await glob("**/*.md", { cwd: DOCS_DIR, nodir: true });
-	for (const rel of docsFiles) {
-		const abs = path.join(DOCS_DIR, rel);
-		const raw = fs.readFileSync(abs, "utf8");
-		const parsed = matter(raw);
-		const data = parsed.data as Record<string, unknown>;
-		if (shouldSkipPage(data)) continue;
-		const title = parseFrontmatterValue(data.title) || path.basename(rel, ".md");
-		const description = parseFrontmatterValue(data.description);
-		const socialImage = parseFrontmatterValue(data.social_image);
-		const html = md.render(parsed.content);
-		const tocHtml = renderToc(buildToc(parsed.content));
-		const routePath = resolveRoutePath(rel, "/docs", data);
-		pages.push({
-			path: routePath,
-			sourcePath: abs,
-			sourceType: "docs",
 			isSection: path.basename(rel, ".md") === "_index",
 			title,
 			description,
@@ -356,32 +323,6 @@ function writeLlmsTxt(): void {
 	}
 }
 
-function writeLlmsFull(): void {
-	const header = `# DeviceSDK - Full Documentation
-
-> Deploy TypeScript scripts to Raspberry Pi Pico and ESP32 microcontrollers. DeviceSDK is free, open-source (AGPL-3.0), and self-hosted: you run the server yourself (Docker on a Pi/NUC/NAS), and devices connect to it over WebSocket; your script handles events and issues commands.
-
-> AI agent context: device scripts run in-process on the DeviceSDK server you host (a Bun runtime) - NOT firmware on the chip. Hardware access goes through \`this.env.DEVICE\`. Onboard LED is virtual pin 99. Field in \`devicesdk.ts\` is \`className\`, not \`entrypoint\`. \`setPwmState\` \`dutyCycle\` is 0..1, not 0..100.
-`;
-
-	const docsPages = pages
-		.filter((p) => p.sourceType === "docs" && !p.isSection)
-		.sort((a, b) => {
-			if (a.weight !== b.weight) return a.weight - b.weight;
-			return a.path.localeCompare(b.path);
-		});
-
-	const parts = [header];
-	for (const page of docsPages) {
-		let section = `\n---\n\n# ${page.title}\n\n`;
-		if (page.description) section += `> ${page.description}\n\n`;
-		section += `Source: ${pageUrl(page.path)}\n\n${page.rawMarkdown}`;
-		parts.push(section);
-	}
-
-	fs.writeFileSync(path.join(STATIC_DIR, "llms-full.txt"), parts.join("\n") + "\n", "utf8");
-}
-
 let pages: PageData[] = [];
 
 function writeGeneratedFiles(): void {
@@ -398,13 +339,6 @@ function writeGeneratedFiles(): void {
 	routeImports.set("/terms/", "TermsPage");
 	routeImports.set("/404/", "NotFoundPage");
 
-	for (const page of pages) {
-		if (routeImports.has(page.path)) continue;
-		if (page.sourceType === "docs") {
-			routeImports.set(page.path, page.isSection ? "DocsListPage" : "DocsPage");
-		}
-	}
-
 	const componentImports = [
 		"HomePage",
 		"ProductPage",
@@ -414,8 +348,6 @@ function writeGeneratedFiles(): void {
 		"CommunityPage",
 		"PrivacyPage",
 		"TermsPage",
-		"DocsListPage",
-		"DocsPage",
 		"NotFoundPage",
 	];
 
@@ -452,7 +384,6 @@ async function main(): Promise<void> {
 
 	writeSitemap();
 	writeLlmsTxt();
-	writeLlmsFull();
 	writeGeneratedFiles();
 
 	console.log(`Generated ${pages.length} pages.`);

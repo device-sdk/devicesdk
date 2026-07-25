@@ -68,7 +68,7 @@ export default async function status(
 				if (json)
 					emitJsonError(msg, {
 						code: "project_not_found",
-						docs: "https://devicesdk.com/docs/cli/status/",
+						docs: "https://docs.devicesdk.com/cli/status/",
 					});
 				else console.error(`✗ ${msg}`);
 				process.exit(EXIT.GENERIC);
@@ -95,7 +95,7 @@ export default async function status(
 				if (json)
 					emitJsonError(msg, {
 						code: "device_not_found",
-						docs: "https://devicesdk.com/docs/cli/status/",
+						docs: "https://docs.devicesdk.com/cli/status/",
 					});
 				else console.error(`✗ ${msg}`);
 				process.exit(EXIT.GENERIC);
@@ -191,7 +191,7 @@ export default async function status(
 			if (json)
 				emitJsonError(error.message, {
 					code: error.code,
-					docs: "https://devicesdk.com/docs/cli/status/",
+					docs: "https://docs.devicesdk.com/cli/status/",
 				});
 			else console.error(`✗ Error: ${error.message}`);
 			process.exit(EXIT.GENERIC);

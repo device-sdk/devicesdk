@@ -80,8 +80,9 @@ workerd simulator (convergence on the server runtime is a roadmap item).
 **`apps/simulation`** - Vue UI for the CLI dev simulator (built dist embedded in
 CLI).
 
-**`apps/website`** + **`docs/public`** - Vue 3 + Vite SSG marketing and docs site.
-Website build consumes `apps/server/openapi.json`.
+**`apps/website`** - Vue 3 + Vite SSG marketing site. The documentation now lives
+in **`apps/docs`** (Nimbus/Astro, served from `https://docs.devicesdk.com`).
+Website build consumes `apps/server/openapi.json` for the `/api/` reference.
 
 **`firmware/esp32`, `firmware/pico`** - C/C++ WS clients. Both select **plain
 `ws://` when the configured host contains an explicit port** (self-hosted LAN)
@@ -146,8 +147,8 @@ image.
   forwarding the caller's own Authorization/Cookie header) instead of
   duplicating query logic - one source of truth for validation and response
   shapes. `devicesdk_docs_search` queries a SQLite FTS5 index built at server
-  build time from `docs/public/**/*.md` (`scripts/build-docs-index.ts`), not
-  a network call. GET/DELETE /mcp are 405 (stateless - nothing to resume or
+  build time from `apps/docs/src/content/docs/**/*.md`
+  (`scripts/build-docs-index.ts`), not a network call. GET/DELETE /mcp are 405
   terminate).
 - **OAuth**: `src/oauth/` - a minimal OAuth 2.1 authorization server
   additive to static API tokens: PKCE-required authorization-code grant, open
@@ -197,6 +198,7 @@ on the user's own server - that's the trust model).
 | Dashboard watch composable | `apps/dashboard/src/composables/useDeviceStream.ts` |
 | Bundled MCP server (`/mcp`) | `apps/server/src/mcp/` |
 | OAuth 2.1 authorization server | `apps/server/src/oauth/` |
+| Docs source content | `apps/docs/src/content/docs/` |
 | Docs FTS5 index builder | `apps/server/scripts/build-docs-index.ts` |
 | HA entity types/persistence | `packages/core` + `apps/server/src/endpoints/devices/{get,upsert}DeviceEntities.ts` |
 | ESP32/Pico image checksum patching | `apps/server/src/foundation/{esp32ImageChecksum,picoUf2Checksum}.ts` |
@@ -285,9 +287,9 @@ The monorepo uses `@changesets/cli` for versioning and release management.
   version is the source of truth for the site release. The actual Cloudflare
   Pages deploy is handled by `.github/workflows/website-deploy.yml`.
 - Always create a changeset for any user-visible change in a published or
-  private-with-changelog package. Docs-only fixes under `docs/public/` that do
-  not touch `apps/website` code can be covered by a `@devicesdk/website`
-  changeset because the site consumes them.
+  private-with-changelog package. Docs-only fixes under `apps/docs/src/content/docs/`
+  that do not touch `apps/website` code can be covered by a `@devicesdk/docs`
+  changeset because the docs app consumes them.
 
 ## CI Runner Image
 

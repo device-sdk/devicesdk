@@ -12,7 +12,7 @@ export type DocsSearchResult =
 	| { success: true; result: { query: string; matches: DocsSearchRow[] } }
 	| { success: false; error: string; code?: string };
 
-const SITE_URL = "https://devicesdk.com";
+const SITE_URL = "https://docs.devicesdk.com";
 
 let cachedPath: string | undefined;
 let cachedDb: Database | null = null;

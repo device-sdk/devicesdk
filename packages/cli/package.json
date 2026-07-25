@@ -4,7 +4,7 @@
 	"description": "CLI for building, deploying, and flashing DeviceSDK IoT projects.",
 	"author": "DeviceSDK <hello@devicesdk.com>",
 	"license": "AGPL-3.0-only",
-	"homepage": "https://devicesdk.com/docs/",
+	"homepage": "https://docs.devicesdk.com/",
 	"bugs": {
 		"url": "https://github.com/device-sdk/devicesdk/issues"
 	},

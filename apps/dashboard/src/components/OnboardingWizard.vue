@@ -199,14 +199,14 @@
               <div class="next-step-desc font-mono">devicesdk flash</div>
             </div>
             <a
-              href="https://devicesdk.com/docs"
+              href="https://docs.devicesdk.com"
               target="_blank"
               rel="noopener noreferrer"
               class="next-step-card next-step-link"
             >
               <q-icon name="menu_book" size="28px" color="primary" class="q-mb-sm" />
               <div class="next-step-title">Full documentation</div>
-              <div class="next-step-desc">devicesdk.com/docs</div>
+              <div class="next-step-desc">docs.devicesdk.com</div>
             </a>
           </div>
 

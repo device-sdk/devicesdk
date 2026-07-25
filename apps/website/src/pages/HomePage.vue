@@ -21,7 +21,7 @@
             Write TypeScript device scripts, run the open-source DeviceSDK server yourself on a Raspberry Pi, NUC, NAS, or any Docker host, and connect your ESP32 and Pico over WebSocket. Your hardware, your data, no cloud.
           </p>
           <div class="mt-8 flex flex-col sm:flex-row gap-3">
-            <a href="/docs/quickstart/" class="btn-primary nudge h-11 px-6">
+            <a href="https://docs.devicesdk.com/quickstart/" class="btn-primary nudge h-11 px-6">
               <span>Get Started</span>
               <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
             </a>
@@ -410,7 +410,7 @@
 <span class="text-emerald-400">&#10003;</span> DeviceSDK running at <span class="text-zinc-300">http://localhost:8080</span>
 <span class="text-zinc-500"># open it, create the first account → you're admin</span></code></pre>
       </div>
-      <a href="/docs/quickstart/" class="mt-8 nudge inline-flex items-center text-emerald-500 font-medium hover:text-emerald-400 transition-colors text-sm">
+      <a href="https://docs.devicesdk.com/quickstart/" class="mt-8 nudge inline-flex items-center text-emerald-500 font-medium hover:text-emerald-400 transition-colors text-sm">
         <span class="link-underline">Read the quickstart</span>
         <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </a>
@@ -423,7 +423,7 @@
       <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Start building.</h2>
       <p class="mt-4 text-zinc-400 text-lg">From <code class="text-sm font-mono bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">docker compose up</code> to running hardware in minutes.</p>
       <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-        <a href="/docs/quickstart/" class="btn-primary nudge h-11 px-8">
+        <a href="https://docs.devicesdk.com/quickstart/" class="btn-primary nudge h-11 px-8">
           <span>Get Started</span>
           <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
         </a>

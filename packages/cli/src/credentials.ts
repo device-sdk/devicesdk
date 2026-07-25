@@ -108,7 +108,7 @@ export async function requireAuth(): Promise<string> {
 	// Honour DEVICESDK_OUTPUT=json so JSON consumers (the MCP server, agents,
 	// scripts) get a parseable failure rather than stderr noise + empty stdout.
 	const json = isJsonMode();
-	const docs = "https://devicesdk.com/docs/cli/login/";
+	const docs = "https://docs.devicesdk.com/cli/login/";
 	if (token === SESSION_EXPIRED) {
 		if (json) {
 			emitJsonError("Session expired - run `devicesdk login`.", {

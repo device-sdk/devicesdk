@@ -150,13 +150,13 @@ export class LocalDeviceSender {
 	}
 
 	async setGpioState(pin: number, state: "high" | "low"): Promise<void> {
-		validatePin(pin, "https://devicesdk.com/docs/concepts/device-api/");
+		validatePin(pin, "https://docs.devicesdk.com/concepts/device-api/");
 		if (state !== "high" && state !== "low") {
 			fail(
 				"state",
 				state,
 				'"high" or "low"',
-				"https://devicesdk.com/docs/concepts/device-api/",
+				"https://docs.devicesdk.com/concepts/device-api/",
 			);
 		}
 		await this.sendCommand({
@@ -170,7 +170,7 @@ export class LocalDeviceSender {
 		frequency: number,
 		dutyCycle: number,
 	): Promise<void> {
-		const docs = "https://devicesdk.com/docs/concepts/device-api/";
+		const docs = "https://docs.devicesdk.com/concepts/device-api/";
 		validatePin(pin, docs);
 		if (
 			!Number.isFinite(frequency) ||
@@ -202,7 +202,7 @@ export class LocalDeviceSender {
 		pin: number,
 		mode: "analog" | "digital",
 	): Promise<DeviceResponse> {
-		const docs = "https://devicesdk.com/docs/concepts/device-api/";
+		const docs = "https://docs.devicesdk.com/concepts/device-api/";
 		validatePin(pin, docs);
 		if (mode !== "analog" && mode !== "digital") {
 			fail("mode", mode, '"analog" or "digital"', docs);
@@ -214,7 +214,7 @@ export class LocalDeviceSender {
 	}
 
 	async i2cScan(bus: number): Promise<DeviceResponse> {
-		validateBus(bus, "https://devicesdk.com/docs/guides/using-i2c/");
+		validateBus(bus, "https://docs.devicesdk.com/guides/using-i2c/");
 		return this.sendCommandAndWait({
 			type: "i2c_scan",
 			payload: { bus },
@@ -222,7 +222,7 @@ export class LocalDeviceSender {
 	}
 
 	async i2cWrite(bus: number, address: string, data: string[]): Promise<void> {
-		const docs = "https://devicesdk.com/docs/guides/using-i2c/";
+		const docs = "https://docs.devicesdk.com/guides/using-i2c/";
 		validateBus(bus, docs);
 		validateI2cAddress(address, docs);
 		validateHexBytes(data, docs);
@@ -238,7 +238,7 @@ export class LocalDeviceSender {
 		bytesToRead: number,
 		registerToRead?: string,
 	): Promise<DeviceResponse> {
-		const docs = "https://devicesdk.com/docs/guides/using-i2c/";
+		const docs = "https://docs.devicesdk.com/guides/using-i2c/";
 		validateBus(bus, docs);
 		validateI2cAddress(address, docs);
 		if (
@@ -277,7 +277,7 @@ export class LocalDeviceSender {
 		enable: boolean,
 		pull: "up" | "down" | "none" = "up",
 	): Promise<void> {
-		const docs = "https://devicesdk.com/docs/concepts/device-api/";
+		const docs = "https://docs.devicesdk.com/concepts/device-api/";
 		validatePin(pin, docs);
 		if (pull !== "up" && pull !== "down" && pull !== "none") {
 			fail("pull", pull, '"up", "down", or "none"', docs);
@@ -296,7 +296,7 @@ export class LocalDeviceSender {
 	}
 
 	async watchdogConfigure(timeoutMs: number, enable: boolean): Promise<void> {
-		const docs = "https://devicesdk.com/docs/concepts/device-api/";
+		const docs = "https://docs.devicesdk.com/concepts/device-api/";
 		// Pico's hardware watchdog tops out at 8388 ms; ESP32 goes higher (~30s).
 		// We accept the looser ESP32 ceiling here; firmware will clamp on Pico.
 		if (!Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
@@ -329,7 +329,7 @@ export class LocalDeviceSender {
 		frequency: number,
 		mode: 0 | 1 | 2 | 3,
 	): Promise<void> {
-		const docs = "https://devicesdk.com/docs/guides/using-spi/";
+		const docs = "https://docs.devicesdk.com/guides/using-spi/";
 		validateBus(bus, docs);
 		validatePin(clkPin, docs);
 		validatePin(mosiPin, docs);
@@ -365,7 +365,7 @@ export class LocalDeviceSender {
 	}
 
 	async spiTransfer(bus: number, data: string[]): Promise<DeviceResponse> {
-		const docs = "https://devicesdk.com/docs/guides/using-spi/";
+		const docs = "https://docs.devicesdk.com/guides/using-spi/";
 		validateBus(bus, docs);
 		validateHexBytes(data, docs);
 		return this.sendCommandAndWait({
@@ -375,7 +375,7 @@ export class LocalDeviceSender {
 	}
 
 	async spiWrite(bus: number, data: string[]): Promise<void> {
-		const docs = "https://devicesdk.com/docs/guides/using-spi/";
+		const docs = "https://docs.devicesdk.com/guides/using-spi/";
 		validateBus(bus, docs);
 		validateHexBytes(data, docs);
 		await this.sendCommand({
@@ -385,7 +385,7 @@ export class LocalDeviceSender {
 	}
 
 	async spiRead(bus: number, bytesToRead: number): Promise<DeviceResponse> {
-		const docs = "https://devicesdk.com/docs/guides/using-spi/";
+		const docs = "https://docs.devicesdk.com/guides/using-spi/";
 		validateBus(bus, docs);
 		if (
 			!Number.isInteger(bytesToRead) ||
@@ -409,7 +409,7 @@ export class LocalDeviceSender {
 		stopBits?: 1 | 2,
 		parity?: "none" | "even" | "odd",
 	): Promise<void> {
-		const docs = "https://devicesdk.com/docs/guides/using-uart/";
+		const docs = "https://docs.devicesdk.com/guides/using-uart/";
 		validateBus(port, docs);
 		validatePin(txPin, docs);
 		validatePin(rxPin, docs);
@@ -450,7 +450,7 @@ export class LocalDeviceSender {
 	}
 
 	async uartWrite(port: number, data: string[]): Promise<void> {
-		const docs = "https://devicesdk.com/docs/guides/using-uart/";
+		const docs = "https://docs.devicesdk.com/guides/using-uart/";
 		validateBus(port, docs);
 		validateHexBytes(data, docs);
 		await this.sendCommand({
@@ -464,7 +464,7 @@ export class LocalDeviceSender {
 		bytesToRead: number,
 		timeoutMs?: number,
 	): Promise<DeviceResponse> {
-		const docs = "https://devicesdk.com/docs/guides/using-uart/";
+		const docs = "https://docs.devicesdk.com/guides/using-uart/";
 		validateBus(port, docs);
 		if (
 			!Number.isInteger(bytesToRead) ||
@@ -489,7 +489,7 @@ export class LocalDeviceSender {
 	}
 
 	async pioWs2812Configure(pin: number, numLeds: number): Promise<void> {
-		const docs = "https://devicesdk.com/docs/guides/addressable-leds/";
+		const docs = "https://docs.devicesdk.com/guides/addressable-leds/";
 		validatePin(pin, docs);
 		if (!Number.isInteger(numLeds) || numLeds < 1 || numLeds > 1024) {
 			fail("numLeds", numLeds, "an integer in 1..1024", docs);
@@ -501,7 +501,7 @@ export class LocalDeviceSender {
 	}
 
 	async pioWs2812Update(pixels: [number, number, number][]): Promise<void> {
-		const docs = "https://devicesdk.com/docs/guides/addressable-leds/";
+		const docs = "https://docs.devicesdk.com/guides/addressable-leds/";
 		if (!Array.isArray(pixels)) {
 			fail(
 				"pixels",

@@ -1,5 +1,11 @@
 # @devicesdk/dashboard
 
+## 0.4.2
+
+### Patch Changes
+
+- 321ef7e: Fix account page crash when user object is missing usage/limits after login. The auth store now fetches the full user profile after login/register so usage and limits fields are always populated.
+
 ## 0.4.1
 
 ### Patch Changes

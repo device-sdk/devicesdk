@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "devicesdk-docs",
+  "compatibility_date": "2025-06-18",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    { "pattern": "docs.devicesdk.com", "custom_domain": true }
+  ]
+}

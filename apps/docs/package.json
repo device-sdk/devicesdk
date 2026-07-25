@@ -1,0 +1,55 @@
+{
+  "name": "@devicesdk/docs",
+  "version": "0.0.1",
+  "description": "DeviceSDK documentation site on Nimbus (Astro) for docs.devicesdk.com",
+  "author": "DeviceSDK <hello@devicesdk.com>",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://docs.devicesdk.com/",
+  "bugs": {
+    "url": "https://github.com/device-sdk/devicesdk/issues"
+  },
+  "keywords": [
+    "devicesdk",
+    "docs",
+    "documentation",
+    "astro",
+    "nimbus"
+  ],
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/device-sdk/devicesdk.git",
+    "directory": "apps/docs"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check-types": "astro check",
+    "lint": "nimbus-docs lint",
+    "lint:fix": "nimbus-docs lint --fix",
+    "deploy": "wrangler deploy",
+    "clean": "rm -rf dist .astro .wrangler"
+  },
+  "dependencies": {
+    "@cloudflare/nimbus-docs": "0.8.2",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@iconify-json/ph": "^1.2.0",
+    "astro": "^7.0.0",
+    "astro-icon": "^1.1.0",
+    "astro-og-canvas": "^0.13.0",
+    "canvaskit-wasm": "^0.41.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.8",
+    "@tailwindcss/vite": "^4.1.4",
+    "pagefind": "^1.5.2",
+    "tailwindcss": "^4.1.4",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.95.0"
+  }
+}

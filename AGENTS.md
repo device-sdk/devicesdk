@@ -149,7 +149,7 @@ image.
   shapes. `devicesdk_docs_search` queries a SQLite FTS5 index built at server
   build time from `apps/docs/src/content/docs/**/*.md`
   (`scripts/build-docs-index.ts`), not a network call. GET/DELETE /mcp are 405
-  terminate).
+  (stateless - nothing to resume or terminate).
 - **OAuth**: `src/oauth/` - a minimal OAuth 2.1 authorization server
   additive to static API tokens: PKCE-required authorization-code grant, open
   (rate-limited) dynamic client registration (RFC 7591), no refresh tokens.

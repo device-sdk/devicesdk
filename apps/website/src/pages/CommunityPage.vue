@@ -46,7 +46,7 @@
           <span class="text-emerald-500 mt-0.5">1.</span>
           <div>
             <span class="font-medium text-zinc-50">Check the documentation</span>
-            <p class="text-zinc-500 mt-0.5">Guides, API reference, and troubleshooting at <a href="/docs/" class="text-emerald-500 hover:text-emerald-400">devicesdk.com/docs</a></p>
+            <p class="text-zinc-500 mt-0.5">Guides, API reference, and troubleshooting at <a href="https://docs.devicesdk.com/" class="text-emerald-500 hover:text-emerald-400">docs.devicesdk.com</a></p>
           </div>
         </li>
         <li class="flex items-start gap-3">

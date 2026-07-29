@@ -275,7 +275,7 @@ export default async function logs(
 				if (json) {
 					emitJsonError("No devices declared in devicesdk.ts", {
 						code: "no_devices_configured",
-						docs: "https://devicesdk.com/docs/cli/logs/",
+						docs: "https://docs.devicesdk.com/cli/logs/",
 					});
 				} else {
 					console.error("✗ Error: No devices declared in devicesdk.ts\n");
@@ -287,7 +287,7 @@ export default async function logs(
 						"Multiple devices in devicesdk.ts - pass one as positional.",
 						{
 							code: "device_required",
-							docs: "https://devicesdk.com/docs/cli/logs/",
+							docs: "https://docs.devicesdk.com/cli/logs/",
 						},
 					);
 				} else {
@@ -340,7 +340,7 @@ export default async function logs(
 		if (json) {
 			emitJsonError(result.reason, {
 				code: "logs_session_error",
-				docs: "https://devicesdk.com/docs/cli/logs/",
+				docs: "https://docs.devicesdk.com/cli/logs/",
 			});
 		} else {
 			console.error(`✗ ${result.reason}`);

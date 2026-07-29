@@ -154,7 +154,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 				error:
 					"Missing credentials. Provide a Bearer token, session cookie, or `dsdk_*` CLI token.",
 				code: "missing_credentials",
-				docs: "https://devicesdk.com/docs/errors/missing_credentials/",
+				docs: "https://docs.devicesdk.com/errors/missing_credentials/",
 			},
 			{
 				status: 401,
@@ -195,7 +195,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 					error:
 						"CLI token is invalid or expired. Run `devicesdk login` to issue a fresh one.",
 					code: "invalid_cli_token",
-					docs: "https://devicesdk.com/docs/errors/invalid_cli_token/",
+					docs: "https://docs.devicesdk.com/errors/invalid_cli_token/",
 				},
 				{
 					status: 401,
@@ -275,7 +275,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 					error:
 						"Token is invalid or expired. For CLI tokens (dsdk_*), run `devicesdk login`. For dashboard sessions, sign in again.",
 					code: "invalid_token",
-					docs: "https://devicesdk.com/docs/errors/invalid_token/",
+					docs: "https://docs.devicesdk.com/errors/invalid_token/",
 				},
 				{
 					status: 401,

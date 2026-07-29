@@ -22,7 +22,7 @@ interface DeployOptions {
 	json?: boolean;
 }
 
-const DEPLOY_DOCS = "https://devicesdk.com/docs/cli/deploy/";
+const DEPLOY_DOCS = "https://docs.devicesdk.com/cli/deploy/";
 
 async function ensureProjectExists(
 	token: string,

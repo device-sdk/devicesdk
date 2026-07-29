@@ -62,7 +62,7 @@ export type GetEnv<ProjectDevices = Record<string, never>> =
  *   }
  * }
  *
- * @see https://devicesdk.com/docs/concepts/entrypoints/
+ * @see https://docs.devicesdk.com/concepts/entrypoints/
  */
 export class DeviceEntrypoint<Env = UserWorkerEnv> {
 	ctx: Content;

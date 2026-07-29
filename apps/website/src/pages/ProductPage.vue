@@ -235,7 +235,7 @@
       <h2 class="text-3xl font-bold tracking-tight">Ready to build?</h2>
       <p class="mt-4 text-zinc-400 text-lg">Bring up the server and deploy your first script in minutes.</p>
       <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-        <a href="/docs/quickstart/" class="btn-primary h-11 px-6">Get Started</a>
+        <a href="https://docs.devicesdk.com/quickstart/" class="btn-primary h-11 px-6">Get Started</a>
         <a :href="GITHUB_URL" class="btn-secondary h-11 px-6">View on GitHub</a>
       </div>
     </div>

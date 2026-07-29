@@ -8,8 +8,10 @@ const SCRIPT_PATH = new URL(
 	"../../scripts/build-docs-index.ts",
 	import.meta.url,
 ).pathname;
-const DOCS_PUBLIC_DIR = new URL("../../../../docs/public", import.meta.url)
-	.pathname;
+const DOCS_DIR = new URL(
+	"../../../../apps/docs/src/content/docs",
+	import.meta.url,
+).pathname;
 
 const MCP_HEADERS = {
 	"content-type": "application/json",
@@ -68,18 +70,12 @@ let srv: TestServer;
 let docsIndexOutDir: string;
 
 beforeAll(async () => {
-	// Build a real docs index from the repo's actual docs/public so the
-	// devicesdk_docs_search test below exercises the same content the tool
-	// ships with, without depending on `pnpm build` having run first.
+	// Build a real docs index from the repo's actual apps/docs/src/content/docs
+	// so the devicesdk_docs_search test below exercises the same content the
+	// tool ships with, without depending on `pnpm build` having run first.
 	docsIndexOutDir = mkdtempSync(join(tmpdir(), "dsdk-mcp-docs-index-"));
 	const indexPath = join(docsIndexOutDir, "docs-index.sqlite");
-	const proc = Bun.spawnSync([
-		"bun",
-		"run",
-		SCRIPT_PATH,
-		DOCS_PUBLIC_DIR,
-		indexPath,
-	]);
+	const proc = Bun.spawnSync(["bun", "run", SCRIPT_PATH, DOCS_DIR, indexPath]);
 	if (proc.exitCode !== 0) {
 		throw new Error(
 			`docs index build failed (exit ${proc.exitCode}): ${proc.stderr.toString()}`,
@@ -280,7 +276,7 @@ describe("POST /mcp: tools/call", () => {
 		expect(parsed.result.matches.length).toBeGreaterThan(0);
 		expect(
 			parsed.result.matches.every((m) =>
-				m.url.startsWith("https://devicesdk.com/docs/"),
+				m.url.startsWith("https://docs.devicesdk.com/"),
 			),
 		).toBe(true);
 	});

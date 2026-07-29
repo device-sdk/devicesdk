@@ -137,7 +137,7 @@ export async function flashESP32(
 				"          sudo usermod -a -G uucp $USER     (Arch Linux)\n" +
 				"Then log out and back in for the group change to take effect.\n" +
 				"For a persistent udev-rule alternative, see:\n" +
-				"  https://devicesdk.com/docs/cli/flash/#serial-port-permissions-linux",
+				"  https://docs.devicesdk.com/cli/flash/#serial-port-permissions-linux",
 		);
 	}
 

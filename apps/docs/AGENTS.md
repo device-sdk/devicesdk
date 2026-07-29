@@ -4,9 +4,16 @@ This app hosts the DeviceSDK documentation site at `https://docs.devicesdk.com` 
 
 ## Important context
 
-- **Phase 1 / dual-run.** `docs/public` is still the source of truth for `devicesdk.com/docs` (via `apps/website`) and for the server's docs FTS index. Content in this app is currently an independent copy. Do not edit `docs/public` from here unless explicitly asked.
-- **URLs drop the `/docs/` prefix.** On this subdomain, `/docs/quickstart/` becomes `/quickstart/`. Internal links in `src/content/docs/**/*.md` must use `/quickstart/` style paths.
-- **Deploy is gated by version packages.** `.github/workflows/docs-deploy.yml` only auto-deploys when the release PR with commit subject `chore: version packages` merges, or on manual dispatch.
+- **Source of truth.** `apps/docs/src/content/docs/` is now the source of truth
+  for DeviceSDK documentation. The old `docs/public/` directory and the
+  `apps/website` `/docs/` mount have been removed; `devicesdk.com/docs/*` redirects
+  to `https://docs.devicesdk.com/*` preserving the path.
+- **URLs drop the `/docs/` prefix.** On this subdomain, `/docs/quickstart/`
+  becomes `/quickstart/`. Internal links in `src/content/docs/**/*.md` must use
+  `/quickstart/` style paths.
+- **Deploy is gated by version packages.** `.github/workflows/docs-deploy.yml`
+  only auto-deploys when the release PR with commit subject `chore: version packages`
+  merges, or on manual dispatch.
 
 ## File layout
 
@@ -30,8 +37,8 @@ apps/docs/
       robots.txt.ts
       og.png.ts / og/[...slug].ts
     styles/                    # globals.css, prose.css
-  scripts/migrate-docs.ts      # utility to re-copy docs/public into src/content/docs
 ```
+
 
 ## Commands
 
@@ -46,28 +53,17 @@ pnpm --filter @devicesdk/docs deploy       # wrangler deploy (requires CF creden
 ## Adding / editing docs
 
 - Pages are Markdown files under `src/content/docs/`. The filesystem is the URL.
-- `_index.md` from `docs/public` becomes `index.md` here.
+- Section index files are named `index.md` (e.g. `guides/index.md`).
 - Required frontmatter: `title`. Recommended: `description`.
 - Sidebar order is controlled by `sidebar.order`. Section index pages use `0`; weighted children keep their original `weight`.
 - Internal links must not start with `/docs/`.
 - MDX components must be PascalCase and registered in `src/components.ts`.
-
-## Syncing from docs/public (phase 1 only)
-
-If you need to re-copy from `docs/public` (e.g. after a batch update there), run:
-
-```bash
-pnpm exec tsx apps/docs/scripts/migrate-docs.ts
-```
-
-Then review the diff carefully; the migration is a one-way copy, not a merge.
 
 ## Don't
 
 - Don't remove or bypass `AgentDirective` in `BaseLayout.astro`.
 - Don't add unregistered MDX components.
 - Don't import `.mdx` files directly - use `<Render file="..." />`.
-- Don't change `docs/public` from this app.
 - Don't switch the docs subdomain to route to the main website; that requires a separate follow-up.
 
 ## Project home

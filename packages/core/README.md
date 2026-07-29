@@ -68,4 +68,4 @@ Licensed under [AGPL-3.0-only](./LICENSE).
 
 ## Documentation
 
-Full documentation at [devicesdk.com/docs](https://devicesdk.com/docs).
+Full documentation at [docs.devicesdk.com](https://docs.devicesdk.com).

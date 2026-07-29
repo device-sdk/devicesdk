@@ -3,17 +3,22 @@
 # See apps/website/AGENTS.md "URL changes require a redirect" - every move/rename
 # of a content file MUST add an entry here so we don't lose Google index signal.
 
-/docs/resources/hardware/         /docs/hardware/        301
-/docs/resources/hardware/:slug    /docs/hardware/:slug   301
-/docs/resources/changelog/        /docs/changelog/       301
-/docs/guides/control-from-browser/ /docs/guides/         301
-/docs                              /docs/                301
+# API reference moved out of /docs/ and remains on the main site at /api/.
+/docs/api/                              /api/                 301
+/docs/api/*                             /api/:splat           301
+
+# Removed docs pages (redirect straight to the closest still-existing parent
+# on the new docs subdomain - a single hop, not a chain through /docs/*).
+/docs/guides/control-from-browser/      https://docs.devicesdk.com/guides/  301
+/docs/errors/account_suspended/         https://docs.devicesdk.com/errors/  301
+/docs/errors/account_deletion_pending/  https://docs.devicesdk.com/errors/  301
+
+# Docs moved to https://docs.devicesdk.com. The wildcard preserves the path
+# after /docs/ (e.g. /docs/quickstart/ -> https://docs.devicesdk.com/quickstart/).
+/docs                                   https://docs.devicesdk.com/ 301
+/docs/*                                 https://docs.devicesdk.com/:splat 301
 
 # Self-host pivot: pages removed when DeviceSDK became free, open-source, and
 # self-hosted (no managed cloud, no pricing, no private beta).
-/pricing/                          /                      301
-/early-access/                     /docs/quickstart/      301
-
-# Removed error pages (account suspension and deletion-grace no longer exist).
-/docs/errors/account_suspended/         /docs/errors/     301
-/docs/errors/account_deletion_pending/  /docs/errors/     301
+/pricing/                               /                     301
+/early-access/                          https://docs.devicesdk.com/quickstart/ 301

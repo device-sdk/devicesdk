@@ -312,7 +312,7 @@ export class Thermostat extends DeviceEntrypoint {
   \`onMessage(message)\`, \`onCron(name)\`.
 
 The full surface is documented at
-[devicesdk.com/docs/concepts/device-api/](https://devicesdk.com/docs/concepts/device-api/)
+[docs.devicesdk.com/concepts/device-api/](https://docs.devicesdk.com/concepts/device-api/)
 and via JSDoc on every export in
 \`node_modules/@devicesdk/core/dist/index.d.ts\`. Read that .d.ts before
 inventing API names - agent training data is often stale.
@@ -354,15 +354,15 @@ inventing API names - agent training data is often stale.
 
 ## Recipes (search these before writing from scratch)
 
-- [Read a BME280 sensor](https://devicesdk.com/docs/recipes/read-bme280/)
-- [Toggle an LED with a button](https://devicesdk.com/docs/recipes/button-toggles-led/)
-- [Persist state across reboots](https://devicesdk.com/docs/recipes/persist-counter-kv/)
-- [Schedule a daily summary](https://devicesdk.com/docs/recipes/daily-cron-summary/)
-- [Drive a WS2812 strip](https://devicesdk.com/docs/recipes/ws2812-rainbow/)
-- [Surface a Home Assistant entity](https://devicesdk.com/docs/recipes/sensor-to-home-assistant/)
-- [Two devices talking to each other](https://devicesdk.com/docs/recipes/two-devices-rpc/)
+- [Read a BME280 sensor](https://docs.devicesdk.com/recipes/read-bme280/)
+- [Toggle an LED with a button](https://docs.devicesdk.com/recipes/button-toggles-led/)
+- [Persist state across reboots](https://docs.devicesdk.com/recipes/persist-counter-kv/)
+- [Schedule a daily summary](https://docs.devicesdk.com/recipes/daily-cron-summary/)
+- [Drive a WS2812 strip](https://docs.devicesdk.com/recipes/ws2812-rainbow/)
+- [Surface a Home Assistant entity](https://docs.devicesdk.com/recipes/sensor-to-home-assistant/)
+- [Two devices talking to each other](https://docs.devicesdk.com/recipes/two-devices-rpc/)
 
-Full cookbook: <https://devicesdk.com/docs/recipes/>
+Full cookbook: <https://docs.devicesdk.com/recipes/>
 `;
 }
 
@@ -426,10 +426,10 @@ devicesdk env set KEY=VALUE
 
 ## Docs
 
-- [Quickstart](https://devicesdk.com/docs/quickstart/)
-- [Device Entrypoints](https://devicesdk.com/docs/concepts/entrypoints/)
-- [Cookbook](https://devicesdk.com/docs/recipes/)
-- [API reference](https://devicesdk.com/docs/concepts/device-api/)
+- [Quickstart](https://docs.devicesdk.com/quickstart/)
+- [Device Entrypoints](https://docs.devicesdk.com/concepts/entrypoints/)
+- [Cookbook](https://docs.devicesdk.com/recipes/)
+- [API reference](https://docs.devicesdk.com/concepts/device-api/)
 `;
 }
 

@@ -11,7 +11,10 @@ concurrency:
 jobs:
   release:
     name: Release
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    # github-hosted: npm's OIDC trusted publishing (provenance) only supports
+    # github-hosted runners - self-hosted causes "Unsupported GitHub Actions
+    # runner environment" 422s on every publish. See TROUBLESHOOT.md.
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: write

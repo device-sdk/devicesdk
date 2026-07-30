@@ -1,5 +1,13 @@
 # @devicesdk/server
 
+## 0.3.2
+
+### Patch Changes
+
+- 32b7836: Fix Docker image build failing at the docs-index step: the path passed to
+  `build-docs-index.ts` was resolved relative to `apps/server` instead of the
+  repo root, so the docs directory was never found.
+
 ## 0.3.1
 
 ### Patch Changes

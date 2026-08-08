@@ -1,6 +1,6 @@
 {
   "name": "@devicesdk/docs",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "DeviceSDK documentation site on Nimbus (Astro) for docs.devicesdk.com",
   "author": "DeviceSDK <hello@devicesdk.com>",
   "license": "AGPL-3.0-only",

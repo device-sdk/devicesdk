@@ -115,9 +115,9 @@ await this.env.DEVICE.onewireReadTemperature(pin: number, rom?: string): Promise
   // → onewire_temp_result: { pin, rom, celsius }
 ```
 
-`onewireSearch` walks the bus and returns one 16-character uppercase hex ROM code per DS18B20 found, so several probes can share a single GPIO. Pass one of those codes as `rom` to address a specific probe; omit it and the firmware uses Skip ROM, which is only correct when exactly one device is on the bus.
+`onewireSearch` walks the bus and returns one 16-character uppercase hex ROM code per DS18B20 found, so several probes can share a single GPIO. Pass one of those codes as `rom` to address a specific probe; omit it and the firmware uses Skip ROM, which is only correct when exactly one device is on the bus. `pin` must be an integer in 0..28 on every platform.
 
-The data line needs a **4.7 kOhm pull-up to 3V3**. Each read blocks the device's worker for the 750 ms conversion, so poll on a cron rather than in a tight loop.
+The data line needs a **4.7 kOhm pull-up to 3V3**. Each read blocks the device's worker for the 750 ms conversion, so poll on a cron rather than in a tight loop. On the ESP32 the bus is driven by the `espressif/onewire_bus` component - through the RMT peripheral on the ESP32 and ESP32-C3, and through the UART1 peripheral on the ESP32-C61 (which has no RMT; leave that UART port free there).
 
 ## DHT11 / DHT22
 
@@ -128,7 +128,7 @@ await this.env.DEVICE.dhtRead(pin: number, model: "dht11" | "dht22"): Promise<De
 
 One command returns both temperature and humidity. DHT11 reports whole degrees and whole percent; DHT22 reports tenths and handles negative temperatures. The firmware enforces a **2 second minimum between reads on the same pin** and fails the command if you ask sooner - the sensors return corrupt frames when polled faster.
 
-Both sensors are bit-banged with interrupts disabled for the ~5 ms frame, and a failed checksum surfaces as a `command_error` rather than a bogus reading. See the [DS18B20 recipe](/recipes/ds18b20-probe/).
+The DHT frame is bit-banged on both platforms: on the Pico the ~5 ms frame runs on core 1 with interrupts disabled (core 0 keeps the network alive), and on the ESP32 only each individual bit pulse (~120 us) disables interrupts, with the worker task pinned off the WiFi core. A failed checksum surfaces as a `command_error` rather than a bogus reading. See the [DS18B20 recipe](/recipes/ds18b20-probe/).
 
 ## KV state
 

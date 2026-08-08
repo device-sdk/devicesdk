@@ -74,6 +74,26 @@ static void ws_send_text(const char *text) {
     }
 }
 
+// Builds and sends a `command_error` frame, used by websocket_handler.c for
+// messages that fail to parse so the caller gets the error instead of a 5 s
+// timeout. `message_id` may be empty.
+void devicesdk_ws_send_error(const char *message_id, const char *error) {
+    cJSON *response = cJSON_CreateObject();
+    cJSON *payload_obj = cJSON_CreateObject();
+    cJSON_AddStringToObject(response, "type", "command_error");
+    cJSON_AddStringToObject(payload_obj, "error", error);
+    cJSON_AddItemToObject(response, "payload", payload_obj);
+    if (message_id[0] != '\0') {
+        cJSON_AddStringToObject(response, "id", message_id);
+    }
+    char *json_str = cJSON_PrintUnformatted(response);
+    cJSON_Delete(response);
+    if (json_str) {
+        ws_send_text(json_str);
+        free(json_str);
+    }
+}
+
 static void process_worker_responses(void) {
     worker_response_t resp;
 
@@ -639,7 +659,10 @@ void app_main(void) {
     // Start worker task — 16 KB needed: handle_display_update puts a
     // 1 KB MAX_DISPLAY_BUFFER_SIZE fb_data[] + 192 B segments[] on stack
     // before recursing into the SSD1306/SH1106 driver + I2C writes.
-    xTaskCreate(worker_task_entry, "worker", 16384, NULL, 4, NULL);
+    // Pinned to core 1 (APP_CPU) so the sensor bit-bang (DHT, up to ~250 us
+    // of interrupts off per bit slot) never stalls the WiFi stack on core 0;
+    // the core argument is ignored on single-core targets (C3/C61).
+    xTaskCreatePinnedToCore(worker_task_entry, "worker", 16384, NULL, 4, NULL, 1);
 
     // Start WebSocket task (higher priority)
     xTaskCreate(websocket_task, "websocket", 8192, NULL, 5, NULL);

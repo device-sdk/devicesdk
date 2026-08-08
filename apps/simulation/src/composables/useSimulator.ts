@@ -180,16 +180,26 @@ export function useSimulator() {
 			}
 
 			case "onewire_read_temp": {
-				const rom = command.payload.rom ?? "";
+				const rom = command.payload.rom;
+				// Parity with the firmwares: a present-but-malformed rom must not
+				// silently degrade into a Skip ROM read (wrong sensor on a
+				// multi-drop bus).
+				if (rom !== undefined && !ROM_RE.test(rom)) {
+					return errorReply(
+						command,
+						"Invalid rom (expected 16 uppercase hex characters)",
+					);
+				}
+				const romValue = rom ?? "";
 				const celsius = jitter(21.5, 0.5);
 				simulator.addLog(
-					`DS18B20 on GPIO ${command.payload.pin}${rom ? ` (${rom})` : ""}: ${celsius}°C (simulated)`,
+					`DS18B20 on GPIO ${command.payload.pin}${romValue ? ` (${romValue})` : ""}: ${celsius}°C (simulated)`,
 					"onewire_read_temp",
 				);
 				return {
 					id: command.id,
 					type: "onewire_temp_result",
-					payload: { pin: command.payload.pin, rom, celsius },
+					payload: { pin: command.payload.pin, rom: romValue, celsius },
 				};
 			}
 
@@ -341,8 +351,19 @@ function ack(command: DeviceCommand): DeviceResponse {
 	};
 }
 
+function errorReply(command: DeviceCommand, error: string): DeviceResponse {
+	return {
+		id: command.id,
+		type: "command_error",
+		payload: { command_type: command.type, error },
+	};
+}
+
+/** Matches the server-side ROM validation (`deviceSender.ts`). */
+const ROM_RE = /^[0-9A-F]{16}$/;
+
 /** ROM code of the single DS18B20 the simulated OneWire bus always reports. */
-const SIMULATED_DS18B20_ROM = "28FF641E8D3C4A61";
+const SIMULATED_DS18B20_ROM = "28FF641E8D3C4A41";
 
 /** Plausible sensor noise: `base` +/- `spread`, rounded to one decimal. */
 function jitter(base: number, spread: number): number {

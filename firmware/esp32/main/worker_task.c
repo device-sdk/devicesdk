@@ -389,7 +389,9 @@ static void handle_onewire_search(const worker_command_t *cmd, worker_response_t
     int count = devicesdk_hal_onewire_search(pin, roms, MAX_ONEWIRE_ROMS);
 
     if (count < 0) {
-        set_error(resp, "OneWire bus error (no presence pulse)");
+        // -1 means the bus could not be opened at all (RMT channel or UART
+        // port allocation, invalid GPIO): no sensor is reachable either way.
+        set_error(resp, "OneWire bus error (could not open the bus)");
         return;
     }
 
@@ -429,8 +431,14 @@ static void handle_dht_read(const worker_command_t *cmd, worker_response_t *resp
 
     float celsius = 0.0f;
     float humidity_pct = 0.0f;
-    if (!devicesdk_hal_dht_read(pin, model, &celsius, &humidity_pct)) {
-        set_error(resp, "DHT read failed (timeout, bad checksum, or min 2s between DHT reads)");
+    dht_read_status_t status =
+        devicesdk_hal_dht_read(pin, model, &celsius, &humidity_pct);
+    if (status == DHT_READ_RATE_LIMITED) {
+        set_error(resp, "DHT read rate limited: min 2s between DHT reads");
+        return;
+    }
+    if (status != DHT_READ_OK) {
+        set_error(resp, "DHT read failed (timeout or bad checksum)");
         return;
     }
 

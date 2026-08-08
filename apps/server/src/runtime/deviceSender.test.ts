@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { DeviceCommand, DeviceResponse } from "@devicesdk/core";
-import {
-	LocalDeviceSender,
-	type SenderTransport,
-} from "../../src/runtime/deviceSender";
+import { LocalDeviceSender, type SenderTransport } from "./deviceSender";
 
 /**
  * Records the commands a sender emits and answers waits with a canned frame,
@@ -58,6 +55,27 @@ describe("onewireSearch", () => {
 		await expect(sender.onewireSearch(-1)).rejects.toThrow(/invalid pin/);
 		expect(transport.sent).toHaveLength(0);
 	});
+
+	test("rejects pins the firmwares cannot use for sensors", async () => {
+		// Sensor pins are capped at 28 (the Pico's GPIO range); higher pins get
+		// a firmware round-trip on the ESP32 (which allows more) and must fail
+		// here with an actionable error instead of a silent 5 s timeout. The
+		// Pico-W-only WiFi pins 23-25 are the Pico firmware's job to reject.
+		for (const pin of [29, 99, 100]) {
+			await expect(sender.onewireSearch(pin)).rejects.toThrow(/invalid pin/);
+		}
+		expect(transport.sent).toHaveLength(0);
+	});
+
+	test("rejects fractional pins rather than truncating them", async () => {
+		await expect(sender.onewireSearch(4.5)).rejects.toThrow(/invalid pin/);
+		expect(transport.sent).toHaveLength(0);
+	});
+
+	test("accepts the highest usable pin", async () => {
+		await sender.onewireSearch(28);
+		expect(transport.sent[0].payload).toEqual({ pin: 28 });
+	});
 });
 
 describe("onewireReadTemperature", () => {
@@ -67,10 +85,10 @@ describe("onewireReadTemperature", () => {
 	});
 
 	test("passes a valid ROM code through untouched", async () => {
-		await sender.onewireReadTemperature(4, "28FF641E8D3C4A61");
+		await sender.onewireReadTemperature(4, "28FF641E8D3C4A41");
 		expect(transport.sent[0].payload).toEqual({
 			pin: 4,
-			rom: "28FF641E8D3C4A61",
+			rom: "28FF641E8D3C4A41",
 		});
 	});
 
@@ -83,7 +101,7 @@ describe("onewireReadTemperature", () => {
 
 	test("rejects a lowercase ROM code (the wire format is uppercase)", async () => {
 		await expect(
-			sender.onewireReadTemperature(4, "28ff641e8d3c4a61"),
+			sender.onewireReadTemperature(4, "28ff641e8d3c4a41"),
 		).rejects.toThrow(/invalid rom/);
 	});
 
@@ -115,6 +133,11 @@ describe("dhtRead", () => {
 		await expect(
 			sender.dhtRead(15, "dht12" as "dht11" | "dht22"),
 		).rejects.toThrow(/invalid model/);
+		expect(transport.sent).toHaveLength(0);
+	});
+
+	test("rejects a sensor pin above the platform cap", async () => {
+		await expect(sender.dhtRead(99, "dht22")).rejects.toThrow(/invalid pin/);
 		expect(transport.sent).toHaveLength(0);
 	});
 });

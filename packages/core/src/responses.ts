@@ -104,7 +104,9 @@ export interface OnewireSearchResult extends BaseResponse {
 	type: "onewire_search_result";
 	payload: {
 		pin: number;
-		/** 16-hex-character ROM codes, uppercase, no `0x` prefix. May be empty. */
+		/** 16-hex-character ROM codes, uppercase, no `0x` prefix. Empty when the
+		 * bus responds but no DS18B20 is present; a bus that does not respond
+		 * at all surfaces as a `command_error` instead. */
 		roms: string[];
 	};
 }

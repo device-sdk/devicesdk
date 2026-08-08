@@ -21,7 +21,7 @@ The DS18B20 is the waterproof stainless-steel probe you use for a fridge, a boil
 
 The DS18B20 data line needs a **4.7 kOhm resistor between DATA and 3V3**. Without it the bus never releases and every search comes back empty - it is the single most common reason this recipe "doesn't work". Multiple probes all connect to the same three wires; you do not need one GPIO each. Most DHT breakout boards already include their own pull-up.
 
-On an ESP32 the same code works: swap `deviceType` and pick any free GPIO.
+On an ESP32 the same code works: swap `deviceType` and pick any free GPIO. On the ESP32-C61 the 1-Wire bus uses the UART1 peripheral (that chip has no RMT), so leave UART port 1 unused there.
 
 ## `devicesdk.ts`
 

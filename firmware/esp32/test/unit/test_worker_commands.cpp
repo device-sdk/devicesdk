@@ -317,7 +317,7 @@ TEST_F(WorkerCommandTest, OnewireSearchBusErrorIsReported) {
     worker_response_t resp = worker_execute_command(&cmd);
 
     EXPECT_EQ(resp.status, RESPONSE_ERROR);
-    EXPECT_NE(strstr(resp.error_msg, "presence"), nullptr);
+    EXPECT_NE(strstr(resp.error_msg, "open"), nullptr);
 }
 
 TEST_F(WorkerCommandTest, OnewireReadTempWithoutRomPassesNull) {
@@ -385,7 +385,7 @@ TEST_F(WorkerCommandTest, DhtReadReturnsBothMeasurements) {
 }
 
 TEST_F(WorkerCommandTest, DhtReadFailureMentionsTheRateLimit) {
-    g_hal_mock.dht_read_return = false;
+    g_hal_mock.dht_read_return = DHT_READ_RATE_LIMITED;
 
     worker_command_t cmd = make_cmd(CMD_DHT_READ);
     cmd.payload.dht_read.pin = 15;
@@ -395,4 +395,17 @@ TEST_F(WorkerCommandTest, DhtReadFailureMentionsTheRateLimit) {
 
     EXPECT_EQ(resp.status, RESPONSE_ERROR);
     EXPECT_NE(strstr(resp.error_msg, "2s"), nullptr);
+}
+
+TEST_F(WorkerCommandTest, DhtReadFailureMentionsTimeoutOrChecksum) {
+    g_hal_mock.dht_read_return = DHT_READ_FAILED;
+
+    worker_command_t cmd = make_cmd(CMD_DHT_READ);
+    cmd.payload.dht_read.pin = 15;
+    cmd.payload.dht_read.model = DHT_MODEL_DHT22;
+
+    worker_response_t resp = worker_execute_command(&cmd);
+
+    EXPECT_EQ(resp.status, RESPONSE_ERROR);
+    EXPECT_NE(strstr(resp.error_msg, "checksum"), nullptr);
 }

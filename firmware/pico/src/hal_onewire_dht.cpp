@@ -8,8 +8,13 @@
 // Interrupts are disabled around individual bit slots only, never around the
 // conversion wait, so a few microseconds of jitter can never become 750 ms of
 // deaf networking.
+//
+// The protocol logic that does not touch GPIO (ROM-search tree walk, CRC8, DHT
+// frame decode) lives in commands/sensor_commands.cpp so the host unit tests
+// can exercise it against a mocked bus.
 
 #include "hal.h"
+#include "commands/sensor_commands.h"
 #include "pico/stdlib.h"
 #include "hardware/sync.h"
 #include <stdio.h>
@@ -68,10 +73,12 @@ static bool ow_read_bit(uint8_t pin) {
     ow_drive_low(pin);
     sleep_us(6);
     ow_release(pin);
-    sleep_us(9);
+    // The DS18B20 drives its bit within 1-15 us of the slot's falling edge;
+    // sampling 6 us after release (12 us total) sits mid-window with margin.
+    sleep_us(6);
     bool bit = gpio_get(pin) != 0;
     restore_interrupts(irq);
-    sleep_us(55);  // out to the 70 us slot
+    sleep_us(58);  // out to the 70 us slot
     return bit;
 }
 
@@ -89,22 +96,6 @@ static uint8_t ow_read_byte(uint8_t pin) {
     return byte;
 }
 
-// Maxim CRC8: reflected polynomial 0x8C, init 0.
-static uint8_t ow_crc8(const uint8_t* data, size_t len) {
-    uint8_t crc = 0;
-    for (size_t i = 0; i < len; i++) {
-        uint8_t byte = data[i];
-        for (int bit = 0; bit < 8; bit++) {
-            uint8_t mix = (uint8_t)((crc ^ byte) & 0x01);
-            crc >>= 1;
-            if (mix) crc ^= 0x8C;
-            byte >>= 1;
-        }
-    }
-    return crc;
-}
-
-#define OW_CMD_SEARCH_ROM   0xF0
 #define OW_CMD_MATCH_ROM    0x55
 #define OW_CMD_SKIP_ROM     0xCC
 #define OW_CMD_CONVERT_T    0x44
@@ -120,87 +111,58 @@ static void ow_select(uint8_t pin, const uint8_t* rom) {
     }
 }
 
+// Adapts the bit-banged bus primitives to the host-testable search walk.
+typedef struct {
+    uint8_t pin;
+} ow_hal_ctx_t;
+
+static bool ow_hal_reset(void* ctx) {
+    return ow_reset(((ow_hal_ctx_t*)ctx)->pin);
+}
+
+static bool ow_hal_read_bit(void* ctx) {
+    return ow_read_bit(((ow_hal_ctx_t*)ctx)->pin);
+}
+
+static void ow_hal_write_bit(void* ctx, bool bit) {
+    ow_write_bit(((ow_hal_ctx_t*)ctx)->pin, bit);
+}
+
 int hal_onewire_search(uint8_t pin, uint8_t roms[][8], int max_roms) {
-    if (max_roms <= 0) return 0;
     ow_init_pin(pin);
-    if (!ow_reset(pin)) return -1;
 
-    int found = 0;
-    int last_discrepancy = 0;
-    bool last_device = false;
-    uint8_t rom[8] = {0};
-
-    // Standard Maxim ROM search: walk the binary tree of ROM bits, branching at
-    // the highest unresolved discrepancy on each pass.
-    while (!last_device && found < max_roms) {
-        if (!ow_reset(pin)) return found > 0 ? found : -1;
-        ow_write_byte(pin, OW_CMD_SEARCH_ROM);
-
-        int discrepancy = 0;
-        for (int bit_index = 1; bit_index <= 64; bit_index++) {
-            int byte = (bit_index - 1) / 8;
-            uint8_t mask = (uint8_t)(1 << ((bit_index - 1) % 8));
-
-            bool id_bit = ow_read_bit(pin);
-            bool cmp_bit = ow_read_bit(pin);
-
-            bool chosen;
-            if (id_bit && cmp_bit) {
-                // No device answered: the bus went quiet mid-walk.
-                return found > 0 ? found : -1;
-            } else if (id_bit != cmp_bit) {
-                chosen = id_bit;
-            } else {
-                // Both 0 and 1 present at this position.
-                if (bit_index < last_discrepancy) {
-                    chosen = (rom[byte] & mask) != 0;
-                } else {
-                    chosen = (bit_index == last_discrepancy);
-                }
-                if (!chosen) discrepancy = bit_index;
-            }
-
-            if (chosen) {
-                rom[byte] |= mask;
-            } else {
-                rom[byte] &= (uint8_t)~mask;
-            }
-            ow_write_bit(pin, chosen);
-        }
-
-        if (ow_crc8(rom, 8) == 0) {
-            memcpy(roms[found], rom, 8);
-            found++;
-        }
-
-        last_discrepancy = discrepancy;
-        if (last_discrepancy == 0) last_device = true;
-    }
-
-    return found;
+    sensor_ow_bus_t bus = { ow_hal_reset, ow_hal_read_bit, ow_hal_write_bit };
+    ow_hal_ctx_t ctx = { pin };
+    return sensor_ow_search(&bus, &ctx, roms, max_roms);
 }
 
 bool hal_onewire_read_temp(uint8_t pin, const uint8_t* rom, float* celsius) {
     ow_init_pin(pin);
     if (!ow_reset(pin)) return false;
 
-    ow_select(pin, rom);
-    ow_write_byte(pin, OW_CMD_CONVERT_T);
-    sleep_ms(750);  // 12-bit conversion; interrupts stay enabled throughout
+    // Up to two attempts: the first read can return the power-on register
+    // value (0x0550 = 85.0 C) if the conversion had not completed. A genuine
+    // 85.0 C reading survives the retry and is accepted on the second pass.
+    for (int attempt = 0; attempt < 2; attempt++) {
+        ow_select(pin, rom);
+        ow_write_byte(pin, OW_CMD_CONVERT_T);
+        sleep_ms(750);  // 12-bit conversion; interrupts stay enabled throughout
 
-    if (!ow_reset(pin)) return false;
-    ow_select(pin, rom);
-    ow_write_byte(pin, OW_CMD_READ_SCRATCH);
+        if (!ow_reset(pin)) return false;
+        ow_select(pin, rom);
+        ow_write_byte(pin, OW_CMD_READ_SCRATCH);
 
-    uint8_t scratch[9];
-    for (int i = 0; i < 9; i++) scratch[i] = ow_read_byte(pin);
+        uint8_t scratch[9];
+        for (int i = 0; i < 9; i++) scratch[i] = ow_read_byte(pin);
 
-    if (ow_crc8(scratch, 9) != 0) return false;
+        if (sensor_ow_crc8(scratch, 9) != 0) return false;
 
-    int16_t raw = (int16_t)((scratch[1] << 8) | scratch[0]);
-    if (raw == 0x0550) return false;  // power-on value: no conversion happened
-    *celsius = (float)raw / 16.0f;
-    return true;
+        int16_t raw = (int16_t)((scratch[1] << 8) | scratch[0]);
+        if (raw == 0x0550 && attempt == 0) continue;  // power-on value: retry
+        *celsius = (float)raw / 16.0f;
+        return true;
+    }
+    return false;
 }
 
 // --- DHT11 / DHT22 ---
@@ -208,7 +170,7 @@ bool hal_onewire_read_temp(uint8_t pin, const uint8_t* rom, float* celsius) {
 // Both sensors need a settling gap between reads; polling faster returns stale
 // or corrupt frames, so the limit is enforced here rather than left to users.
 #define DHT_MIN_INTERVAL_US 2000000ULL
-#define DHT_MAX_PINS 30
+#define DHT_MAX_PINS (MAX_SENSOR_PIN + 1)
 
 static uint64_t dht_last_read_us[DHT_MAX_PINS] = {0};
 
@@ -222,14 +184,14 @@ static int dht_wait_level(uint8_t pin, bool level, uint32_t timeout_us) {
     return (int)(time_us_64() - start);
 }
 
-bool hal_dht_read(uint8_t pin, uint8_t model, float* celsius,
-                  float* humidity_pct) {
-    if (pin >= DHT_MAX_PINS) return false;
+dht_read_status_t hal_dht_read(uint8_t pin, uint8_t model, float* celsius,
+                               float* humidity_pct) {
+    if (pin >= DHT_MAX_PINS) return DHT_READ_FAILED;
 
     uint64_t now = time_us_64();
     if (dht_last_read_us[pin] != 0 &&
         now - dht_last_read_us[pin] < DHT_MIN_INTERVAL_US) {
-        return false;  // min 2s between DHT reads
+        return DHT_READ_RATE_LIMITED;
     }
 
     gpio_init(pin);
@@ -268,20 +230,13 @@ bool hal_dht_read(uint8_t pin, uint8_t model, float* celsius,
 
     restore_interrupts(irq);
 
+    // Every attempt stamps the 2 s window, successful or not: the sensors
+    // return corrupt frames when polled faster after any read cycle.
     dht_last_read_us[pin] = time_us_64();
 
-    if (!ok) return false;
-
-    uint8_t checksum = (uint8_t)(bytes[0] + bytes[1] + bytes[2] + bytes[3]);
-    if (checksum != bytes[4]) return false;
-
-    if (model == 0) {  // DHT11: integer humidity and temperature
-        *humidity_pct = (float)bytes[0];
-        *celsius = (float)bytes[2];
-    } else {  // DHT22: tenths, with the temperature sign in the high bit
-        *humidity_pct = (float)((bytes[0] << 8) | bytes[1]) / 10.0f;
-        float temp = (float)(((bytes[2] & 0x7F) << 8) | bytes[3]) / 10.0f;
-        *celsius = (bytes[2] & 0x80) ? -temp : temp;
+    if (!ok) return DHT_READ_FAILED;
+    if (!sensor_dht_decode(model, bytes, celsius, humidity_pct)) {
+        return DHT_READ_FAILED;  // checksum mismatch
     }
-    return true;
+    return DHT_READ_OK;
 }

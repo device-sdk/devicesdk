@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "../../src/hal.h"  // for dht_read_status_t
+
 // Mock state for tracking HAL calls and controlling return values
 struct HalMockState {
     // I2C configuration tracking
@@ -64,7 +66,7 @@ struct HalMockState {
     std::vector<std::vector<uint8_t>> onewire_search_roms;
     bool onewire_read_return = true;
     float onewire_read_celsius = 21.5f;
-    bool dht_read_return = true;
+    dht_read_status_t dht_read_return = DHT_READ_OK;
     float dht_celsius = 21.5f;
     float dht_humidity_pct = 45.0f;
 
@@ -96,7 +98,7 @@ struct HalMockState {
         onewire_search_roms.clear();
         onewire_read_return = true;
         onewire_read_celsius = 21.5f;
-        dht_read_return = true;
+        dht_read_return = DHT_READ_OK;
         dht_celsius = 21.5f;
         dht_humidity_pct = 45.0f;
 

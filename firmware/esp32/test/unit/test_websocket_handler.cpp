@@ -359,7 +359,7 @@ TEST_F(WebSocketHandlerTest, OnewireReadTempWithoutRomUsesSkipRom) {
 TEST_F(WebSocketHandlerTest, OnewireReadTempDecodesRomFamilyCodeFirst) {
     test_reset_last_queued_command();
     const char *msg = "{\"type\":\"onewire_read_temp\",\"id\":\"msg-ow3\","
-                      "\"payload\":{\"pin\":4,\"rom\":\"28FF641E8D3C4A61\"}}";
+                      "\"payload\":{\"pin\":4,\"rom\":\"28FF641E8D3C4A41\"}}";
     EXPECT_TRUE(handle_websocket_message(msg));
 
     const worker_command_t *last = test_get_last_queued_command();

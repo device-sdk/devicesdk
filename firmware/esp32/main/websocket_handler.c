@@ -52,6 +52,31 @@ void websocket_handler_init(void *cmd_queue_handle) {
 // by the GPIO driver itself when the command runs.
 #define MAX_SENSOR_PIN 48
 
+// Sends a `command_error` frame for a message that failed to parse, so the
+// script's promise resolves (or rejects) with the error instead of timing out
+// after 5 s. Under UNIT_TEST the host tests assert that nothing was queued, so
+// this is a no-op there.
+#ifndef UNIT_TEST
+void devicesdk_ws_send_error(const char *message_id, const char *error);
+static void send_command_error(const char *msg_id, const char *error) {
+    devicesdk_ws_send_error(msg_id, error);
+}
+#else
+static void send_command_error(const char *msg_id, const char *error) {
+    (void)msg_id;
+    (void)error;
+}
+#endif
+
+// Validates a sensor pin: an integer in 0..MAX_SENSOR_PIN, or -1. Rejects
+// fractional pins - truncating 4.5 to 4 would read the wrong sensor.
+static int parse_sensor_pin(const cJSON *pin_obj) {
+    if (!cJSON_IsNumber(pin_obj)) return -1;
+    double d = pin_obj->valuedouble;
+    if (d < 0 || d > MAX_SENSOR_PIN || d != (double)(int)d) return -1;
+    return (int)d;
+}
+
 static int hex_nibble(char c) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -343,39 +368,40 @@ bool handle_websocket_message(const char *message) {
     // === ONEWIRE SEARCH ===
     else if (strcmp(type, "onewire_search") == 0) {
         if (!cJSON_IsObject(payload)) goto done;
-        cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
-        if (!cJSON_IsNumber(pin_obj)) goto done;
-        if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > MAX_SENSOR_PIN) {
+        int pin = parse_sensor_pin(cJSON_GetObjectItem(payload, "pin"));
+        if (pin < 0) {
             LOG_E(TAG, "Invalid pin number");
+            send_command_error(msg_id, "Invalid pin number");
             goto done;
         }
         cmd.type = CMD_ONEWIRE_SEARCH;
-        cmd.payload.onewire_search.pin = (uint8_t)pin_obj->valuedouble;
+        cmd.payload.onewire_search.pin = (uint8_t)pin;
         queue_command(&cmd);
     }
     // === ONEWIRE READ TEMP ===
     else if (strcmp(type, "onewire_read_temp") == 0) {
         if (!cJSON_IsObject(payload)) goto done;
-        cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
-        cJSON *rom_obj = cJSON_GetObjectItem(payload, "rom");
-        if (!cJSON_IsNumber(pin_obj)) goto done;
-        if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > MAX_SENSOR_PIN) {
+        int pin = parse_sensor_pin(cJSON_GetObjectItem(payload, "pin"));
+        if (pin < 0) {
             LOG_E(TAG, "Invalid pin number");
+            send_command_error(msg_id, "Invalid pin number");
             goto done;
         }
 
         cmd.type = CMD_ONEWIRE_READ_TEMP;
-        cmd.payload.onewire_read_temp.pin = (uint8_t)pin_obj->valuedouble;
+        cmd.payload.onewire_read_temp.pin = (uint8_t)pin;
         cmd.payload.onewire_read_temp.has_rom = false;
         memset(cmd.payload.onewire_read_temp.rom, 0, ONEWIRE_ROM_LEN);
 
-        // `rom` is optional: absent means Skip ROM. Present but malformed is
-        // rejected rather than silently falling back, which would read the
-        // wrong sensor on a multi-drop bus.
-        if (rom_obj != NULL && !cJSON_IsNull(rom_obj)) {
+        // `rom` is optional: absent means Skip ROM. Present but malformed
+        // (including JSON null) is rejected rather than silently falling back,
+        // which would read the wrong sensor on a multi-drop bus.
+        cJSON *rom_obj = cJSON_GetObjectItem(payload, "rom");
+        if (rom_obj != NULL) {
             if (!cJSON_IsString(rom_obj) ||
                 !parse_rom_hex(rom_obj->valuestring, cmd.payload.onewire_read_temp.rom)) {
                 LOG_E(TAG, "Invalid rom (expected 16 uppercase hex characters)");
+                send_command_error(msg_id, "Invalid rom (expected 16 uppercase hex characters)");
                 goto done;
             }
             cmd.payload.onewire_read_temp.has_rom = true;
@@ -385,11 +411,11 @@ bool handle_websocket_message(const char *message) {
     // === DHT READ ===
     else if (strcmp(type, "dht_read") == 0) {
         if (!cJSON_IsObject(payload)) goto done;
-        cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
+        int pin = parse_sensor_pin(cJSON_GetObjectItem(payload, "pin"));
         cJSON *model_obj = cJSON_GetObjectItem(payload, "model");
-        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(model_obj)) goto done;
-        if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > MAX_SENSOR_PIN) {
-            LOG_E(TAG, "Invalid pin number");
+        if (pin < 0 || !cJSON_IsString(model_obj)) {
+            LOG_E(TAG, "Invalid pin number or model");
+            send_command_error(msg_id, "Invalid pin number or model");
             goto done;
         }
 
@@ -400,11 +426,12 @@ bool handle_websocket_message(const char *message) {
             model = DHT_MODEL_DHT22;
         } else {
             LOG_E(TAG, "Invalid model (expected \"dht11\" or \"dht22\")");
+            send_command_error(msg_id, "Invalid model (expected \"dht11\" or \"dht22\")");
             goto done;
         }
 
         cmd.type = CMD_DHT_READ;
-        cmd.payload.dht_read.pin = (uint8_t)pin_obj->valuedouble;
+        cmd.payload.dht_read.pin = (uint8_t)pin;
         cmd.payload.dht_read.model = model;
         queue_command(&cmd);
     }

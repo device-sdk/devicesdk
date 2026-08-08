@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "hal.h"  // for dht_read_status_t
+
 // Maximum tracked calls
 #define MAX_MOCK_CALLS 128
 #define MAX_MOCK_WRITE_DATA 256
@@ -121,7 +123,7 @@ typedef struct {
     uint8_t onewire_search_roms[8][8];
     bool onewire_read_return;
     float onewire_read_celsius;
-    bool dht_read_return;
+    dht_read_status_t dht_read_return;
     float dht_celsius;
     float dht_humidity_pct;
 

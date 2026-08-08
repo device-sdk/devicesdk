@@ -17,7 +17,9 @@ dependencies:
   espressif/esp_websocket_client: '*'
   espressif/led_strip: '*'
   # RMT-backed Dallas 1-Wire driver: the DS18B20 bit timing comes from the RMT
-  # peripheral rather than from a bit-bang loop. No target restrictions, but it
-  # needs IDF >= 5.0. Pinned to the 1.x line: a future 2.x could change the bus
-  # API and would otherwise break the firmware build silently.
+  # peripheral on chips that have one (ESP32, ESP32-C3). Chips without RMT
+  # (ESP32-C61) use the component's UART backend - onewire_dht.c selects the
+  # backend at compile time via SOC_RMT_SUPPORTED, so this dependency is
+  # required on every target. Pinned to the 1.x line: a future 2.x could change
+  # the bus API and would otherwise break the firmware build silently.
   espressif/onewire_bus: '^1.1.1'

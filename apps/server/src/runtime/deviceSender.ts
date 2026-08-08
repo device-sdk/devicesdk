@@ -26,6 +26,8 @@ function fail(
 
 const PIN_MIN = 0;
 const PIN_MAX = 99; // 99 = virtual onboard LED
+/** Highest GPIO a sensor bus can be wired to on any supported platform. */
+const SENSOR_PIN_MAX = 28;
 const I2C_ADDR_RE = /^0x[0-9A-Fa-f]{1,2}$/;
 /** 64-bit DS18B20 ROM code: 8 bytes, uppercase hex, no `0x` prefix. */
 const ROM_RE = /^[0-9A-F]{16}$/;
@@ -40,6 +42,17 @@ function validatePin(pin: number, docs: string): void {
 			`an integer in ${PIN_MIN}..${PIN_MAX} (use 99 for the onboard LED)`,
 			docs,
 		);
+	}
+}
+
+// Sensor buses (1-Wire, DHT) sit on plain GPIOs, capped at 28 - the Pico's
+// GPIO range is the binding constraint across platforms (the ESP32 allows
+// more, but a script must behave the same everywhere). Pins the firmwares
+// would reject (29-99, the WiFi-reserved 23-25 on the Pico W) fail here with
+// an actionable error instead of a firmware round-trip.
+function validateSensorPin(pin: number, docs: string): void {
+	if (!Number.isInteger(pin) || pin < 0 || pin > SENSOR_PIN_MAX) {
+		fail("pin", pin, `an integer in 0..${SENSOR_PIN_MAX}`, docs);
 	}
 }
 
@@ -523,7 +536,7 @@ export class LocalDeviceSender {
 	}
 
 	async onewireSearch(pin: number): Promise<DeviceResponse> {
-		validatePin(pin, ONEWIRE_DOCS);
+		validateSensorPin(pin, ONEWIRE_DOCS);
 		return this.sendCommandAndWait({
 			type: "onewire_search",
 			payload: { pin },
@@ -534,12 +547,12 @@ export class LocalDeviceSender {
 		pin: number,
 		rom?: string,
 	): Promise<DeviceResponse> {
-		validatePin(pin, ONEWIRE_DOCS);
+		validateSensorPin(pin, ONEWIRE_DOCS);
 		if (rom !== undefined && (typeof rom !== "string" || !ROM_RE.test(rom))) {
 			fail(
 				"rom",
 				rom,
-				'16 uppercase hex characters, e.g. "28FF641E8D3C4A61" (omit it to use Skip ROM)',
+				'16 uppercase hex characters, e.g. "28FF641E8D3C4A41" (omit it to use Skip ROM)',
 				ONEWIRE_DOCS,
 			);
 		}
@@ -553,7 +566,7 @@ export class LocalDeviceSender {
 		pin: number,
 		model: "dht11" | "dht22",
 	): Promise<DeviceResponse> {
-		validatePin(pin, ONEWIRE_DOCS);
+		validateSensorPin(pin, ONEWIRE_DOCS);
 		if (model !== "dht11" && model !== "dht22") {
 			fail("model", model, '"dht11" or "dht22"', ONEWIRE_DOCS);
 		}

@@ -12,7 +12,7 @@ void hal_mock_reset(void) {
     g_hal_mock.onewire_search_return = 0;
     g_hal_mock.onewire_read_return = true;
     g_hal_mock.onewire_read_celsius = 21.5f;
-    g_hal_mock.dht_read_return = true;
+    g_hal_mock.dht_read_return = DHT_READ_OK;
     g_hal_mock.dht_celsius = 21.5f;
     g_hal_mock.dht_humidity_pct = 45.0f;
 }
@@ -201,15 +201,17 @@ bool devicesdk_hal_onewire_read_temp(uint8_t pin, const uint8_t *rom, float *cel
     return true;
 }
 
-bool devicesdk_hal_dht_read(uint8_t pin, uint8_t model, float *celsius, float *humidity_pct) {
+dht_read_status_t devicesdk_hal_dht_read(uint8_t pin, uint8_t model, float *celsius, float *humidity_pct) {
     if (g_hal_mock.dht_read_call_count < MAX_MOCK_CALLS) {
         int idx = g_hal_mock.dht_read_call_count++;
         g_hal_mock.dht_read_calls[idx].pin = pin;
         g_hal_mock.dht_read_calls[idx].model = model;
     }
 
-    if (!g_hal_mock.dht_read_return) return false;
+    if (g_hal_mock.dht_read_return != DHT_READ_OK) {
+        return g_hal_mock.dht_read_return;
+    }
     *celsius = g_hal_mock.dht_celsius;
     *humidity_pct = g_hal_mock.dht_humidity_pct;
-    return true;
+    return DHT_READ_OK;
 }

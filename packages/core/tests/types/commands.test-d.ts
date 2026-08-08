@@ -75,7 +75,7 @@ describe("OneWire and DHT commands", () => {
 		const cmd: DeviceCommand = {
 			id: "1",
 			type: "onewire_read_temp",
-			payload: { pin: 4, rom: "28FF641E8D3C4A61" },
+			payload: { pin: 4, rom: "28FF641E8D3C4A41" },
 		};
 		if (cmd.type === "onewire_read_temp") {
 			expectTypeOf(cmd).toEqualTypeOf<OnewireReadTempCommand>();

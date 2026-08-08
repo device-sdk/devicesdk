@@ -310,12 +310,14 @@ export interface DeviceSenderInterface {
 	 * sensor on a multi-drop bus. Resolves with an `onewire_temp_result`.
 	 *
 	 * The 12-bit conversion takes ~750 ms, during which the firmware is busy.
+	 * `pin` must be an integer in 0..28 on every supported platform.
+	 * `pin` must be an integer in 0..28 on every supported platform.
 	 *
-	 * @param rom 16 uppercase hex characters, e.g. "28FF641E8D3C4A61".
+	 * @param rom 16 uppercase hex characters, e.g. "28FF641E8D3C4A41".
 	 *
 	 * @example
 	 * const r = await this.env.DEVICE.onewireReadTemperature(4);
-	 * if (r.type === "onewire_temp_result") console.log(`${r.payload.celsius}C`);
+	 * if (r.type === "onewire_temp_result") console.log(`${r.payload.celsius}°C`);
 	 */
 	onewireReadTemperature(pin: number, rom?: string): Promise<DeviceResponse>;
 

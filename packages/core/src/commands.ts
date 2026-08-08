@@ -241,7 +241,7 @@ export type OnewireSearchCommand = Command<"onewire_search", { pin: number }>;
 /**
  * Read a DS18B20 temperature. `rom` omitted uses Skip ROM, which only works
  * when a single sensor sits on the bus; `rom` is 16 uppercase hex characters
- * (a 64-bit ROM code, e.g. "28FF641E8D3C4A61").
+ * (a 64-bit ROM code, e.g. "28FF641E8D3C4A41").
  */
 export type OnewireReadTempCommand = Command<
 	"onewire_read_temp",

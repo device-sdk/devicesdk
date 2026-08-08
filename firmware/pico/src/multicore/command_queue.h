@@ -14,6 +14,10 @@
 #define ONEWIRE_ROM_LEN 8
 #define MAX_ONEWIRE_ROMS 8
 
+// Highest GPIO a sensor bus can be wired to. GP0..GP28 exist on every board we
+// ship (Pico W / Pico 2 W); virtual pin 99 (onboard LED) is not a bus.
+#define MAX_SENSOR_PIN 28
+
 // Command types for Core 1 worker
 typedef enum {
     // GPIO commands

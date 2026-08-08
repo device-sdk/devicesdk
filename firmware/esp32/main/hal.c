@@ -208,6 +208,10 @@ void devicesdk_hal_set_gpio(uint8_t pin, gpio_state_t state) {
         return;
     }
 #endif
+    // Virtual pin 99 maps to the onboard LED on plain-GPIO boards too
+    if (pin == 99) {
+        pin = ONBOARD_LED_PIN;
+    }
     if (pin >= GPIO_NUM_MAX) {
         ESP_LOGE(TAG, "Invalid GPIO pin: %d", pin);
         return;
@@ -225,6 +229,10 @@ void devicesdk_hal_set_gpio(uint8_t pin, gpio_state_t state) {
 
 bool devicesdk_hal_get_gpio_digital(uint8_t pin) {
     // Only initialize the pin if not already configured as input
+    if (pin >= GPIO_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid GPIO pin: %d", pin);
+        return false;
+    }
     if (!(gpio_input_configured_mask & (1ULL << pin))) {
         gpio_config_t io_conf = {
             .pin_bit_mask = (1ULL << pin),
@@ -287,6 +295,10 @@ uint16_t devicesdk_hal_get_gpio_analog(uint8_t pin) {
 }
 
 void devicesdk_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
+    if (pin >= GPIO_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid GPIO pin: %d", pin);
+        return;
+    }
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << pin),
         .mode = GPIO_MODE_INPUT,
@@ -299,6 +311,10 @@ void devicesdk_hal_configure_gpio_input(uint8_t pin, gpio_pull_t pull) {
 }
 
 void devicesdk_hal_set_pwm(uint8_t pin, uint32_t frequency, float duty_cycle) {
+    if (pin >= GPIO_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid PWM pin: %d", pin);
+        return;
+    }
     // Assign a LEDC channel to this pin if not already assigned
     if (ledc_channel_map[pin] < 0) {
         if (ledc_next_channel >= LEDC_CHANNEL_MAX) {

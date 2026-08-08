@@ -22,6 +22,7 @@ typedef enum {
     CMD_GPIO_GET_DIGITAL,
     CMD_GPIO_GET_ANALOG,
     CMD_GPIO_CONFIGURE_INPUT,
+    CMD_GPIO_DISABLE_MONITORING,
 
     // PWM commands
     CMD_PWM_SET,

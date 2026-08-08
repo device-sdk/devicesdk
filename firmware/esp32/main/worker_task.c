@@ -43,6 +43,7 @@ static void handle_gpio_set(const worker_command_t *cmd, worker_response_t *resp
 static void handle_gpio_get_digital(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_gpio_get_analog(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_gpio_configure_input(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_gpio_disable_monitoring(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_pwm_set(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_i2c_configure(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_i2c_scan(const worker_command_t *cmd, worker_response_t *resp);
@@ -92,6 +93,9 @@ worker_response_t worker_execute_command(const worker_command_t *cmd) {
             break;
         case CMD_GPIO_CONFIGURE_INPUT:
             handle_gpio_configure_input(cmd, &resp);
+            break;
+        case CMD_GPIO_DISABLE_MONITORING:
+            handle_gpio_disable_monitoring(cmd, &resp);
             break;
         case CMD_PWM_SET:
             handle_pwm_set(cmd, &resp);
@@ -273,6 +277,21 @@ static void handle_gpio_configure_input(const worker_command_t *cmd, worker_resp
         s_monitored_pins[s_monitored_pin_count].active = true;
         s_monitored_pins[s_monitored_pin_count].has_initial_reading = false;
         s_monitored_pin_count++;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.gpio.pin = pin;
+}
+
+static void handle_gpio_disable_monitoring(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t pin = cmd->payload.gpio.pin;
+
+    // Stop polling this pin; a later configure (enable) reactivates it.
+    for (int i = 0; i < s_monitored_pin_count; i++) {
+        if (s_monitored_pins[i].pin == pin) {
+            s_monitored_pins[i].active = false;
+            break;
+        }
     }
 
     resp->status = RESPONSE_SUCCESS;
@@ -606,12 +625,14 @@ static void handle_display_update(const worker_command_t *cmd, worker_response_t
         s_framebuffer_size = fb_size;
     }
 
-    // Apply segments to local framebuffer
+    // Apply segments to local framebuffer. Check each bound individually so
+    // a wrapped (offset + len) can never pass a sum-based check.
     size_t total_written = 0;
     for (size_t i = 0; i < segment_count; i++) {
         size_t offset = segments[i].offset;
         size_t len = segments[i].length;
-        if (offset + len <= fb_size && offset + len <= fb_len) {
+        if (offset < fb_size && offset < fb_len &&
+            len <= fb_size - offset && len <= fb_len - offset) {
             memcpy(&s_framebuffer[offset], &fb_data[offset], len);
             total_written += len;
         }

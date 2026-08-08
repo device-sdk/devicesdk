@@ -10,6 +10,7 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "nvs_flash.h"
 #include "esp_websocket_client.h"
 #include "esp_crt_bundle.h"
@@ -89,6 +90,21 @@ static uint32_t wifi_retry_count = 0;
 static uint32_t rate_limit_retry_after_ms = 0;
 static uint32_t rate_limit_reconnect_at_ms = 0;
 
+// The server rejects the WS upgrade with HTTP 401 when the API token is
+// invalid; without a stop, the client would auto-reconnect every 10s forever.
+static int ws_auth_failure_count = 0;
+static bool ws_stop_requested = false;
+static bool ws_permanently_stopped = false;
+#define WS_MAX_AUTH_FAILURES 5
+
+// Reassembly buffer for WS frames larger than the client's rx buffer
+// (buffer_size = 2048). The server caps command payloads at 4096 bytes of
+// JSON, so 4.5 KB covers the largest frame plus envelope and WS overhead.
+#define WS_RX_FRAME_MAX 4608
+static char s_ws_rx_frame[WS_RX_FRAME_MAX];
+static size_t s_ws_rx_frame_len = 0;
+static bool s_ws_rx_frame_dropped = false;
+
 // Global queues for inter-task communication
 QueueHandle_t cmd_queue;
 QueueHandle_t response_queue;
@@ -96,7 +112,12 @@ QueueHandle_t gpio_notification_queue;
 
 static void ws_send_text(const char *text) {
     if (ws_client && ws_connected) {
-        esp_websocket_client_send_text(ws_client, text, strlen(text), portMAX_DELAY);
+        // Bounded timeout so a backed-up TX path can't stall the websocket
+        // task (pings, reconnect logic) indefinitely.
+        int ret = esp_websocket_client_send_text(ws_client, text, strlen(text), 2000 / portTICK_PERIOD_MS);
+        if (ret < 0) {
+            ESP_LOGE(TAG, "Failed to send WS message (ret=%d)", ret);
+        }
     }
 }
 
@@ -158,6 +179,13 @@ static void process_worker_responses(void) {
                     cJSON_AddStringToObject(payload_obj, "command", "configure_gpio_input_monitoring");
                     cJSON_AddNumberToObject(payload_obj, "pin", resp.data.gpio.pin);
                     cJSON_AddStringToObject(payload_obj, "status", "monitoring_enabled");
+                    break;
+
+                case CMD_GPIO_DISABLE_MONITORING:
+                    cJSON_AddStringToObject(response, "type", "command_ack");
+                    cJSON_AddStringToObject(payload_obj, "command", "configure_gpio_input_monitoring");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.gpio.pin);
+                    cJSON_AddStringToObject(payload_obj, "status", "monitoring_disabled");
                     break;
 
                 case CMD_PWM_SET:
@@ -541,6 +569,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
         case WEBSOCKET_EVENT_CONNECTED:
             ESP_LOGI(TAG, "WEBSOCKET_EVENT_CONNECTED");
             ws_connected = true;
+            ws_auth_failure_count = 0;
             // Connection to the server succeeded — confirm it on the panel.
             // The cloud sends the first display_update right after the
             // device_connected handshake below, which overwrites this.
@@ -559,6 +588,8 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
         case WEBSOCKET_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "WEBSOCKET_EVENT_DISCONNECTED");
             ws_connected = false;
+            s_ws_rx_frame_len = 0;
+            s_ws_rx_frame_dropped = false;
             // Connection lost — revert to "Server" so the panel reflects the
             // reconnecting state until the next CONNECTED event (or a fresh
             // cloud display_update) overwrites it.
@@ -574,37 +605,55 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             break;
         case WEBSOCKET_EVENT_DATA:
             if (data->data_len > 0) {
-                char *message = malloc(data->data_len + 1);
-                if (message) {
-                    memcpy(message, data->data_ptr, data->data_len);
-                    message[data->data_len] = '\0';
-                    ESP_LOGI(TAG, "Received: %s", message);
-
-                    // Check for rate_limit message before normal handling
-                    cJSON *json = cJSON_Parse(message);
-                    if (json) {
-                        cJSON *type_field = cJSON_GetObjectItem(json, "type");
-                        if (type_field && cJSON_IsString(type_field) &&
-                            strcmp(type_field->valuestring, "rate_limit") == 0) {
-                            cJSON *payload_field = cJSON_GetObjectItem(json, "payload");
-                            if (payload_field) {
-                                cJSON *retry_after = cJSON_GetObjectItem(payload_field, "retry_after");
-                                if (retry_after && cJSON_IsNumber(retry_after)) {
-                                    rate_limit_retry_after_ms = (uint32_t)(retry_after->valuedouble * 1000);
-                                    ESP_LOGW(TAG, "Rate limited: retry after %u seconds",
-                                             (unsigned)(retry_after->valuedouble));
-                                }
-                            }
-                            cJSON_Delete(json);
-                        } else {
-                            cJSON_Delete(json);
-                            handle_websocket_message(message);
-                        }
-                    } else {
-                        handle_websocket_message(message);
-                    }
-                    free(message);
+                // Frames larger than buffer_size arrive as multiple DATA
+                // events carrying payload_offset/payload_len. Reassemble the
+                // full frame before parsing JSON, and only parse once.
+                if (data->payload_offset == 0) {
+                    s_ws_rx_frame_len = 0;
+                    s_ws_rx_frame_dropped = false;
                 }
+                if (s_ws_rx_frame_dropped) {
+                    break;  // skip the rest of an oversize frame
+                }
+                if (data->data_len > (int)(sizeof(s_ws_rx_frame) - 1 - s_ws_rx_frame_len)) {
+                    ESP_LOGE(TAG, "WS frame exceeds %u bytes, dropping",
+                             (unsigned)sizeof(s_ws_rx_frame));
+                    s_ws_rx_frame_len = 0;
+                    s_ws_rx_frame_dropped = true;
+                    break;
+                }
+                memcpy(&s_ws_rx_frame[s_ws_rx_frame_len], data->data_ptr, data->data_len);
+                s_ws_rx_frame_len += data->data_len;
+                if (data->payload_offset + data->data_len < data->payload_len) {
+                    break;  // more chunks of this frame pending
+                }
+                s_ws_rx_frame[s_ws_rx_frame_len] = '\0';
+                ESP_LOGD(TAG, "Received: %s", s_ws_rx_frame);
+
+                // Check for rate_limit message before normal handling
+                cJSON *json = cJSON_Parse(s_ws_rx_frame);
+                if (json) {
+                    cJSON *type_field = cJSON_GetObjectItem(json, "type");
+                    if (type_field && cJSON_IsString(type_field) &&
+                        strcmp(type_field->valuestring, "rate_limit") == 0) {
+                        cJSON *payload_field = cJSON_GetObjectItem(json, "payload");
+                        if (payload_field) {
+                            cJSON *retry_after = cJSON_GetObjectItem(payload_field, "retry_after");
+                            if (retry_after && cJSON_IsNumber(retry_after)) {
+                                rate_limit_retry_after_ms = (uint32_t)(retry_after->valuedouble * 1000);
+                                ESP_LOGW(TAG, "Rate limited: retry after %u seconds",
+                                         (unsigned)(retry_after->valuedouble));
+                            }
+                        }
+                        cJSON_Delete(json);
+                    } else {
+                        cJSON_Delete(json);
+                        handle_websocket_message(s_ws_rx_frame);
+                    }
+                } else {
+                    handle_websocket_message(s_ws_rx_frame);
+                }
+                s_ws_rx_frame_len = 0;
             }
             break;
         case WEBSOCKET_EVENT_ERROR:
@@ -615,6 +664,19 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             } else {
                 ESP_LOGI(TAG, "WEBSOCKET_EVENT_ERROR: %s",
                          esp_err_to_name(data->error_handle.esp_tls_last_esp_err));
+            }
+            // The server answers the upgrade request with HTTP 401 when the
+            // API token is invalid or the device was revoked. Count consecutive
+            // rejections; once the limit is hit, stop retrying so a wrong
+            // token can't drain the battery and spam the server forever.
+            if (data->error_handle.esp_ws_handshake_status_code == 401) {
+                ws_auth_failure_count++;
+                if (ws_auth_failure_count >= WS_MAX_AUTH_FAILURES) {
+                    ws_stop_requested = true;
+                    ESP_LOGE(TAG, "Server rejected the API token (HTTP 401) %d times. "
+                             "Stopping reconnect attempts - re-flash this device with a valid token.",
+                             ws_auth_failure_count);
+                }
             }
             break;
     }
@@ -698,14 +760,22 @@ static void websocket_task(void *pvParameters) {
         if (ws_connected) {
             uint32_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
             if (now - last_ping_time > DEVICESDK_PING_INTERVAL_MS) {
-                const char *ping_msg = "{\"type\":\"ping\"}";
-                esp_websocket_client_send_text(ws_client, ping_msg, strlen(ping_msg), portMAX_DELAY);
+                ws_send_text("{\"type\":\"ping\"}");
                 last_ping_time = now;
             }
         }
 
+        // Stop the client for good after repeated auth rejections (HTTP 401).
+        // esp_websocket_client_stop() must not run from the event handler,
+        // so it is executed here in the websocket task.
+        if (ws_stop_requested && !ws_permanently_stopped) {
+            ws_permanently_stopped = true;
+            ESP_LOGE(TAG, "WebSocket client stopped: invalid API token");
+            esp_websocket_client_stop(ws_client);
+        }
+
         // Reconnect after rate limit delay (non-blocking)
-        if (!ws_connected && rate_limit_reconnect_at_ms > 0) {
+        if (!ws_connected && !ws_permanently_stopped && rate_limit_reconnect_at_ms > 0) {
             uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
             if (now_ms >= rate_limit_reconnect_at_ms) {
                 rate_limit_reconnect_at_ms = 0;
@@ -754,8 +824,10 @@ void app_main(void) {
     // Initialize worker task state
     worker_task_init();
 
-    // Initialize WebSocket handler with command queue
+    // Initialize WebSocket handler with command queue; parse/validation
+    // failures are answered with command_error via the response queue.
     websocket_handler_init(cmd_queue);
+    websocket_handler_set_response_queue(response_queue);
 
     wifi_init_sta();
 

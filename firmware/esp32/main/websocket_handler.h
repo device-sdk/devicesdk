@@ -11,6 +11,10 @@
 // Initialize the websocket handler with the command queue
 void websocket_handler_init(void *cmd_queue_handle);
 
+// Optionally attach the response queue so parse/validation failures can be
+// answered with a command_error instead of leaving the server to time out.
+void websocket_handler_set_response_queue(void *resp_queue_handle);
+
 // Parse a JSON message and dispatch the appropriate command to the worker queue.
 // Returns true if the message was handled (even if the command was unknown).
 // Returns false only on parse failure.

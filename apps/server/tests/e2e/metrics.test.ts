@@ -139,6 +139,45 @@ describe("device metrics endpoint", () => {
 		expect(r.series[0].messages_in).toBe(5);
 	});
 
+	test("connected_seconds deltas land in the bucket current at flush time", async () => {
+		const { projectId, deviceId } = await srv.scaffold({
+			projectSlug: "m-spread",
+			deviceSlug: "dev",
+		});
+		const bucket1 = alignBucket(Date.now());
+		const bucket2 = bucket1 - 300_000; // a different 5-minute bucket
+
+		// Clock-injected flushes (the session accrual tick calls
+		// recordDeviceUsage at wall-clock tick times, so each delta lands in
+		// the bucket current then - a long session spreads across buckets).
+		recordDeviceUsage(
+			srv.db,
+			{ deviceId, projectId, connectedSeconds: 60 },
+			bucket1 + 60_000,
+		);
+		recordDeviceUsage(
+			srv.db,
+			{ deviceId, projectId, connectedSeconds: 30 },
+			bucket1 + 120_000,
+		);
+		recordDeviceUsage(
+			srv.db,
+			{ deviceId, projectId, connectedSeconds: 45 },
+			bucket2 + 10_000,
+		);
+
+		const rows = srv.db
+			.query(
+				"SELECT bucket_ts AS ts, connected_seconds AS s FROM device_usage WHERE device_id = ?1 ORDER BY bucket_ts",
+			)
+			.all(deviceId) as { ts: number; s: number }[];
+		// Same-bucket flushes accumulate; cross-bucket flushes split.
+		expect(rows).toEqual([
+			{ ts: bucket2, s: 45 },
+			{ ts: bucket1, s: 90 },
+		]);
+	});
+
 	test("window selection controls look-back span and bucket width", async () => {
 		const { auth, projectSlug, deviceSlug, projectId, deviceId } =
 			await srv.scaffold({ projectSlug: "m-window", deviceSlug: "dev" });

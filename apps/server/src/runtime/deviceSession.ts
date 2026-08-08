@@ -9,6 +9,8 @@ import { DEVICE_TYPES } from "@devicesdk/core";
 import { z } from "zod";
 import {
 	type LogLevel,
+	MAX_KV_KEY_LENGTH,
+	MAX_KV_VALUE_BYTES,
 	VALID_LOG_LEVELS,
 	WS_CLOSE_REPLACED,
 } from "../foundation/consts";
@@ -28,7 +30,12 @@ import {
 	persistAndBroadcastLog,
 } from "./logStore";
 import { type BridgeFn, loadUserWorker } from "./scriptHost";
-import type { DeviceMeta, IUserDeviceWorker, RuntimeSocket } from "./types";
+import type {
+	DeviceMeta,
+	IUserDeviceWorker,
+	LogEntry,
+	RuntimeSocket,
+} from "./types";
 
 const DeviceMessageSchema = z.object({
 	id: z.string().max(64).optional().default(""),
@@ -74,8 +81,6 @@ interface PendingCommand {
 	resolve: (value: DeviceResponse) => void;
 	reject: (reason?: unknown) => void;
 	timeoutId: ReturnType<typeof setTimeout>;
-	startedAt: number;
-	commandType: string;
 }
 
 export interface SessionDeps {
@@ -84,6 +89,8 @@ export interface SessionDeps {
 	logger: ServerLogger;
 	/** Inter-device RPC dispatcher bound to this session's project scope. */
 	makeBridge: (meta: DeviceMeta) => BridgeFn;
+	/** connected_seconds accrual interval; overridable for tests. */
+	usageTickMs?: number;
 }
 
 /**
@@ -101,10 +108,20 @@ export interface SessionDeps {
  * Hibernation-API handlers - in-process we dispatch directly), daily message
  * limits, and Worker Loader stub lifecycle management. Handler ordering is
  * preserved by a per-session FIFO promise chain.
+ *
+ * Serialization contract: onDeviceConnect/onDeviceDisconnect/onMessage/onCron
+ * run strictly one at a time per session, in arrival order, on the FIFO
+ * dispatch chain. The one exception is handleRemoteCall (inter-device RPC):
+ * it runs user code directly on the caller's promise chain instead of queueing
+ * on the FIFO chain - deliberate, so a device whose handler is awaiting a
+ * command response cannot deadlock an RPC targeting it. RPC invocations may
+ * therefore interleave with queued event handlers.
  */
 export class DeviceSession {
 	private static readonly MAX_PENDING_COMMANDS = 100;
 	private static readonly COMMAND_TIMEOUT_MS = 5000;
+	/** How often connected_seconds accrues into the usage buckets. */
+	private static readonly USAGE_TICK_MS = 60_000;
 
 	readonly projectId: string;
 	readonly deviceId: string;
@@ -112,6 +129,9 @@ export class DeviceSession {
 	private deps: SessionDeps;
 	private deviceWs: RuntimeSocket | null = null;
 	private connectedSince: number | null = null;
+	/** Timestamp of the last connected_seconds flush (delta accounting). */
+	private lastUsageFlushAt = 0;
+	private usageTick: ReturnType<typeof setInterval> | null = null;
 	private meta: DeviceMeta | null = null;
 
 	// Last-known firmware handshake values. device_type is sticky (once a
@@ -135,6 +155,13 @@ export class DeviceSession {
 	private worker: {
 		versionId: string;
 		instance: IUserDeviceWorker;
+	} | null = null;
+
+	// In-flight load promise, keyed by versionId, so concurrent callers (a
+	// first device message racing an RPC) share one import + instantiation.
+	private workerLoad: {
+		versionId: string;
+		promise: Promise<IUserDeviceWorker>;
 	} | null = null;
 
 	private cronTimer: ReturnType<typeof setTimeout> | null = null;
@@ -168,6 +195,8 @@ export class DeviceSession {
 		this.deviceWs = ws;
 		this.meta = meta;
 		this.connectedSince = Date.now();
+		this.lastUsageFlushAt = this.connectedSince;
+		this.startUsageTick();
 
 		this.deps.db
 			.query(
@@ -285,7 +314,10 @@ export class DeviceSession {
 		if (parsed.data.type === "ping") return;
 		const message = parsed.data as DeviceResponse;
 
-		this.recordUsage({ messagesIn: 1, bytesIn: data.length });
+		this.recordUsage({
+			messagesIn: 1,
+			bytesIn: new TextEncoder().encode(data).length,
+		});
 
 		try {
 			if (message.type === "device_connected") {
@@ -341,14 +373,16 @@ export class DeviceSession {
 	}
 
 	private finalizeOutgoingSocket(reason: string): void {
+		this.clearUsageTick();
+
 		const connectedSince = this.connectedSince;
-		if (connectedSince) {
-			this.recordUsage({
-				connectedSeconds: Math.max(
-					0,
-					Math.round((Date.now() - connectedSince) / 1000),
-				),
-			});
+		if (connectedSince !== null) {
+			// Final flush of the elapsed delta since the last tick. Delta-based
+			// (not absolute) so sub-second carry never double-counts.
+			const elapsed = Math.floor((Date.now() - this.lastUsageFlushAt) / 1000);
+			if (elapsed > 0) {
+				this.recordUsage({ connectedSeconds: elapsed });
+			}
 		}
 
 		for (const [, command] of this.pendingCommands) {
@@ -356,6 +390,39 @@ export class DeviceSession {
 			command.reject(new Error(reason));
 		}
 		this.pendingCommands.clear();
+	}
+
+	/**
+	 * Periodic connected_seconds accrual: flush the elapsed delta into the
+	 * bucket current at tick time, so a long session spreads across buckets
+	 * instead of dumping everything into the teardown bucket, and so the value
+	 * survives a crash (it is persisted long before disconnect). The anchor
+	 * advances by whole seconds only; the sub-second remainder carries over.
+	 */
+	private startUsageTick(): void {
+		this.clearUsageTick();
+		const sessionSince = this.connectedSince;
+		this.usageTick = setInterval(() => {
+			// Stale-callback guard: a tick from a previous connection that was
+			// already queued when the session was replaced must not flush into
+			// the new session.
+			if (this.deviceWs === null || this.connectedSince !== sessionSince) {
+				return;
+			}
+			const now = Date.now();
+			const elapsed = Math.floor((now - this.lastUsageFlushAt) / 1000);
+			if (elapsed <= 0) return;
+			this.recordUsage({ connectedSeconds: elapsed });
+			this.lastUsageFlushAt += elapsed * 1000;
+		}, this.deps.usageTickMs ?? DeviceSession.USAGE_TICK_MS);
+		this.usageTick.unref();
+	}
+
+	private clearUsageTick(): void {
+		if (this.usageTick) {
+			clearInterval(this.usageTick);
+			this.usageTick = null;
+		}
 	}
 
 	private handleConnectionLost(reason: string): void {
@@ -416,14 +483,6 @@ export class DeviceSession {
 			});
 	}
 
-	/** Awaitable view of the dispatch chain (used by RPC + command endpoints). */
-	flushDispatch(): Promise<void> {
-		return this.dispatchChain.then(
-			() => undefined,
-			() => undefined,
-		);
-	}
-
 	private async getWorker(): Promise<IUserDeviceWorker> {
 		const meta = this.meta;
 		if (!meta) {
@@ -436,22 +495,44 @@ export class DeviceSession {
 		if (this.worker?.versionId === meta.versionId) {
 			return this.worker.instance;
 		}
+		if (this.workerLoad?.versionId === meta.versionId) {
+			return this.workerLoad.promise;
+		}
 
 		const scriptKey = `${meta.userId}/${meta.projectSlug}/${meta.deviceSlug}/${meta.versionId}.js`;
 		const scriptPath = this.deps.scripts.filePath(scriptKey);
 
 		const sender = new LocalDeviceSender(this);
-		const instance = await loadUserWorker({
+		const promise = loadUserWorker({
 			scriptPath,
 			entrypointName: meta.entrypointName,
 			sender,
 			bridge: this.deps.makeBridge(meta),
 			getEnvVars: () => this.readEnvVars(meta.projectId),
+		}).then((instance) => {
+			this.worker = { versionId: meta.versionId, instance };
+			if (!this.meta) this.meta = meta;
+			return instance;
 		});
+		this.workerLoad = { versionId: meta.versionId, promise };
 
-		this.worker = { versionId: meta.versionId, instance };
-		if (!this.meta) this.meta = meta;
-		return instance;
+		// Drop the memo once settled so a failed load can be retried; on
+		// success this.worker supersedes it. Handle both paths explicitly so
+		// no rejection is left unobserved.
+		promise.then(
+			() => {
+				if (this.workerLoad?.versionId === meta.versionId) {
+					this.workerLoad = null;
+				}
+			},
+			() => {
+				if (this.workerLoad?.versionId === meta.versionId) {
+					this.workerLoad = null;
+				}
+			},
+		);
+
+		return promise;
 	}
 
 	private readEnvVars(projectId: string): Record<string, string> {
@@ -469,7 +550,10 @@ export class DeviceSession {
 		}
 		const serialized = JSON.stringify(command);
 		this.deviceWs.send(serialized);
-		this.recordUsage({ messagesOut: 1, bytesOut: serialized.length });
+		this.recordUsage({
+			messagesOut: 1,
+			bytesOut: new TextEncoder().encode(serialized).length,
+		});
 	}
 
 	sendCommandAndWaitForResponse<C extends DeviceCommand>(
@@ -483,7 +567,6 @@ export class DeviceSession {
 				return reject(new Error("Too many pending commands"));
 			}
 
-			const startedAt = Date.now();
 			const timeoutId = setTimeout(() => {
 				this.pendingCommands.delete(command.id);
 				reject(
@@ -497,14 +580,15 @@ export class DeviceSession {
 				resolve: resolve as (value: DeviceResponse) => void,
 				reject,
 				timeoutId,
-				startedAt,
-				commandType: command.type,
 			});
 
 			try {
 				const serialized = JSON.stringify(command);
 				this.deviceWs.send(serialized);
-				this.recordUsage({ messagesOut: 1, bytesOut: serialized.length });
+				this.recordUsage({
+					messagesOut: 1,
+					bytesOut: new TextEncoder().encode(serialized).length,
+				});
 			} catch (error) {
 				clearTimeout(timeoutId);
 				this.pendingCommands.delete(command.id);
@@ -592,9 +676,10 @@ export class DeviceSession {
 		callDepth: number;
 		scriptMeta: DeviceMeta;
 	}): Promise<unknown> {
-		// Use the live connection's meta when present (same script identity);
-		// otherwise the bridge-provided meta lets a never-connected device
-		// still serve RPC, matching the deployed-script source of truth.
+		// Use the live connection's meta when present: a connected device keeps
+		// executing the version pinned at its last connect until it reconnects
+		// or reboots. Otherwise the bridge-provided meta lets a never-connected
+		// device still serve RPC against its deployed script.
 		const meta = this.meta ?? request.scriptMeta;
 		const worker = await this.getWorkerForMeta(meta);
 		return runWithLogCapture(this, () =>
@@ -608,6 +693,36 @@ export class DeviceSession {
 		ws: RuntimeSocket,
 		options: { backfillLimit?: number; backfillLevel?: string },
 	): void {
+		// Fetch the backfill BEFORE registering the socket: a log persisted
+		// between fetch and registration would otherwise be both replayed and
+		// delivered live (double delivery). The tiny miss window is equivalent
+		// to connecting moments later.
+		let replayLogs: LogEntry[] = [];
+		const wantBackfill = options.backfillLimit !== undefined;
+		if (wantBackfill) {
+			const limit =
+				options.backfillLimit !== undefined &&
+				Number.isFinite(options.backfillLimit)
+					? Math.min(Math.max(options.backfillLimit, 1), 100)
+					: 0;
+			if (limit > 0) {
+				const level =
+					options.backfillLevel &&
+					VALID_LOG_LEVELS.includes(options.backfillLevel as LogLevel)
+						? options.backfillLevel
+						: undefined;
+				try {
+					const { logs } = fetchRecentLogs(this.deps.db, this.deviceId, {
+						limit,
+						level,
+					});
+					replayLogs = logs;
+				} catch (error) {
+					this.deps.logger.error(error, "Watcher backfill failed");
+				}
+			}
+		}
+
 		this.watchers.add(ws);
 
 		try {
@@ -621,34 +736,20 @@ export class DeviceSession {
 			this.deps.logger.error(error, "Failed to send initial status to watcher");
 		}
 
-		// Optional log history backfill. Single scan per connect - never per
-		// poll - so cost is bounded by reconnect rate, not client activity.
-		if (options.backfillLimit !== undefined) {
-			const limit = Number.isFinite(options.backfillLimit)
-				? Math.min(Math.max(options.backfillLimit, 1), 100)
-				: 0;
-			if (limit > 0) {
-				const level =
-					options.backfillLevel &&
-					VALID_LOG_LEVELS.includes(options.backfillLevel as LogLevel)
-						? options.backfillLevel
-						: undefined;
-				try {
-					const { logs } = fetchRecentLogs(this.deps.db, this.deviceId, {
-						limit,
-						level,
-					});
-					// Send oldest first so the client can append in display order.
-					for (let i = logs.length - 1; i >= 0; i--) {
-						ws.send(
-							JSON.stringify({ event: "log", data: logs[i], replay: true }),
-						);
-					}
-				} catch (error) {
-					this.deps.logger.error(error, "Watcher backfill failed");
-				}
-				ws.send(JSON.stringify({ event: "history_complete" }));
-			}
+		// Send oldest first so the client can append in display order. Single
+		// scan per connect - never per poll - so cost is bounded by reconnect
+		// rate, not client activity.
+		for (let i = replayLogs.length - 1; i >= 0; i--) {
+			ws.send(
+				JSON.stringify({ event: "log", data: replayLogs[i], replay: true }),
+			);
+		}
+		// The completion marker is part of the backfill contract: send it
+		// whenever backfill was requested (even when clamped to 0 or the scan
+		// failed) so clients never wait forever; clients infer no-replay from
+		// the absence of the marker when no backfill was requested.
+		if (wantBackfill) {
+			ws.send(JSON.stringify({ event: "history_complete" }));
 		}
 	}
 
@@ -690,7 +791,20 @@ export class DeviceSession {
 		if (key.startsWith(INTERNAL_KEY_PREFIX)) {
 			throw new Error(`Key "${key}" is reserved for internal use`);
 		}
-		this.internalKvPut(key, value);
+		if (key.length > MAX_KV_KEY_LENGTH) {
+			throw new Error(
+				`DeviceSDK: kv key exceeds ${MAX_KV_KEY_LENGTH} characters (got ${key.length})`,
+			);
+		}
+		// Serialize once: the byte count bounds the stored value, and the raw
+		// string is passed through so the write does not stringify again.
+		const serialized = JSON.stringify(value ?? null);
+		if (new TextEncoder().encode(serialized).length > MAX_KV_VALUE_BYTES) {
+			throw new Error(
+				`DeviceSDK: kv value exceeds ${MAX_KV_VALUE_BYTES} bytes when serialized`,
+			);
+		}
+		this.internalKvPutRaw(key, serialized);
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
@@ -718,13 +832,17 @@ export class DeviceSession {
 	}
 
 	private internalKvPut(key: string, value: unknown): void {
+		this.internalKvPutRaw(key, JSON.stringify(value ?? null));
+	}
+
+	private internalKvPutRaw(key: string, serialized: string): void {
 		this.deps.db
 			.query(
 				`INSERT INTO device_kv (device_id, key, value, updated_at)
 				 VALUES (?1, ?2, ?3, ?4)
 				 ON CONFLICT (device_id, key) DO UPDATE SET value = ?3, updated_at = ?4`,
 			)
-			.run(this.deviceId, key, JSON.stringify(value ?? null), Date.now());
+			.run(this.deviceId, key, serialized, Date.now());
 	}
 
 	private internalKvDelete(key: string): void {
@@ -842,6 +960,13 @@ export class DeviceSession {
 		if (!this.deviceWs) return;
 
 		this.dispatch(async () => {
+			// The timer may have fired while connected but only now reach the
+			// front of the FIFO chain, after the device went offline. Re-check
+			// here - the fire is skipped and the persisted schedule is left
+			// stale so the reconnect path (rearmCronsFromStorage) recomputes
+			// and skips the missed slot, never catching up.
+			if (!this.deviceWs) return;
+
 			const schedules = this.internalKvGet<CronStorage>(CRON_STORAGE_KEY);
 			if (!schedules || Object.keys(schedules).length === 0) return;
 
@@ -904,6 +1029,10 @@ export class DeviceSession {
 
 			if (Object.keys(updated).length > 0) {
 				this.internalKvPut(CRON_STORAGE_KEY, updated);
+				// Only re-arm while connected: a disconnect mid-dispatch must
+				// not leave a live timer. The reconnect path re-arms from the
+				// persisted schedule.
+				if (!this.deviceWs) return;
 				this.armCronTimer(earliestFireTime(updated));
 			} else {
 				this.internalKvDelete(CRON_STORAGE_KEY);

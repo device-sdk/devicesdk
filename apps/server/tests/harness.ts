@@ -319,7 +319,17 @@ export class TestServer {
 		const scripts = new FsBlobStore(config.scriptsDir);
 		const firmwares = new FsBlobStore(config.firmwaresDir);
 		const logger = createLogger(config);
-		const hub = new DeviceHub({ db, scripts, logger });
+		// Test-only knob: shrinks the connected_seconds accrual interval so
+		// usage tests observe ticks without waiting 60 s. Not part of loadConfig.
+		const usageTickMs = Number(envOverrides.USAGE_TICK_MS);
+		const hub = new DeviceHub({
+			db,
+			scripts,
+			logger,
+			...(Number.isInteger(usageTickMs) && usageTickMs > 0
+				? { usageTickMs }
+				: {}),
+		});
 		hub.resetConnectionState();
 
 		const services: Env = {

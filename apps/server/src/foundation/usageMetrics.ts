@@ -76,14 +76,18 @@ export interface UsageDelta {
 }
 
 /**
- * Accumulates a usage delta into the current 5-minute bucket. Replaces the
- * Analytics Engine writeDataPoint calls; never throws (metrics must not
+ * Accumulates a usage delta into the 5-minute bucket current at `nowMs`
+ * (defaults to the wall clock; injectable for deterministic tests). Replaces
+ * the Analytics Engine writeDataPoint calls; never throws (metrics must not
  * break the hot path).
  */
-export function recordDeviceUsage(db: Database, delta: UsageDelta): void {
+export function recordDeviceUsage(
+	db: Database,
+	delta: UsageDelta,
+	nowMs: number = Date.now(),
+): void {
 	try {
-		const bucketTs =
-			Math.floor(Date.now() / STORAGE_BUCKET_MS) * STORAGE_BUCKET_MS;
+		const bucketTs = Math.floor(nowMs / STORAGE_BUCKET_MS) * STORAGE_BUCKET_MS;
 		db.query(
 			`INSERT INTO device_usage (device_id, project_id, bucket_ts, messages_in, messages_out, bytes_in, bytes_out, cron_fires, connected_seconds)
 			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)

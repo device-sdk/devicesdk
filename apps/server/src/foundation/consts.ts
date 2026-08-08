@@ -37,6 +37,11 @@ export const RESOURCE_LIMITS = {
 	maxEnvVarsPerProject: 200,
 } as const;
 
+// device_kv bounds enforced in the user-facing kvPut; the __internal: cron
+// storage is exempt.
+export const MAX_KV_KEY_LENGTH = 128;
+export const MAX_KV_VALUE_BYTES = 4096;
+
 /**
  * WebSocket close code used when a new device connection supersedes a stale
  * one for the same device (application-specific range 4000-4999). A device

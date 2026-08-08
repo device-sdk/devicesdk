@@ -1,4 +1,6 @@
-import { ref, onUnmounted } from 'vue';
+import { ref, watch, onUnmounted, type Ref } from 'vue';
+import { ApiError, api } from '@/lib/api';
+import { redirectToLogin } from '@/lib/redirect';
 import { logService, type DeviceLog, type DeviceStatus } from '@/services/api.service';
 
 export interface UseDeviceStreamOptions {
@@ -14,7 +16,21 @@ export interface UseDeviceStreamOptions {
 }
 
 /**
+ * Upper bound on the per-connection log-id dedupe set. Mirrors the CLI's
+ * seenIds mechanism in packages/cli/src/commands/logs.ts (which caps at 5000)
+ * but with a smaller budget: only ids within a connection's backfill-replay
+ * window can collide, so evicting the oldest beyond a generous cap never
+ * produces a duplicate in practice.
+ */
+const MAX_SEEN_IDS = 2000;
+
+/**
  * Composable for streaming device logs and status via the watcher WebSocket.
+ *
+ * Accepts either plain ids (captured at setup) or refs - pass `toRef(props, ...)`
+ * so the stream follows the consumer to a different device when the ids change.
+ * On an id change the buffered logs and status are reset and the socket is
+ * re-opened for the new ids.
  *
  * Auto-reconnects on disconnection with exponential backoff. When
  * `backfillLimit` is provided, replay frames (history) and live events are
@@ -29,10 +45,15 @@ export interface UseDeviceStreamOptions {
  *   - event "history_complete" → backfill replay finished; live mode begins
  */
 export function useDeviceStream(
-  projectId: string,
-  deviceId: string,
+  projectIdSource: string | Ref<string>,
+  deviceIdSource: string | Ref<string>,
   options: UseDeviceStreamOptions = {},
 ) {
+  const projectId =
+    typeof projectIdSource === 'string' ? ref(projectIdSource) : projectIdSource;
+  const deviceId =
+    typeof deviceIdSource === 'string' ? ref(deviceIdSource) : deviceIdSource;
+
   const streamedLogs = ref<DeviceLog[]>([]);
   const deviceStatus = ref<DeviceStatus>({
     connected: false,
@@ -55,12 +76,50 @@ export function useDeviceStream(
   // flips it back on, so pause/resume works without recreating the composable.
   let unmounted = false;
   let active = false;
+  // Per-connection dedupe set (see connect()). Reset on every connect so the
+  // reconnect backfill replay is always shown, while duplicates within a
+  // single connection (the backfill/live race) are dropped.
+  let seenIds = new Set<string>();
+  let authProbeInFlight = false;
+  // Latch so a reconnect storm during one outage probes auth exactly once
+  // instead of hammering /v1/user/me on every failed-connect cycle. Reset only
+  // on a successful onopen (the network is back); a 30s offline stretch stays
+  // silent.
+  let authProbed = false;
 
   // WebSocket close codes that mean "your session is no longer valid" - the
   // server rejected the upgrade for auth reasons. Mirrors lib/api.ts's 401
   // handling: stop retrying and bounce to login rather than reconnect forever
   // against a dead session.
   const AUTH_CLOSE_CODES = new Set([1008, 4401, 4403]);
+
+  /**
+   * The server rejects a failed watch upgrade with an HTTP 401 *before* the
+   * WebSocket handshake, so the browser never receives a close code (1006 with
+   * `socketOpened === false`). Probe the API once to distinguish a dead
+   * session from a transient network failure; only a 401 stops the retry loop.
+   */
+  async function probeAuth() {
+    if (authProbeInFlight || authProbed) return;
+    authProbeInFlight = true;
+    authProbed = true;
+    try {
+      await api.call('/v1/user/me', { suppressAuthRedirect: true });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        active = false;
+        reconnecting.value = false;
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        redirectToLogin();
+      }
+      // Network errors and anything else: not an auth failure, keep retrying.
+    } finally {
+      authProbeInFlight = false;
+    }
+  }
 
   function connect() {
     if (unmounted) return;
@@ -71,15 +130,26 @@ export function useDeviceStream(
       ws = null;
     }
 
-    const url = logService.getWatchUrl(projectId, deviceId, options);
+    // Read the ids at call time: connect() may be re-invoked after a device
+    // switch, so the url must reflect the current ids, not setup-time values.
+    const url = logService.getWatchUrl(projectId.value, deviceId.value, options);
     // history_complete fires once per connection; reset on every reconnect so
     // consumers can show a "loading" indicator each time.
     historyLoaded.value = options.backfillLimit == null;
+    // Replay frames from this connection's backfill are new history (they fill
+    // the gap since the previous connection); duplicates can only occur within
+    // a single connection, so start the dedupe set fresh.
+    seenIds = new Set();
     const socket = new WebSocket(url);
     ws = socket;
     reconnecting.value = false;
+    let socketOpened = false;
 
     socket.onopen = () => {
+      socketOpened = true;
+      // A successful connection proves the network (and session) work - allow
+      // the auth probe again so a *future* outage gets its own single probe.
+      authProbed = false;
       reconnectDelay = 1000;
       streaming.value = true;
     };
@@ -102,6 +172,14 @@ export function useDeviceStream(
             'created_at' in d && typeof (d as Record<string, unknown>).created_at === 'number'
           ) {
             const log = d as DeviceLog;
+            // The server can replay a row that also arrived as a live frame
+            // (or vice versa) within one connection; drop the duplicate.
+            if (seenIds.has(log.id)) return;
+            seenIds.add(log.id);
+            if (seenIds.size > MAX_SEEN_IDS) {
+              const oldest = seenIds.values().next().value;
+              if (oldest !== undefined) seenIds.delete(oldest);
+            }
             // Replay frames arrive oldest-first; live frames arrive newest at
             // top. Newest-at-top is the display convention, so always prepend
             // and let the cap (500) shape the visible window.
@@ -148,9 +226,15 @@ export function useDeviceStream(
       if (event && AUTH_CLOSE_CODES.has(event.code)) {
         active = false;
         reconnecting.value = false;
-        window.location.href = '/login?expired=true';
+        redirectToLogin();
         return;
       }
+
+      // A socket that dropped before it ever opened was rejected at upgrade
+      // time - and an auth-rejected upgrade surfaces here as code 1006 with
+      // no close code. Probe auth in the background; if the session is dead
+      // the probe cancels the retry and redirects.
+      if (!socketOpened) void probeAuth();
 
       if (unmounted || !active || reconnectTimer) return;
       reconnecting.value = true;
@@ -185,6 +269,17 @@ export function useDeviceStream(
   function clearLogs() {
     streamedLogs.value = [];
   }
+
+  // Follow the consumer to a different device (DeviceLogs stays mounted when
+  // navigating between devices of the same route). Drop the previous device's
+  // buffered logs and status, then re-open the socket for the new ids - the
+  // backfill replay refills history for the new device.
+  watch([projectId, deviceId], () => {
+    streamedLogs.value = [];
+    deviceStatus.value = { connected: false, connectedSince: null };
+    disconnect();
+    connect();
+  });
 
   onUnmounted(() => {
     unmounted = true;

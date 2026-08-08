@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import MetricsChart from '@/components/metrics/MetricsChart.vue';
 import {
@@ -145,22 +145,50 @@ const rankedDevices = computed(() =>
     .map((d) => ({ ...d, name: d.name || d.device_id })),
 );
 
+// Cancels an in-flight fetch when the project or window changes, so a slow
+// response for the previous project can't clobber the new project's chart.
+let fetchController: AbortController | null = null;
+
 const fetchMetrics = async () => {
+  fetchController?.abort();
+  const controller = new AbortController();
+  fetchController = controller;
   try {
     loading.value = true;
     error.value = false;
-    const data = await metricsService.getProject(props.projectId, window.value);
+    const data = await metricsService.getProject(
+      props.projectId,
+      window.value,
+      controller.signal,
+    );
+    if (controller.signal.aborted) return;
     devices.value = data.devices ?? [];
     totals.value = data.totals ?? { ...EMPTY_TOTALS };
   } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return;
     console.error('Error fetching project metrics:', err);
     error.value = true;
     const message = err instanceof Error ? err.message : 'Failed to load metrics';
     $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
-    loading.value = false;
+    if (fetchController === controller) {
+      loading.value = false;
+      fetchController = null;
+    }
   }
 };
 
+// Refetch when the project prop changes (the panel can stay mounted across
+// project routes) instead of showing the previous project's chart.
+watch(
+  () => props.projectId,
+  () => {
+    void fetchMetrics();
+  },
+);
+
 onMounted(fetchMetrics);
+onUnmounted(() => {
+  fetchController?.abort();
+});
 </script>

@@ -203,7 +203,23 @@
 
           <q-tab-panel name="versions" class="q-pa-lg">
             <div class="text-subtitle1 text-weight-bold q-mb-lg">Version History</div>
-            
+
+            <q-banner v-if="versionsError" class="q-mb-md" rounded type="warning">
+              <template v-slot:avatar>
+                <q-icon name="error_outline" color="warning" />
+              </template>
+              Couldn't load version history: {{ versionsError }}
+              <template v-slot:action>
+                <q-btn
+                  flat
+                  color="warning"
+                  label="Retry"
+                  icon="refresh"
+                  @click="fetchVersions(true)"
+                />
+              </template>
+            </q-banner>
+
             <q-table
               :rows="versions"
               :columns="versionColumns"
@@ -261,7 +277,7 @@
               </template>
 
               <template #no-data>
-                <div class="full-width text-center q-pa-xl">
+                <div v-if="!versionsError" class="full-width text-center q-pa-xl">
                   <q-icon name="history" size="64px" color="grey-4" class="q-mb-md" />
                   <div class="text-h6 text-grey-6 q-mb-sm">No versions yet</div>
                   <p class="text-body2 text-grey-5">Deploy your first script to create a version</p>
@@ -466,10 +482,18 @@ const pendingRollbackId = ref<string | null>(null);
 const scriptContent = ref('');
 const deployMessage = ref('');
 const selectedTemplate = ref<string | null>(null);
+// The last script successfully loaded from (or deployed to) the server - the
+// baseline for "does the editor hold unsaved changes?" checks.
+const savedScript = ref('');
 
 const versions = ref<ScriptVersion[]>([]);
 const loadingVersions = ref(false);
+const versionsError = ref<string | null>(null);
 const viewingVersion = ref<ScriptVersionDetail | null>(null);
+// Monotonic sequence for fetchVersions stale-response guarding: an in-flight
+// request must not clear a newer request's loading state (mirrors fetchDevice's
+// AbortController identity check).
+let versionsFetchSeq = 0;
 
 const editForm = ref({
   name: '',
@@ -498,9 +522,27 @@ const isScriptTooLarge = computed(() => scriptContent.value.length > SCRIPT_MAX_
 const isOnline = computed(() => connected.value);
 
 const loadTemplate = (templateKey: string | null) => {
-  if (templateKey && templateCode[templateKey]) {
-    scriptContent.value = templateCode[templateKey];
+  if (!templateKey || !templateCode[templateKey]) return;
+  const template = templateCode[templateKey];
+  const replace = () => {
+    scriptContent.value = template;
+    selectedTemplate.value = null;
+  };
+  if (scriptContent.value === template || scriptContent.value === savedScript.value) {
+    replace();
+    return;
   }
+  // Loading a template overwrites the editor; confirm first so unsaved work
+  // isn't silently discarded.
+  $q.dialog({
+    title: 'Replace unsaved changes?',
+    message:
+      'Loading this template replaces the script in the editor. Unsaved changes will be lost.',
+    cancel: { label: 'Cancel', flat: true },
+    ok: { label: 'Replace', color: 'negative', unelevated: true },
+  }).onOk(replace).onDismiss(() => {
+    selectedTemplate.value = null;
+  });
 };
 
 // Cancels an in-flight device fetch when the user navigates to a different
@@ -564,8 +606,14 @@ const firmwareLabel = computed(() =>
 );
 
 const fetchCurrentScript = async () => {
+  // Capture the ids at call time and verify them on resolve: a slow response
+  // for the previous device must not clobber the new device's editor.
+  const pid = projectId.value;
+  const did = deviceId.value;
   try {
-    const current = await scriptService.getCurrent(projectId.value, deviceId.value);
+    const current = await scriptService.getCurrent(pid, did);
+    if (projectId.value !== pid || deviceId.value !== did) return;
+    savedScript.value = current.script || '';
     scriptContent.value = current.script || '';
   } catch {
     // No script deployed yet, that's ok
@@ -576,14 +624,22 @@ const versionsCached = ref(false);
 
 const fetchVersions = async (force = false) => {
   if (versionsCached.value && !force) return;
+  const seq = ++versionsFetchSeq;
+  const pid = projectId.value;
+  const did = deviceId.value;
   try {
     loadingVersions.value = true;
-    versions.value = await scriptService.getVersions(projectId.value, deviceId.value);
+    versionsError.value = null;
+    versions.value = await scriptService.getVersions(pid, did);
+    if (projectId.value !== pid || deviceId.value !== did) return;
     versionsCached.value = true;
   } catch (error) {
+    if (projectId.value !== pid || deviceId.value !== did) return;
     console.error('Error fetching versions:', error);
+    versionsError.value =
+      error instanceof Error ? error.message : 'Failed to load versions';
   } finally {
-    loadingVersions.value = false;
+    if (seq === versionsFetchSeq) loadingVersions.value = false;
   }
 };
 
@@ -600,6 +656,7 @@ const deployScript = async () => {
     });
     $q.notify({ type: 'positive', message: 'Script deployed successfully', position: 'top' });
     deployMessage.value = '';
+    savedScript.value = scriptContent.value;
     versionsCached.value = false;
     await fetchDevice();
     await fetchVersions(true);
@@ -721,7 +778,30 @@ watch(() => route.params, (newParams) => {
     projectId.value = newParams.projectId as string;
     deviceId.value = newParams.deviceId as string;
     versionsCached.value = false;
+    // This page stays mounted when navigating between devices of the same
+    // route, so every device-scoped bit of state must reset here - otherwise
+    // the Script tab would show (and deploy!) the previous device's code.
+    scriptContent.value = '';
+    savedScript.value = '';
+    deployMessage.value = '';
+    selectedTemplate.value = null;
+    versions.value = [];
+    versionsError.value = null;
+    loadingVersions.value = false;
+    viewingVersion.value = null;
+    showVersionDialog.value = false;
+    pendingRollbackId.value = null;
+    showRollbackDialog.value = false;
+    // A dialog left open across a device switch acts on the NEW device's refs
+    // at click time (deleteDevice/updateDevice read projectId/deviceId then) -
+    // close both and blank the edit form so nothing can target the wrong
+    // device. fetchDevice repopulates editForm on success.
+    showEditDialog.value = false;
+    showDeleteDialog.value = false;
+    editForm.value = { name: '', description: '' };
     void fetchDevice();
+    void fetchCurrentScript();
+    void fetchVersions();
   }
 });
 

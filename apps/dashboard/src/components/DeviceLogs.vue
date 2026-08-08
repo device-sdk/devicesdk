@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, toRef } from 'vue';
 import { useQuasar } from 'quasar';
 import { useDeviceStream } from '@/composables/useDeviceStream';
 
@@ -90,6 +90,9 @@ const levelFilter = ref<string | null>(null);
 // at /v1/projects/:projectId/devices/:deviceId/logs (see
 // apps/server/src/endpoints/logs/listLogs.ts) for scripts and MCP tools that
 // don't want to hold a socket open, but the dashboard has no need for it.
+// Pass the ids as refs: this panel stays mounted when navigating between
+// devices of the same route, and useDeviceStream re-opens the socket for the
+// new ids (resetting the buffered logs) when they change.
 const {
   streamedLogs,
   deviceStatus,
@@ -98,7 +101,9 @@ const {
   connect,
   disconnect,
   clearLogs: clearStreamLogs,
-} = useDeviceStream(props.projectId, props.deviceId, { backfillLimit: 100 });
+} = useDeviceStream(toRef(props, 'projectId'), toRef(props, 'deviceId'), {
+  backfillLimit: 100,
+});
 
 const filteredLogs = computed(() => {
   if (!levelFilter.value) return streamedLogs.value;

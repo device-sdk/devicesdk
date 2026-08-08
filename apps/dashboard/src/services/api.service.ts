@@ -1,5 +1,5 @@
 import { WS_API_HOST } from '@/config/apiHost';
-import { api } from '@/lib/api';
+import { ApiError, api } from '@/lib/api';
 
 // ============================================================================
 // Pagination Helper
@@ -165,34 +165,51 @@ export const authService = {
   },
 
   async login(email: string, password: string): Promise<User> {
-    const data = await api.call<ApiResponse<User>>('/v1/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-      suppressAuthRedirect: true,
-    });
-    if (!data || !data.success) {
-      throw new Error('Invalid email or password.');
+    try {
+      const data = await api.call<ApiResponse<User>>('/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+        suppressAuthRedirect: true,
+      });
+      if (!data || !data.success) {
+        throw new ApiError('Invalid email or password.');
+      }
+      return data.result;
+    } catch (error) {
+      // Keep the friendly message for bad credentials (401); pass the server's
+      // own text through for anything else (locked accounts, rate limits, ...).
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Invalid email or password.', { status: 401 });
+      }
+      throw error;
     }
-    return data.result;
   },
 
   async register(email: string, password: string, name?: string): Promise<User> {
-    const data = await api.call<ApiResponse<User>>('/v1/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name }),
-      suppressAuthRedirect: true,
-    });
-    if (!data || !data.success) {
-      throw new Error('Registration failed.');
+    try {
+      const data = await api.call<ApiResponse<User>>('/v1/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, name }),
+        suppressAuthRedirect: true,
+      });
+      if (!data || !data.success) {
+        throw new ApiError('Registration failed.');
+      }
+      return data.result;
+    } catch (error) {
+      // Surface the server's specific error text (e.g. "An account with this
+      // email already exists.") instead of hiding it behind a generic message.
+      if (error instanceof ApiError) throw error;
+      throw new ApiError('Registration failed.');
     }
-    return data.result;
   },
 };
 
 export const userService = {
-  async getMe(): Promise<User> {
+  async getMe(timeoutMs?: number): Promise<User> {
     const data = await api.call<ApiResponse<User>>('/v1/user/me', {
       suppressAuthRedirect: true,
+      ...(timeoutMs != null ? { timeoutMs } : {}),
     });
     if (!data || !data.success) {
       throw new Error('Failed to fetch user');
@@ -433,6 +450,9 @@ export const scriptService = {
       {
         method: 'PUT',
         body: JSON.stringify(input),
+        // The payload can be up to 1MB - give slow uplinks room without
+        // hitting the 60s default timeout.
+        timeoutMs: 300_000,
       }
     );
     if (!data || !data.success) {
@@ -474,6 +494,9 @@ export const scriptService = {
       `/v1/projects/${projectId}/devices/${deviceId}/script/versions/${versionId}/deploy`,
       {
         method: 'POST',
+        // Deploying bundles the stored script server-side; give slow servers
+        // room beyond the 60s default timeout.
+        timeoutMs: 300_000,
       }
     );
     if (!data || !data.success) {
@@ -576,9 +599,11 @@ export const metricsService = {
     projectId: string,
     deviceId: string,
     window: MetricsWindow = '1h',
+    signal?: AbortSignal,
   ): Promise<DeviceMetrics> {
     const data = await api.call<ApiResponse<DeviceMetrics>>(
       `/v1/projects/${projectId}/devices/${deviceId}/metrics?window=${window}`,
+      signal ? { signal } : undefined,
     );
     if (!data || !data.success) {
       throw new Error('Failed to fetch device metrics');
@@ -589,9 +614,11 @@ export const metricsService = {
   async getProject(
     projectId: string,
     window: MetricsWindow = '12h',
+    signal?: AbortSignal,
   ): Promise<ProjectMetrics> {
     const data = await api.call<ApiResponse<ProjectMetrics>>(
       `/v1/projects/${projectId}/metrics?window=${window}`,
+      signal ? { signal } : undefined,
     );
     if (!data || !data.success) {
       throw new Error('Failed to fetch project metrics');

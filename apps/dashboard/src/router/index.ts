@@ -4,8 +4,10 @@ import {
   createWebHashHistory,
   createWebHistory,
 } from 'vue-router';
+import { Notify } from 'quasar';
 import routes from './routes';
 import { useAuthStore } from '@/stores/auth';
+import { isAllowedRedirectUrl } from '@/lib/redirect';
 
 export default function () {
   const createHistory = process.env.SERVER
@@ -40,13 +42,36 @@ export default function () {
 
     if (isPublic) {
       if (isAuthenticated && to.path === '/login') {
-        next('/');
+        // An authenticated user who lands on /login (e.g. via a stale
+        // bookmark with ?redirect_uri=) is bounced to their destination
+        // instead of the home page, matching what LoginPage does for
+        // anonymous users after they sign in.
+        const redirectUri = to.query.redirect_uri;
+        if (typeof redirectUri === 'string' && isAllowedRedirectUrl(redirectUri)) {
+          window.location.href = redirectUri;
+        } else {
+          next('/');
+        }
       } else {
         next();
       }
     } else {
       if (!isAuthenticated) {
-        next('/login');
+        if (authStore.networkError) {
+          // The auth probe failed because the server was unreachable - that
+          // is not a sign-out. Don't bounce to /login (which would present
+          // the outage as bad credentials); hold the navigation and tell the
+          // user to retry.
+          Notify.create({
+            type: 'warning',
+            message:
+              'Unable to reach the server. Check your connection and try again.',
+            position: 'top',
+          });
+          next(false);
+        } else {
+          next('/login');
+        }
       } else {
         next();
       }

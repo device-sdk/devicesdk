@@ -16,10 +16,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => user.value !== null);
 
-  const fetchUser = async (): Promise<User | null> => {
+  const fetchUser = async (timeoutMs?: number): Promise<User | null> => {
     try {
       loading.value = true;
-      const fetchedUser = await userService.getMe();
+      const fetchedUser = await userService.getMe(timeoutMs);
       user.value = fetchedUser;
       networkError.value = false;
       return fetchedUser;

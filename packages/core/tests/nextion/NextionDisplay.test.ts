@@ -309,8 +309,22 @@ describe("NextionDisplay", () => {
 			});
 			await display.connect();
 
+			await expect(display.get("nTemp")).rejects.toThrow("exceeded 64 bytes");
+		});
+
+		it("throws when the reply ends without a terminator", async () => {
+			const { device } = makeDevice();
+			// One short burst, then a quiet bus - the reply is complete but
+			// was never frame-terminated.
+			queueReplies(device, { data: ["0x32", "0x35"], bytes_read: 2 });
+			const display = new NextionDisplay(device, {
+				...BASE,
+				getTimeoutMs: 500,
+			});
+			await display.connect();
+
 			await expect(display.get("nTemp")).rejects.toThrow(
-				"without a terminator",
+				"ended without a terminator",
 			);
 		});
 

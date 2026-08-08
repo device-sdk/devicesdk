@@ -249,6 +249,7 @@ export class NextionDisplay {
 		const chunkMs = Math.min(GET_CHUNK_MS, this.getTimeoutMs);
 		const bytes: string[] = [];
 		let waited = 0;
+		let replyComplete = false;
 		while (waited < this.getTimeoutMs && bytes.length < this.getBufferSize) {
 			const response = await this.device.uartRead(
 				this.port,
@@ -282,7 +283,10 @@ export class NextionDisplay {
 			}
 			// Quiet bus after some bytes: the panel's reply burst is complete,
 			// but it was not frame-terminated.
-			if (bytes.length > 0 && data.length === 0) break;
+			if (bytes.length > 0 && data.length === 0) {
+				replyComplete = true;
+				break;
+			}
 		}
 
 		if (bytes.length === 0) {
@@ -290,8 +294,18 @@ export class NextionDisplay {
 				`Nextion get: no reply for "${component}.${attribute}" - check the component name, wiring, and baud rate`,
 			);
 		}
+		if (replyComplete) {
+			throw new Error(
+				`Nextion get: the reply for "${component}.${attribute}" ended without a terminator (reply length ${bytes.length})`,
+			);
+		}
+		if (bytes.length >= this.getBufferSize) {
+			throw new Error(
+				`Nextion get: reply for "${component}.${attribute}" exceeded ${this.getBufferSize} bytes without a terminator (raise getBufferSize)`,
+			);
+		}
 		throw new Error(
-			`Nextion get: reply for "${component}.${attribute}" exceeded ${this.getBufferSize} bytes without a terminator (raise getBufferSize)`,
+			`Nextion get: reply for "${component}.${attribute}" did not terminate within the ${this.getTimeoutMs} ms timeout budget (got ${bytes.length} bytes)`,
 		);
 	}
 

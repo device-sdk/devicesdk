@@ -303,7 +303,7 @@ export function useSimulator() {
 			case "uart_write": {
 				const data = command.payload.data;
 				simulator.addLog(
-					`UART write port ${command.payload.port}: [${data.join(", ")}]${asciiSummary(data)}`,
+					`UART write port ${command.payload.port}: ${bytesSummary(data)}`,
 					"uart_write",
 				);
 				return ack(command);
@@ -315,7 +315,7 @@ export function useSimulator() {
 					command.payload.bytes_to_read,
 				);
 				simulator.addLog(
-					`UART read port ${command.payload.port}: ${bytesRead} byte(s) [${data.join(", ")}]${bytesRead > 0 ? asciiSummary(data) : ""}`,
+					`UART read port ${command.payload.port}: ${bytesRead} byte(s) ${bytesSummary(data)}`,
 					"uart_read",
 				);
 				return {
@@ -376,21 +376,20 @@ function errorReply(command: DeviceCommand, error: string): DeviceResponse {
 /** Matches the server-side ROM validation (`deviceSender.ts`). */
 const ROM_RE = /^[0-9A-F]{16}$/;
 
-/**
- * Compact ASCII rendering of hex-string bytes for log lines, e.g.
- * `("page 0")`. Non-printable bytes render as dots; long payloads are
- * truncated so the event log stays readable.
- */
-const ASCII_SUMMARY_MAX = 48;
+/** Cap on hex bytes rendered per log line, so big writes stay readable. */
+const LOG_BYTES_MAX = 48;
 
-function asciiSummary(data: string[]): string {
-	const shown = data.slice(0, ASCII_SUMMARY_MAX);
-	const chars = shown.map((hex) => {
-		const code = Number.parseInt(hex, 16);
+/** Compact hex + ASCII rendering of bytes for log lines. */
+function bytesSummary(data: string[]): string {
+	if (data.length === 0) return "[]";
+	const shown = data.slice(0, LOG_BYTES_MAX);
+	const hex = shown.join(", ");
+	const suffix = data.length > LOG_BYTES_MAX ? " ..." : "";
+	const chars = shown.map((hexByte) => {
+		const code = Number.parseInt(hexByte, 16);
 		return code >= 0x20 && code <= 0x7e ? String.fromCharCode(code) : ".";
 	});
-	const ellipsis = data.length > ASCII_SUMMARY_MAX ? "..." : "";
-	return ` (${chars.join("")}${ellipsis})`;
+	return `[${hex}${suffix}] (${chars.join("")}${suffix})`;
 }
 
 /** ROM code of the single DS18B20 the simulated OneWire bus always reports. */

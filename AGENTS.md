@@ -293,11 +293,15 @@ The monorepo uses `@changesets/cli` for versioning and release management.
 
 ## CI Runner Image
 
-CI jobs labelled `[self-hosted, linux, proxmox-ephemeral]` run on a Proxmox VM
-image the user maintains out-of-band. If a workflow needs a missing system
-package, **ask the user to add it to the base image** - no passwordless sudo, no
-userspace workarounds unless explicitly chosen. `firmware-esp32.yml` keeps a
-comment near `runs-on:` listing required libs.
+All CI runs on GitHub-hosted `ubuntu-latest` (free for public repos) except
+`firmware-esp32.yml`, which stays on `[self-hosted, linux, proxmox-ephemeral]`
+because ESP-IDF builds are faster there. That image is a Proxmox VM the user
+maintains out-of-band. If a workflow needs a missing system package, **ask the
+user to add it to the base image** - no passwordless sudo, no userspace
+workarounds unless explicitly chosen. `firmware-esp32.yml` keeps a comment near
+`runs-on:` listing required libs. GitHub-hosted runners have passwordless sudo,
+so other workflows may `apt-get install` what they need (see the pico toolchain
+step in `firmware-pico.yml`).
 
 ## Coding Standards
 

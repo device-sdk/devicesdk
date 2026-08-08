@@ -20,7 +20,7 @@ permissions:
 jobs:
   lint:
     name: Lint
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     if: >
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
@@ -48,7 +48,7 @@ jobs:
 
   typecheck:
     name: Type Check
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     if: >
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
@@ -74,7 +74,7 @@ jobs:
   test:
     name: Test
     needs: [lint, typecheck]
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     if: >
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
@@ -86,8 +86,7 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
-      # The @devicesdk/server test script runs on Bun, which isn't on the
-      # self-hosted runner's default PATH.
+      # The @devicesdk/server test script runs on Bun (via oven-sh/setup-bun).
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: '1.3.14'
@@ -105,7 +104,7 @@ jobs:
   server-e2e-tests:
     name: Server E2E Tests
     needs: [lint, typecheck]
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     if: >
       github.event_name == 'push' ||
@@ -136,7 +135,7 @@ jobs:
     if: >
       (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
       (github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && github.event.pull_request.user.login == 'dependabot[bot]')
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -155,7 +154,7 @@ jobs:
       (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
       (github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && github.event.pull_request.user.login == 'dependabot[bot]')
     needs: component-tests
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -168,18 +167,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: '1.3.14'
-      # The shared self-hosted runner's global pnpm store can be left in a bad
-      # state by earlier jobs, causing transient segfaults during install. Retry
-      # once after wiping the store if the first attempt crashes.
-      - name: Install dependencies
-        run: |
-          for attempt in 1 2; do
-            pnpm install --frozen-lockfile && exit 0
-            echo "pnpm install failed on attempt $attempt; clearing store and retrying"
-            rm -rf "$(pnpm store path)" || true
-            sleep 5
-          done
-          exit 1
+      - run: pnpm install --frozen-lockfile
       - name: Restore Turbo cache
         uses: actions/cache@v6
         with:
@@ -198,23 +186,11 @@ jobs:
           restore-keys: |
             playwright-${{ runner.os }}-
       - name: Install Playwright browsers
-        # System libs are pre-installed on the self-hosted runner — skip --with-deps
-        # which requires passwordless sudo. Browser binaries still cache to ~/.cache.
-        run: npx playwright install chromium
+        run: npx playwright install --with-deps chromium
         working-directory: apps/dashboard
-      # The same pnpm-store corruption that can crash install can also crash
-      # native modules (esbuild/rollup) inside quasar dev during the test run.
-      # Retry once with a full store wipe + reinstall if the first attempt fails.
       - name: Run E2E tests
-        run: |
-          for attempt in 1 2; do
-            (cd apps/dashboard && npx playwright test --config tests/e2e/playwright.config.ts) && exit 0
-            echo "E2E attempt $attempt failed; wiping pnpm store and reinstalling"
-            rm -rf "$(pnpm store path)" || true
-            pnpm install --frozen-lockfile
-            pnpm build --filter @devicesdk/core
-          done
-          exit 1
+        run: npx playwright test --config tests/e2e/playwright.config.ts
+        working-directory: apps/dashboard
       - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v7
@@ -227,7 +203,7 @@ jobs:
 
   openapi-schema:
     name: OpenAPI Schema
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     if: >
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
@@ -253,7 +229,7 @@ jobs:
     if: >
       (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
       (github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && github.event.pull_request.user.login == 'dependabot[bot]')
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:

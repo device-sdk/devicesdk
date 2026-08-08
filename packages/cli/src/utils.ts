@@ -95,7 +95,10 @@ export async function loadConfig(
 			await fs.mkdir(tempDir, { recursive: true });
 			const tempFile = path.join(tempDir, "config.mjs");
 			await fs.writeFile(tempFile, code);
-			configUrl = pathToFileURL(tempFile).href;
+			// Cache-bust the import: the compiled file path is stable, so a
+			// second loadConfig in the same process would otherwise return the
+			// previously cached (possibly stale) module.
+			configUrl = `${pathToFileURL(tempFile).href}?v=${Date.now()}`;
 		} else {
 			configUrl = pathToFileURL(resolvedPath).href;
 		}

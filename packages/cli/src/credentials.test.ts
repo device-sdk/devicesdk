@@ -37,6 +37,8 @@ describe("credentials", () => {
 	let writeFileSpy: MockInstance;
 	let mkdirSpy: MockInstance;
 	let unlinkSpy: MockInstance;
+	let chmodSpy: MockInstance;
+	let renameSpy: MockInstance;
 
 	beforeEach(() => {
 		vi.resetAllMocks();
@@ -52,6 +54,8 @@ describe("credentials", () => {
 			.mockResolvedValue(undefined as never);
 		mkdirSpy = vi.spyOn(fs, "mkdir").mockResolvedValue(undefined as never);
 		unlinkSpy = vi.spyOn(fs, "unlink").mockResolvedValue(undefined as never);
+		chmodSpy = vi.spyOn(fs, "chmod").mockResolvedValue(undefined as never);
+		renameSpy = vi.spyOn(fs, "rename").mockResolvedValue(undefined as never);
 	});
 
 	afterEach(() => {
@@ -71,22 +75,52 @@ describe("credentials", () => {
 			const result = await loadCredentials();
 			expect(result).toEqual(creds);
 		});
+
+		it("should exit with a clear message when the file is corrupt", async () => {
+			const processExitSpy = vi
+				.spyOn(process, "exit")
+				.mockImplementation((() => {
+					throw new Error("process.exit");
+				}) as never);
+			const consoleErrorSpy = vi
+				.spyOn(console, "error")
+				.mockImplementation(() => {});
+			readFileSpy.mockResolvedValue(Buffer.from("{ not json"));
+
+			await expect(loadCredentials()).rejects.toThrow("process.exit");
+			expect(processExitSpy).toHaveBeenCalledWith(3); // NOT_AUTHENTICATED
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Credentials file is corrupt"),
+			);
+			processExitSpy.mockRestore();
+			consoleErrorSpy.mockRestore();
+		});
 	});
 
 	describe("saveCredentials", () => {
-		it("should create directory and write credentials file", async () => {
+		it("should create directory and write credentials file atomically", async () => {
 			const creds = makeCredentials();
 
 			await saveCredentials(creds);
 
 			expect(mkdirSpy).toHaveBeenCalledWith(
 				expect.stringContaining(".devicesdk"),
-				{ recursive: true },
+				{ recursive: true, mode: 0o700 },
 			);
+			// Temp file write first, then chmod (umask may have loosened the
+			// writeFile mode), then atomic rename over the real file.
 			expect(writeFileSpy).toHaveBeenCalledWith(
-				expect.stringContaining("credentials.json"),
+				expect.stringContaining("credentials.json.tmp"),
 				JSON.stringify(creds, null, 2),
 				{ mode: 0o600 },
+			);
+			expect(chmodSpy).toHaveBeenCalledWith(
+				expect.stringContaining("credentials.json.tmp"),
+				0o600,
+			);
+			expect(renameSpy).toHaveBeenCalledWith(
+				expect.stringContaining("credentials.json.tmp"),
+				expect.stringContaining("credentials.json"),
 			);
 		});
 	});
@@ -205,6 +239,48 @@ describe("credentials", () => {
 			// behaviour in the requireAuth describe block below.
 			expect(result).not.toBeNull();
 			expect(typeof result).not.toBe("string");
+		});
+
+		it("should refresh when expiresAt is missing (old credential files)", async () => {
+			// Older credential files predate the expiresAt field; omitting it
+			// must be treated as expired so the CLI refreshes proactively.
+			const creds = makeCredentials();
+			const raw = JSON.stringify({ ...creds, expiresAt: undefined });
+			readFileSpy.mockResolvedValue(Buffer.from(raw));
+			refreshTokenMock.mockResolvedValue({
+				access_token: "new-access-token",
+				refresh_token: "new-refresh-token",
+				expires_in: 3600,
+				token_type: "Bearer",
+			});
+
+			const result = await getToken();
+			expect(result).toBe("new-access-token");
+			expect(refreshTokenMock).toHaveBeenCalled();
+		});
+
+		it("should propagate a 429 from refresh (rate limit is not session expiry)", async () => {
+			const creds = makeCredentials({
+				expiresAt: Date.now() - 1000, // expired
+			});
+			readFileSpy.mockResolvedValue(Buffer.from(JSON.stringify(creds)));
+			refreshTokenMock.mockRejectedValue(
+				new DeviceSDKApiError("Too many requests", 429, "rate_limited"),
+			);
+
+			await expect(getToken()).rejects.toBeInstanceOf(DeviceSDKApiError);
+		});
+
+		it("should propagate a 404 from refresh (missing endpoint is not session expiry)", async () => {
+			const creds = makeCredentials({
+				expiresAt: Date.now() - 1000, // expired
+			});
+			readFileSpy.mockResolvedValue(Buffer.from(JSON.stringify(creds)));
+			refreshTokenMock.mockRejectedValue(
+				new DeviceSDKApiError("Endpoint not found", 404),
+			);
+
+			await expect(getToken()).rejects.toBeInstanceOf(DeviceSDKApiError);
 		});
 	});
 

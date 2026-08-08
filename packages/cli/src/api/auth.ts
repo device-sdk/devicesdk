@@ -1,10 +1,12 @@
 import {
 	buildErrorMessage,
+	DEFAULT_REQUEST_TIMEOUT_MS,
 	DeviceSDKApiError,
 	dumpResponseBodyIfVerbose,
 	getApiUrl,
 	parseErrorBody,
 	request,
+	runWithTimeout,
 } from "./shared.js";
 
 // User endpoints
@@ -34,42 +36,48 @@ export interface AuthStartResponse {
 export async function startAuth(): Promise<AuthStartResponse> {
 	const url = `${await getApiUrl()}/v1/cli/auth/start`;
 
-	try {
+	const responseText = await runWithTimeout(async (signal) => {
 		const response = await fetch(url, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({}),
+			signal,
 		});
 
-		const responseText = await response.text();
-		let data: unknown = null;
-		try {
-			data = responseText ? JSON.parse(responseText) : null;
-		} catch {
-			// non-JSON response body
-		}
-
 		if (!response.ok) {
+			const rawText = await response.text();
+			let data: unknown = null;
+			try {
+				data = rawText ? JSON.parse(rawText) : null;
+			} catch {
+				// non-JSON response body
+			}
 			const parsed = parseErrorBody(data);
-			dumpResponseBodyIfVerbose(response.status, data, responseText);
+			dumpResponseBodyIfVerbose(response.status, data, rawText);
 			throw new DeviceSDKApiError(
 				buildErrorMessage(response.status, parsed),
 				response.status,
 				parsed.code,
 				parsed.docs,
-				data ?? responseText,
+				data ?? rawText,
 			);
 		}
 
-		// Unwrap the result
-		const obj = data as { result?: AuthStartResponse } | null;
-		return obj?.result ?? (data as AuthStartResponse);
-	} catch (error) {
-		console.error("startAuth error:", error);
-		throw error;
+		return response.text();
+	}, DEFAULT_REQUEST_TIMEOUT_MS);
+
+	let data: unknown = null;
+	try {
+		data = responseText ? JSON.parse(responseText) : null;
+	} catch {
+		// non-JSON response body
 	}
+
+	// Unwrap the result
+	const obj = data as { result?: AuthStartResponse } | null;
+	return obj?.result ?? (data as AuthStartResponse);
 }
 
 export interface AuthPollResponse {

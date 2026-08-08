@@ -53,12 +53,9 @@ export default async function login(options?: {
 		while (!authResult && Date.now() - startTime < MAX_POLL_TIME) {
 			await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
 
-			try {
-				authResult = await pollAuth(authStart.device_code);
-			} catch (error) {
-				console.error("\npollAuth error:", error);
-				throw error;
-			}
+			// A poll failure propagates to the outer catch (and the global
+			// handler); it must not be double-printed here.
+			authResult = await pollAuth(authStart.device_code);
 
 			if (!authResult && isVerbose) {
 				const elapsed = Math.round((Date.now() - startTime) / 1000);

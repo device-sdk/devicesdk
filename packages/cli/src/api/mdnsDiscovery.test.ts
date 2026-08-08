@@ -108,8 +108,10 @@ describe("discoverMdnsHost", () => {
 		close: () => typeof socketEmitter;
 		addMembership: () => void;
 	};
+	let sendCount = 0;
 
 	beforeEach(() => {
+		sendCount = 0;
 		vi.useFakeTimers({ shouldAdvanceTime: true });
 		process.env = { ...originalEnv };
 		delete process.env.DEVICESDK_MDNS_HOSTNAME;
@@ -128,6 +130,7 @@ describe("discoverMdnsHost", () => {
 					_address: unknown,
 					callback?: (err: Error | null) => void,
 				) {
+					sendCount++;
 					process.nextTick(() => callback?.(null));
 					return socketEmitter;
 				},
@@ -182,5 +185,23 @@ describe("discoverMdnsHost", () => {
 		await vi.advanceTimersByTimeAsync(10);
 		await vi.advanceTimersByTimeAsync(600);
 		await expect(promise).resolves.toBeNull();
+	});
+
+	it("re-sends the query so a single dropped multicast packet does not fail discovery", async () => {
+		// No response arrives, but the query must be sent multiple times
+		// inside the window (multicast UDP is lossy).
+		const promise = discoverMdnsHost({ timeoutMs: 1500 });
+		await vi.advanceTimersByTimeAsync(10); // listening + first query
+		await vi.advanceTimersByTimeAsync(1600); // retries + overall timeout
+		await expect(promise).resolves.toBeNull();
+		expect(sendCount).toBeGreaterThanOrEqual(3);
+	});
+
+	it("resolves null when socket.bind() throws", async () => {
+		// A synchronous bind failure must not escape as an unhandled rejection.
+		socketEmitter.bind = () => {
+			throw new Error("EADDRINUSE");
+		};
+		await expect(discoverMdnsHost({ timeoutMs: 500 })).resolves.toBeNull();
 	});
 });

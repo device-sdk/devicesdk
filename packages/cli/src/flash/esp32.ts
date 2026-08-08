@@ -14,7 +14,19 @@ export interface ESP32FlashOptions {
 const DEFAULT_BAUD = 460800;
 const DEFAULT_TIMEOUT = 60_000;
 
+// Shared by the wait-timeout and pre-flash permission checks so both failure
+// paths point at the same fix.
+const SERIAL_PERMISSION_GUIDANCE =
+	"Fix with:  sudo usermod -a -G dialout $USER  (Debian/Ubuntu/Fedora)\n" +
+	"          sudo usermod -a -G uucp $USER     (Arch Linux)\n" +
+	"Then log out and back in for the group change to take effect.\n" +
+	"For a persistent udev-rule alternative, see:\n" +
+	"  https://docs.devicesdk.com/cli/flash/#serial-port-permissions-linux";
+
 function startSpinner(text: string): () => void {
+	// ANSI \r frames are meaningless when stdout is piped (CI, scripts) -
+	// gate the spinner on a TTY and leave a plain "Flashing..." line instead.
+	if (!process.stdout.isTTY) return () => {};
 	const frames = ["|", "/", "-", "\\"];
 	let idx = 0;
 	process.stdout.write(`${text} ${frames[idx]}`);
@@ -99,10 +111,42 @@ export async function listSerialPorts(): Promise<string[]> {
 
 async function waitForSerialPort(timeoutMs: number): Promise<string> {
 	const start = Date.now();
+	// Snapshot the ports that already exist when the wait starts: a port that
+	// was present before (an unrelated USB serial device, or a board the user
+	// plugged in earlier) must never be selected. Only a port that APPEARS
+	// after the wait started is the one the user just plugged in.
+	const initial = new Set(await listSerialPorts());
 	while (Date.now() - start < timeoutMs) {
 		const ports = await listSerialPorts();
-		if (ports.length > 0) return ports[0];
+		const fresh = ports.filter((port) => !initial.has(port));
+		if (fresh.length === 1) return fresh[0];
+		if (fresh.length > 1) {
+			throw new Error(
+				`Multiple new serial ports detected: ${fresh.join(", ")}.\n` +
+					"Disconnect the extra devices and try again, or pass --port to select one explicitly.",
+			);
+		}
 		await new Promise((resolve) => setTimeout(resolve, 500));
+	}
+	const preExisting = [...initial];
+	if (preExisting.length > 0) {
+		// The board was already connected when the wait started, so no new
+		// port can appear. Name it instead of a generic "not connected" hint,
+		// and surface the dialout fix if it is not writable.
+		for (const port of preExisting) {
+			try {
+				await fs.access(port, fs.constants.R_OK | fs.constants.W_OK);
+			} catch {
+				throw new Error(
+					`Found ${preExisting.join(", ")} - ${port} is not writable (permission denied).\n` +
+						`Unplug and replug the board, or pass --port to flash it directly.\n` +
+						SERIAL_PERMISSION_GUIDANCE,
+				);
+			}
+		}
+		throw new Error(
+			`Found ${preExisting.join(", ")} already connected - unplug and replug the board, or pass --port to flash it directly.`,
+		);
 	}
 	throw new Error(
 		"No serial port detected.\n" +
@@ -133,11 +177,7 @@ export async function flashESP32(
 	} catch {
 		throw new Error(
 			`Serial port ${port} is not accessible (permission denied).\n` +
-				"Fix with:  sudo usermod -a -G dialout $USER  (Debian/Ubuntu/Fedora)\n" +
-				"          sudo usermod -a -G uucp $USER     (Arch Linux)\n" +
-				"Then log out and back in for the group change to take effect.\n" +
-				"For a persistent udev-rule alternative, see:\n" +
-				"  https://docs.devicesdk.com/cli/flash/#serial-port-permissions-linux",
+				SERIAL_PERMISSION_GUIDANCE,
 		);
 	}
 
@@ -153,6 +193,9 @@ export async function flashESP32(
 		"--after",
 		"hard_reset",
 		"write_flash",
+		// esptool v4 does not verify writes by default; verify explicitly so a
+		// silently corrupted flash is caught right after writing.
+		"--verify",
 		"0x0",
 		options.firmwarePath,
 	];

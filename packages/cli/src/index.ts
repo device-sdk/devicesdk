@@ -6,6 +6,7 @@ import { Command } from "commander";
 const require = createRequire(import.meta.url);
 const pkg = require("../package.json") as { version: string };
 
+import { isVerboseLogging } from "./api/shared.js";
 import build from "./commands/build.js";
 import deploy from "./commands/deploy.js";
 import dev from "./commands/dev.js";
@@ -18,8 +19,36 @@ import logout from "./commands/logout.js";
 import logs from "./commands/logs.js";
 import status from "./commands/status.js";
 import whoami from "./commands/whoami.js";
+import { EXIT } from "./exitCodes.js";
+import { emitJsonError, isJsonMode } from "./output.js";
 
 export { defineConfig } from "./config.js";
+
+// Global error boundary: missed async rejections and uncaught exceptions
+// surface raw stack traces with a bare exit(1) otherwise, and in
+// DEVICESDK_OUTPUT=json mode they emit no JSON at all. Map both to the same
+// shape commands use when they self-catch. Deliberate exits (process.exit in
+// commands, SIGINT handling) do not pass through here.
+function handleFatalError(error: unknown): void {
+	const message = error instanceof Error ? error.message : String(error);
+	if (isJsonMode()) {
+		emitJsonError(`Unexpected error: ${message}`, {
+			code: "unexpected_error",
+		});
+	} else {
+		console.error(`✗ Unexpected error: ${message}`);
+		if (isVerboseLogging() && error instanceof Error && error.stack) {
+			console.error(error.stack);
+		}
+		console.error(
+			"This may be a bug - please open an issue at: https://github.com/device-sdk/devicesdk/issues",
+		);
+	}
+	process.exit(EXIT.GENERIC);
+}
+
+process.on("unhandledRejection", (reason) => handleFatalError(reason));
+process.on("uncaughtException", (error) => handleFatalError(error));
 
 const program = new Command();
 
@@ -239,7 +268,25 @@ Examples:
   $ devicesdk flash esp32-device --port /dev/cu.usbserial-0001
   $ devicesdk flash pico-w-device --host http://192.168.1.50:9000`,
 	)
-	.action((deviceId, options) => flash(deviceId, options));
+	.action((deviceId, options) => {
+		// parseInt coercion above turns garbage into NaN, which would flow
+		// into waitForSerialPort(NaN) or `esptool --baud NaN`. Validate here.
+		if (
+			options.timeout !== undefined &&
+			(!Number.isInteger(options.timeout) || options.timeout <= 0)
+		) {
+			console.error("✗ Error: --timeout must be a positive integer (ms)");
+			process.exit(EXIT.CONFIG_INVALID);
+		}
+		if (
+			options.baud !== undefined &&
+			(!Number.isInteger(options.baud) || options.baud <= 0)
+		) {
+			console.error("✗ Error: --baud must be a positive integer");
+			process.exit(EXIT.CONFIG_INVALID);
+		}
+		return flash(deviceId, options);
+	});
 
 program
 	.command("status")

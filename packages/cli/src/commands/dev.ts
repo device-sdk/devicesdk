@@ -34,6 +34,55 @@ function sanitizeCapnpId(s: string): string {
 	return s.replace(/[^a-zA-Z0-9_]/g, "_");
 }
 
+// workerd's `process.env` is populated from the worker's TEXT bindings, never
+// from the workerd process's own environment. The CLI's env vars are
+// enumerated here into per-var text bindings (binding name = env var name) on
+// the dev worker so the device bridge AND `process.env` (via
+// nodejs_compat_populate_process_env) both see them in `devicesdk dev`. A
+// marker binding lists the carried keys so the bridge can enumerate them; the
+// count is capped so the generated config stays small and predictable.
+const MAX_SIMULATED_ENV_VARS = 100;
+const VARS_KEYS_BINDING = "DEVICESDK_VARS_KEYS";
+
+// capnp text literals use C-style escapes. JSON-escaped strings only contain
+// `\` and `"`, but raw env values may contain control characters too.
+function escapeCapnpText(s: string): string {
+	let out = "";
+	for (const ch of s) {
+		if (ch === "\\") out += "\\\\";
+		else if (ch === '"') out += '\\"';
+		else if (ch === "\n") out += "\\n";
+		else if (ch === "\r") out += "\\r";
+		else if (ch === "\t") out += "\\t";
+		else if (ch.charCodeAt(0) < 0x20) {
+			out += `\\x${ch.charCodeAt(0).toString(16).padStart(2, "0")}`;
+		} else {
+			out += ch;
+		}
+	}
+	return out;
+}
+
+function buildEnvVarBindings(): string {
+	// A user env var named exactly like the marker would be ambiguous with
+	// the keys list - it is excluded from the simulated VARS view.
+	const entries = Object.entries(process.env).filter(
+		(entry): entry is [string, string] =>
+			entry[1] !== undefined && entry[0] !== VARS_KEYS_BINDING,
+	);
+	const keys = entries.slice(0, MAX_SIMULATED_ENV_VARS).map(([key]) => key);
+	const bindings = [
+		`(name = "${VARS_KEYS_BINDING}", text = "${escapeCapnpText(JSON.stringify(keys))}")`,
+		...entries
+			.slice(0, MAX_SIMULATED_ENV_VARS)
+			.map(
+				([key, value]) =>
+					`(name = "${escapeCapnpText(key)}", text = "${escapeCapnpText(value)}")`,
+			),
+	];
+	return bindings.join(",");
+}
+
 const generateCapnpConfig = (
 	devices: Record<string, DeviceWithClass>,
 	entrypointPath: string,
@@ -75,10 +124,14 @@ const config :Workerd.Config = (
 
 const devWorker :Workerd.Worker = (
   compatibilityDate = "2025-01-01",
-
+  # nodejs_compat_populate_process_env fills process.env from the worker
+  # text bindings (the compat date 2025-01-01 predates that default).
+  compatibilityFlags = [ "nodejs_compat", "nodejs_compat_populate_process_env" ],
   modules = [
     (name = "entry.js", esModule = embed "${entrypointPath}"),
   ],
+
+  bindings = [${buildEnvVarBindings()}],
 
   durableObjectNamespaces = [${durableObjects}],
   durableObjectStorage = (inMemory = void),

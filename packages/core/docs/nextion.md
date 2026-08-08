@@ -81,13 +81,14 @@ Common ESP32 DevKit wiring: UART2 with TX=GPIO17, RX=GPIO16.
 |--------|---------------------|
 | `connect()` | `uart_configure` for the port/pins/baud |
 | `setPage(page)` | `page <n>` |
-| `setText(component, value)` | `<comp>.txt="<value>"` (quotes escaped) |
+| `setText(component, value)` | `<comp>.txt="<value>"` - quotes/control chars stripped, `\\` and `\r` escapes encoded |
 | `setNumber(component, value)` | `<comp>.val=<value>` |
 | `setVisible(component, visible)` | `vis <comp>,<0/1>` |
-| `setTextColor(component, color)` | `pco <comp>,<color>` |
-| `setBackgroundColor(component, color)` | `bco <comp>,<color>` |
+| `setTextColor(component, color)` | `pco <comp>,<color>` (16-bit 565 RGB) |
+| `setBackgroundColor(component, color)` | `bco <comp>,<color>` (16-bit 565 RGB) |
 | `refresh(component)` | `ref <comp>` |
-| `get(component)` | `get <comp>.<attr>` - resolves with the reply, terminator stripped |
+| `get(component, attribute?)` | `get <comp>.<attr>` (defaults to `.val`) - resolves with the reply, terminator stripped |
+| `getNumber(component)` | `get <comp>.val` parsed as a number (decimal or hex) |
 | `sendRaw(instruction)` | raw instruction + terminator, for anything not covered |
 
 ### Static helpers
@@ -101,13 +102,27 @@ Common ESP32 DevKit wiring: UART2 with TX=GPIO17, RX=GPIO16.
 ## Reading values with `get`
 
 ```typescript
-const reply = await this.display.get('nTemp.val');
-// "25" on most firmware versions (some reply in hex - parse accordingly)
+const reply = await this.display.get('nTemp');       // get nTemp.val
+const title = await this.display.get('tTitle', 'txt'); // get tTitle.txt
+const temp = await this.display.getNumber('nTemp');  // parsed: 25
 ```
 
 `get` is request/response: the panel answers with the value plus the
-`0xFF 0xFF 0xFF` terminator, which the driver strips. Reply frames longer
-than `getBufferSize` bytes are truncated - use it for short values.
+`0xFF 0xFF 0xFF` terminator, which the driver strips (any `bkcmd` ack bytes
+after the terminator are ignored). The driver reads in short chunks until it
+sees the terminator, bounded by `getTimeoutMs` (default 500 ms) and
+`getBufferSize` (default 64 bytes).
+
+`get` **throws** instead of guessing when something is wrong:
+
+- **No reply** (wrong component name, wiring, or baud rate) - the panel sent
+  nothing within the timeout budget.
+- **Truncated reply** - more than `getBufferSize` bytes without a terminator;
+  raise `getBufferSize` for long `.txt` values.
+- **Panel error** - the panel answered with its `0x00` error byte.
+
+`getNumber` parses both the decimal replies most firmware versions send and
+the hex replies (`0x19`) some panels send for numeric `.val` attributes.
 
 ## Reading raw responses (pull model)
 
@@ -144,5 +159,9 @@ without hardware.
    regulator can supply.
 3. **Keep values short** - text components have a fixed length in the Editor;
    longer strings are truncated by the panel itself.
-4. **Use `sendRaw` for one-off instructions** - e.g. `dim=50` for backlight
+4. **Use ASCII text** - Nextion panels render their own font codepage, not
+   UTF-8; non-ASCII characters like `°` typically show as garbage. Stick to
+   printable ASCII; `\r` (encoded as `\\r` in a value) is the panel's
+   newline.
+5. **Use `sendRaw` for one-off instructions** - e.g. `dim=50` for backlight
    brightness, `sleep=1` / `wake=1`, `cls` to clear a page.

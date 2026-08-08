@@ -378,15 +378,19 @@ const ROM_RE = /^[0-9A-F]{16}$/;
 
 /**
  * Compact ASCII rendering of hex-string bytes for log lines, e.g.
- * `("page 0")`. Non-printable bytes render as dots. Empty when nothing is
- * printable - callers append it only when it adds value.
+ * `("page 0")`. Non-printable bytes render as dots; long payloads are
+ * truncated so the event log stays readable.
  */
+const ASCII_SUMMARY_MAX = 48;
+
 function asciiSummary(data: string[]): string {
-	const chars = data.map((hex) => {
+	const shown = data.slice(0, ASCII_SUMMARY_MAX);
+	const chars = shown.map((hex) => {
 		const code = Number.parseInt(hex, 16);
 		return code >= 0x20 && code <= 0x7e ? String.fromCharCode(code) : ".";
 	});
-	return ` (${chars.join("")})`;
+	const ellipsis = data.length > ASCII_SUMMARY_MAX ? "..." : "";
+	return ` (${chars.join("")}${ellipsis})`;
 }
 
 /** ROM code of the single DS18B20 the simulated OneWire bus always reports. */

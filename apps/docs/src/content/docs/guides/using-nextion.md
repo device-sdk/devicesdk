@@ -16,7 +16,7 @@ panel, and then drive the components from your device script over UART.
 |----------|-------|-------|
 | ESP32 | UART1, UART2 | UART0 reserved for debug console |
 | Pico W / Pico 2 W | UART0, UART1 | Both available |
-| Simulator | port 0 | `uart_*` mock + byte injector |
+| Simulator | ports 0-2 | `uart_*` mock + byte injector (UART panel) |
 
 ## Wiring
 
@@ -82,13 +82,14 @@ The baud rate must match the one configured in the Nextion Editor (default
 |--------|---------------------|
 | `connect()` | configures the UART port |
 | `setPage(page)` | `page <n>` |
-| `setText(component, value)` | `<comp>.txt="<value>"` (quotes escaped) |
+| `setText(component, value)` | `<comp>.txt="<value>"` - quotes/control chars stripped, `\\` and `\r` escapes encoded |
 | `setNumber(component, value)` | `<comp>.val=<value>` |
 | `setVisible(component, visible)` | `vis <comp>,<0/1>` |
-| `setTextColor(component, color)` | `pco <comp>,<color>` |
-| `setBackgroundColor(component, color)` | `bco <comp>,<color>` |
+| `setTextColor(component, color)` | `pco <comp>,<color>` (16-bit 565 RGB) |
+| `setBackgroundColor(component, color)` | `bco <comp>,<color>` (16-bit 565 RGB) |
 | `refresh(component)` | `ref <comp>` |
-| `get(component)` | `get <comp>.<attr>` - resolves with the reply |
+| `get(component, attribute?)` | `get <comp>.<attr>` (defaults to `.val`) - resolves with the reply |
+| `getNumber(component)` | `get <comp>.val` parsed as a number (decimal or hex) |
 | `sendRaw(instruction)` | any instruction not covered above, terminator appended |
 
 ### Static helpers
@@ -102,15 +103,24 @@ The baud rate must match the one configured in the Nextion Editor (default
 ## Reading Values
 
 `get` is request/response - the panel answers with the value plus the
-`0xFF 0xFF 0xFF` terminator, which the driver strips:
+`0xFF 0xFF 0xFF` terminator, which the driver strips (any `bkcmd` ack bytes
+after the terminator are ignored):
 
 ```typescript
-const reply = await this.display.get("nTemp.val");
-console.log(reply); // "25" on most firmware versions (some reply in hex)
+const reply = await this.display.get("nTemp");        // get nTemp.val
+const title = await this.display.get("tTitle", "txt"); // get tTitle.txt
+const temp = await this.display.getNumber("nTemp");   // parsed: 25
 ```
 
-Replies longer than `getBufferSize` bytes are truncated - use it for short
-values. For data the panel pushes on its own, read the port directly with
+The driver reads in short chunks until it sees the terminator, bounded by
+`getTimeoutMs` (default 500 ms) and `getBufferSize` (default 64 bytes).
+`get` **throws** instead of guessing: no reply (wrong component name,
+wiring, or baud rate), a reply longer than `getBufferSize` without a
+terminator (raise it for long `.txt` values), or the panel's `0x00` error
+byte. `getNumber` parses both decimal replies and the hex replies some panel
+firmwares send.
+
+For data the panel pushes on its own, read the port directly with
 `DEVICE.uartRead` and decode with the helper:
 
 ```typescript
@@ -127,8 +137,9 @@ Touch events are **not yet supported**. Receiving them requires an
 event-driven UART receive path on the firmware (a `uart_monitor` command that
 pushes incoming bytes as `uart_data` events into `onMessage`) - this is
 planned Phase 2 work; the design lives in
-`docs/designs/nextion-dev-experience.md` in the repo. Until it lands, scripts
-that need touch input must poll `DEVICE.uartRead` from a cron.
+[docs/designs/nextion-dev-experience.md](https://github.com/device-sdk/devicesdk/blob/main/docs/designs/nextion-dev-experience.md).
+Until it lands, scripts that need touch input must poll `DEVICE.uartRead`
+from a cron.
 :::
 
 The `devicesdk dev` simulator's UART panel can inject raw bytes into a port's
@@ -145,9 +156,12 @@ is a complete dashboard: ESP32 with UART2, updating `tTitle`, `tTime`,
 ## Troubleshooting
 
 - **Garbage on the panel** - baud mismatch: the driver's `baudRate` differs
-  from the panel's setting.
+  from the panel's setting. Non-ASCII characters (e.g. `°`) also render as
+  garbage - Nextion panels use their own font codepage, keep text ASCII.
 - **No `comok` boot string on power-up** - check wiring (RX/TX crossed), a
   common ground, and that the panel is powered.
 - **Component stays empty** - the Editor's component length limit is smaller
   than the value you sent; text is silently truncated by the panel.
+- **`get` throws "no reply"** - wrong component name, wiring, or baud rate;
+  the driver never guesses, it errors.
 - **Missing touch events** - expected; see the touch callout above.

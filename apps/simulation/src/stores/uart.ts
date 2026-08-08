@@ -11,6 +11,9 @@ export interface UartPortState {
 
 const HEX_TOKEN_RE = /^[0-9A-Fa-f]{1,2}$/;
 
+/** Cap on bytes per simulated port buffer - enough for any real frame. */
+const MAX_BUFFERED_BYTES = 4096;
+
 /**
  * Parse a user-typed string like `"41 42 FF FF FF"` (or `"0x41,0xFF"`) into
  * the `"0x.."` hex-string byte format used by `uart_*` payloads. Throws on
@@ -28,7 +31,7 @@ export function parseHexBytes(input: string): string[] {
 			);
 		}
 	}
-	return tokens.map((t) => `0x${t.toUpperCase()}`);
+	return tokens.map((t) => `0x${t.toUpperCase().padStart(2, "0")}`);
 }
 
 /**
@@ -61,7 +64,11 @@ export const useUartStore = defineStore("uart", () => {
 	}
 
 	function injectBytes(port: number, bytes: string[]) {
-		ensurePort(port).receiveBuffer.push(...bytes);
+		const state = ensurePort(port);
+		state.receiveBuffer.push(...bytes);
+		if (state.receiveBuffer.length > MAX_BUFFERED_BYTES) {
+			state.receiveBuffer.length = MAX_BUFFERED_BYTES;
+		}
 	}
 
 	function takeRead(

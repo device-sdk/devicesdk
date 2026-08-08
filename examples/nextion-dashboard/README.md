@@ -8,7 +8,7 @@ into a live dashboard. The device script updates text components on the panel
 ┌───────────────────────────────┐
 │  DeviceSDK                    │  ← tTitle
 │  14:32:05                     │  ← tTime      (updated every 5s)
-│  27.3 °C                      │  ← tTemp
+│  27.3 C                       │  ← tTemp
 │  12m 34s                      │  ← tUptime
 └───────────────────────────────┘
 ```

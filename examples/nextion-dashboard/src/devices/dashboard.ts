@@ -72,12 +72,14 @@ export class DashboardDevice extends DeviceEntrypoint {
 
 		// The onboard temperature sensor is a cheap example value; replace this
 		// with any data your script has (HTTP, sensors, other devices via RPC).
+		// ASCII only: Nextion panels render their own font codepage, so the
+		// UTF-8 degree sign (°) would show up as garbage on most panels.
 		const temp = await this.env.DEVICE.getTemperature();
 		const celsius =
 			temp.type === "temperature_result" ? temp.payload.celsius : NaN;
 
 		await this.display.setText("tTime", time);
-		await this.display.setText("tTemp", `${celsius.toFixed(1)} °C`);
+		await this.display.setText("tTemp", `${celsius.toFixed(1)} C`);
 		await this.display.setText("tUptime", uptime);
 	}
 }

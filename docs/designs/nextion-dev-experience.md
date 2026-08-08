@@ -1,7 +1,8 @@
 # Nextion Display Development Experience - Investigation
 
 Date: 2026-08-08
-Status: Proposal (no code shipped)
+Status: Phase 1 shipped in PR #230 (driver, docs, example, simulator injector).
+        Phase 2 (firmware `uart_monitor`/`uart_data` push + reactive touch) planned.
 
 ## Background
 
@@ -29,7 +30,7 @@ from a user script, but with friction:
 | `uart_write` payload | `string[]` of hex bytes, e.g. `["0x41","0x54"]`, capped at 4096 bytes |
 | `uart_read` semantics | Pull-based: `{port, bytes_to_read, timeout_ms}` (default 1000 ms); returns `data: string[]` (hex) + `bytes_read` |
 | RX buffering | 1024-byte RX buffer on ESP32; no "bytes available" query, no unsolicited RX push |
-| Simulator | `uart_configure`/`uart_write` log-only, `uart_read` always returns empty (`useSimulator.ts:286-316`) |
+| Simulator | UART injector panel (ports 0-2): per-port receive buffers, hex+ASCII event log; `uart_read` returns injected bytes |
 | Display abstraction | `display_update` is I2C SSD1306/SH1106 only; nothing for serial displays |
 | Docs | `guides/using-uart.md` covers raw UART; no display-specific guide beyond I2C OLED |
 
@@ -157,6 +158,25 @@ Phase 2 leftovers (D/E - string-mode `uart_write` payloads and an
 `uart_bytes_available` drain query) are cheap and high value for all serial
 peripherals, not just Nextion - pick them up opportunistically when firmware
 changes next land.
+
+## Update (2026-08-08)
+
+Phase 1 (**A + B + C**) shipped in PR #230: the `NextionDisplay` driver
+(`@devicesdk/core/nextion` subpath), the `using-nextion.md` guide +
+`nextion-dashboard` example, and the simulator UART injector panel. Deviations
+from the proposal above:
+
+- Option A's reactive touch API (`startTouchMonitoring`, `handleIncoming`,
+  `onTouch` callbacks) was **not** shipped - it depends on F and stays in
+  Phase 2.
+- The driver's `get` reads in short chunks until the `0xFF 0xFF 0xFF`
+  terminator and throws on no reply / truncation / panel error bytes.
+- `setText` strips quotes (the instruction set has no `\"` escape) and
+  encodes `\\` and `\r`.
+- `getNumber` parses decimal and hex `.val` replies.
+- The simulator injector is pull-based (bytes returned by `uart_read`);
+  touch presets are provided for frame-parsing practice, but there is no
+  event path - F remains the touch enabler.
 
 ## Risks
 

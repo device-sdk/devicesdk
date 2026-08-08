@@ -261,6 +261,33 @@ export class LocalDeviceSender implements DeviceSenderInterface {
 		});
 	}
 
+	async onewireSearch(pin: number): Promise<DeviceResponse> {
+		return this.sendCommandAndWait({
+			type: "onewire_search",
+			payload: { pin },
+		});
+	}
+
+	async onewireReadTemperature(
+		pin: number,
+		rom?: string,
+	): Promise<DeviceResponse> {
+		return this.sendCommandAndWait({
+			type: "onewire_read_temp",
+			payload: rom === undefined ? { pin } : { pin, rom },
+		});
+	}
+
+	async dhtRead(
+		pin: number,
+		model: "dht11" | "dht22",
+	): Promise<DeviceResponse> {
+		return this.sendCommandAndWait({
+			type: "dht_read",
+			payload: { pin, model },
+		});
+	}
+
 	async persistLog(_level: string, _message: string): Promise<void> {
 		// No-op in local simulator - logs go to console directly
 	}

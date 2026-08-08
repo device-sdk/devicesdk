@@ -58,6 +58,9 @@ static void handle_spi_read(const worker_command_t *cmd, worker_response_t *resp
 static void handle_uart_configure(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_uart_write(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_uart_read(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_onewire_search(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_onewire_read_temp(const worker_command_t *cmd, worker_response_t *resp);
+static void handle_dht_read(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_display_update(const worker_command_t *cmd, worker_response_t *resp);
 static void handle_reboot(const worker_command_t *cmd, worker_response_t *resp);
 
@@ -104,6 +107,15 @@ worker_response_t worker_execute_command(const worker_command_t *cmd) {
             break;
         case CMD_I2C_READ:
             handle_i2c_read(cmd, &resp);
+            break;
+        case CMD_ONEWIRE_SEARCH:
+            handle_onewire_search(cmd, &resp);
+            break;
+        case CMD_ONEWIRE_READ_TEMP:
+            handle_onewire_read_temp(cmd, &resp);
+            break;
+        case CMD_DHT_READ:
+            handle_dht_read(cmd, &resp);
             break;
         case CMD_GET_TEMPERATURE:
             handle_get_temperature(cmd, &resp);
@@ -369,6 +381,71 @@ static void handle_get_temperature(const worker_command_t *cmd, worker_response_
     }
     resp->status = RESPONSE_SUCCESS;
     resp->data.temperature.celsius = celsius;
+}
+
+static void handle_onewire_search(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t pin = cmd->payload.onewire_search.pin;
+    uint8_t roms[MAX_ONEWIRE_ROMS][ONEWIRE_ROM_LEN];
+    int count = devicesdk_hal_onewire_search(pin, roms, MAX_ONEWIRE_ROMS);
+
+    if (count < 0) {
+        // -1 means the bus could not be opened at all (RMT channel or UART
+        // port allocation, invalid GPIO): no sensor is reachable either way.
+        set_error(resp, "OneWire bus error (could not open the bus)");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.onewire_search.pin = pin;
+    resp->data.onewire_search.count = (uint8_t)count;
+    for (int i = 0; i < count && i < MAX_ONEWIRE_ROMS; i++) {
+        memcpy(resp->data.onewire_search.roms[i], roms[i], ONEWIRE_ROM_LEN);
+    }
+}
+
+static void handle_onewire_read_temp(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t pin = cmd->payload.onewire_read_temp.pin;
+    bool has_rom = cmd->payload.onewire_read_temp.has_rom;
+    const uint8_t *rom = has_rom ? cmd->payload.onewire_read_temp.rom : NULL;
+
+    float celsius = 0.0f;
+    if (!devicesdk_hal_onewire_read_temp(pin, rom, &celsius)) {
+        set_error(resp, "DS18B20 read failed (no sensor or bad CRC)");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.onewire_temp.pin = pin;
+    resp->data.onewire_temp.has_rom = has_rom;
+    resp->data.onewire_temp.celsius = celsius;
+    if (has_rom) {
+        memcpy(resp->data.onewire_temp.rom, cmd->payload.onewire_read_temp.rom, ONEWIRE_ROM_LEN);
+    } else {
+        memset(resp->data.onewire_temp.rom, 0, ONEWIRE_ROM_LEN);
+    }
+}
+
+static void handle_dht_read(const worker_command_t *cmd, worker_response_t *resp) {
+    uint8_t pin = cmd->payload.dht_read.pin;
+    uint8_t model = cmd->payload.dht_read.model;
+
+    float celsius = 0.0f;
+    float humidity_pct = 0.0f;
+    dht_read_status_t status =
+        devicesdk_hal_dht_read(pin, model, &celsius, &humidity_pct);
+    if (status == DHT_READ_RATE_LIMITED) {
+        set_error(resp, "DHT read rate limited: min 2s between DHT reads");
+        return;
+    }
+    if (status != DHT_READ_OK) {
+        set_error(resp, "DHT read failed (timeout or bad checksum)");
+        return;
+    }
+
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.dht.pin = pin;
+    resp->data.dht.celsius = celsius;
+    resp->data.dht.humidity_pct = humidity_pct;
 }
 
 static void handle_watchdog_configure(const worker_command_t *cmd, worker_response_t *resp) {

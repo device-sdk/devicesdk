@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "hal.h"  // for dht_read_status_t
+
 // Maximum tracked calls
 #define MAX_MOCK_CALLS 128
 #define MAX_MOCK_WRITE_DATA 256
@@ -32,6 +34,19 @@ typedef struct {
     uint8_t scl_pin;
     uint32_t frequency;
 } mock_i2c_configure_call_t;
+
+// OneWire read call record
+typedef struct {
+    uint8_t pin;
+    bool has_rom;
+    uint8_t rom[8];
+} mock_onewire_read_call_t;
+
+// DHT read call record
+typedef struct {
+    uint8_t pin;
+    uint8_t model;
+} mock_dht_read_call_t;
 
 // GPIO set call record
 typedef struct {
@@ -94,6 +109,23 @@ typedef struct {
     size_t i2c_read_data_len;
     uint8_t i2c_scan_addresses[128];
     uint8_t i2c_scan_address_count;
+
+    // OneWire / DHT tracking
+    uint8_t onewire_search_calls[MAX_MOCK_CALLS];
+    int onewire_search_call_count;
+    mock_onewire_read_call_t onewire_read_calls[MAX_MOCK_CALLS];
+    int onewire_read_call_count;
+    mock_dht_read_call_t dht_read_calls[MAX_MOCK_CALLS];
+    int dht_read_call_count;
+
+    // Return values for the sensor HALs
+    int onewire_search_return;  // -1 for a bus error, or the ROM count
+    uint8_t onewire_search_roms[8][8];
+    bool onewire_read_return;
+    float onewire_read_celsius;
+    dht_read_status_t dht_read_return;
+    float dht_celsius;
+    float dht_humidity_pct;
 
     // Reboot tracking
     bool reboot_called;

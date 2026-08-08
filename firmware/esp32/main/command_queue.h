@@ -8,6 +8,10 @@
 // Maximum sizes for variable-length data in commands
 #define MAX_MESSAGE_ID_LEN 64
 #define MAX_I2C_DATA_LEN  256
+
+// OneWire ROM codes are 8 bytes; the search response caps at this many sensors.
+#define ONEWIRE_ROM_LEN 8
+#define MAX_ONEWIRE_ROMS 8
 #define MAX_SPI_DATA_LEN  4096
 #define MAX_UART_DATA_LEN 4096
 
@@ -45,6 +49,13 @@ typedef enum {
     CMD_UART_CONFIGURE,
     CMD_UART_WRITE,
     CMD_UART_READ,
+
+    // OneWire (DS18B20) commands
+    CMD_ONEWIRE_SEARCH,
+    CMD_ONEWIRE_READ_TEMP,
+
+    // DHT11 / DHT22 commands
+    CMD_DHT_READ,
 
     // Display commands (uses shared buffer for large framebuffer data)
     CMD_DISPLAY_UPDATE,
@@ -164,6 +175,31 @@ typedef struct {
     uint32_t timeout_ms;
 } uart_read_payload_t;
 
+// OneWire search payload
+typedef struct {
+    uint8_t pin;
+} onewire_search_payload_t;
+
+// OneWire read-temperature payload. `has_rom` false means Skip ROM, which is
+// only valid when a single sensor sits on the bus.
+typedef struct {
+    uint8_t pin;
+    bool has_rom;
+    uint8_t rom[ONEWIRE_ROM_LEN];
+} onewire_read_temp_payload_t;
+
+// DHT model selector, kept numeric so the payload stays trivially copyable.
+typedef enum {
+    DHT_MODEL_DHT11 = 0,
+    DHT_MODEL_DHT22 = 1
+} dht_model_t;
+
+// DHT read payload
+typedef struct {
+    uint8_t pin;
+    uint8_t model;  // dht_model_t
+} dht_read_payload_t;
+
 // Display update payload (framebuffer data in shared buffer)
 typedef struct {
     uint8_t bus;
@@ -191,6 +227,9 @@ typedef union {
     uart_configure_payload_t uart_configure;
     uart_write_payload_t uart_write;
     uart_read_payload_t uart_read;
+    onewire_search_payload_t onewire_search;
+    onewire_read_temp_payload_t onewire_read_temp;
+    dht_read_payload_t dht_read;
     display_update_payload_t display;
 } command_payload_t;
 

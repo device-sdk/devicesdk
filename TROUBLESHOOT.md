@@ -437,3 +437,24 @@ uint8_t com_pins = (height == 32) ? 0x02 : 0x12;
 **Question/Problem**: User scripts share the server process, but their `console.log` output must land in per-device logs (the old sandboxed worker overrode console per isolate).
 **Root Cause**: One global console, many devices - the only per-call routing signal is async context.
 **Solution**: `runtime/consoleCapture.ts` patches console once and reads the active sink from `AsyncLocalStorage`; every user-handler dispatch runs inside `runWithLogCapture(session, fn)`. Critical detail: `foundation/logger.ts` binds the ORIGINAL console functions at module load (before the patch installs) so server-side logs are never captured into device logs and the capture path can't recurse.
+
+### Running firmware host tests without cmake/gtest installed
+**Date**: 2026-08-08
+**Question/Problem**: `firmware/pico/test` and `firmware/esp32/test` are CMake + GoogleTest projects, and neither cmake, gtest, nor cJSON is installed on the dev machine. Writing new firmware parse/dispatch tests meant either flying blind until CI or finding another way to run them.
+**Root Cause**: The test targets only exist inside the CMake build; the test sources themselves need nothing more than a C++17 compiler once `<gtest/gtest.h>` resolves.
+**Solution**: Compile the test translation units directly with `g++ -DUNIT_TEST=1` against a ~30-line stand-in `gtest/gtest.h` (a `TEST_F` macro that registers a lambda into a global vector, plus `EXPECT_*`/`ASSERT_*` as assertion counters and a `main` that runs them all). Two gotchas: the shim defines `main`, so link **one test file per binary** rather than all of them together; and `websocket_handler.c` needs `main/base64.c` linked in or you get `undefined reference to base64_decode`. This is a local shortcut only - CI still runs the real GoogleTest build, which is what the assertions must ultimately satisfy.
+**Rule**: Keep firmware parse/dispatch logic in SDK-free modules (`firmware/pico/src/commands/*.cpp`, `firmware/esp32/main/websocket_handler.c` + `worker_task.c`) and guard the hardware drivers with `#ifndef UNIT_TEST` so the mocked HAL can stand in. Anything inside that guard - e.g. `firmware/esp32/main/onewire_dht.c` - is **never compiled locally**, so the CI firmware build is its first real type-check against vendor headers.
+
+### Pico firmware CI build fails: "Incompatible picotool installation"
+**Date**: 2026-08-08
+**Question/Problem**: The `firmware-pico.yml` CI job fails at CMake configure with `Incompatible picotool installation found: Requires version 2.3.0, you have version 2.1.1` - with no Pico-side code change involved.
+**Root Cause**: The workflow cloned the pico-sdk at HEAD, and the SDK drifted past the picotool version the Proxmox runner image ships. The failure appears "suddenly" because the pico-sdk actions cache evicts over time: a fresh HEAD clone surfaces the drift the next time the cache misses.
+**Solution**: Pin the SDK in `firmware-pico.yml` (`git clone --branch 2.3.0`) in lockstep with the runner image's picotool: SDK 2.3.0 requires exactly picotool 2.3.0. The cache key carries the SDK version so a cached SDK can never diverge from the pin.
+**Rule**: Keep the pico-sdk clone pinned and in lockstep with the runner image's picotool; when bumping either, check the tag's `picotool_VERSION_REQUIRED` in `tools/CMakeLists.txt` against the other.
+
+### espressif/onewire_bus: RMT backend is not available on ESP32-C61
+**Date**: 2026-08-08
+**Question/Problem**: The ESP32 firmware build failed for the `esp32c61` target with `unknown type name 'onewire_bus_rmt_config_t'; did you mean 'onewire_bus_uart_config_t'?` even though the same file compiled for `esp32` and `esp32c3`.
+**Root Cause**: The component gates its backends on chip capabilities (`SOC_RMT_SUPPORTED` / `SOC_UART_SUPPORTED` in `onewire_bus.h`): the C61 has no RMT peripheral, so only `onewire_bus_impl_uart.h` is included there. No version of the component (1.0.x..1.1.x) provides RMT on C61, so pinning the version cannot fix it.
+**Solution**: Select the backend at compile time in `ow_open`: `onewire_new_bus_rmt` under `#if SOC_RMT_SUPPORTED`, else `onewire_new_bus_uart` with `UART_NUM_1` (UART0 is the debug console). Document the UART1 collision with the `uart*` commands on C61.
+**Rule**: When a component's API "disappears" for one target only, suspect `soc_caps.h` gating before suspecting the version pin.

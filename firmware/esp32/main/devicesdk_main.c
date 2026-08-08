@@ -74,6 +74,26 @@ static void ws_send_text(const char *text) {
     }
 }
 
+// Builds and sends a `command_error` frame, used by websocket_handler.c for
+// messages that fail to parse so the caller gets the error instead of a 5 s
+// timeout. `message_id` may be empty.
+void devicesdk_ws_send_error(const char *message_id, const char *error) {
+    cJSON *response = cJSON_CreateObject();
+    cJSON *payload_obj = cJSON_CreateObject();
+    cJSON_AddStringToObject(response, "type", "command_error");
+    cJSON_AddStringToObject(payload_obj, "error", error);
+    cJSON_AddItemToObject(response, "payload", payload_obj);
+    if (message_id[0] != '\0') {
+        cJSON_AddStringToObject(response, "id", message_id);
+    }
+    char *json_str = cJSON_PrintUnformatted(response);
+    cJSON_Delete(response);
+    if (json_str) {
+        ws_send_text(json_str);
+        free(json_str);
+    }
+}
+
 static void process_worker_responses(void) {
     worker_response_t resp;
 
@@ -249,6 +269,43 @@ static void process_worker_responses(void) {
                     cJSON_AddNumberToObject(payload_obj, "bytes_read", resp.data.uart_read.data_len);
                     break;
                 }
+
+                case CMD_ONEWIRE_SEARCH: {
+                    cJSON_AddStringToObject(response, "type", "onewire_search_result");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.onewire_search.pin);
+                    cJSON *roms = cJSON_CreateArray();
+                    for (uint8_t i = 0; i < resp.data.onewire_search.count && i < MAX_ONEWIRE_ROMS; i++) {
+                        char rom_hex[ONEWIRE_ROM_LEN * 2 + 1] = {0};
+                        for (int b = 0; b < ONEWIRE_ROM_LEN; b++) {
+                            snprintf(&rom_hex[b * 2], 3, "%02X", resp.data.onewire_search.roms[i][b]);
+                        }
+                        cJSON_AddItemToArray(roms, cJSON_CreateString(rom_hex));
+                    }
+                    cJSON_AddItemToObject(payload_obj, "roms", roms);
+                    break;
+                }
+
+                case CMD_ONEWIRE_READ_TEMP: {
+                    cJSON_AddStringToObject(response, "type", "onewire_temp_result");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.onewire_temp.pin);
+                    // Skip ROM reads report an empty rom, per responses.ts.
+                    char rom_hex[ONEWIRE_ROM_LEN * 2 + 1] = {0};
+                    if (resp.data.onewire_temp.has_rom) {
+                        for (int b = 0; b < ONEWIRE_ROM_LEN; b++) {
+                            snprintf(&rom_hex[b * 2], 3, "%02X", resp.data.onewire_temp.rom[b]);
+                        }
+                    }
+                    cJSON_AddStringToObject(payload_obj, "rom", rom_hex);
+                    cJSON_AddNumberToObject(payload_obj, "celsius", resp.data.onewire_temp.celsius);
+                    break;
+                }
+
+                case CMD_DHT_READ:
+                    cJSON_AddStringToObject(response, "type", "dht_read_result");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.dht.pin);
+                    cJSON_AddNumberToObject(payload_obj, "celsius", resp.data.dht.celsius);
+                    cJSON_AddNumberToObject(payload_obj, "humidity_pct", resp.data.dht.humidity_pct);
+                    break;
 
                 case CMD_DISPLAY_UPDATE:
                     cJSON_AddStringToObject(response, "type", "command_ack");
@@ -602,7 +659,10 @@ void app_main(void) {
     // Start worker task — 16 KB needed: handle_display_update puts a
     // 1 KB MAX_DISPLAY_BUFFER_SIZE fb_data[] + 192 B segments[] on stack
     // before recursing into the SSD1306/SH1106 driver + I2C writes.
-    xTaskCreate(worker_task_entry, "worker", 16384, NULL, 4, NULL);
+    // Pinned to core 1 (APP_CPU) so the sensor bit-bang (DHT, up to ~250 us
+    // of interrupts off per bit slot) never stalls the WiFi stack on core 0;
+    // the core argument is ignored on single-core targets (C3/C61).
+    xTaskCreatePinnedToCore(worker_task_entry, "worker", 16384, NULL, 4, NULL, 1);
 
     // Start WebSocket task (higher priority)
     xTaskCreate(websocket_task, "websocket", 8192, NULL, 5, NULL);

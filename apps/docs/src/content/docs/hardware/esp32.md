@@ -43,6 +43,8 @@ Pin assignments vary by board - check the silkscreen or your DevKit's pinout dia
 - ✅ OLED display (SSD1306 / SH1106) via the drawing API in `@devicesdk/core`
 - ✅ SPI master (SPI3_HOST)
 - ✅ UART serial - 3 ports, UART0 reserved for debug
+- ✅ 1-Wire (DS18B20) - multi-probe discovery by ROM code
+- ✅ DHT11 / DHT22 temperature + humidity
 - ✅ On-die temperature sensor
 - ✅ Watchdog timer
 - ❌ Addressable LEDs (WS2812) - **not supported on classic ESP32** in the current firmware. Use [ESP32-C3](/hardware/esp32-c3/) or [ESP32-C61](/hardware/esp32-c61/) if your project needs WS2812.

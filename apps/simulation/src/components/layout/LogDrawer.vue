@@ -42,6 +42,11 @@ function badgeInfo(
 			return { label: "System", classes: "bg-red-100 text-red-800" };
 		case "get_temperature":
 			return { label: "Temp", classes: "bg-orange-100 text-orange-800" };
+		case "onewire_search":
+		case "onewire_read_temp":
+			return { label: "1-Wire", classes: "bg-lime-100 text-lime-800" };
+		case "dht_read":
+			return { label: "DHT", classes: "bg-sky-100 text-sky-800" };
 		case "watchdog_configure":
 		case "watchdog_feed":
 			return { label: "WDT", classes: "bg-amber-100 text-amber-800" };

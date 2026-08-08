@@ -182,7 +182,7 @@ New commands (add to `DeviceCommand` union):
 export type OnewireSearchCommand = Command<"onewire_search", { pin: number }>;
 
 // Read temperature. `rom` omitted = Skip ROM (single sensor on the bus);
-// `rom` = 16 uppercase hex chars (64-bit ROM code, e.g. "28FF641E8D3C4A61").
+// `rom` = 16 uppercase hex chars (64-bit ROM code, e.g. "28FF641E8D3C4A41").
 export type OnewireReadTempCommand = Command<
     "onewire_read_temp",
     { pin: number; rom?: string }
@@ -262,7 +262,7 @@ this is a boundary). Point the `docs` argument of `fail` at
 
 In `packages/cli/src/simulator/localDeviceSender.ts` add the three methods
 returning plausible canned data (e.g. search → one ROM
-`"28FF641E8D3C4A61"`, temperature 21.5 ± jitter, DHT 21.5 °C / 45 %),
+`"28FF641E8D3C4A41"`, temperature 21.5 ± jitter, DHT 21.5 °C / 45 %),
 following the file's existing style for simulated responses (read the
 neighboring methods first). Extend the method list in
 `packages/cli/src/commands/init.ts:306` to mention

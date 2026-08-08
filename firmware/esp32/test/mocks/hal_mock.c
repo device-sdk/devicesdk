@@ -9,6 +9,12 @@ void hal_mock_reset(void) {
     g_hal_mock.i2c_configure_return = true;
     g_hal_mock.i2c_write_return = true;
     g_hal_mock.i2c_read_return = 0;
+    g_hal_mock.onewire_search_return = 0;
+    g_hal_mock.onewire_read_return = true;
+    g_hal_mock.onewire_read_celsius = 21.5f;
+    g_hal_mock.dht_read_return = DHT_READ_OK;
+    g_hal_mock.dht_celsius = 21.5f;
+    g_hal_mock.dht_humidity_pct = 45.0f;
 }
 
 void devicesdk_hal_init(void) {
@@ -165,4 +171,47 @@ uart_read_result_t devicesdk_hal_uart_read(uint8_t port, size_t bytes_to_read, u
     uart_read_result_t result;
     memset(&result, 0, sizeof(result));
     return result;
+}
+
+int devicesdk_hal_onewire_search(uint8_t pin, uint8_t roms[][8], int max_roms) {
+    if (g_hal_mock.onewire_search_call_count < MAX_MOCK_CALLS) {
+        g_hal_mock.onewire_search_calls[g_hal_mock.onewire_search_call_count++] = pin;
+    }
+    if (g_hal_mock.onewire_search_return < 0) return -1;
+
+    int count = g_hal_mock.onewire_search_return;
+    if (count > max_roms) count = max_roms;
+    if (count > 8) count = 8;
+    for (int i = 0; i < count; i++) {
+        memcpy(roms[i], g_hal_mock.onewire_search_roms[i], 8);
+    }
+    return count;
+}
+
+bool devicesdk_hal_onewire_read_temp(uint8_t pin, const uint8_t *rom, float *celsius) {
+    if (g_hal_mock.onewire_read_call_count < MAX_MOCK_CALLS) {
+        int idx = g_hal_mock.onewire_read_call_count++;
+        g_hal_mock.onewire_read_calls[idx].pin = pin;
+        g_hal_mock.onewire_read_calls[idx].has_rom = (rom != NULL);
+        if (rom) memcpy(g_hal_mock.onewire_read_calls[idx].rom, rom, 8);
+    }
+
+    if (!g_hal_mock.onewire_read_return) return false;
+    *celsius = g_hal_mock.onewire_read_celsius;
+    return true;
+}
+
+dht_read_status_t devicesdk_hal_dht_read(uint8_t pin, uint8_t model, float *celsius, float *humidity_pct) {
+    if (g_hal_mock.dht_read_call_count < MAX_MOCK_CALLS) {
+        int idx = g_hal_mock.dht_read_call_count++;
+        g_hal_mock.dht_read_calls[idx].pin = pin;
+        g_hal_mock.dht_read_calls[idx].model = model;
+    }
+
+    if (g_hal_mock.dht_read_return != DHT_READ_OK) {
+        return g_hal_mock.dht_read_return;
+    }
+    *celsius = g_hal_mock.dht_celsius;
+    *humidity_pct = g_hal_mock.dht_humidity_pct;
+    return DHT_READ_OK;
 }

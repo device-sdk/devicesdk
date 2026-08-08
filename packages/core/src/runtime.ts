@@ -290,6 +290,53 @@ export interface DeviceSenderInterface {
 	 */
 	pioWs2812Update(pixels: [number, number, number][]): Promise<void>;
 
+	/**
+	 * Enumerate the 64-bit ROM codes of every DS18B20 on the OneWire bus
+	 * attached to `pin`. Resolves with an `onewire_search_result` whose
+	 * `payload.roms` holds up to 8 uppercase 16-hex-character codes.
+	 *
+	 * Wiring: data to `pin`, a 4.7 kOhm pull-up from data to 3V3, and VDD to
+	 * 3V3 (parasite power is not supported). Several sensors can share one pin.
+	 *
+	 * @example
+	 * const r = await this.env.DEVICE.onewireSearch(4);
+	 * if (r.type === "onewire_search_result") console.log(r.payload.roms);
+	 */
+	onewireSearch(pin: number): Promise<DeviceResponse>;
+
+	/**
+	 * Read one DS18B20 temperature. Omit `rom` when a single sensor sits on the
+	 * bus (Skip ROM); pass a code from {@link onewireSearch} to address one
+	 * sensor on a multi-drop bus. Resolves with an `onewire_temp_result`.
+	 *
+	 * The 12-bit conversion takes ~750 ms, during which the firmware is busy.
+	 * `pin` must be an integer in 0..28 on every supported platform.
+	 * `pin` must be an integer in 0..28 on every supported platform.
+	 *
+	 * @param rom 16 uppercase hex characters, e.g. "28FF641E8D3C4A41".
+	 *
+	 * @example
+	 * const r = await this.env.DEVICE.onewireReadTemperature(4);
+	 * if (r.type === "onewire_temp_result") console.log(`${r.payload.celsius}°C`);
+	 */
+	onewireReadTemperature(pin: number, rom?: string): Promise<DeviceResponse>;
+
+	/**
+	 * Read temperature and relative humidity from a DHT11 or DHT22 (AM2302) on
+	 * `pin`. Resolves with a `dht_read_result`.
+	 *
+	 * These sensors cannot be read more often than once every 2 seconds; the
+	 * firmware rejects faster reads with a `command_error`. Wiring: data to
+	 * `pin` with a 10 kOhm pull-up to 3V3.
+	 *
+	 * @example
+	 * const r = await this.env.DEVICE.dhtRead(15, "dht22");
+	 * if (r.type === "dht_read_result") {
+	 *   console.log(`${r.payload.celsius}C ${r.payload.humidity_pct}%`);
+	 * }
+	 */
+	dhtRead(pin: number, model: "dht11" | "dht22"): Promise<DeviceResponse>;
+
 	/** Per-device key/value storage. See {@link KVInterface}. */
 	kv: KVInterface;
 

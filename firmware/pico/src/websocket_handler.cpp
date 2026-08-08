@@ -5,6 +5,7 @@
 #include "multicore/core1_worker.h"
 #include "commands/i2c_batch_write.h"
 #include "commands/i2c_command_handler.h"
+#include "commands/sensor_commands.h"
 #include "base64.h"
 #include "pico/stdlib.h"
 #include <stdio.h>
@@ -681,6 +682,24 @@ void handle_websocket_message(const picojson::value& v) {
         } else {
             send_error("Missing port or bytes_to_read parameter");
         }
+    }
+    // === ONEWIRE / DHT SENSORS ===
+    // Parsing lives in commands/sensor_commands.cpp so the host unit tests can
+    // reach it without the Pico SDK.
+    else if (type == "onewire_search" || type == "onewire_read_temp" ||
+             type == "dht_read") {
+        std::string parse_error;
+        bool parsed = (type == "onewire_search")
+            ? parse_onewire_search(payload, &cmd, &parse_error)
+            : (type == "onewire_read_temp")
+                ? parse_onewire_read_temp(payload, &cmd, &parse_error)
+                : parse_dht_read(payload, &cmd, &parse_error);
+
+        if (!parsed) {
+            send_error(parse_error.c_str());
+            return;
+        }
+        queue_command(&cmd);
     }
     // === PIO WS2812 CONFIGURE ===
     else if (type == "pio_ws2812_configure") {

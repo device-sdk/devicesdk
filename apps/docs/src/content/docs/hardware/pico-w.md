@@ -53,6 +53,8 @@ await this.env.DEVICE.setGpioState(25, 'high');
 - ✅ OLED display (SSD1306 / SH1106) via the drawing API in `@devicesdk/core`
 - ✅ SPI master (SPI0 / SPI1)
 - ✅ UART serial (2 ports)
+- ✅ 1-Wire (DS18B20) - multi-probe discovery by ROM code
+- ✅ DHT11 / DHT22 temperature + humidity
 - ✅ On-die temperature sensor (ADC channel 4)
 - ✅ Watchdog timer - **cannot be disabled once enabled**; keep feeding it
 - ✅ Addressable LEDs (WS2812) via PIO state machine

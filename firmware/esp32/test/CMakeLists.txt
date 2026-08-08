@@ -35,6 +35,7 @@ set(TESTABLE_SOURCES
     ../main/worker_task.c
     ../main/websocket_handler.c
     ../main/shared_buffers.c
+    ../main/sensor_utils.c
 )
 
 # Mock sources
@@ -47,6 +48,7 @@ set(TEST_SOURCES
     unit/test_base64.cpp
     unit/test_worker_commands.cpp
     unit/test_websocket_handler.cpp
+    unit/test_sensor_utils.cpp
 )
 
 add_executable(run_tests

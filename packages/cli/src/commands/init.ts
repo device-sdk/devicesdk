@@ -304,7 +304,9 @@ export class Thermostat extends DeviceEntrypoint {
   \`setGpioState(pin, "high"|"low")\`, \`setPwmState(pin, hz, duty)\`,
   \`getPinState(pin, "digital"|"analog")\`, \`i2cRead/Write\`, \`spiTransfer\`,
   \`uartWrite/Read\`, \`getTemperature()\`, \`pioWs2812Configure/Update\`,
-  \`emitState(entityId, value)\`, \`reboot()\`, and \`kv.{get,put,delete}\`.
+  \`onewireSearch(pin)\`, \`onewireReadTemperature(pin, rom?)\` (DS18B20),
+  \`dhtRead(pin, "dht11"|"dht22")\`, \`emitState(entityId, value)\`,
+  \`reboot()\`, and \`kv.{get,put,delete}\`.
 - \`this.env.VARS\` - project-scoped env vars (\`get(key)\`, \`getAll()\`).
 - \`this.env.DEVICES\` - typed RPC to other devices in the project, e.g.
   \`await this.env.DEVICES["sensor-1"].readSomething()\`.

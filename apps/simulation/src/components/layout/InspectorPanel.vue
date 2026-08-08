@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import ScriptPinsPanel from "@/components/layout/ScriptPinsPanel.vue";
+import UartPanel from "@/components/layout/UartPanel.vue";
 import ButtonWidget from "@/components/widgets/sensors/ButtonWidget.vue";
 import WidgetCard from "@/components/widgets/WidgetCard.vue";
 import { useWidgetsStore } from "@/stores/widgets";
@@ -48,6 +49,10 @@ function removeWidget(id: string) {
 				:key="selected.id"
 				:widget="selected"
 			/>
+		</div>
+
+		<div class="p-3 border-t">
+			<UartPanel />
 		</div>
 
 		<div class="p-3 border-t">

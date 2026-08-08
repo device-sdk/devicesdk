@@ -41,4 +41,35 @@ describe("FsBlobStore", () => {
 		await store.delete("a.js");
 		expect(await store.get("a.js")).toBeNull();
 	});
+
+	test("list cursor is a continuation token that survives deletions between pages", async () => {
+		for (let i = 0; i < 25; i++) {
+			await store.put(`p/dev/${i}.js`, "x");
+		}
+		const page1 = await store.list({ prefix: "p/", limit: 10 });
+		expect(page1.truncated).toBe(true);
+		expect(page1.objects.length).toBe(10);
+		for (const obj of page1.objects) {
+			await store.delete(obj.key);
+		}
+		// The cursor still resumes at the right place even though the first
+		// page's keys are gone - an offset-based cursor would lose the tail.
+		const page2 = await store.list({
+			prefix: "p/",
+			limit: 10,
+			cursor: page1.cursor,
+		});
+		expect(page2.truncated).toBe(true);
+		expect(page2.objects.length).toBe(10);
+		for (const obj of page2.objects) {
+			await store.delete(obj.key);
+		}
+		const page3 = await store.list({
+			prefix: "p/",
+			limit: 10,
+			cursor: page2.cursor,
+		});
+		expect(page3.truncated).toBe(false);
+		expect(page3.objects.length).toBe(5);
+	});
 });

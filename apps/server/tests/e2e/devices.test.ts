@@ -308,6 +308,57 @@ describe("device delete", () => {
 		expect(get.status).toBe(404);
 	});
 
+	test("deletes device_kv, device_logs, and device_usage rows (no FK orphans)", async () => {
+		const create = await srv.post(devicesPath(), {
+			token: userA.token,
+			body: { device_id: "orphans" },
+		});
+		expect(create.status).toBe(201);
+		const deviceId = (create.body as { result: { id: string } }).result.id;
+		const projectId = (
+			srv.db
+				.query("SELECT project_id FROM devices WHERE id = ?")
+				.get(deviceId) as {
+				project_id: string;
+			}
+		).project_id;
+
+		// These tables have no FK to devices - deletion must remove them.
+		srv.db
+			.query(
+				"INSERT INTO device_kv (device_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+			)
+			.run(deviceId, "k", "1", Date.now());
+		srv.db
+			.query(
+				"INSERT INTO device_logs (id, device_id, level, message, created_at) VALUES (?, ?, 'info', 'm', ?)",
+			)
+			.run(crypto.randomUUID(), deviceId, Date.now());
+		srv.db
+			.query(
+				"INSERT INTO device_usage (device_id, project_id, bucket_ts, messages_in) VALUES (?, ?, ?, 1)",
+			)
+			.run(deviceId, projectId, Date.now());
+
+		const del = await srv.delete(`${devicesPath()}/orphans`, {
+			token: userA.token,
+		});
+		expect(del.status).toBe(200);
+
+		const kvCount = srv.db
+			.query("SELECT COUNT(*) as c FROM device_kv WHERE device_id = ?")
+			.get(deviceId) as { c: number };
+		expect(kvCount.c).toBe(0);
+		const logCount = srv.db
+			.query("SELECT COUNT(*) as c FROM device_logs WHERE device_id = ?")
+			.get(deviceId) as { c: number };
+		expect(logCount.c).toBe(0);
+		const usageCount = srv.db
+			.query("SELECT COUNT(*) as c FROM device_usage WHERE device_id = ?")
+			.get(deviceId) as { c: number };
+		expect(usageCount.c).toBe(0);
+	});
+
 	test("returns 404 deleting unknown device", async () => {
 		const res = await srv.delete(`${devicesPath()}/missing-device`, {
 			token: userA.token,

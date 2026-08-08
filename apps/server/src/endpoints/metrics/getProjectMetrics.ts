@@ -21,7 +21,7 @@ export class GetProjectMetrics extends BaseRoute {
 				projectId: z.string().min(1).max(36),
 			}),
 			query: z.object({
-				window: z.enum(["1h", "12h", "7d"]).default("12h"),
+				window: z.enum(["1h", "12h", "7d"]).default("1h"),
 			}),
 		},
 		responses: {

@@ -160,6 +160,7 @@ describe("user API", () => {
 			body: { device_id: deviceSlug, name: "Doomed Device" },
 		});
 		expect(devRes.status).toBe(201);
+		const deviceId = (devRes.body as { result: { id: string } }).result.id;
 
 		// a pending CLI auth code bound to this user must be purged too
 		srv.db.run(
@@ -187,6 +188,24 @@ describe("user API", () => {
 			},
 		);
 		expect(up.status).toBe(201);
+
+		// device_kv/logs/usage have no FK to devices - purge must remove them
+		// explicitly or the deleted user's data survives forever.
+		srv.db
+			.query(
+				"INSERT INTO device_kv (device_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+			)
+			.run(deviceId, "secret", "42", Date.now());
+		srv.db
+			.query(
+				"INSERT INTO device_logs (id, device_id, level, message, created_at) VALUES (?, ?, 'info', 'doomed', ?)",
+			)
+			.run(crypto.randomUUID(), deviceId, Date.now());
+		srv.db
+			.query(
+				"INSERT INTO device_usage (device_id, project_id, bucket_ts, messages_in) VALUES (?, ?, ?, 1)",
+			)
+			.run(deviceId, projectId, Date.now());
 
 		// sanity: authenticated before delete
 		const pre = await srv.get("/v1/user/me", { token });
@@ -226,5 +245,18 @@ describe("user API", () => {
 			.query("SELECT COUNT(*) as c FROM cli_auth_codes WHERE user_id = ?")
 			.get(userId) as { c: number };
 		expect(authCodeRow.c).toBe(0);
+
+		const kvCount = srv.db
+			.query("SELECT COUNT(*) as c FROM device_kv WHERE device_id = ?")
+			.get(deviceId) as { c: number };
+		expect(kvCount.c).toBe(0);
+		const logCount = srv.db
+			.query("SELECT COUNT(*) as c FROM device_logs WHERE device_id = ?")
+			.get(deviceId) as { c: number };
+		expect(logCount.c).toBe(0);
+		const usageCount = srv.db
+			.query("SELECT COUNT(*) as c FROM device_usage WHERE device_id = ?")
+			.get(deviceId) as { c: number };
+		expect(usageCount.c).toBe(0);
 	});
 });

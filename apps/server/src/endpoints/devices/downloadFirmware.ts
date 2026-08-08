@@ -112,8 +112,11 @@ export class DownloadFirmware extends BaseRoute {
 		// token is generated here so the new firmware image always has valid credentials.
 		// Side effect: if a device is currently connected using the old token, it will
 		// be rejected on reconnect until it is reflashed with the new firmware.
-		// Delete existing managed token for this device and create a fresh one
-		const tokenDescription = `${deviceId} authentication token`;
+		// Delete existing managed token for this device and create a fresh one.
+		// The description carries both UUIDs so two projects of the same user
+		// that share a device slug keep distinct token rows - keying by slug
+		// alone would rotate the other project's device token on download.
+		const tokenDescription = `${project.id}:${device.id} authentication token`;
 		await qb
 			.delete({
 				tableName: "tokens",

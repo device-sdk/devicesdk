@@ -136,13 +136,24 @@ function rowToBucket(row: SeriesRow): UsageBucket {
 	};
 }
 
+function seriesSince(window: MetricsWindow): number {
+	const span = WINDOWS[window].seconds * 1000;
+	// Floor to the storage-bucket grid (STORAGE_BUCKET_MS) so the series
+	// starts on a bucket boundary and the straddling partial bucket is
+	// included. The first returned bucket may therefore be partial - it covers
+	// up to one bucket width before the window start.
+	return (
+		Math.floor((Date.now() - span) / STORAGE_BUCKET_MS) * STORAGE_BUCKET_MS
+	);
+}
+
 export function fetchDeviceSeries(
 	db: Database,
 	deviceId: string,
 	window: MetricsWindow,
 ): UsageBucket[] {
 	const cfg = WINDOWS[window];
-	const since = Date.now() - cfg.seconds * 1000;
+	const since = seriesSince(window);
 	const bucketMs = cfg.bucketSeconds * 1000;
 	const rows = db
 		.query(
@@ -164,7 +175,7 @@ export function fetchProjectSeries(
 	window: MetricsWindow,
 ): DeviceUsageBucket[] {
 	const cfg = WINDOWS[window];
-	const since = Date.now() - cfg.seconds * 1000;
+	const since = seriesSince(window);
 	const bucketMs = cfg.bucketSeconds * 1000;
 	const rows = db
 		.query(
@@ -174,6 +185,7 @@ export function fetchProjectSeries(
 				SUM(cron_fires) AS cron_fires, SUM(connected_seconds) AS connected_seconds
 			 FROM device_usage
 			 WHERE project_id = ?1 AND bucket_ts >= ?2
+			   AND device_id IN (SELECT id FROM devices WHERE project_id = ?1)
 			 GROUP BY device_id, ts ORDER BY ts`,
 		)
 		.all(projectId, since, bucketMs) as (SeriesRow & { device_id: string })[];

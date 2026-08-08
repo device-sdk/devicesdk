@@ -88,9 +88,7 @@ export class ListVersions extends BaseRoute {
 					conditions: ["device_id = ?1"],
 					params: [device.id],
 				},
-				orderBy: {
-					created_at: "DESC",
-				},
+				orderBy: ["created_at DESC", "id DESC"],
 			})
 			.execute();
 		const versions = versionsResult.results || [];

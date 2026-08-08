@@ -96,6 +96,7 @@ describe("deploy command", () => {
 	};
 
 	const defaultBatchUploadResult = {
+		status: "success" as const,
 		versions: [
 			{
 				device_id: "sensor-1",
@@ -309,5 +310,52 @@ describe("deploy command", () => {
 
 		await expect(deploy()).rejects.toThrowError(/exit:6/);
 		expect(exitSpy).toHaveBeenCalledWith(6);
+	});
+
+	it("exits non-zero when the batch result is partial (per-device errors)", async () => {
+		const { loadConfig } = await import("../utils.js");
+		vi.mocked(loadConfig).mockResolvedValueOnce(
+			createMultiDeviceConfig() as unknown as DeviceSDKConfig,
+		);
+		buildDeviceMock
+			.mockResolvedValueOnce({
+				size: 1024,
+				outfile: "/project/.devicesdk/build/sensor-1.js",
+			})
+			.mockResolvedValueOnce({
+				size: 512,
+				outfile: "/project/.devicesdk/build/actuator-1.js",
+			});
+		apiMocks.uploadScriptsBatch.mockResolvedValueOnce({
+			status: "partial",
+			versions: [
+				{
+					device_id: "sensor-1",
+					version_id: "v1",
+					status: "created",
+					device_rebooted: false,
+					reboot_reason: "Script unchanged",
+				},
+				{
+					device_id: "actuator-1",
+					version_id: "",
+					status: "error",
+					error: "Failed to store script for device actuator-1",
+					device_rebooted: false,
+					reboot_reason: "",
+				},
+			],
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(deploy()).rejects.toThrowError(/exit:6/);
+		expect(exitSpy).toHaveBeenCalledWith(6);
+		// the failing device's error is surfaced per-device
+		const messages = errorSpy.mock.calls.flat().join("\n");
+		expect(messages).toContain("actuator-1");
+		expect(messages).toContain("Failed to store script");
+		// the successful device is not reported as failed
+		expect(messages).not.toContain("sensor-1:");
+		errorSpy.mockRestore();
 	});
 });

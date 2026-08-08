@@ -8,7 +8,6 @@ type LifecycleMethods =
 	| "onDeviceConnect"
 	| "onDeviceDisconnect"
 	| "onMessage"
-	| "onAlarm"
 	| "onCron";
 type InternalProps = "env" | "ctx";
 

@@ -93,25 +93,29 @@ export class FsBlobStore {
 	}): Promise<BlobListResult> {
 		const prefix = options?.prefix ?? "";
 		const limit = options?.limit ?? 1000;
-		const offset = options?.cursor ? Number.parseInt(options.cursor, 10) : 0;
+		// The cursor is the last returned key (an R2-style continuation token),
+		// not an offset: paginating callers delete already-returned keys between
+		// pages (purge/delete paths), and an offset would skip keys once the
+		// list shrinks under them.
+		const after = options?.cursor ?? "";
 
-		const keys = (await this.walk(this.root)).filter((k) =>
-			k.startsWith(prefix),
+		const keys = (await this.walk(this.root)).filter(
+			(k) => k.startsWith(prefix) && k > after,
 		);
 		keys.sort();
 
-		const page = keys.slice(offset, offset + limit);
+		const page = keys.slice(0, limit);
 		const objects = await Promise.all(
 			page.map(async (key) => ({
 				key,
 				size: (await stat(this.filePath(key))).size,
 			})),
 		);
-		const truncated = offset + limit < keys.length;
+		const truncated = keys.length > limit;
 		return {
 			objects,
 			truncated,
-			cursor: truncated ? String(offset + limit) : undefined,
+			cursor: truncated ? page[page.length - 1] : undefined,
 		};
 	}
 

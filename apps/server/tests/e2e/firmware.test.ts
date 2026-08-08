@@ -162,11 +162,13 @@ describe("firmware download endpoint", () => {
 		expect(text).not.toContain(OLD_PROJECT_ID);
 
 		// Token rotation: exactly one managed token row for this device.
+		// Description is keyed by project+device UUIDs, not the device slug.
+		const desc = `${s.projectId}:${s.deviceId} authentication token`;
 		const rows = srv.db
 			.query(
 				"SELECT id, managed FROM tokens WHERE user_id = ? AND description = ? AND managed = 1",
 			)
-			.all(s.auth.user.id, "de authentication token") as Array<{
+			.all(s.auth.user.id, desc) as Array<{
 			id: string;
 		}>;
 		expect(rows.length).toBe(1);
@@ -176,6 +178,7 @@ describe("firmware download endpoint", () => {
 		const s = await srv.scaffold({ projectSlug: "fw-rot", deviceSlug: "dr" });
 		await srv.services.FIRMWARES.put("esp32-client.bin", buildEsp32Blob());
 
+		const desc = `${s.projectId}:${s.deviceId} authentication token`;
 		const first = await downloadRaw("fw-rot", "dr", s.auth.token, {
 			device_type: "esp32",
 		});
@@ -184,7 +187,7 @@ describe("firmware download endpoint", () => {
 			.query(
 				"SELECT id FROM tokens WHERE user_id = ? AND description = ? AND managed = 1",
 			)
-			.get(s.auth.user.id, "dr authentication token") as { id: string };
+			.get(s.auth.user.id, desc) as { id: string };
 		expect(row1).toBeTruthy();
 
 		const second = await downloadRaw("fw-rot", "dr", s.auth.token, {
@@ -195,10 +198,91 @@ describe("firmware download endpoint", () => {
 			.query(
 				"SELECT id FROM tokens WHERE user_id = ? AND description = ? AND managed = 1",
 			)
-			.all(s.auth.user.id, "dr authentication token") as Array<{ id: string }>;
+			.all(s.auth.user.id, desc) as Array<{ id: string }>;
 		// Still exactly one managed row, and it's a different id (old deleted).
 		expect(rows.length).toBe(1);
 		expect(rows[0].id).not.toBe(row1.id);
+	});
+
+	test("same device slug in two projects keeps distinct tokens; downloading one does not invalidate the other", async () => {
+		const auth = await srv.register({
+			email: `fw-two-${crypto.randomUUID()}@example.com`,
+		});
+		const p1 = await srv.post("/v1/projects", {
+			token: auth.token,
+			body: { project_slug: "fw-iso1", name: "P1" },
+		});
+		const p2 = await srv.post("/v1/projects", {
+			token: auth.token,
+			body: { project_slug: "fw-iso2", name: "P2" },
+		});
+		expect(p1.status).toBe(201);
+		expect(p2.status).toBe(201);
+		const projectId1 = (p1.body as { result: { id: string } }).result.id;
+		const projectId2 = (p2.body as { result: { id: string } }).result.id;
+		const d1 = await srv.post("/v1/projects/fw-iso1/devices", {
+			token: auth.token,
+			body: { device_id: "shared" },
+		});
+		const d2 = await srv.post("/v1/projects/fw-iso2/devices", {
+			token: auth.token,
+			body: { device_id: "shared" },
+		});
+		expect(d1.status).toBe(201);
+		expect(d2.status).toBe(201);
+		const deviceId1 = (d1.body as { result: { id: string } }).result.id;
+		const deviceId2 = (d2.body as { result: { id: string } }).result.id;
+
+		await srv.services.FIRMWARES.put("esp32-client.bin", buildEsp32Blob());
+		const first = await downloadRaw("fw-iso1", "shared", auth.token, {
+			device_type: "esp32",
+		});
+		const second = await downloadRaw("fw-iso2", "shared", auth.token, {
+			device_type: "esp32",
+		});
+		expect(first.status).toBe(200);
+		expect(second.status).toBe(200);
+
+		// Both managed rows survive - each keyed by its project+device UUIDs.
+		const desc1 = `${projectId1}:${deviceId1} authentication token`;
+		const desc2 = `${projectId2}:${deviceId2} authentication token`;
+		const rows = srv.db
+			.query(
+				"SELECT id FROM tokens WHERE user_id = ? AND managed = 1 ORDER BY description",
+			)
+			.all(auth.user.id) as Array<{ id: string }>;
+		expect(rows.length).toBe(2);
+		const row1 = srv.db
+			.query(
+				"SELECT id FROM tokens WHERE user_id = ? AND description = ? AND managed = 1",
+			)
+			.get(auth.user.id, desc1) as { id: string };
+		const row2 = srv.db
+			.query(
+				"SELECT id FROM tokens WHERE user_id = ? AND description = ? AND managed = 1",
+			)
+			.get(auth.user.id, desc2) as { id: string };
+		expect(row1).toBeTruthy();
+		expect(row2).toBeTruthy();
+		expect(row1.id).not.toBe(row2.id);
+
+		// Re-downloading project 1's firmware must not delete project 2's token.
+		const again = await downloadRaw("fw-iso1", "shared", auth.token, {
+			device_type: "esp32",
+		});
+		expect(again.status).toBe(200);
+		const after = srv.db
+			.query(
+				"SELECT id FROM tokens WHERE user_id = ? AND managed = 1 ORDER BY description",
+			)
+			.all(auth.user.id) as Array<{ id: string }>;
+		expect(after.length).toBe(2);
+		const row2After = srv.db
+			.query(
+				"SELECT id FROM tokens WHERE user_id = ? AND description = ? AND managed = 1",
+			)
+			.get(auth.user.id, desc2) as { id: string };
+		expect(row2After.id).toBe(row2.id);
 	});
 
 	test("pico-w success: validates UF2 structure and returns the patched blob", async () => {

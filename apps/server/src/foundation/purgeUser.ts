@@ -2,9 +2,9 @@ import type { Env } from "../types";
 
 /**
  * Deletes every trace of a user: projects, devices, device scripts, script
- * blobs, env vars, tokens, CLI tokens, pending CLI auth codes, and sessions.
- * Called from the delete-account endpoint; deletion is immediate with no grace
- * period.
+ * blobs, device kv/logs/usage, env vars, tokens, CLI tokens, pending CLI auth
+ * codes, and sessions. Called from the delete-account endpoint; deletion is
+ * immediate with no grace period.
  */
 export async function purgeUserData(env: Env, userId: string): Promise<void> {
 	const projects = await env.DB.prepare(
@@ -22,6 +22,17 @@ export async function purgeUserData(env: Env, userId: string): Promise<void> {
 
 		for (const device of devices.results) {
 			await env.DB.prepare("DELETE FROM device_scripts WHERE device_id = ?")
+				.bind(device.id)
+				.run();
+			// device_kv/logs/usage have no FK to devices - purge them
+			// explicitly or the deleted user's data survives forever.
+			await env.DB.prepare("DELETE FROM device_kv WHERE device_id = ?")
+				.bind(device.id)
+				.run();
+			await env.DB.prepare("DELETE FROM device_logs WHERE device_id = ?")
+				.bind(device.id)
+				.run();
+			await env.DB.prepare("DELETE FROM device_usage WHERE device_id = ?")
 				.bind(device.id)
 				.run();
 		}

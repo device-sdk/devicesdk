@@ -154,13 +154,5 @@ export async function loadUserWorker(
 		},
 	};
 
-	// Only expose onAlarm when the user script actually defines it, so the
-	// session can short-circuit instead of dispatching a no-op.
-	if (typeof target.onAlarm === "function") {
-		worker.onAlarm = async () => {
-			await (target.onAlarm as () => Promise<void> | void).call(target);
-		};
-	}
-
 	return worker;
 }

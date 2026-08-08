@@ -260,7 +260,19 @@ export default async function deploy(
 				);
 
 				if (!json) console.log("");
+				const failed: string[] = [];
 				for (const version of result.versions) {
+					if (version.status === "error") {
+						failed.push(
+							`${version.device_id}: ${version.error ?? "unknown error"}`,
+						);
+						if (!json) {
+							console.error(
+								`✗ ${version.device_id.padEnd(20)} ${version.error ?? "unknown error"}`,
+							);
+						}
+						continue;
+					}
 					deployedVersions.push({
 						deviceId: version.device_id,
 						versionId: version.version_id,
@@ -278,6 +290,24 @@ export default async function deploy(
 							`✓ ${version.device_id.padEnd(20)} ${version.version_id}  ${statusText}  (${rebootText})`,
 						);
 					}
+				}
+
+				if (failed.length > 0) {
+					const okCount = result.versions.length - failed.length;
+					if (json) {
+						emitJsonError(
+							`Deploy failed for ${failed.length} device(s): ${failed.join(" | ")}`,
+							{
+								code: "deploy_partial_failure",
+								docs: DEPLOY_DOCS,
+							},
+						);
+					} else {
+						console.error(
+							`\n✗ Deployed ${okCount} device(s) successfully, ${failed.length} failed`,
+						);
+					}
+					process.exit(EXIT.DEPLOY_ERROR);
 				}
 
 				if (!json) {

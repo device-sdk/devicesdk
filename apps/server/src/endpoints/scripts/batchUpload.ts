@@ -56,11 +56,15 @@ export class BatchUploadScripts extends BaseRoute {
 					z.object({
 						success: z.boolean(),
 						result: z.object({
+							// "partial" when some devices failed but others
+							// succeeded; "success" only when all succeeded.
+							status: z.enum(["success", "partial"]),
 							versions: z.array(
 								z.object({
 									device_id: z.string(),
 									version_id: z.string(),
-									status: z.enum(["success", "created"]),
+									status: z.enum(["success", "created", "error"]),
+									error: z.string().optional(),
 									device_rebooted: z.boolean(),
 									reboot_reason: z.string(),
 								}),
@@ -200,132 +204,144 @@ export class BatchUploadScripts extends BaseRoute {
 		const results: {
 			device_id: string;
 			version_id: string;
-			status: "success" | "created";
+			status: "success" | "created" | "error";
+			error?: string;
 			device_rebooted: boolean;
 			reboot_reason: string;
 		}[] = [];
 
-		// Process each device
+		// Process each device. Each device's create+upload+deploy is isolated
+		// in its own try/catch so one failing device (blob write, insert, prune)
+		// never aborts the batch after earlier devices were already deployed -
+		// failures are reported per-device instead of as a bare 500.
 		for (const [deviceSlug, data] of Object.entries(devicesData)) {
-			let device = existingDeviceMap.get(deviceSlug);
-			let status: "success" | "created" = "success";
+			const result: (typeof results)[number] = {
+				device_id: deviceSlug,
+				version_id: "",
+				status: "error",
+				device_rebooted: false,
+				reboot_reason: "",
+			};
+			try {
+				let device = existingDeviceMap.get(deviceSlug);
+				let status: "success" | "created" = "success";
 
-			// Auto-create device if it doesn't exist
-			if (!device) {
-				const newDevice = await qb
-					.insert<tableDevices>({
-						tableName: "devices",
+				// Auto-create device if it doesn't exist
+				if (!device) {
+					const newDevice = await qb
+						.insert<tableDevices>({
+							tableName: "devices",
+							data: {
+								id: crypto.randomUUID(),
+								project_id: project.id,
+								device_slug: deviceSlug,
+								name: null,
+								description: null,
+								created_at: now,
+								updated_at: now,
+							},
+							returning: "*",
+						})
+						.execute();
+
+					if (!newDevice.results) {
+						throw new Error("failed to create device");
+					}
+					device = newDevice.results;
+					status = "created";
+				}
+
+				const versionId = crypto.randomUUID();
+
+				// Store the script in the blob store using slug-based paths to
+				// match the reading endpoints (getScript, getVersion,
+				// deployVersion) which use URL slugs.
+				// /{userId}/{projectSlug}/{deviceSlug}/{versionId}.js
+				try {
+					await r2.put(
+						`${user.id}/${projectId}/${deviceSlug}/${versionId}.js`,
+						data.script,
+					);
+					// Write latest.js so getScript can return the currently
+					// deployed script.
+					await r2.put(
+						`${user.id}/${projectId}/${deviceSlug}/latest.js`,
+						data.script,
+					);
+				} catch (err) {
+					logger.error(err as Error, "Unhandled error");
+					throw new Error(`Failed to store script for device ${deviceSlug}`);
+				}
+
+				// Prune oldest non-current versions if at the limit (FIFO).
+				// Runs after the blob is stored but before the insert -
+				// pruneOldVersions counts against the pre-insert rows and
+				// makes room for the incoming one, and a failed blob write
+				// can never cost an existing version.
+				await pruneOldVersions(
+					c.env.DB,
+					c.env.SCRIPTS,
+					device,
+					user.id,
+					projectId,
+					deviceSlug,
+					RESOURCE_LIMITS.maxScriptVersionsPerDevice,
+				);
+
+				// Create the script version record
+				await qb
+					.insert<tableDeviceScripts>({
+						tableName: "device_scripts",
 						data: {
-							id: crypto.randomUUID(),
-							project_id: project.id,
-							device_slug: deviceSlug,
-							name: null,
-							description: null,
+							id: versionId,
+							device_id: device.id,
+							version_id: versionId,
+							entrypoint: data.entrypoint,
+							message: message,
 							created_at: now,
-							updated_at: now,
 						},
-						returning: "*",
 					})
 					.execute();
 
-				if (!newDevice.results) {
-					return c.json(
-						{ success: false, error: "failed to create device" },
-						500,
-					);
-				}
-				device = newDevice.results;
-				status = "created";
-			}
+				// Update the device's current_version_id
+				await qb
+					.update({
+						tableName: "devices",
+						data: {
+							current_version_id: versionId,
+							updated_at: now,
+						},
+						where: {
+							conditions: ["id = ?1"],
+							params: [device.id],
+						},
+					})
+					.execute();
 
-			// Prune oldest non-current versions if at the limit (FIFO), then insert.
-			// FIFO pruning is the enforcement mechanism for script version limits.
-			await pruneOldVersions(
-				c.env.DB,
-				c.env.SCRIPTS,
-				device,
-				user.id,
-				projectId,
-				deviceSlug,
-				RESOURCE_LIMITS.maxScriptVersionsPerDevice,
-			);
-
-			const versionId = crypto.randomUUID();
-
-			// Store the script in R2 using slug-based paths to match the reading
-			// endpoints (getScript, getVersion, deployVersion) which use URL slugs.
-			// /{userId}/{projectSlug}/{deviceSlug}/{versionId}.js
-			try {
-				await r2.put(
-					`${user.id}/${projectId}/${deviceSlug}/${versionId}.js`,
-					data.script,
+				// Trigger device reboot so it loads the new script
+				const rebootResult = await triggerDeviceReboot(
+					c.env,
+					project.id,
+					device.id,
 				);
-				// Write latest.js so getScript can return the currently deployed script.
-				await r2.put(
-					`${user.id}/${projectId}/${deviceSlug}/latest.js`,
-					data.script,
-				);
+
+				result.version_id = versionId;
+				result.status = status;
+				result.device_rebooted = rebootResult.rebooted;
+				result.reboot_reason = rebootResult.reason;
 			} catch (err) {
 				logger.error(err as Error, "Unhandled error");
-				return c.json(
-					{
-						success: false,
-						error: `Failed to store script for device ${deviceSlug}`,
-					},
-					500,
-				);
+				result.error = err instanceof Error ? err.message : "Unknown error";
 			}
-
-			// Create the script version record
-			await qb
-				.insert<tableDeviceScripts>({
-					tableName: "device_scripts",
-					data: {
-						id: versionId,
-						device_id: device.id,
-						version_id: versionId,
-						entrypoint: data.entrypoint,
-						message: message,
-						created_at: now,
-					},
-				})
-				.execute();
-
-			// Update the device's current_version_id
-			await qb
-				.update({
-					tableName: "devices",
-					data: {
-						current_version_id: versionId,
-						updated_at: now,
-					},
-					where: {
-						conditions: ["id = ?1"],
-						params: [device.id],
-					},
-				})
-				.execute();
-
-			// Trigger device reboot so it loads the new script
-			const rebootResult = await triggerDeviceReboot(
-				c.env,
-				project.id,
-				device.id,
-			);
-
-			results.push({
-				device_id: deviceSlug,
-				version_id: versionId,
-				status: status,
-				device_rebooted: rebootResult.rebooted,
-				reboot_reason: rebootResult.reason,
-			});
+			results.push(result);
 		}
 
+		const failedCount = results.filter((r) => r.status === "error").length;
 		return c.json(
 			{
 				success: true,
 				result: {
+					status: failedCount > 0 ? "partial" : "success",
 					versions: results,
 					message: message,
 				},

@@ -45,7 +45,20 @@ export class DeleteDevice extends BaseRoute {
 		if (resolved instanceof Response) return resolved;
 		const { device } = resolved;
 
-		// Delete the device (cascades to device_scripts via FK)
+		// These tables have no FK to devices - delete explicitly so deleted
+		// devices leave no KV/log/usage orphans behind.
+		await c.env.DB.prepare("DELETE FROM device_kv WHERE device_id = ?")
+			.bind(device.id)
+			.run();
+		await c.env.DB.prepare("DELETE FROM device_logs WHERE device_id = ?")
+			.bind(device.id)
+			.run();
+		await c.env.DB.prepare("DELETE FROM device_usage WHERE device_id = ?")
+			.bind(device.id)
+			.run();
+
+		// Delete the device (cascades to device_scripts and
+		// device_entity_configs via FK)
 		await qb
 			.delete({
 				tableName: "devices",
@@ -56,14 +69,19 @@ export class DeleteDevice extends BaseRoute {
 			})
 			.execute();
 
-		// Best-effort R2 cleanup - DB delete already committed
+		// Best-effort blob cleanup - DB delete already committed. list() pages
+		// at 1000 keys, so follow the cursor until every page is drained.
 		try {
 			const r2 = c.env.SCRIPTS;
 			const prefix = `${user.id}/${projectId}/${deviceId}/`;
-			const objects = await r2.list({ prefix });
-			for (const obj of objects.objects) {
-				await r2.delete(obj.key);
-			}
+			let cursor: string | undefined;
+			do {
+				const listed = await r2.list({ prefix, cursor });
+				for (const obj of listed.objects) {
+					await r2.delete(obj.key);
+				}
+				cursor = listed.truncated ? listed.cursor : undefined;
+			} while (cursor);
 		} catch (err) {
 			logger.error(err as Error, "Unhandled error");
 		}

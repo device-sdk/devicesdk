@@ -9,7 +9,6 @@ export interface IUserDeviceWorker {
 	onDeviceConnect(): Promise<void>;
 	onDeviceDisconnect(): Promise<void>;
 	onMessage(message: DeviceResponse): Promise<void>;
-	onAlarm?(): Promise<void>;
 	getCrons(): Promise<Record<string, string>>;
 	onCron(name: string): Promise<void>;
 	callMethod(

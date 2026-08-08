@@ -24,7 +24,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.head_commit.message, 'chore: version packages')
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -58,8 +58,7 @@ jobs:
             playwright-${{ runner.os }}-
 
       - name: Install Playwright browsers
-        # System libs are pre-installed on the self-hosted runner.
-        run: npx playwright install chromium
+        run: npx playwright install --with-deps chromium
         working-directory: apps/website
 
       - name: Build website

@@ -446,11 +446,11 @@ uint8_t com_pins = (height == 32) ? 0x02 : 0x12;
 **Rule**: Keep firmware parse/dispatch logic in SDK-free modules (`firmware/pico/src/commands/*.cpp`, `firmware/esp32/main/websocket_handler.c` + `worker_task.c`) and guard the hardware drivers with `#ifndef UNIT_TEST` so the mocked HAL can stand in. Anything inside that guard - e.g. `firmware/esp32/main/onewire_dht.c` - is **never compiled locally**, so the CI firmware build is its first real type-check against vendor headers.
 
 ### Pico firmware CI build fails: "Incompatible picotool installation"
-**Date**: 2026-08-08
+**Date**: 2026-08-08 (updated 2026-08-08 after moving CI to GitHub-hosted runners)
 **Question/Problem**: The `firmware-pico.yml` CI job fails at CMake configure with `Incompatible picotool installation found: Requires version 2.3.0, you have version 2.1.1` - with no Pico-side code change involved.
 **Root Cause**: The workflow cloned the pico-sdk at HEAD, and the SDK drifted past the picotool version the Proxmox runner image ships. The failure appears "suddenly" because the pico-sdk actions cache evicts over time: a fresh HEAD clone surfaces the drift the next time the cache misses.
-**Solution**: Pin the SDK in `firmware-pico.yml` (`git clone --branch 2.3.0`) in lockstep with the runner image's picotool: SDK 2.3.0 requires exactly picotool 2.3.0. The cache key carries the SDK version so a cached SDK can never diverge from the pin.
-**Rule**: Keep the pico-sdk clone pinned and in lockstep with the runner image's picotool; when bumping either, check the tag's `picotool_VERSION_REQUIRED` in `tools/CMakeLists.txt` against the other.
+**Solution**: Pin the SDK in `firmware-pico.yml` (`git clone --branch 2.3.0`) in lockstep with the runner's picotool: SDK 2.3.0 requires exactly picotool 2.3.0. The cache key carries the SDK version so a cached SDK can never diverge from the pin. Since the pico workflow moved to `ubuntu-latest` (runner-migration PR), the job installs **no picotool at all**: apt's picotool (1.1.x) would trigger the same fatal version mismatch, but with no picotool on PATH the SDK's `Findpicotool.cmake` module downloads and builds the exact required version (2.3.0) via FetchContent. Never apt-install picotool in that job.
+**Rule**: Keep the pico-sdk clone pinned; when bumping it, check the tag's `picotool_VERSION_REQUIRED` in `tools/CMakeLists.txt`. Don't install picotool from apt on GitHub-hosted runners - the SDK self-builds the matching version.
 
 ### espressif/onewire_bus: RMT backend is not available on ESP32-C61
 **Date**: 2026-08-08

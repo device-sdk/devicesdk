@@ -20,7 +20,7 @@ defaults:
 jobs:
   unit-tests:
     name: Host unit tests
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -46,7 +46,7 @@ jobs:
   build:
     name: Build Pico firmware
     needs: unit-tests
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
@@ -60,8 +60,15 @@ jobs:
         # via $GITHUB_ENV here so later steps can use ${{ env.PICO_SDK_PATH }}.
         run: echo "PICO_SDK_PATH=$RUNNER_TEMP/pico-sdk" >> "$GITHUB_ENV"
 
-      # Build deps (cmake, gcc-arm-none-eabi, libnewlib-arm-none-eabi,
-      # build-essential, ninja-build) are pre-installed on the runner.
+      # cmake, ninja, and build-essential are preinstalled on ubuntu-latest; the
+      # ARM cross toolchain is not. Do NOT install picotool from apt: apt ships
+      # 1.1.x and pico-sdk 2.3.0 fatal-errors on any mismatched system picotool
+      # (pico_init_picotool). With no picotool installed the SDK builds the
+      # exact required version (2.3.0) itself via FetchContent.
+      - name: Install ARM cross toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
 
       - name: Restore pico-sdk cache
         id: restore-pico-sdk
@@ -109,7 +116,7 @@ jobs:
 
   detect-version-bump:
     name: Detect firmware version bump
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       bumped: ${{ steps.check.outputs.bumped }}
@@ -146,7 +153,7 @@ jobs:
 
   publish-release:
     name: Publish firmware to GitHub Release
-    runs-on: [self-hosted, linux, proxmox-ephemeral]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, detect-version-bump]
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.detect-version-bump.outputs.bumped == 'true')

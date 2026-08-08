@@ -68,6 +68,18 @@ spi_transfer_result_t devicesdk_hal_spi_read(uint8_t bus, size_t len);
 // UART
 bool devicesdk_hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity);
 bool devicesdk_hal_uart_write(uint8_t port, const uint8_t *data, size_t len);
+
+// OneWire (DS18B20), driven by the RMT-backed espressif/onewire_bus component.
+// `roms` receives up to `max_roms` 8-byte ROM codes, family code first.
+// Returns the number found, or -1 on a bus error.
+int devicesdk_hal_onewire_search(uint8_t pin, uint8_t roms[][8], int max_roms);
+// `rom` NULL selects Skip ROM (single sensor on the bus). Returns true and
+// sets *celsius on success; false on a missing device or a bad scratchpad CRC.
+bool devicesdk_hal_onewire_read_temp(uint8_t pin, const uint8_t *rom, float *celsius);
+
+// DHT11 (model 0) / DHT22 (model 1), bit-banged. Returns false on timeout, on
+// a checksum mismatch, or when called less than 2 s after this pin's last read.
+bool devicesdk_hal_dht_read(uint8_t pin, uint8_t model, float *celsius, float *humidity_pct);
 uart_read_result_t devicesdk_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms);
 
 #endif // HAL_H

@@ -321,3 +321,108 @@ TEST_F(WebSocketHandlerTest, MessageWithNoId) {
                       "\"payload\":{\"pin\":5,\"state\":\"high\"}}";
     EXPECT_TRUE(handle_websocket_message(msg));
 }
+
+// ==================== ONEWIRE / DHT PARSING ====================
+
+TEST_F(WebSocketHandlerTest, OnewireSearchQueuesPin) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"onewire_search\",\"id\":\"msg-ow1\","
+                      "\"payload\":{\"pin\":4}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->type, CMD_ONEWIRE_SEARCH);
+    EXPECT_EQ(last->payload.onewire_search.pin, 4);
+}
+
+TEST_F(WebSocketHandlerTest, OnewireSearchWithoutPinQueuesNothing) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"onewire_search\",\"payload\":{}}";
+    handle_websocket_message(msg);
+    EXPECT_EQ(test_get_last_queued_command(), nullptr);
+}
+
+TEST_F(WebSocketHandlerTest, OnewireReadTempWithoutRomUsesSkipRom) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"onewire_read_temp\",\"id\":\"msg-ow2\","
+                      "\"payload\":{\"pin\":4}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->type, CMD_ONEWIRE_READ_TEMP);
+    EXPECT_EQ(last->payload.onewire_read_temp.pin, 4);
+    EXPECT_FALSE(last->payload.onewire_read_temp.has_rom);
+}
+
+TEST_F(WebSocketHandlerTest, OnewireReadTempDecodesRomFamilyCodeFirst) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"onewire_read_temp\",\"id\":\"msg-ow3\","
+                      "\"payload\":{\"pin\":4,\"rom\":\"28FF641E8D3C4A61\"}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_TRUE(last->payload.onewire_read_temp.has_rom);
+    EXPECT_EQ(last->payload.onewire_read_temp.rom[0], 0x28);
+    EXPECT_EQ(last->payload.onewire_read_temp.rom[1], 0xFF);
+    EXPECT_EQ(last->payload.onewire_read_temp.rom[7], 0x61);
+}
+
+// A malformed rom must not silently degrade into a Skip ROM read: on a
+// multi-drop bus that would return some other sensor's temperature.
+TEST_F(WebSocketHandlerTest, OnewireReadTempRejectsMalformedRom) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"onewire_read_temp\","
+                      "\"payload\":{\"pin\":4,\"rom\":\"28FF\"}}";
+    handle_websocket_message(msg);
+    EXPECT_EQ(test_get_last_queued_command(), nullptr);
+}
+
+TEST_F(WebSocketHandlerTest, OnewireReadTempRejectsLowercaseRom) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"onewire_read_temp\","
+                      "\"payload\":{\"pin\":4,\"rom\":\"28ff641e8d3c4a61\"}}";
+    handle_websocket_message(msg);
+    EXPECT_EQ(test_get_last_queued_command(), nullptr);
+}
+
+TEST_F(WebSocketHandlerTest, DhtReadParsesModel) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"dht_read\",\"id\":\"msg-dht1\","
+                      "\"payload\":{\"pin\":15,\"model\":\"dht22\"}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->type, CMD_DHT_READ);
+    EXPECT_EQ(last->payload.dht_read.pin, 15);
+    EXPECT_EQ(last->payload.dht_read.model, DHT_MODEL_DHT22);
+}
+
+TEST_F(WebSocketHandlerTest, DhtReadParsesDht11) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"dht_read\","
+                      "\"payload\":{\"pin\":15,\"model\":\"dht11\"}}";
+    EXPECT_TRUE(handle_websocket_message(msg));
+
+    const worker_command_t *last = test_get_last_queued_command();
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(last->payload.dht_read.model, DHT_MODEL_DHT11);
+}
+
+TEST_F(WebSocketHandlerTest, DhtReadRejectsUnknownModel) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"dht_read\","
+                      "\"payload\":{\"pin\":15,\"model\":\"dht12\"}}";
+    handle_websocket_message(msg);
+    EXPECT_EQ(test_get_last_queued_command(), nullptr);
+}
+
+TEST_F(WebSocketHandlerTest, DhtReadRejectsMissingModel) {
+    test_reset_last_queued_command();
+    const char *msg = "{\"type\":\"dht_read\",\"payload\":{\"pin\":15}}";
+    handle_websocket_message(msg);
+    EXPECT_EQ(test_get_last_queued_command(), nullptr);
+}

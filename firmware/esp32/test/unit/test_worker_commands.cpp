@@ -286,3 +286,113 @@ TEST_F(WorkerCommandTest, SequenceIdPreserved) {
 
     EXPECT_EQ(resp.sequence_id, 42u);
 }
+
+// ==================== ONEWIRE / DHT DISPATCH ====================
+
+TEST_F(WorkerCommandTest, OnewireSearchReturnsEveryRom) {
+    g_hal_mock.onewire_search_return = 2;
+    const uint8_t rom_a[8] = {0x28, 0xFF, 0x64, 0x1E, 0x8D, 0x3C, 0x4A, 0x61};
+    const uint8_t rom_b[8] = {0x28, 0xAA, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    memcpy(g_hal_mock.onewire_search_roms[0], rom_a, 8);
+    memcpy(g_hal_mock.onewire_search_roms[1], rom_b, 8);
+
+    worker_command_t cmd = make_cmd(CMD_ONEWIRE_SEARCH);
+    cmd.payload.onewire_search.pin = 4;
+
+    worker_response_t resp = worker_execute_command(&cmd);
+
+    EXPECT_EQ(resp.status, RESPONSE_SUCCESS);
+    EXPECT_EQ(resp.data.onewire_search.pin, 4);
+    ASSERT_EQ(resp.data.onewire_search.count, 2);
+    EXPECT_EQ(memcmp(resp.data.onewire_search.roms[1], rom_b, 8), 0);
+    EXPECT_EQ(g_hal_mock.onewire_search_call_count, 1);
+}
+
+TEST_F(WorkerCommandTest, OnewireSearchBusErrorIsReported) {
+    g_hal_mock.onewire_search_return = -1;
+
+    worker_command_t cmd = make_cmd(CMD_ONEWIRE_SEARCH);
+    cmd.payload.onewire_search.pin = 4;
+
+    worker_response_t resp = worker_execute_command(&cmd);
+
+    EXPECT_EQ(resp.status, RESPONSE_ERROR);
+    EXPECT_NE(strstr(resp.error_msg, "presence"), nullptr);
+}
+
+TEST_F(WorkerCommandTest, OnewireReadTempWithoutRomPassesNull) {
+    g_hal_mock.onewire_read_celsius = 22.75f;
+
+    worker_command_t cmd = make_cmd(CMD_ONEWIRE_READ_TEMP);
+    cmd.payload.onewire_read_temp.pin = 4;
+    cmd.payload.onewire_read_temp.has_rom = false;
+
+    worker_response_t resp = worker_execute_command(&cmd);
+
+    EXPECT_EQ(resp.status, RESPONSE_SUCCESS);
+    EXPECT_FLOAT_EQ(resp.data.onewire_temp.celsius, 22.75f);
+    EXPECT_FALSE(resp.data.onewire_temp.has_rom);
+    ASSERT_EQ(g_hal_mock.onewire_read_call_count, 1);
+    EXPECT_FALSE(g_hal_mock.onewire_read_calls[0].has_rom);
+}
+
+TEST_F(WorkerCommandTest, OnewireReadTempEchoesTheAddressedRom) {
+    const uint8_t rom[8] = {0x28, 0xFF, 0x64, 0x1E, 0x8D, 0x3C, 0x4A, 0x61};
+
+    worker_command_t cmd = make_cmd(CMD_ONEWIRE_READ_TEMP);
+    cmd.payload.onewire_read_temp.pin = 4;
+    cmd.payload.onewire_read_temp.has_rom = true;
+    memcpy(cmd.payload.onewire_read_temp.rom, rom, 8);
+
+    worker_response_t resp = worker_execute_command(&cmd);
+
+    EXPECT_EQ(resp.status, RESPONSE_SUCCESS);
+    EXPECT_TRUE(resp.data.onewire_temp.has_rom);
+    EXPECT_EQ(memcmp(resp.data.onewire_temp.rom, rom, 8), 0);
+    ASSERT_EQ(g_hal_mock.onewire_read_call_count, 1);
+    EXPECT_TRUE(g_hal_mock.onewire_read_calls[0].has_rom);
+    EXPECT_EQ(memcmp(g_hal_mock.onewire_read_calls[0].rom, rom, 8), 0);
+}
+
+TEST_F(WorkerCommandTest, OnewireReadTempCrcFailureIsReported) {
+    g_hal_mock.onewire_read_return = false;
+
+    worker_command_t cmd = make_cmd(CMD_ONEWIRE_READ_TEMP);
+    cmd.payload.onewire_read_temp.pin = 4;
+
+    worker_response_t resp = worker_execute_command(&cmd);
+
+    EXPECT_EQ(resp.status, RESPONSE_ERROR);
+    EXPECT_NE(strstr(resp.error_msg, "CRC"), nullptr);
+}
+
+TEST_F(WorkerCommandTest, DhtReadReturnsBothMeasurements) {
+    g_hal_mock.dht_celsius = 19.4f;
+    g_hal_mock.dht_humidity_pct = 51.2f;
+
+    worker_command_t cmd = make_cmd(CMD_DHT_READ);
+    cmd.payload.dht_read.pin = 15;
+    cmd.payload.dht_read.model = DHT_MODEL_DHT22;
+
+    worker_response_t resp = worker_execute_command(&cmd);
+
+    EXPECT_EQ(resp.status, RESPONSE_SUCCESS);
+    EXPECT_EQ(resp.data.dht.pin, 15);
+    EXPECT_FLOAT_EQ(resp.data.dht.celsius, 19.4f);
+    EXPECT_FLOAT_EQ(resp.data.dht.humidity_pct, 51.2f);
+    ASSERT_EQ(g_hal_mock.dht_read_call_count, 1);
+    EXPECT_EQ(g_hal_mock.dht_read_calls[0].model, DHT_MODEL_DHT22);
+}
+
+TEST_F(WorkerCommandTest, DhtReadFailureMentionsTheRateLimit) {
+    g_hal_mock.dht_read_return = false;
+
+    worker_command_t cmd = make_cmd(CMD_DHT_READ);
+    cmd.payload.dht_read.pin = 15;
+    cmd.payload.dht_read.model = DHT_MODEL_DHT11;
+
+    worker_response_t resp = worker_execute_command(&cmd);
+
+    EXPECT_EQ(resp.status, RESPONSE_ERROR);
+    EXPECT_NE(strstr(resp.error_msg, "2s"), nullptr);
+}

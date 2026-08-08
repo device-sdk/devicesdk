@@ -67,6 +67,29 @@ typedef struct {
     size_t data_len;
 } uart_read_response_data_t;
 
+// OneWire search response data
+typedef struct {
+    uint8_t pin;
+    uint8_t count;
+    uint8_t roms[MAX_ONEWIRE_ROMS][ONEWIRE_ROM_LEN];
+} onewire_search_response_data_t;
+
+// OneWire temperature response data. `has_rom` false means the read used
+// Skip ROM, and the JSON frame reports an empty rom string.
+typedef struct {
+    uint8_t pin;
+    bool has_rom;
+    uint8_t rom[ONEWIRE_ROM_LEN];
+    float celsius;
+} onewire_temp_response_data_t;
+
+// DHT read response data
+typedef struct {
+    uint8_t pin;
+    float celsius;
+    float humidity_pct;
+} dht_response_data_t;
+
 // Display update response data
 typedef struct {
     uint8_t width;
@@ -83,6 +106,9 @@ typedef union {
     i2c_read_response_data_t i2c_read;
     i2c_configure_response_data_t i2c_configure;
     temperature_response_data_t temperature;
+    onewire_search_response_data_t onewire_search;
+    onewire_temp_response_data_t onewire_temp;
+    dht_response_data_t dht;
     spi_response_data_t spi;
     uart_read_response_data_t uart_read;
     display_update_response_data_t display;

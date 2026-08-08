@@ -250,6 +250,43 @@ static void process_worker_responses(void) {
                     break;
                 }
 
+                case CMD_ONEWIRE_SEARCH: {
+                    cJSON_AddStringToObject(response, "type", "onewire_search_result");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.onewire_search.pin);
+                    cJSON *roms = cJSON_CreateArray();
+                    for (uint8_t i = 0; i < resp.data.onewire_search.count && i < MAX_ONEWIRE_ROMS; i++) {
+                        char rom_hex[ONEWIRE_ROM_LEN * 2 + 1] = {0};
+                        for (int b = 0; b < ONEWIRE_ROM_LEN; b++) {
+                            snprintf(&rom_hex[b * 2], 3, "%02X", resp.data.onewire_search.roms[i][b]);
+                        }
+                        cJSON_AddItemToArray(roms, cJSON_CreateString(rom_hex));
+                    }
+                    cJSON_AddItemToObject(payload_obj, "roms", roms);
+                    break;
+                }
+
+                case CMD_ONEWIRE_READ_TEMP: {
+                    cJSON_AddStringToObject(response, "type", "onewire_temp_result");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.onewire_temp.pin);
+                    // Skip ROM reads report an empty rom, per responses.ts.
+                    char rom_hex[ONEWIRE_ROM_LEN * 2 + 1] = {0};
+                    if (resp.data.onewire_temp.has_rom) {
+                        for (int b = 0; b < ONEWIRE_ROM_LEN; b++) {
+                            snprintf(&rom_hex[b * 2], 3, "%02X", resp.data.onewire_temp.rom[b]);
+                        }
+                    }
+                    cJSON_AddStringToObject(payload_obj, "rom", rom_hex);
+                    cJSON_AddNumberToObject(payload_obj, "celsius", resp.data.onewire_temp.celsius);
+                    break;
+                }
+
+                case CMD_DHT_READ:
+                    cJSON_AddStringToObject(response, "type", "dht_read_result");
+                    cJSON_AddNumberToObject(payload_obj, "pin", resp.data.dht.pin);
+                    cJSON_AddNumberToObject(payload_obj, "celsius", resp.data.dht.celsius);
+                    cJSON_AddNumberToObject(payload_obj, "humidity_pct", resp.data.dht.humidity_pct);
+                    break;
+
                 case CMD_DISPLAY_UPDATE:
                     cJSON_AddStringToObject(response, "type", "command_ack");
                     cJSON_AddStringToObject(payload_obj, "command", "display_update");

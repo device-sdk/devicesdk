@@ -16,3 +16,6 @@ dependencies:
   #   public: true
   espressif/esp_websocket_client: '*'
   espressif/led_strip: '*'
+  # RMT-backed Dallas 1-Wire driver: the DS18B20 bit timing comes from the RMT
+  # peripheral rather than from a bit-bang loop. No target restrictions.
+  espressif/onewire_bus: '*'

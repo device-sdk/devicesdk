@@ -234,6 +234,32 @@ export type PioWs2812UpdateCommand = Command<
 	}
 >;
 
+// --- OneWire Commands (DS18B20) ---
+/** Enumerate the ROM codes of every DS18B20 on the bus attached to `pin`. */
+export type OnewireSearchCommand = Command<"onewire_search", { pin: number }>;
+
+/**
+ * Read a DS18B20 temperature. `rom` omitted uses Skip ROM, which only works
+ * when a single sensor sits on the bus; `rom` is 16 uppercase hex characters
+ * (a 64-bit ROM code, e.g. "28FF641E8D3C4A61").
+ */
+export type OnewireReadTempCommand = Command<
+	"onewire_read_temp",
+	{
+		pin: number;
+		rom?: string;
+	}
+>;
+
+// --- DHT Commands (DHT11 / DHT22) ---
+export type DhtReadCommand = Command<
+	"dht_read",
+	{
+		pin: number;
+		model: "dht11" | "dht22";
+	}
+>;
+
 // --- Device Commands ---
 export type RebootCommand = Command<"reboot", Record<string, never>>;
 
@@ -262,4 +288,7 @@ export type DeviceCommand =
 	| UartWriteCommand
 	| UartReadCommand
 	| PioWs2812ConfigureCommand
-	| PioWs2812UpdateCommand;
+	| PioWs2812UpdateCommand
+	| OnewireSearchCommand
+	| OnewireReadTempCommand
+	| DhtReadCommand;

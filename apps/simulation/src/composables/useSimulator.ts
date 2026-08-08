@@ -166,6 +166,51 @@ export function useSimulator() {
 				};
 			}
 
+			case "onewire_search": {
+				const roms = [SIMULATED_DS18B20_ROM];
+				simulator.addLog(
+					`OneWire search on GPIO ${command.payload.pin}: ${roms.length} sensor(s) (simulated)`,
+					"onewire_search",
+				);
+				return {
+					id: command.id,
+					type: "onewire_search_result",
+					payload: { pin: command.payload.pin, roms },
+				};
+			}
+
+			case "onewire_read_temp": {
+				const rom = command.payload.rom ?? "";
+				const celsius = jitter(21.5, 0.5);
+				simulator.addLog(
+					`DS18B20 on GPIO ${command.payload.pin}${rom ? ` (${rom})` : ""}: ${celsius}°C (simulated)`,
+					"onewire_read_temp",
+				);
+				return {
+					id: command.id,
+					type: "onewire_temp_result",
+					payload: { pin: command.payload.pin, rom, celsius },
+				};
+			}
+
+			case "dht_read": {
+				const celsius = jitter(21.5, 0.5);
+				const humidityPct = jitter(45, 2);
+				simulator.addLog(
+					`${command.payload.model.toUpperCase()} on GPIO ${command.payload.pin}: ${celsius}°C, ${humidityPct}% RH (simulated)`,
+					"dht_read",
+				);
+				return {
+					id: command.id,
+					type: "dht_read_result",
+					payload: {
+						pin: command.payload.pin,
+						celsius,
+						humidity_pct: humidityPct,
+					},
+				};
+			}
+
 			case "watchdog_configure": {
 				const { enable, timeout_ms } = command.payload;
 				simulator.addLog(
@@ -294,4 +339,12 @@ function ack(command: DeviceCommand): DeviceResponse {
 		type: "command_ack",
 		payload: { command_type: command.type },
 	};
+}
+
+/** ROM code of the single DS18B20 the simulated OneWire bus always reports. */
+const SIMULATED_DS18B20_ROM = "28FF641E8D3C4A61";
+
+/** Plausible sensor noise: `base` +/- `spread`, rounded to one decimal. */
+function jitter(base: number, spread: number): number {
+	return Math.round((base + (Math.random() * 2 - 1) * spread) * 10) / 10;
 }

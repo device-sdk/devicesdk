@@ -27,6 +27,9 @@ function fail(
 const PIN_MIN = 0;
 const PIN_MAX = 99; // 99 = virtual onboard LED
 const I2C_ADDR_RE = /^0x[0-9A-Fa-f]{1,2}$/;
+/** 64-bit DS18B20 ROM code: 8 bytes, uppercase hex, no `0x` prefix. */
+const ROM_RE = /^[0-9A-F]{16}$/;
+const ONEWIRE_DOCS = "https://docs.devicesdk.com/concepts/device-api/";
 const I2C_BYTE_RE = /^0x[0-9A-Fa-f]{1,2}$/;
 
 function validatePin(pin: number, docs: string): void {
@@ -516,6 +519,47 @@ export class LocalDeviceSender {
 		await this.sendCommand({
 			type: "pio_ws2812_update",
 			payload: { pixels },
+		});
+	}
+
+	async onewireSearch(pin: number): Promise<DeviceResponse> {
+		validatePin(pin, ONEWIRE_DOCS);
+		return this.sendCommandAndWait({
+			type: "onewire_search",
+			payload: { pin },
+		});
+	}
+
+	async onewireReadTemperature(
+		pin: number,
+		rom?: string,
+	): Promise<DeviceResponse> {
+		validatePin(pin, ONEWIRE_DOCS);
+		if (rom !== undefined && (typeof rom !== "string" || !ROM_RE.test(rom))) {
+			fail(
+				"rom",
+				rom,
+				'16 uppercase hex characters, e.g. "28FF641E8D3C4A61" (omit it to use Skip ROM)',
+				ONEWIRE_DOCS,
+			);
+		}
+		return this.sendCommandAndWait({
+			type: "onewire_read_temp",
+			payload: rom === undefined ? { pin } : { pin, rom },
+		});
+	}
+
+	async dhtRead(
+		pin: number,
+		model: "dht11" | "dht22",
+	): Promise<DeviceResponse> {
+		validatePin(pin, ONEWIRE_DOCS);
+		if (model !== "dht11" && model !== "dht22") {
+			fail("model", model, '"dht11" or "dht22"', ONEWIRE_DOCS);
+		}
+		return this.sendCommandAndWait({
+			type: "dht_read",
+			payload: { pin, model },
 		});
 	}
 

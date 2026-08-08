@@ -100,6 +100,34 @@ export interface UartReadResult extends BaseResponse {
 	};
 }
 
+export interface OnewireSearchResult extends BaseResponse {
+	type: "onewire_search_result";
+	payload: {
+		pin: number;
+		/** 16-hex-character ROM codes, uppercase, no `0x` prefix. May be empty. */
+		roms: string[];
+	};
+}
+
+export interface OnewireTempResult extends BaseResponse {
+	type: "onewire_temp_result";
+	payload: {
+		pin: number;
+		/** Empty string when the read used Skip ROM. */
+		rom: string;
+		celsius: number;
+	};
+}
+
+export interface DhtReadResult extends BaseResponse {
+	type: "dht_read_result";
+	payload: {
+		pin: number;
+		celsius: number;
+		humidity_pct: number;
+	};
+}
+
 export type DeviceResponse =
 	| DeviceConnected
 	| PinStateUpdate
@@ -111,7 +139,10 @@ export type DeviceResponse =
 	| TemperatureResult
 	| SpiTransferResult
 	| SpiReadResult
-	| UartReadResult;
+	| UartReadResult
+	| OnewireSearchResult
+	| OnewireTempResult
+	| DhtReadResult;
 
 // --- Command to Response Mapping ---
 export type CommandResponseTypeMap = {
@@ -139,4 +170,7 @@ export type CommandResponseTypeMap = {
 	uart_read: UartReadResult;
 	pio_ws2812_configure: CommandAck;
 	pio_ws2812_update: CommandAck;
+	onewire_search: OnewireSearchResult;
+	onewire_read_temp: OnewireTempResult;
+	dht_read: DhtReadResult;
 };

@@ -1,8 +1,8 @@
 import open from "open";
 import {
+	DeviceSDKApiError,
 	getApiUrl,
 	getMe,
-	normalizeHost,
 	pollAuth,
 	setApiUrl,
 	setVerbose,
@@ -11,8 +11,10 @@ import {
 import { type Credentials, saveCredentials } from "../credentials.js";
 import { EXIT } from "../exitCodes.js";
 
-const POLL_INTERVAL = 5000; // 5 seconds
-const MAX_POLL_TIME = 60000; // 1 minute
+const MIN_POLL_INTERVAL = 2000; // floor for a pathological server interval
+const MAX_POLL_INTERVAL = 10000; // cap so a misconfigured server can't crawl
+const MAX_POLL_TIME = 600000; // 10-minute hard cap regardless of expires_in
+const POLL_ERROR_RETRIES = 3; // transient poll failures before giving up
 
 let isVerbose = false;
 
@@ -42,20 +44,59 @@ export default async function login(options?: {
 
 		// Open browser
 		await open(authUrl).catch(() => {
-			// Ignore errors opening browser
+			// Ignore errors opening the browser
 		});
 
 		console.log("Waiting for authentication...");
 
+		// The server tells us how long the device code lives and how often to
+		// poll - honour it (with a sane cap and floor) so slow typists are not
+		// cut off at an arbitrary minute and a misconfigured server cannot
+		// make the loop spin or crawl.
+		const expiresInMs = authStart.expires_in * 1000;
+		const deadline = Math.min(
+			Number.isFinite(expiresInMs) && expiresInMs > 0
+				? expiresInMs
+				: MAX_POLL_TIME,
+			MAX_POLL_TIME,
+		);
+		const serverIntervalMs = authStart.interval * 1000;
+		const intervalMs =
+			Number.isFinite(serverIntervalMs) && serverIntervalMs > 0
+				? Math.min(
+						Math.max(serverIntervalMs, MIN_POLL_INTERVAL),
+						MAX_POLL_INTERVAL,
+					)
+				: MIN_POLL_INTERVAL;
+
 		const startTime = Date.now();
 		let authResult = null;
+		let pollErrors = 0;
 
-		while (!authResult && Date.now() - startTime < MAX_POLL_TIME) {
-			await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+		while (!authResult && Date.now() - startTime < deadline) {
+			await new Promise((resolve) => setTimeout(resolve, intervalMs));
 
-			// A poll failure propagates to the outer catch (and the global
-			// handler); it must not be double-printed here.
-			authResult = await pollAuth(authStart.device_code);
+			try {
+				authResult = await pollAuth(authStart.device_code);
+				pollErrors = 0;
+			} catch (error) {
+				// Transient poll failures (network blips, 5xx) must not abort
+				// the whole login - retry a bounded number of times. 4xx
+				// failures are deterministic and abort immediately.
+				if (error instanceof DeviceSDKApiError && error.statusCode < 500) {
+					throw error;
+				}
+				pollErrors++;
+				if (pollErrors >= POLL_ERROR_RETRIES) {
+					throw error;
+				}
+				if (isVerbose) {
+					process.stdout.write(
+						`\rPoll failed (retry ${pollErrors}/${POLL_ERROR_RETRIES})...`,
+					);
+				}
+				continue;
+			}
 
 			if (!authResult && isVerbose) {
 				const elapsed = Math.round((Date.now() - startTime) / 1000);
@@ -80,7 +121,7 @@ export default async function login(options?: {
 				(error as Error & { statusCode: number }).statusCode === 401
 			) {
 				// Token might not be active yet; wait once and retry
-				await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+				await new Promise((resolve) => setTimeout(resolve, intervalMs));
 				user = await getMe(authResult.access_token);
 			} else {
 				throw error;
@@ -93,8 +134,11 @@ export default async function login(options?: {
 			refreshToken: authResult.refresh_token,
 			expiresAt: Date.now() + authResult.expires_in * 1000,
 			email: user.email,
-			// Persist the server URL so every later command targets it.
-			host: options?.host ? normalizeHost(options.host) : await getApiUrl(),
+			// Persist the URL that was actually used: DEVICESDK_API_URL wins
+			// over --host in getApiUrl(), so when both are set the requests
+			// went to the env var URL - storing the --host URL would make the
+			// next command target a different server.
+			host: await getApiUrl(),
 		};
 
 		await saveCredentials(credentials);
@@ -104,7 +148,6 @@ export default async function login(options?: {
 		console.error("\n✗ Error: Authentication failed\n");
 		if (error instanceof Error) {
 			console.error(`  ${error.message}`);
-			console.error(`  Stack: ${error.stack}`);
 		}
 		process.exit(EXIT.GENERIC);
 	}

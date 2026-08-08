@@ -22,28 +22,20 @@ export default async function whoami(
 		console.log(`Logged in as: ${user.email}`);
 		console.log(`User ID: ${user.id}`);
 	} catch (error) {
-		const code =
-			(error as NodeJS.ErrnoException).code === "ENOENT"
-				? "not_authenticated"
-				: undefined;
+		// Not-logged-in is handled inside requireAuth (it exits with
+		// NOT_AUTHENTICATED and its own message) - anything reaching this
+		// catch is a real getMe failure.
 		const message =
-			code === "not_authenticated"
-				? "Not logged in. Run `devicesdk login` to authenticate."
-				: error instanceof Error
-					? error.message
-					: "Failed to get user info";
+			error instanceof Error ? error.message : "Failed to get user info";
 
 		if (json) {
 			emitJsonError(message, {
-				code,
 				docs: "https://docs.devicesdk.com/cli/login/",
 			});
 		} else {
 			console.error("✗ Error: Failed to get user info\n");
 			console.error(`  ${message}`);
 		}
-		process.exit(
-			code === "not_authenticated" ? EXIT.NOT_AUTHENTICATED : EXIT.GENERIC,
-		);
+		process.exit(EXIT.GENERIC);
 	}
 }

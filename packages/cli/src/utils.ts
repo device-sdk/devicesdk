@@ -82,7 +82,13 @@ export async function loadConfig(
 		if (resolvedPath.endsWith(".ts")) {
 			const result = await esbuild.build({
 				entryPoints: [resolvedPath],
-				bundle: false,
+				// Bundle relative imports: the compiled config is relocated to
+				// .devicesdk/build/configs/, so an un-bundled `import { x } from
+				// "./helpers.ts"` would break at import time. @devicesdk/cli
+				// stays external - bundling it would inline the CLI binary's
+				// `program.parse(process.argv)` side effect.
+				bundle: true,
+				external: ["@devicesdk/cli"],
 				format: "esm",
 				target: "es2022",
 				write: false,

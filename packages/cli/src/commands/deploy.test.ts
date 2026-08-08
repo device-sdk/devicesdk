@@ -14,6 +14,7 @@ const apiMocks = vi.hoisted(() => ({
 	createProject: vi.fn(),
 	uploadScript: vi.fn(),
 	uploadScriptsBatch: vi.fn(),
+	getDeviceStatus: vi.fn(),
 }));
 
 vi.mock("../api.js", async (importOriginal) => {
@@ -24,6 +25,7 @@ vi.mock("../api.js", async (importOriginal) => {
 		createProject: apiMocks.createProject,
 		uploadScript: apiMocks.uploadScript,
 		uploadScriptsBatch: apiMocks.uploadScriptsBatch,
+		getDeviceStatus: apiMocks.getDeviceStatus,
 	};
 });
 
@@ -121,6 +123,12 @@ describe("deploy command", () => {
 		apiMocks.createProject.mockResolvedValue({});
 		apiMocks.uploadScript.mockResolvedValue(defaultUploadScriptResult);
 		apiMocks.uploadScriptsBatch.mockResolvedValue(defaultBatchUploadResult);
+		apiMocks.getDeviceStatus.mockResolvedValue({
+			connected: false,
+			connected_since: null,
+			last_connected_at: null,
+			current_version_id: "existing-version",
+		});
 		buildDeviceMock.mockResolvedValue({
 			size: 1024,
 			outfile: "/project/.devicesdk/build/sensor-1.js",
@@ -147,6 +155,60 @@ describe("deploy command", () => {
 		);
 		expect(apiMocks.uploadScriptsBatch).not.toHaveBeenCalled();
 		expect(exitSpy).not.toHaveBeenCalled();
+	});
+
+	it("reports a single-device deploy as updated when the device already has a version", async () => {
+		const stdoutSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await deploy({ device: "sensor-1", json: true });
+
+		const printed = stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
+		const parsed = JSON.parse(printed.trim());
+		expect(parsed.result.versions[0]).toMatchObject({
+			deviceId: "sensor-1",
+			status: "updated",
+		});
+		stdoutSpy.mockRestore();
+	});
+
+	it("reports a single-device deploy as created when the device has no version yet", async () => {
+		apiMocks.getDeviceStatus.mockResolvedValue({
+			connected: false,
+			connected_since: null,
+			last_connected_at: null,
+			current_version_id: null,
+		});
+		const stdoutSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await deploy({ device: "sensor-1", json: true });
+
+		const printed = stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
+		const parsed = JSON.parse(printed.trim());
+		expect(parsed.result.versions[0]).toMatchObject({
+			deviceId: "sensor-1",
+			status: "created",
+		});
+		stdoutSpy.mockRestore();
+	});
+
+	it("exits without uploading when the built script exceeds the size limit", async () => {
+		buildDeviceMock.mockResolvedValueOnce({
+			size: 5 * 1024 * 1024,
+			outfile: "/project/.devicesdk/build/sensor-1.js",
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(deploy({ device: "sensor-1" })).rejects.toThrowError(/exit:6/);
+		expect(exitSpy).toHaveBeenCalledWith(5);
+		expect(apiMocks.uploadScript).not.toHaveBeenCalled();
+		expect(errorSpy.mock.calls.flat().join("\n")).toContain(
+			"exceeds maximum size",
+		);
+		errorSpy.mockRestore();
 	});
 
 	it("exits when config has no devices", async () => {

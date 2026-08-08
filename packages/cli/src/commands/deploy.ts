@@ -1,8 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { MAX_SCRIPT_SIZE_BYTES } from "@devicesdk/core";
 import {
 	createProject,
 	DeviceSDKApiError,
+	getDeviceStatus,
 	getProject,
 	uploadScript,
 	uploadScriptsBatch,
@@ -151,6 +153,19 @@ export default async function deploy(
 					buildDir,
 					{},
 				);
+				// Catch oversized scripts locally with the same threshold the
+				// server enforces - uploading one would just round-trip to a
+				// 400 after a multi-minute upload on slow links.
+				if (size > MAX_SCRIPT_SIZE_BYTES) {
+					const msg = `${deviceId}: Script exceeds maximum size of ${formatSize(MAX_SCRIPT_SIZE_BYTES)} (${formatSize(size)})`;
+					if (json)
+						emitJsonError(msg, {
+							code: "script_too_large",
+							docs: DEPLOY_DOCS,
+						});
+					else console.error(`✗ ${msg}`);
+					process.exit(EXIT.BUILD_ERROR);
+				}
 				const script = await fs.readFile(outfile, "utf-8");
 				builtDevices.push({
 					deviceId,
@@ -203,6 +218,21 @@ export default async function deploy(
 			// Single device upload
 			const { deviceId, script, entrypointName } = builtDevices[0];
 			try {
+				// Derive created vs updated like the batch path: the single
+				// upload endpoint returns no status field, so a device with no
+				// current version yet gets "created", anything else "updated".
+				// The status call is cosmetic - never let it fail the deploy.
+				let status: "created" | "updated" = "updated";
+				try {
+					const currentStatus = await getDeviceStatus(
+						token,
+						config.projectId,
+						deviceId,
+					);
+					status = currentStatus.current_version_id ? "updated" : "created";
+				} catch {
+					status = "updated";
+				}
 				const result = await uploadScript(
 					token,
 					config.projectId,
@@ -214,12 +244,13 @@ export default async function deploy(
 				deployedVersions.push({
 					deviceId,
 					versionId: result.version_id,
-					status: "updated",
+					status,
 					deviceRebooted: result.device_rebooted,
 					rebootReason: result.reboot_reason,
 				});
 				if (!json) {
-					console.log(`\n✓ ${deviceId}  ${result.version_id}  (updated)`);
+					const statusText = status === "created" ? "(created)" : "(updated)";
+					console.log(`\n✓ ${deviceId}  ${result.version_id}  ${statusText}`);
 					if (result.device_rebooted) {
 						console.log(`  Device rebooted: ${result.reboot_reason}`);
 					} else {

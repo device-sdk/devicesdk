@@ -459,6 +459,9 @@ export default async function inspect(
 
 		// Serial queue - ensures commands don't interleave on piped input
 		let commandQueue: Promise<void> = Promise.resolve();
+		// Resolver for an in-flight reboot confirmation prompt; settled by the
+		// close handler when stdin ends (EOF/Ctrl-D) while the prompt is open.
+		let pendingQuestion: (() => void) | null = null;
 
 		rl.on("line", (line) => {
 			commandQueue = commandQueue.then(async () => {
@@ -488,21 +491,37 @@ export default async function inspect(
 					return;
 				}
 
-				// Confirm reboot to avoid accidental reboots
+				// Confirm reboot to avoid accidental reboots. The confirmation
+				// stays inside this queue slot so a piped "exit" (or any other
+				// line) cannot process.exit while the reboot is in flight.
 				if (parsed.command.type === "reboot") {
-					rl.question("Reboot the device? [y/N] ", async (answer) => {
-						if (answer.toLowerCase() !== "y") {
+					await new Promise<void>((resolve) => {
+						// EOF/Ctrl-D during the prompt never invokes the answer
+						// callback - settle the queue slot from the close
+						// handler instead so `echo reboot | devicesdk inspect`
+						// cannot hang forever.
+						pendingQuestion = () => {
 							console.log("Aborted.");
 							rl.prompt();
-							return;
-						}
-						await executeCommand(
-							token,
-							projectId,
-							deviceId,
-							parsed.command,
-							rl,
-						);
+							resolve();
+						};
+						rl.question("Reboot the device? [y/N] ", async (answer) => {
+							pendingQuestion = null;
+							if (answer.toLowerCase() !== "y") {
+								console.log("Aborted.");
+								rl.prompt();
+								resolve();
+								return;
+							}
+							await executeCommand(
+								token,
+								projectId,
+								deviceId,
+								parsed.command,
+								rl,
+							);
+							resolve();
+						});
 					});
 					return;
 				}
@@ -511,8 +530,14 @@ export default async function inspect(
 			});
 		});
 
-		rl.on("close", () => {
+		rl.on("close", async () => {
 			console.log("\nGoodbye.");
+			// Settle an in-flight reboot prompt: readline never invokes the
+			// question callback on EOF, so without this the queue slot would
+			// never resolve and the drain below would hang forever.
+			pendingQuestion?.();
+			// Drain the queue (a reboot may still be in flight) before exiting.
+			await commandQueue;
 			process.exit(EXIT.SUCCESS);
 		});
 	} catch (error) {

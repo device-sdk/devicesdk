@@ -30,6 +30,10 @@ const RESET = "\x1b[0m";
 const RECONNECT_INITIAL_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_MIN_LIFETIME_MS = 5_000;
+
+const VALID_LOG_LEVELS = new Set(["log", "info", "warn", "error", "debug"]);
+const DEFAULT_LINES = 50;
 
 function formatMessage(message: string): string {
 	try {
@@ -83,6 +87,7 @@ interface SessionState {
 	historyComplete: boolean;
 	reconnectAttempts: number;
 	reconnectDelay: number;
+	openedAt?: number;
 	finished: boolean;
 	currentSocket?: WebSocket;
 	resolve: (result: SessionResult) => void;
@@ -135,11 +140,19 @@ async function openSession(state: SessionState): Promise<void> {
 	});
 	const ws = new WebSocket(url, {
 		headers: { Authorization: `Bearer ${state.token}` },
+		// A server that accepts TCP but never upgrades would otherwise hang
+		// `logs --tail` forever (the HTTP request timeout does not cover the
+		// WebSocket handshake).
+		handshakeTimeout: 10_000,
 	});
 	state.currentSocket = ws;
 
 	ws.on("open", () => {
-		state.reconnectAttempts = 0;
+		state.openedAt = Date.now();
+		// Only the backoff delay resets here. The attempt budget resets in the
+		// close handler once a connection has proven itself by surviving a
+		// minimum lifetime - a server that opens and immediately closes must
+		// not reset the budget on every open (that loops forever).
 		state.reconnectDelay = RECONNECT_INITIAL_MS;
 		state.bufferedHistory = [];
 		state.historyComplete = false;
@@ -248,6 +261,15 @@ async function openSession(state: SessionState): Promise<void> {
 			return;
 		}
 
+		// A connection that survived the minimum lifetime was healthy - treat
+		// its death as a fresh start. Short-lived connections (server opens
+		// then immediately closes) count against the budget.
+		if (
+			state.openedAt !== undefined &&
+			Date.now() - state.openedAt >= RECONNECT_MIN_LIFETIME_MS
+		) {
+			state.reconnectAttempts = 0;
+		}
 		state.reconnectAttempts++;
 		if (state.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
 			finish(state, {
@@ -263,8 +285,18 @@ async function openSession(state: SessionState): Promise<void> {
 	};
 
 	ws.on("close", handleClose);
-	ws.on("error", () => {
-		// `error` typically precedes `close`; let close drive reconnect.
+	ws.on("error", (err: Error) => {
+		// A handshake timeout (server accepted TCP but stalled) is worth
+		// surfacing directly instead of folding into the reconnect loop.
+		if (err?.message?.includes("handshake has timed out")) {
+			finish(state, {
+				exitCode: EXIT.GENERIC,
+				reason:
+					"Watcher connection timed out during the WebSocket handshake (server accepted the connection but never completed it).",
+			});
+			return;
+		}
+		// Other errors typically precede `close`; let close drive reconnect.
 	});
 }
 
@@ -274,6 +306,25 @@ export default async function logs(
 	options: LogsOptions,
 ): Promise<void> {
 	const json = isJsonMode(options);
+
+	// Validate CLI input before any network work: a NaN --lines would flow
+	// into the watch URL as backfillLimit=NaN and an unknown --level would be
+	// passed through to the server unvalidated.
+	const lines =
+		Number.isFinite(options.lines) && options.lines >= 1
+			? Math.min(Math.floor(options.lines), 100)
+			: DEFAULT_LINES;
+	if (options.level && !VALID_LOG_LEVELS.has(options.level)) {
+		const msg = `Invalid log level "${options.level}". Valid levels: ${[...VALID_LOG_LEVELS].join(", ")}`;
+		if (json)
+			emitJsonError(msg, {
+				code: "invalid_log_level",
+				docs: "https://docs.devicesdk.com/cli/logs/",
+			});
+		else console.error(`✗ Error: ${msg}`);
+		process.exit(EXIT.CONFIG_INVALID);
+	}
+
 	const token = await requireAuth();
 
 	let projectId = projectIdArg;
@@ -321,7 +372,7 @@ export default async function logs(
 			level: options.level,
 			// Server clamps to 100; mirror that here so users get predictable
 			// behaviour without needing a server round-trip.
-			lines: Math.min(Math.max(options.lines, 1), 100),
+			lines,
 			token,
 			projectId,
 			deviceId,

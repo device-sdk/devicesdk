@@ -62,6 +62,18 @@ describe("init command", () => {
 		expect(exitSpy).toHaveBeenCalledWith(2);
 	});
 
+	it("exits with code 2 for an invalid project id", async () => {
+		await expect(init("Bad Name")).rejects.toThrow(/exit:2/);
+		expect(exitSpy).toHaveBeenCalledWith(2);
+		expect(apiMocks.createProject).not.toHaveBeenCalled();
+	});
+
+	it("exits with code 2 for an over-length project id", async () => {
+		await expect(init("a".repeat(37))).rejects.toThrow(/exit:2/);
+		expect(exitSpy).toHaveBeenCalledWith(2);
+		expect(apiMocks.createProject).not.toHaveBeenCalled();
+	});
+
 	it("exits with code 1 when devicesdk.ts already exists", async () => {
 		// devicesdk.ts access resolves → file exists
 		accessSpy.mockResolvedValueOnce(undefined);

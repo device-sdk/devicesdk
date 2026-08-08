@@ -121,7 +121,6 @@ More: https://docs.devicesdk.com/cli/login/`,
 program
 	.command("init [project-id]")
 	.description("Initialize a new DeviceSDK project")
-	.option("-y, --yes", "Skip prompts and use defaults")
 	.option(
 		"--template <name>",
 		"Use a starter template (basic, multi-device, empty)",

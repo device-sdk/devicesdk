@@ -4,7 +4,7 @@ import { MAX_SCRIPT_SIZE_BYTES } from "@devicesdk/core";
 import * as esbuild from "esbuild";
 import type { DeviceSDKConfig } from "../config.js";
 import { EXIT } from "../exitCodes.js";
-import { loadConfig } from "../utils.js";
+import { getConfigDir, loadConfig } from "../utils.js";
 
 interface BuildOptions {
 	device?: string;
@@ -140,11 +140,11 @@ function formatSize(bytes: number): string {
 export default async function build(options: BuildOptions = {}): Promise<void> {
 	try {
 		const config = await loadConfig(options.config);
-		const configDir = path.dirname(
-			options.config
-				? path.resolve(process.cwd(), options.config)
-				: path.join(process.cwd(), "devicesdk.ts"),
-		);
+		// Same resolution as loadConfig: parent-walk discovery, DEVICESDK_CONFIG
+		// env var, or an explicit --config. A hand-rolled cwd-relative path
+		// would diverge (false "Main file not found" from a subdirectory and
+		// devicesdk-env.d.ts written into the subdir).
+		const configDir = getConfigDir(options.config);
 		const outdir = options.outdir
 			? path.resolve(process.cwd(), options.outdir)
 			: path.join(configDir, ".devicesdk", "build");

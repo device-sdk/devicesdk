@@ -68,12 +68,20 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.PICO_SDK_PATH }}
-          key: pico-sdk-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
+          # The version in the key MUST match the clone pin below: a cached SDK
+          # from a different ref would silently rebuild against the wrong
+          # toolchain.
+          key: pico-sdk-2.1.1-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
 
       - name: Install pico-sdk
         if: steps.restore-pico-sdk.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 https://github.com/raspberrypi/pico-sdk ${PICO_SDK_PATH}
+          # Pinned, not HEAD: an unpinned SDK drifted to require picotool 2.3.0
+          # while the runner image ships 2.1.1 (see TROUBLESHOOT.md). 2.1.1
+          # requires exactly picotool 2.1.1, which the image has. When bumping
+          # this pin, update the runner image's picotool first (or set
+          # PICOTOOL_FETCH_FROM_GIT=ON for a one-off build).
+          git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk ${PICO_SDK_PATH}
           git -C ${PICO_SDK_PATH} submodule update --init
 
       - name: Save pico-sdk cache
@@ -81,7 +89,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ${{ env.PICO_SDK_PATH }}
-          key: pico-sdk-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
+          key: pico-sdk-2.1.1-${{ hashFiles('firmware/pico/pico_sdk_import.cmake') }}
 
       - name: Build firmware artifacts
         run: |

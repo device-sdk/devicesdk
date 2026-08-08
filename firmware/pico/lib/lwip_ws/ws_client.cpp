@@ -10,8 +10,13 @@
 #include <algorithm>
 #include "base64.h"
 #include "mbedtls/sha1.h"
+#include "mbedtls/ssl.h"
 #include "websocket_handler.h"
 #include "ca_cert.h"
+
+// Forward declarations (defined below process_rx_buffer which uses them).
+static std::string extract_header_value(const std::string& headers, const char* name);
+static std::string expected_ws_accept(const std::string& key);
 
 #define WEBSOCKET_OPCODE_TEXT 0x1
 #define WEBSOCKET_OPCODE_PING 0x9
@@ -234,21 +239,28 @@ void WebsocketClient::on_dns_found(const ip_addr_t *ipaddr) {
                 return;
             }
 
-            // Pin the certificate chain to the configured hostname; without
-            // this, any certificate chaining to the embedded CA would be
-            // accepted for any name.
-            if (!this->host.empty()) {
-                err_t hn_err = altcp_tls_set_hostname(tls_config, this->host.c_str());
-                if (hn_err != ERR_OK) {
-                    printf("[WS] Failed to set TLS hostname, connecting without hostname check\n");
-                }
-            }
-
             tls_pcb = altcp_tls_new(tls_config, IPADDR_TYPE_ANY);
             if (!tls_pcb) {
                 altcp_tls_free_config(tls_config);
                 tls_config = nullptr;
                 return;
+            }
+
+            // Pin the certificate chain to the configured hostname; without
+            // this, any certificate chaining to the embedded CA would be
+            // accepted for any name. The RPi lwIP fork has no
+            // altcp_tls_set_hostname, so reach the mbedTLS ssl context through
+            // the public altcp_tls_context() accessor and set the hostname
+            // there - before the handshake that altcp_connect starts.
+            if (!this->host.empty()) {
+                mbedtls_ssl_context *ssl_ctx =
+                    (mbedtls_ssl_context *)altcp_tls_context(tls_pcb);
+                if (ssl_ctx) {
+                    int hn_err = mbedtls_ssl_set_hostname(ssl_ctx, this->host.c_str());
+                    if (hn_err != 0) {
+                        printf("[WS] Failed to set TLS hostname (mbedtls rc=%d), connecting without hostname check\n", hn_err);
+                    }
+                }
             }
         } else {
             // Plain TCP for self-hosted servers without TLS (host had a port).

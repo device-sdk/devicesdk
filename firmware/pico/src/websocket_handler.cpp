@@ -712,16 +712,16 @@ void handle_websocket_message(const picojson::value& v) {
              type == "dht_read") {
         std::string parse_error;
         bool parsed = (type == "onewire_search")
-            ? parse_onewire_search(payload, &cmd, &parse_error)
+            ? parse_onewire_search(payload, cmd.get(), &parse_error)
             : (type == "onewire_read_temp")
-                ? parse_onewire_read_temp(payload, &cmd, &parse_error)
-                : parse_dht_read(payload, &cmd, &parse_error);
+                ? parse_onewire_read_temp(payload, cmd.get(), &parse_error)
+                : parse_dht_read(payload, cmd.get(), &parse_error);
 
         if (!parsed) {
             send_error(parse_error.c_str());
             return;
         }
-        queue_command(&cmd);
+        queue_command(cmd.get());
     }
     // === PIO WS2812 CONFIGURE ===
     else if (type == "pio_ws2812_configure") {

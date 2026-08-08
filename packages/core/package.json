@@ -48,6 +48,10 @@
 			"types": "./dist/i2c/index.d.ts",
 			"import": "./dist/i2c/index.js"
 		},
+		"./nextion": {
+			"types": "./dist/nextion/index.d.ts",
+			"import": "./dist/nextion/index.js"
+		},
 		"./devices/pico": {
 			"types": "./dist/devices/pico.d.ts",
 			"import": "./dist/devices/pico.js"

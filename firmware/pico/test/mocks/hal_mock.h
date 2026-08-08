@@ -45,6 +45,29 @@ struct HalMockState {
     std::vector<uint8_t> i2c_read_data;
     std::vector<uint8_t> i2c_scan_addresses;
 
+    // OneWire / DHT tracking
+    struct OnewireReadCall {
+        uint8_t pin;
+        bool has_rom;
+        std::vector<uint8_t> rom;
+    };
+    std::vector<uint8_t> onewire_search_calls;
+    std::vector<OnewireReadCall> onewire_read_calls;
+    struct DhtReadCall {
+        uint8_t pin;
+        uint8_t model;
+    };
+    std::vector<DhtReadCall> dht_read_calls;
+
+    // Return values for the sensor HALs
+    int onewire_search_return = 0;  // -1 for a bus error, or ROM count
+    std::vector<std::vector<uint8_t>> onewire_search_roms;
+    bool onewire_read_return = true;
+    float onewire_read_celsius = 21.5f;
+    bool dht_read_return = true;
+    float dht_celsius = 21.5f;
+    float dht_humidity_pct = 45.0f;
+
     // I2C config state
     struct {
         uint8_t sda_pin = 4;
@@ -65,6 +88,17 @@ struct HalMockState {
         i2c_read_return = 0;
         i2c_read_data.clear();
         i2c_scan_addresses.clear();
+
+        onewire_search_calls.clear();
+        onewire_read_calls.clear();
+        dht_read_calls.clear();
+        onewire_search_return = 0;
+        onewire_search_roms.clear();
+        onewire_read_return = true;
+        onewire_read_celsius = 21.5f;
+        dht_read_return = true;
+        dht_celsius = 21.5f;
+        dht_humidity_pct = 45.0f;
 
         i2c_configs[0] = {4, 5, 100000, false};
         i2c_configs[1] = {6, 7, 100000, false};

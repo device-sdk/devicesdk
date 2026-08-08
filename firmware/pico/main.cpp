@@ -142,6 +142,41 @@ static void process_worker_responses() {
                     payload["celsius"] = picojson::value((double)resp.data.temperature.celsius);
                     break;
                 }
+                case CMD_ONEWIRE_SEARCH: {
+                    response["type"] = picojson::value("onewire_search_result");
+                    payload["pin"] = picojson::value((double)resp.data.onewire_search.pin);
+                    picojson::array roms;
+                    for (uint8_t i = 0; i < resp.data.onewire_search.count && i < MAX_ONEWIRE_ROMS; i++) {
+                        char rom_hex[ONEWIRE_ROM_LEN * 2 + 1] = {0};
+                        for (int b = 0; b < ONEWIRE_ROM_LEN; b++) {
+                            snprintf(&rom_hex[b * 2], 3, "%02X", resp.data.onewire_search.roms[i][b]);
+                        }
+                        roms.push_back(picojson::value(rom_hex));
+                    }
+                    payload["roms"] = picojson::value(roms);
+                    break;
+                }
+                case CMD_ONEWIRE_READ_TEMP: {
+                    response["type"] = picojson::value("onewire_temp_result");
+                    payload["pin"] = picojson::value((double)resp.data.onewire_temp.pin);
+                    // Skip ROM reads report an empty rom, per responses.ts.
+                    char rom_hex[ONEWIRE_ROM_LEN * 2 + 1] = {0};
+                    if (resp.data.onewire_temp.has_rom) {
+                        for (int b = 0; b < ONEWIRE_ROM_LEN; b++) {
+                            snprintf(&rom_hex[b * 2], 3, "%02X", resp.data.onewire_temp.rom[b]);
+                        }
+                    }
+                    payload["rom"] = picojson::value(rom_hex);
+                    payload["celsius"] = picojson::value((double)resp.data.onewire_temp.celsius);
+                    break;
+                }
+                case CMD_DHT_READ: {
+                    response["type"] = picojson::value("dht_read_result");
+                    payload["pin"] = picojson::value((double)resp.data.dht.pin);
+                    payload["celsius"] = picojson::value((double)resp.data.dht.celsius);
+                    payload["humidity_pct"] = picojson::value((double)resp.data.dht.humidity_pct);
+                    break;
+                }
                 case CMD_WATCHDOG_CONFIGURE: {
                     response["type"] = picojson::value("command_ack");
                     payload["command"] = picojson::value("watchdog_configure");

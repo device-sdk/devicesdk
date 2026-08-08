@@ -1,6 +1,7 @@
 #include "core1_worker.h"
 #include "shared_buffers.h"
 #include "hal.h"
+#include "../commands/sensor_commands.h"
 #include "pico/stdlib.h"
 #include "hardware/watchdog.h"
 #include <string.h>
@@ -665,6 +666,15 @@ static worker_response_t execute_command(const worker_command_t* cmd) {
             break;
         case CMD_GET_TEMPERATURE:
             handle_get_temperature(cmd, &resp);
+            break;
+        case CMD_ONEWIRE_SEARCH:
+            handle_onewire_search(cmd, &resp);
+            break;
+        case CMD_ONEWIRE_READ_TEMP:
+            handle_onewire_read_temp(cmd, &resp);
+            break;
+        case CMD_DHT_READ:
+            handle_dht_read(cmd, &resp);
             break;
         case CMD_WATCHDOG_CONFIGURE:
             handle_watchdog_configure(cmd, &resp);

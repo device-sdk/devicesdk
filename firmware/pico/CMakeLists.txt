@@ -47,11 +47,13 @@ add_executable(devicesdk-client
         lib/lwip_ws/ws_client.cpp
         src/websocket_handler.cpp
         src/hal.cpp
+        src/hal_onewire_dht.cpp
         src/utils/base64.cpp
         src/multicore/shared_buffers.cpp
         src/multicore/core1_worker.cpp
         src/commands/i2c_command_handler.cpp
         src/commands/i2c_batch_write.cpp
+        src/commands/sensor_commands.cpp
 )
 
 # Build-time patch placeholders - NOT real credentials.

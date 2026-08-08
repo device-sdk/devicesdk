@@ -28,6 +28,7 @@ set(TESTABLE_SOURCES
     ../src/commands/i2c_read.cpp
     ../src/commands/i2c_batch_write.cpp
     ../src/commands/display_update.cpp
+    ../src/commands/sensor_commands.cpp
 )
 
 # Mock sources
@@ -42,6 +43,7 @@ set(TEST_SOURCES
     unit/test_i2c_commands.cpp
     unit/test_display_update.cpp
     unit/test_ws_client.cpp
+    unit/test_sensor_commands.cpp
 )
 
 add_executable(run_tests

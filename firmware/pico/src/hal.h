@@ -79,6 +79,17 @@ bool hal_uart_configure(uint8_t port, uint8_t tx_pin, uint8_t rx_pin, uint32_t b
 bool hal_uart_write(uint8_t port, const uint8_t *data, size_t len);
 uart_read_result_t hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms);
 
+// OneWire (DS18B20). `roms` receives up to `max_roms` 8-byte ROM codes.
+// Returns the number found, or -1 on a bus error (no presence pulse).
+int hal_onewire_search(uint8_t pin, uint8_t roms[][8], int max_roms);
+// `rom` NULL selects Skip ROM (single sensor on the bus). Returns true and
+// sets *celsius on success; false on a missing presence pulse or a bad CRC.
+bool hal_onewire_read_temp(uint8_t pin, const uint8_t *rom, float *celsius);
+
+// DHT11 (model 0) / DHT22 (model 1). Returns false on timeout, on a checksum
+// mismatch, or when called less than 2 s after the previous read of this pin.
+bool hal_dht_read(uint8_t pin, uint8_t model, float *celsius, float *humidity_pct);
+
 // PIO / WS2812
 bool hal_pio_ws2812_configure(uint8_t pin, uint16_t num_leds);
 bool hal_pio_ws2812_update(const uint8_t *pixel_data, size_t len);

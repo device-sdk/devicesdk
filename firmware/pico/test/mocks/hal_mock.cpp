@@ -151,3 +151,39 @@ void hal_i2c_reset(uint8_t bus) {
 void hal_blink_led(uint32_t duration_ms) {
     // No-op in tests
 }
+
+int hal_onewire_search(uint8_t pin, uint8_t roms[][8], int max_roms) {
+    g_hal_mock.onewire_search_calls.push_back(pin);
+    if (g_hal_mock.onewire_search_return < 0) return -1;
+
+    int count = 0;
+    for (const auto& rom : g_hal_mock.onewire_search_roms) {
+        if (count >= max_roms) break;
+        for (size_t i = 0; i < 8 && i < rom.size(); i++) {
+            roms[count][i] = rom[i];
+        }
+        count++;
+    }
+    return count;
+}
+
+bool hal_onewire_read_temp(uint8_t pin, const uint8_t *rom, float *celsius) {
+    HalMockState::OnewireReadCall call;
+    call.pin = pin;
+    call.has_rom = rom != nullptr;
+    if (rom) call.rom.assign(rom, rom + 8);
+    g_hal_mock.onewire_read_calls.push_back(call);
+
+    if (!g_hal_mock.onewire_read_return) return false;
+    *celsius = g_hal_mock.onewire_read_celsius;
+    return true;
+}
+
+bool hal_dht_read(uint8_t pin, uint8_t model, float *celsius, float *humidity_pct) {
+    g_hal_mock.dht_read_calls.push_back({pin, model});
+
+    if (!g_hal_mock.dht_read_return) return false;
+    *celsius = g_hal_mock.dht_celsius;
+    *humidity_pct = g_hal_mock.dht_humidity_pct;
+    return true;
+}

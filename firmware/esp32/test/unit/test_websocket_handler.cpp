@@ -367,7 +367,7 @@ TEST_F(WebSocketHandlerTest, OnewireReadTempDecodesRomFamilyCodeFirst) {
     EXPECT_TRUE(last->payload.onewire_read_temp.has_rom);
     EXPECT_EQ(last->payload.onewire_read_temp.rom[0], 0x28);
     EXPECT_EQ(last->payload.onewire_read_temp.rom[1], 0xFF);
-    EXPECT_EQ(last->payload.onewire_read_temp.rom[7], 0x61);
+    EXPECT_EQ(last->payload.onewire_read_temp.rom[7], 0x41);
 }
 
 // A malformed rom must not silently degrade into a Skip ROM read: on a

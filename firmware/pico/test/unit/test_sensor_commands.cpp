@@ -31,7 +31,7 @@ TEST_F(SensorCommandsTest, ParsesRomHexFamilyCodeFirst) {
     ASSERT_TRUE(sensor_parse_rom_hex("28FF641E8D3C4A41", rom));
     EXPECT_EQ(rom[0], 0x28);
     EXPECT_EQ(rom[1], 0xFF);
-    EXPECT_EQ(rom[7], 0x61);
+    EXPECT_EQ(rom[7], 0x41);
 }
 
 TEST_F(SensorCommandsTest, RejectsShortRomHex) {
@@ -116,7 +116,7 @@ TEST_F(SensorCommandsTest, ParsesOnewireReadTempWithRom) {
     ASSERT_TRUE(parse_onewire_read_temp(payload, &cmd, &error));
     EXPECT_TRUE(cmd.payload.onewire_read_temp.has_rom);
     EXPECT_EQ(cmd.payload.onewire_read_temp.rom[0], 0x28);
-    EXPECT_EQ(cmd.payload.onewire_read_temp.rom[7], 0x61);
+    EXPECT_EQ(cmd.payload.onewire_read_temp.rom[7], 0x41);
 }
 
 TEST_F(SensorCommandsTest, RejectsMalformedRomRatherThanFallingBackToSkipRom) {

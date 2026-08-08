@@ -128,6 +128,16 @@ static void handle_gpio_configure_input(const worker_command_t* cmd, worker_resp
     resp->data.gpio.pin = pin;
 }
 
+static void handle_gpio_disable_monitoring(const worker_command_t* cmd, worker_response_t* resp) {
+    uint8_t pin = cmd->payload.gpio.pin;
+
+    // Stop polling this pin; a later configure (enable) reactivates it.
+    core1_remove_monitored_pin(pin);
+
+    resp->status = RESPONSE_SUCCESS;
+    resp->data.gpio.pin = pin;
+}
+
 static void handle_pwm_set(const worker_command_t* cmd, worker_response_t* resp) {
     uint8_t pin = cmd->payload.pwm.pin;
     uint32_t freq = cmd->payload.pwm.frequency;
@@ -385,12 +395,15 @@ static void handle_display_update(const worker_command_t* cmd, worker_response_t
         s_framebuffer.resize(fb_size, 0);
     }
 
-    // Apply segments to local framebuffer
+    // Apply segments to local framebuffer. Check each bound individually so
+    // a wrapped (offset + len) can never pass a sum-based check (same fix as
+    // the ESP32 worker).
     size_t total_written = 0;
     for (size_t i = 0; i < segment_count; i++) {
         size_t offset = segments[i].offset;
         size_t len = segments[i].length;
-        if (offset + len <= fb_size && offset + len <= fb_len) {
+        if (offset < fb_size && offset < fb_len &&
+            len <= fb_size - offset && len <= fb_len - offset) {
             memcpy(&s_framebuffer[offset], &fb_data[offset], len);
             total_written += len;
         }
@@ -499,6 +512,7 @@ static void handle_spi_transfer(const worker_command_t* cmd, worker_response_t* 
     }
 
     resp->status = RESPONSE_SUCCESS;
+    resp->data.spi.bus = bus;
     memcpy(resp->data.spi.data, result.data, result.len);
     resp->data.spi.data_len = result.len;
 }
@@ -532,6 +546,7 @@ static void handle_spi_read(const worker_command_t* cmd, worker_response_t* resp
     }
 
     resp->status = RESPONSE_SUCCESS;
+    resp->data.spi.bus = bus;
     memcpy(resp->data.spi.data, result.data, result.len);
     resp->data.spi.data_len = result.len;
 }
@@ -581,6 +596,7 @@ static void handle_uart_read(const worker_command_t* cmd, worker_response_t* res
     uart_read_result_t result = hal_uart_read(port, bytes, timeout);
 
     resp->status = RESPONSE_SUCCESS;
+    resp->data.uart_read.port = port;
     memcpy(resp->data.uart_read.data, result.data, result.len);
     resp->data.uart_read.data_len = result.len;
 }
@@ -644,6 +660,9 @@ static worker_response_t execute_command(const worker_command_t* cmd) {
             break;
         case CMD_GPIO_CONFIGURE_INPUT:
             handle_gpio_configure_input(cmd, &resp);
+            break;
+        case CMD_GPIO_DISABLE_MONITORING:
+            handle_gpio_disable_monitoring(cmd, &resp);
             break;
         case CMD_PWM_SET:
             handle_pwm_set(cmd, &resp);

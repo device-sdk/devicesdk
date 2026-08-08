@@ -591,6 +591,7 @@ bool devicesdk_hal_spi_configure(uint8_t bus, uint8_t clk_pin, uint8_t mosi_pin,
 
 spi_transfer_result_t devicesdk_hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t len) {
     spi_transfer_result_t result = {0};
+    result.bus = bus;
 
     if (bus > 1 || !spi_device_handles[bus]) {
         ESP_LOGE(TAG, "SPI bus %d not configured", bus);
@@ -651,6 +652,7 @@ bool devicesdk_hal_spi_write(uint8_t bus, const uint8_t *data, size_t len) {
 
 spi_transfer_result_t devicesdk_hal_spi_read(uint8_t bus, size_t len) {
     spi_transfer_result_t result = {0};
+    result.bus = bus;
 
     if (bus > 1 || !spi_device_handles[bus]) {
         ESP_LOGE(TAG, "SPI bus %d not configured", bus);
@@ -773,6 +775,7 @@ bool devicesdk_hal_uart_write(uint8_t port, const uint8_t *data, size_t len) {
 
 uart_read_result_t devicesdk_hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t timeout_ms) {
     uart_read_result_t result = {0};
+    result.port = port;
 
     if (port == 0 || port > 2 || !uart_port_initialized[port]) {
         ESP_LOGE(TAG, "UART port %d not configured", port);

@@ -513,6 +513,7 @@ static void handle_spi_transfer(const worker_command_t *cmd, worker_response_t *
     resp->status = RESPONSE_SUCCESS;
     memcpy(resp->data.spi.data, result.data, result.len);
     resp->data.spi.data_len = result.len;
+    resp->data.spi.bus = result.bus;
 }
 
 static void handle_spi_write(const worker_command_t *cmd, worker_response_t *resp) {
@@ -544,6 +545,7 @@ static void handle_spi_read(const worker_command_t *cmd, worker_response_t *resp
     resp->status = RESPONSE_SUCCESS;
     memcpy(resp->data.spi.data, result.data, result.len);
     resp->data.spi.data_len = result.len;
+    resp->data.spi.bus = result.bus;
 }
 
 static void handle_uart_configure(const worker_command_t *cmd, worker_response_t *resp) {
@@ -588,6 +590,7 @@ static void handle_uart_read(const worker_command_t *cmd, worker_response_t *res
     resp->status = RESPONSE_SUCCESS;
     memcpy(resp->data.uart_read.data, result.data, result.len);
     resp->data.uart_read.data_len = result.len;
+    resp->data.uart_read.port = result.port;
 }
 
 static void handle_display_update(const worker_command_t *cmd, worker_response_t *resp) {

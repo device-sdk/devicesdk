@@ -269,6 +269,7 @@ static void process_worker_responses(void) {
 
                 case CMD_SPI_TRANSFER: {
                     cJSON_AddStringToObject(response, "type", "spi_transfer_result");
+                    cJSON_AddNumberToObject(payload_obj, "bus", resp.data.spi.bus);
                     cJSON *spi_data = cJSON_CreateArray();
                     for (size_t i = 0; i < resp.data.spi.data_len; i++) {
                         char hex_str[8];
@@ -276,7 +277,6 @@ static void process_worker_responses(void) {
                         cJSON_AddItemToArray(spi_data, cJSON_CreateString(hex_str));
                     }
                     cJSON_AddItemToObject(payload_obj, "data", spi_data);
-                    cJSON_AddNumberToObject(payload_obj, "length", resp.data.spi.data_len);
                     break;
                 }
 
@@ -288,6 +288,7 @@ static void process_worker_responses(void) {
 
                 case CMD_SPI_READ: {
                     cJSON_AddStringToObject(response, "type", "spi_read_result");
+                    cJSON_AddNumberToObject(payload_obj, "bus", resp.data.spi.bus);
                     cJSON *spi_read_data = cJSON_CreateArray();
                     for (size_t i = 0; i < resp.data.spi.data_len; i++) {
                         char hex_str[8];
@@ -295,7 +296,6 @@ static void process_worker_responses(void) {
                         cJSON_AddItemToArray(spi_read_data, cJSON_CreateString(hex_str));
                     }
                     cJSON_AddItemToObject(payload_obj, "data", spi_read_data);
-                    cJSON_AddNumberToObject(payload_obj, "length", resp.data.spi.data_len);
                     break;
                 }
 
@@ -313,6 +313,7 @@ static void process_worker_responses(void) {
 
                 case CMD_UART_READ: {
                     cJSON_AddStringToObject(response, "type", "uart_read_result");
+                    cJSON_AddNumberToObject(payload_obj, "port", resp.data.uart_read.port);
                     cJSON *uart_data = cJSON_CreateArray();
                     for (size_t i = 0; i < resp.data.uart_read.data_len; i++) {
                         char hex_str[8];

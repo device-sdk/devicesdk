@@ -253,8 +253,11 @@ bool hal_i2c_write(uint8_t bus, uint8_t address, const uint8_t* data, size_t len
     hal_i2c_init(bus);
     i2c_inst_t* i2c = (bus == 0) ? i2c0 : i2c1;
 
-    int ret = i2c_write_blocking(i2c, address, data, len, false);
-    if (ret == PICO_ERROR_GENERIC) {
+    // Bounded timeout (1s) so a stuck bus can't stall the caller forever.
+    // Commands execute on the main loop; a permanent block would freeze the
+    // whole device (matching the ESP32's bounded I2C behavior).
+    int ret = i2c_write_timeout_us(i2c, address, data, len, false, 1000000);
+    if (ret == PICO_ERROR_GENERIC || ret == PICO_ERROR_TIMEOUT) {
         printf("I2C write failed to address 0x%02X\n", address);
         return false;
     }
@@ -269,8 +272,8 @@ int hal_i2c_read(uint8_t bus, uint8_t address, uint8_t* buffer, size_t len, int 
     // If register specified, write it first
     if (reg >= 0) {
         uint8_t reg_byte = (uint8_t)reg;
-        int ret = i2c_write_blocking(i2c, address, &reg_byte, 1, true); // keep bus
-        if (ret == PICO_ERROR_GENERIC) {
+        int ret = i2c_write_timeout_us(i2c, address, &reg_byte, 1, true, 1000000); // keep bus
+        if (ret == PICO_ERROR_GENERIC || ret == PICO_ERROR_TIMEOUT) {
             printf("I2C write register 0x%02X failed\n", reg);
             return -1;
         }
@@ -400,7 +403,10 @@ spi_transfer_result_t hal_spi_transfer(uint8_t bus, const uint8_t *data, size_t 
     spi_transfer_result_t result = { .data = {0}, .len = 0 };
 
     if (bus > 1 || !spi_configs[bus].configured) return result;
-    if (len > sizeof(result.data)) len = sizeof(result.data);
+    // Reject oversize transfers instead of silently truncating: a half-sent
+    // transaction would ack success for data that never went on the wire
+    // (len 0 signals failure to the caller, matching the ESP32 behavior).
+    if (len > sizeof(result.data)) return result;
 
     spi_inst_t* spi = get_spi_inst(bus);
     uint8_t cs_pin = spi_configs[bus].cs_pin;
@@ -430,7 +436,9 @@ spi_transfer_result_t hal_spi_read(uint8_t bus, size_t len) {
     spi_transfer_result_t result = { .data = {0}, .len = 0 };
 
     if (bus > 1 || !spi_configs[bus].configured) return result;
-    if (len > sizeof(result.data)) len = sizeof(result.data);
+    // Reject oversize reads (len 0 signals failure) instead of silently
+    // truncating like the old cap did.
+    if (len > sizeof(result.data)) return result;
 
     spi_inst_t* spi = get_spi_inst(bus);
     uint8_t cs_pin = spi_configs[bus].cs_pin;
@@ -510,7 +518,9 @@ uart_read_result_t hal_uart_read(uint8_t port, size_t bytes_to_read, uint32_t ti
     uart_read_result_t result = { .data = {0}, .len = 0 };
 
     if (port > 1 || !uart_configs[port].configured) return result;
-    if (bytes_to_read > sizeof(result.data)) bytes_to_read = sizeof(result.data);
+    // Same contract as the SPI path: oversize reads error out (len 0) rather
+    // than silently returning fewer bytes than requested.
+    if (bytes_to_read > sizeof(result.data)) return result;
 
     uart_inst_t* uart = get_uart_inst(port);
     uint32_t start = to_ms_since_boot(get_absolute_time());

@@ -449,8 +449,8 @@ uint8_t com_pins = (height == 32) ? 0x02 : 0x12;
 **Date**: 2026-08-08
 **Question/Problem**: The `firmware-pico.yml` CI job fails at CMake configure with `Incompatible picotool installation found: Requires version 2.3.0, you have version 2.1.1` - with no Pico-side code change involved.
 **Root Cause**: The workflow cloned the pico-sdk at HEAD, and the SDK drifted past the picotool version the Proxmox runner image ships. The failure appears "suddenly" because the pico-sdk actions cache evicts over time: a fresh HEAD clone surfaces the drift the next time the cache misses.
-**Solution**: Pin the SDK in `firmware-pico.yml` (`git clone --branch 2.1.1`) - SDK 2.1.1 requires exactly picotool 2.1.1, which the image already has, so no runner change is needed. The cache key carries the SDK version so a cached SDK can never diverge from the pin.
-**Rule**: Keep the pico-sdk clone pinned; when bumping it, check the new tag's `picotool_VERSION_REQUIRED` in `tools/CMakeLists.txt` against the runner image's picotool and update the image first if it falls behind.
+**Solution**: Pin the SDK in `firmware-pico.yml` (`git clone --branch 2.3.0`) in lockstep with the runner image's picotool: SDK 2.3.0 requires exactly picotool 2.3.0. The cache key carries the SDK version so a cached SDK can never diverge from the pin.
+**Rule**: Keep the pico-sdk clone pinned and in lockstep with the runner image's picotool; when bumping either, check the tag's `picotool_VERSION_REQUIRED` in `tools/CMakeLists.txt` against the other.
 
 ### espressif/onewire_bus: RMT backend is not available on ESP32-C61
 **Date**: 2026-08-08

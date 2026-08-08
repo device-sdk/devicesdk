@@ -74,6 +74,8 @@ export class MyC3OledDevice extends DeviceEntrypoint {
 - ✅ OLED display (SSD1306 / SH1106) via the drawing API in `@devicesdk/core`
 - ✅ SPI master (SPI2_HOST)
 - ✅ UART serial - 2 ports
+- ✅ 1-Wire (DS18B20) - multi-probe discovery by ROM code
+- ✅ DHT11 / DHT22 temperature + humidity
 - ✅ On-die temperature sensor
 - ✅ Watchdog timer
 - ✅ Addressable LEDs (WS2812) via the RMT peripheral

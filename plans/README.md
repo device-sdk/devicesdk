@@ -26,7 +26,7 @@ done.
 | 001  | Home Assistant HACS custom integration (full v1, phased) | P1 | L | — | TODO |
 | 004  | I2C sensor driver library in @devicesdk/core (BME280, SHT3x, BH1750, ADS1115, INA219) | P1 | M | — | TODO |
 | 005  | Modbus RTU master over existing UART commands | P2 | S-M | 004 (soft: bytes.ts helpers) | TODO |
-| 006  | OneWire (DS18B20) + DHT11/DHT22 protocol support (core + server + CLI + both firmwares) | P2 | L | — | TODO |
+| 006  | OneWire (DS18B20) + DHT11/DHT22 protocol support (core + server + CLI + both firmwares) | P2 | L | — | DONE (hardware validation pending) |
 | 007  | MQTT device transport as a lazy-loaded aedes plugin (core contract + server + CLI + both firmwares) | P1 | L | — | TODO |
 | 008  | TLS by default: TLS-only server listener, pinned self-signed cert in firmware, CLI TOFU pinning | P1 | L | — | TODO |
 | 009  | DNS-SD `_devicesdk._tcp` advertisement + CLI browse discovery | P2 | S-M | — (best before 001) | TODO |

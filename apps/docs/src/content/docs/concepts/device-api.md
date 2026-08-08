@@ -106,6 +106,30 @@ await this.env.DEVICE.getTemperature(): Promise<DeviceResponse>   // → tempera
 
 Reads the chip's built-in sensor. Less accurate than an external sensor (BME280, DS18B20). The [Discord temperature recipe](/recipes/post-discord-webhook/) uses it.
 
+## 1-Wire (DS18B20)
+
+```typescript
+await this.env.DEVICE.onewireSearch(pin: number): Promise<DeviceResponse>
+  // → onewire_search_result: { pin, roms: string[] }
+await this.env.DEVICE.onewireReadTemperature(pin: number, rom?: string): Promise<DeviceResponse>
+  // → onewire_temp_result: { pin, rom, celsius }
+```
+
+`onewireSearch` walks the bus and returns one 16-character uppercase hex ROM code per DS18B20 found, so several probes can share a single GPIO. Pass one of those codes as `rom` to address a specific probe; omit it and the firmware uses Skip ROM, which is only correct when exactly one device is on the bus.
+
+The data line needs a **4.7 kOhm pull-up to 3V3**. Each read blocks the device's worker for the 750 ms conversion, so poll on a cron rather than in a tight loop.
+
+## DHT11 / DHT22
+
+```typescript
+await this.env.DEVICE.dhtRead(pin: number, model: "dht11" | "dht22"): Promise<DeviceResponse>
+  // → dht_read_result: { pin, celsius, humidity_pct }
+```
+
+One command returns both temperature and humidity. DHT11 reports whole degrees and whole percent; DHT22 reports tenths and handles negative temperatures. The firmware enforces a **2 second minimum between reads on the same pin** and fails the command if you ask sooner - the sensors return corrupt frames when polled faster.
+
+Both sensors are bit-banged with interrupts disabled for the ~5 ms frame, and a failed checksum surfaces as a `command_error` rather than a bogus reading. See the [DS18B20 recipe](/recipes/ds18b20-probe/).
+
 ## KV state
 
 ```typescript

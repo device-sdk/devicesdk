@@ -26,7 +26,6 @@ docker run -d \
   -p 8080:8080 \
   -v ~/devicesdk-data:/data \
   -e ALLOW_REGISTRATION=false \
-  -e SECURE_COOKIES=true \
   ghcr.io/device-sdk/devicesdk:latest
 ```
 
@@ -44,10 +43,15 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/data
+      - devicesdk-data:/data
     environment:
       ALLOW_REGISTRATION: "false"
-      SECURE_COOKIES: "true"
+      # Plain HTTP on the LAN: browsers drop Secure cookies, so keep this
+      # "false" here and flip it to "true" behind an HTTPS reverse proxy.
+      SECURE_COOKIES: "false"
+
+volumes:
+  devicesdk-data:
 ```
 
 ## Environment variables
@@ -121,19 +125,19 @@ Then reference the generated files from your nginx/Apache config. Certbot renews
 
 ## Backups
 
-All persistent state lives in `DATA_DIR` (default `./data`). A hot SQLite backup is safe to take while the server is running:
+All persistent state lives in `DATA_DIR` (default `./data`). A hot SQLite backup is safe to take while the server is running. The commands below assume the `docker run` example above, which mounts `~/devicesdk-data:/data`; with the compose file's named volume, use the volume's host path under `/var/lib/docker/volumes/devicesdk-data/_data` instead:
 
 ```bash
 # Backup using SQLite's online backup API (safe while running)
-sqlite3 ./data/devicesdk.sqlite ".backup /backups/devicesdk-$(date +%Y%m%d-%H%M%S).sqlite"
+sqlite3 ~/devicesdk-data/devicesdk.sqlite ".backup /backups/devicesdk-$(date +%Y%m%d-%H%M%S).sqlite"
 
 # Or stop the container and copy the entire data dir
 docker stop devicesdk
-cp -r ./data /backups/devicesdk-data-$(date +%Y%m%d)
+cp -r ~/devicesdk-data /backups/devicesdk-data-$(date +%Y%m%d)
 docker start devicesdk
 ```
 
-To restore, stop the container, replace `./data/devicesdk.sqlite` with the backup, and restart.
+To restore, stop the container, replace `~/devicesdk-data/devicesdk.sqlite` with the backup, and restart.
 
 Schedule regular backups with cron:
 

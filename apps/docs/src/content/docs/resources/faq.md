@@ -46,9 +46,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/data
+      - devicesdk-data:/data
     environment:
       ALLOW_REGISTRATION: "true"
+
+volumes:
+  devicesdk-data:
 ```
 
 Then run:

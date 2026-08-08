@@ -13,7 +13,7 @@ description: DeviceSDK is a free, open-source (AGPL-3.0), self-hosted IoT platfo
 - Marketing site: <https://devicesdk.com>
 - Source & releases: <https://github.com/device-sdk>
 - Dashboard, REST API, and OpenAPI docs are served by **your own server** at `http://<server>:8080` (dashboard at `/`, API under `/v1/*`, docs at `/api-docs`). There is no hosted dashboard or API.
-- Interactive OpenAPI reference (docs): <https://devicesdk.com/docs/api>
+- Interactive OpenAPI reference: served by your server at `/api-docs`
 - CLI: `npm i -g @devicesdk/cli` → `devicesdk --help`
 - Documentation: <https://devicesdk.com/docs>
 

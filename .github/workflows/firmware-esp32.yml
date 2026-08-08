@@ -34,6 +34,8 @@ jobs:
         with:
           path: firmware/esp32/test/build/_deps
           key: esp32-gtest-${{ hashFiles('firmware/esp32/test/CMakeLists.txt') }}
+          restore-keys: |
+            esp32-gtest-
 
       - name: Clear stale CMake sub-build caches
         # CMakeCache.txt files inside _deps embed the absolute workspace path.

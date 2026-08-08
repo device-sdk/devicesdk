@@ -155,4 +155,4 @@ Every tool returns the same `{ success, result | error, code? }` shape the REST 
 - [Cookbook](/recipes/) - task-shaped recipes an agent can crib from.
 - [Error reference](/errors/) - the codes REST responses (and therefore MCP tool results) surface.
 - [Self-hosting guide](/guides/self-hosting/) - TLS, `MDNS_HOSTNAME`, and other server config that affects how agents reach `/mcp`.
-- [Agent skills manifest](/.well-known/agent-skills/index.json) - for hosts that consume the [agentskills.io](https://schemas.agentskills.io/) discovery schema.
+- [Agent skills manifest](https://devicesdk.com/.well-known/agent-skills/index.json) - for hosts that consume the [agentskills.io](https://schemas.agentskills.io/) discovery schema.

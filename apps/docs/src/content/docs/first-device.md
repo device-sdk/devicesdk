@@ -169,5 +169,5 @@ Your device entrypoint has access to several environment bindings:
 ## Need Help?
 
 - [Join our Discord](https://discord.gg/WuNhbXGsBy) for community support
-- [View examples](/examples/) for more code samples
+- [View examples](https://github.com/device-sdk/devicesdk-monorepo/tree/main/examples) for more code samples
 - [Troubleshooting guide](/resources/troubleshooting/) for common issues

@@ -3,8 +3,10 @@ import { z } from "zod";
 import {
 	clearSessionCookie,
 	createSession,
+	getToken,
 	setSessionCookie,
 } from "../../foundation/auth";
+import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext, tableUser } from "../../types";
 
 const RegisterSchema = z.object({
@@ -16,6 +18,11 @@ const RegisterSchema = z.object({
 const LoginSchema = z.object({
 	email: z.email().max(254),
 	password: z.string().min(1).max(256),
+});
+
+const ChangePasswordSchema = z.object({
+	currentPassword: z.string().min(1).max(256),
+	newPassword: z.string().min(8).max(128),
 });
 
 function sanitizeUser(user: tableUser): Omit<tableUser, "password_hash"> {
@@ -145,4 +152,91 @@ export async function handleLogin(c: AppContext) {
 	const session = await createSession(c, user.results.id);
 	setSessionCookie(c, session.token, session.expiresAt);
 	return c.json({ success: true, result: sanitizeUser(user.results) });
+}
+
+/**
+ * POST /v1/auth/change-password - verify the current password, set a new one,
+ * and revoke every other session so a stolen session dies with the change.
+ */
+export async function handleChangePassword(c: AppContext) {
+	const body = ChangePasswordSchema.safeParse(
+		await c.req.json().catch(() => null),
+	);
+	if (!body.success) {
+		return c.json({ success: false, error: "Invalid request body." }, 400);
+	}
+
+	const user = c.get("user");
+	const row = await c
+		.get("qb")
+		.fetchOne<{ password_hash: string | null }>({
+			tableName: "user",
+			fields: "password_hash",
+			where: { conditions: ["id = ?1"], params: [user.id] },
+		})
+		.execute();
+	const hash = row.results?.password_hash ?? "";
+	const valid = await Bun.password
+		.verify(body.data.currentPassword, hash)
+		.catch(() => false);
+	if (!valid) {
+		return c.json(
+			{ success: false, error: "Current password is incorrect." },
+			401,
+		);
+	}
+
+	if (body.data.newPassword === body.data.currentPassword) {
+		return c.json(
+			{
+				success: false,
+				error: "New password must differ from the current password.",
+			},
+			400,
+		);
+	}
+
+	const newHash = await Bun.password.hash(body.data.newPassword);
+	await c
+		.get("qb")
+		.raw({
+			query: "UPDATE user SET password_hash = ?1 WHERE id = ?2",
+			args: [newHash, user.id],
+		})
+		.execute();
+
+	// A password change means the old secret is no longer sufficient: revoke
+	// every session for this user. When the request authenticated via a session
+	// cookie, the presenting session (identified by the hash of the presented
+	// token) is kept so the user stays signed in; when it authenticated via a
+	// CLI or API token, all sessions are revoked. CLI/API tokens themselves are
+	// NOT revoked - they are long-lived credentials the user manages on the
+	// Tokens page, and revoking them here would break the CLI mid-flow.
+	const presented = getToken(c);
+	if (presented) {
+		const presentedHash = await hashToken(
+			presented,
+			c.env.config.apiTokenSecret,
+		);
+		await c
+			.get("qb")
+			.delete({
+				tableName: "user_sessions",
+				where: {
+					conditions: ["user_id = ?1", "token != ?2"],
+					params: [user.id, presentedHash],
+				},
+			})
+			.execute();
+	} else {
+		await c
+			.get("qb")
+			.delete({
+				tableName: "user_sessions",
+				where: { conditions: ["user_id = ?1"], params: [user.id] },
+			})
+			.execute();
+	}
+
+	return c.json({ success: true, result: { changed: true } });
 }

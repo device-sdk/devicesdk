@@ -116,6 +116,32 @@ describe("user API", () => {
 		expect(res.status).toBe(401);
 	});
 
+	test("DELETE /v1/user/me with a wrong password -> 401, account survives", async () => {
+		const auth = await registerUser("keeper@example.com");
+		const res = await srv.delete("/v1/user/me", {
+			token: auth.token,
+			body: { password: "not-the-password" },
+		});
+		expect(res.status).toBe(401);
+		expect((res.body as { error: string }).error).toBe(
+			"Password is incorrect.",
+		);
+
+		// account still exists and the token still works
+		const me = await srv.get("/v1/user/me", { token: auth.token });
+		expect(me.status).toBe(200);
+		const row = srv.db
+			.query("SELECT COUNT(*) as c FROM user WHERE id = ?")
+			.get(auth.user.id) as { c: number };
+		expect(row.c).toBe(1);
+	});
+
+	test("DELETE /v1/user/me without a password -> 400", async () => {
+		const auth = await registerUser("nopw@example.com");
+		const res = await srv.delete("/v1/user/me", { token: auth.token });
+		expect(res.status).toBe(400);
+	});
+
 	test("DELETE /v1/user/me purges the user and invalidates the token", async () => {
 		// Build a user with a project + device so purge has data to remove.
 		const auth = await registerUser("doomed@example.com");
@@ -135,6 +161,19 @@ describe("user API", () => {
 		});
 		expect(devRes.status).toBe(201);
 
+		// a pending CLI auth code bound to this user must be purged too
+		srv.db.run(
+			"INSERT INTO cli_auth_codes (id, device_code, user_code, user_id, status, created_at, expires_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)",
+			[
+				crypto.randomUUID(),
+				"DSDK_DEVICE_purge",
+				"PURG-1234",
+				userId,
+				Date.now(),
+				Date.now() + 60_000,
+			],
+		);
+
 		// upload a script so a blob exists to purge
 		const up = await srv.put(
 			`/v1/projects/${projectSlug}/devices/${deviceSlug}/script`,
@@ -153,7 +192,10 @@ describe("user API", () => {
 		const pre = await srv.get("/v1/user/me", { token });
 		expect(pre.status).toBe(200);
 
-		const del = await srv.delete("/v1/user/me", { token });
+		const del = await srv.delete("/v1/user/me", {
+			token,
+			body: { password: "password123" },
+		});
 		expect(del.status).toBe(200);
 		expect((del.body as { result: { deleted: boolean } }).result.deleted).toBe(
 			true,
@@ -180,5 +222,9 @@ describe("user API", () => {
 			.query("SELECT COUNT(*) as c FROM user_sessions WHERE user_id = ?")
 			.get(userId) as { c: number };
 		expect(sessionRow.c).toBe(0);
+		const authCodeRow = srv.db
+			.query("SELECT COUNT(*) as c FROM cli_auth_codes WHERE user_id = ?")
+			.get(userId) as { c: number };
+		expect(authCodeRow.c).toBe(0);
 	});
 });

@@ -2,8 +2,9 @@ import type { Env } from "../types";
 
 /**
  * Deletes every trace of a user: projects, devices, device scripts, script
- * blobs, env vars, tokens, CLI tokens, and sessions. Called from the
- * delete-account endpoint; deletion is immediate with no grace period.
+ * blobs, env vars, tokens, CLI tokens, pending CLI auth codes, and sessions.
+ * Called from the delete-account endpoint; deletion is immediate with no grace
+ * period.
  */
 export async function purgeUserData(env: Env, userId: string): Promise<void> {
 	const projects = await env.DB.prepare(
@@ -53,6 +54,9 @@ export async function purgeUserData(env: Env, userId: string): Promise<void> {
 		.bind(userId)
 		.run();
 	await env.DB.prepare("DELETE FROM cli_tokens WHERE user_id = ?")
+		.bind(userId)
+		.run();
+	await env.DB.prepare("DELETE FROM cli_auth_codes WHERE user_id = ?")
 		.bind(userId)
 		.run();
 	await env.DB.prepare("DELETE FROM user_sessions WHERE user_id = ?")

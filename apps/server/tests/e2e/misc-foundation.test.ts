@@ -171,6 +171,51 @@ describe("rate limiting (foundation/rateLimit)", () => {
 		});
 		expect(res.status).not.toBe(429);
 	});
+
+	test("change-password is throttled (10/min) before auth runs", async () => {
+		// The limiter is registered ahead of authenticateUser, so even
+		// unauthenticated probes fill the bucket - no free guessing oracle.
+		const ip = "203.0.113.102";
+		let limited: Awaited<ReturnType<typeof srv.post>> | undefined;
+		for (let i = 0; i < 15; i++) {
+			const res = await srv.post("/v1/auth/change-password", {
+				headers: { "X-Forwarded-For": ip },
+				body: { currentPassword: "x", newPassword: "y" },
+			});
+			if (res.status === 429) {
+				limited = res;
+				break;
+			}
+		}
+		expect(limited).toBeDefined();
+		expect(limited?.status).toBe(429);
+		expect((limited?.body as { error: string }).error).toContain("Rate limit");
+	});
+
+	test("DELETE /v1/user/me is throttled (10/min) without throttling GET", async () => {
+		// The bucket is keyed IP + path, so the method filter is what keeps the
+		// dashboard's every-page-load GET /v1/user/me out of the window.
+		const ip = "203.0.113.103";
+		let limited: Awaited<ReturnType<typeof srv.delete>> | undefined;
+		for (let i = 0; i < 15; i++) {
+			const res = await srv.delete("/v1/user/me", {
+				headers: { "X-Forwarded-For": ip },
+			});
+			if (res.status === 429) {
+				limited = res;
+				break;
+			}
+		}
+		expect(limited).toBeDefined();
+		expect(limited?.status).toBe(429);
+
+		// GET from the same IP immediately after is not limited (401 = auth
+		// rejection, proving it reached the handler).
+		const get = await srv.get("/v1/user/me", {
+			headers: { "X-Forwarded-For": ip },
+		});
+		expect(get.status).toBe(401);
+	});
 });
 
 describe("resource limits (foundation/limits) - surfaced through project creation", () => {

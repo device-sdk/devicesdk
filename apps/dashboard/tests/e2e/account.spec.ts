@@ -66,8 +66,10 @@ test.describe("Account page", () => {
       .getByRole("button", { name: "Delete Account" });
     await expect(deleteBtn).toBeDisabled();
 
-    // Type DELETE to enable
+    // Type DELETE + the account password to enable
     await page.getByPlaceholder("DELETE").fill("DELETE");
+    await expect(deleteBtn).toBeDisabled();
+    await page.getByPlaceholder("Enter your password").fill("password123");
     await expect(deleteBtn).toBeEnabled();
 
     // Close dialog

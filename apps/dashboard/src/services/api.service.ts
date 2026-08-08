@@ -210,9 +210,13 @@ export const userService = {
     }
   },
 
-  async deleteAccount(): Promise<{ deleted: boolean }> {
+  async deleteAccount(password: string): Promise<{ deleted: boolean }> {
     const data = await api.call<ApiResponse<{ deleted: boolean }>>('/v1/user/me', {
       method: 'DELETE',
+      body: JSON.stringify({ password }),
+      // A wrong password comes back as 401; suppress the redirect-to-login so
+      // the page can show "Password is incorrect" instead of bouncing the user.
+      suppressAuthRedirect: true,
     });
     if (!data || !data.success) {
       throw new Error('Failed to delete account');

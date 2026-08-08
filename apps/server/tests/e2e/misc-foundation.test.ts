@@ -137,11 +137,14 @@ describe("rate limiting (foundation/rateLimit)", () => {
 	test("pinned source IP trips the login limiter (20/min) with a 429 + Retry-After", async () => {
 		// The harness randomizes X-Forwarded-For by default; pin it so all the
 		// requests below share one fixed-window bucket and trip the limit.
+		// Each attempt runs a dummy argon2 hash for timing-safety (~250ms),
+		// so the test needs a generous timeout - under full-suite load 20+
+		// attempts can exceed bun's default 5s.
 		const ip = "203.0.113.77";
 		let limited: Awaited<ReturnType<typeof srv.post>> | undefined;
 
-		// The limit is 20/min; send a comfortable margin above it.
-		for (let i = 0; i < 25; i++) {
+		// The limit is 20/min; limit+1 is enough to trip it deterministically.
+		for (let i = 0; i < 21; i++) {
 			const res = await srv.post("/v1/auth/login", {
 				headers: { "X-Forwarded-For": ip },
 				body: { email: "nobody@example.com", password: "wrongpassword" },
@@ -160,7 +163,7 @@ describe("rate limiting (foundation/rateLimit)", () => {
 		const retryAfter = limited?.headers.get("Retry-After");
 		expect(retryAfter).toBeTruthy();
 		expect(Number(retryAfter)).toBeGreaterThanOrEqual(1);
-	});
+	}, 30_000);
 
 	test("a different source IP is not affected by another IP's window", async () => {
 		// A pristine IP should pass the limiter (the 401 below is the auth

@@ -1,0 +1,23 @@
+{
+  "name": "@devicesdk/example-nextion-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ESP32 dashboard driven by a Nextion serial HMI display",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "devicesdk dev",
+    "build": "devicesdk build",
+    "deploy": "devicesdk deploy",
+    "local:login": "DEVICESDK_API_URL=http://localhost:8080 npx devicesdk login",
+    "flash-remote": "devicesdk flash dashboard",
+    "flash-local": "DEVICESDK_API_URL=http://localhost:8080 devicesdk flash dashboard --host ${DEVICESDK_DEVICE_HOST:-localhost:8080}"
+  },
+  "dependencies": {
+    "@devicesdk/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@devicesdk/cli": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

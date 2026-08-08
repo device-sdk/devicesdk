@@ -31,6 +31,7 @@ import {
 // Subpath imports
 import { Pico, type PicoGpioPin } from "@devicesdk/core/devices/pico";
 import { SSD1306 } from "@devicesdk/core/i2c";
+import { NextionDisplay } from "@devicesdk/core/nextion";
 ```
 
 The full list - including every command/response variant - is in

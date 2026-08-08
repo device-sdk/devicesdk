@@ -6,6 +6,7 @@ import type {
 import { ref } from "vue";
 import { usePinStateStore } from "@/stores/pinState";
 import { useSimulatorStore } from "@/stores/simulator";
+import { useUartStore } from "@/stores/uart";
 import { useWidgetsStore } from "@/stores/widgets";
 
 /**
@@ -17,6 +18,7 @@ export function useSimulator() {
 	const simulator = useSimulatorStore();
 	const pinState = usePinStateStore();
 	const widgets = useWidgetsStore();
+	const uart = useUartStore();
 
 	const latestDisplayUpdate = ref<DisplayUpdateCommand>();
 
@@ -153,6 +155,7 @@ export function useSimulator() {
 			case "reboot": {
 				pinState.resetAll();
 				latestDisplayUpdate.value = undefined;
+				uart.reset();
 				simulator.addLog("Device rebooted", "reboot");
 				return ack(command);
 			}
@@ -284,6 +287,12 @@ export function useSimulator() {
 			}
 
 			case "uart_configure": {
+				uart.configure(
+					command.payload.port,
+					command.payload.tx_pin,
+					command.payload.rx_pin,
+					command.payload.baud_rate,
+				);
 				simulator.addLog(
 					`UART port ${command.payload.port} configured: TX=GPIO ${command.payload.tx_pin}, RX=GPIO ${command.payload.rx_pin}, ${command.payload.baud_rate} baud`,
 					"uart_configure",
@@ -292,16 +301,21 @@ export function useSimulator() {
 			}
 
 			case "uart_write": {
+				const data = command.payload.data;
 				simulator.addLog(
-					`UART write port ${command.payload.port}: [${command.payload.data.join(", ")}]`,
+					`UART write port ${command.payload.port}: ${bytesSummary(data)}`,
 					"uart_write",
 				);
 				return ack(command);
 			}
 
 			case "uart_read": {
+				const { data, bytesRead } = uart.takeRead(
+					command.payload.port,
+					command.payload.bytes_to_read,
+				);
 				simulator.addLog(
-					`UART read port ${command.payload.port}: ${command.payload.bytes_to_read} bytes (simulated)`,
+					`UART read port ${command.payload.port}: ${bytesRead} byte(s) ${bytesSummary(data)}`,
 					"uart_read",
 				);
 				return {
@@ -309,8 +323,8 @@ export function useSimulator() {
 					type: "uart_read_result",
 					payload: {
 						port: command.payload.port,
-						data: [],
-						bytes_read: 0,
+						data,
+						bytes_read: bytesRead,
 					},
 				};
 			}
@@ -361,6 +375,22 @@ function errorReply(command: DeviceCommand, error: string): DeviceResponse {
 
 /** Matches the server-side ROM validation (`deviceSender.ts`). */
 const ROM_RE = /^[0-9A-F]{16}$/;
+
+/** Cap on hex bytes rendered per log line, so big writes stay readable. */
+const LOG_BYTES_MAX = 48;
+
+/** Compact hex + ASCII rendering of bytes for log lines. */
+function bytesSummary(data: string[]): string {
+	if (data.length === 0) return "[]";
+	const shown = data.slice(0, LOG_BYTES_MAX);
+	const hex = shown.join(", ");
+	const suffix = data.length > LOG_BYTES_MAX ? " ..." : "";
+	const chars = shown.map((hexByte) => {
+		const code = Number.parseInt(hexByte, 16);
+		return code >= 0x20 && code <= 0x7e ? String.fromCharCode(code) : ".";
+	});
+	return `[${hex}${suffix}] (${chars.join("")}${suffix})`;
+}
 
 /** ROM code of the single DS18B20 the simulated OneWire bus always reports. */
 const SIMULATED_DS18B20_ROM = "28FF641E8D3C4A41";

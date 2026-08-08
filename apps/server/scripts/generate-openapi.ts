@@ -2,6 +2,7 @@
  * Writes openapi.json for the website's API reference. Imports the Hono app
  * (no server boot, no database) and asks chanfana for the generated schema.
  */
+import { fileURLToPath } from "node:url";
 import { app } from "../src/index";
 
 const response = await app.request("/openapi.json", {}, {
@@ -15,7 +16,7 @@ if (response.status !== 200) {
 }
 const schema = (await response.json()) as { paths?: Record<string, unknown> };
 await Bun.write(
-	new URL("../openapi.json", import.meta.url).pathname,
+	fileURLToPath(new URL("../openapi.json", import.meta.url)),
 	`${JSON.stringify(schema, null, 2)}\n`,
 );
 console.log(

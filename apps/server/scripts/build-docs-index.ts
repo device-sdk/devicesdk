@@ -29,16 +29,18 @@ import {
 	rmSync,
 } from "node:fs";
 import { dirname, extname, join, parse, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /** apps/server/scripts/ -> apps/docs/src/content/docs (three levels up, then apps/docs/...). */
 function defaultInputDir(): string {
-	return new URL("../../../apps/docs/src/content/docs", import.meta.url)
-		.pathname;
+	return fileURLToPath(
+		new URL("../../../apps/docs/src/content/docs", import.meta.url),
+	);
 }
 
 /** apps/server/scripts/ -> apps/server/dist/docs-index.sqlite (one level up). */
 function defaultOutputPath(): string {
-	return new URL("../dist/docs-index.sqlite", import.meta.url).pathname;
+	return fileURLToPath(new URL("../dist/docs-index.sqlite", import.meta.url));
 }
 
 const inputDir = process.argv[2]

@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 export interface BlobObject {
@@ -60,15 +60,25 @@ export class FsBlobStore {
 	): Promise<void> {
 		const path = this.filePath(key);
 		await mkdir(dirname(path), { recursive: true });
-		if (typeof value === "string") {
-			await writeFile(path, value, "utf-8");
-		} else if (value instanceof ArrayBuffer) {
-			await writeFile(path, new Uint8Array(value));
-		} else {
-			await writeFile(
-				path,
-				new Uint8Array(value.buffer, value.byteOffset, value.byteLength),
-			);
+		// Write to a temp file in the same directory, then rename: on POSIX
+		// rename is atomic, so a crash or ENOSPC mid-write can never leave a
+		// truncated `latest.js` served to devices.
+		const tmpPath = `${path}.${crypto.randomUUID()}.tmp`;
+		try {
+			if (typeof value === "string") {
+				await writeFile(tmpPath, value, "utf-8");
+			} else if (value instanceof ArrayBuffer) {
+				await writeFile(tmpPath, new Uint8Array(value));
+			} else {
+				await writeFile(
+					tmpPath,
+					new Uint8Array(value.buffer, value.byteOffset, value.byteLength),
+				);
+			}
+			await rename(tmpPath, path);
+		} catch (error) {
+			await rm(tmpPath, { force: true }).catch(() => {});
+			throw error;
 		}
 	}
 

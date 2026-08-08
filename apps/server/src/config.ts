@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export interface ServerConfig {
 	/** HTTP port serving API + WebSockets + dashboard SPA. */
@@ -54,6 +55,17 @@ function parseBool(value: string | undefined, fallback: boolean): boolean {
 	return !["0", "false", "no", "off"].includes(value.toLowerCase());
 }
 
+function parsePort(raw: string | undefined): number {
+	const value = raw ?? "8080";
+	const port = Number(value);
+	if (!Number.isInteger(port) || port < 1 || port > 65535) {
+		throw new Error(
+			`Invalid PORT "${value}": expected an integer between 1 and 65535`,
+		);
+	}
+	return port;
+}
+
 function loadOrCreateApiTokenSecret(
 	env: Record<string, string | undefined>,
 	dataDir: string,
@@ -80,7 +92,7 @@ export function loadConfig(
 	const dataDir = env.DATA_DIR || "./data";
 	const envName = env.ENV === "local" ? "local" : "production";
 	return {
-		port: Number.parseInt(env.PORT || "8080", 10),
+		port: parsePort(env.PORT),
 		dataDir,
 		env: envName,
 		allowRegistration: parseBool(env.ALLOW_REGISTRATION, true),
@@ -96,11 +108,14 @@ export function loadConfig(
 		firmwaresDir: join(dataDir, "firmwares"),
 		// Overridable because the Docker image runs a bundled server.js whose
 		// import.meta.url no longer sits next to the migrations directory.
+		// fileURLToPath (not .pathname) so percent-encoded chars like spaces
+		// in the install path decode correctly.
 		migrationsDir:
-			env.MIGRATIONS_DIR || new URL("../migrations", import.meta.url).pathname,
+			env.MIGRATIONS_DIR ||
+			fileURLToPath(new URL("../migrations", import.meta.url)),
 		docsIndexPath:
 			env.DOCS_INDEX_PATH ||
-			new URL("../dist/docs-index.sqlite", import.meta.url).pathname,
+			fileURLToPath(new URL("../dist/docs-index.sqlite", import.meta.url)),
 		apiTokenSecret: loadOrCreateApiTokenSecret(env, dataDir),
 	};
 }

@@ -24,6 +24,9 @@ mkdirSync(config.dataDir, { recursive: true });
 const db = new Database(config.dbPath, { create: true });
 db.exec("PRAGMA journal_mode = WAL;");
 db.exec("PRAGMA foreign_keys = ON;");
+// Default busy_timeout is 0: a concurrent writer (janitor sweep, another
+// instance) would make a colliding write throw SQLITE_BUSY immediately.
+db.exec("PRAGMA busy_timeout = 5000;");
 const applied = applyMigrations(db, config.migrationsDir);
 if (applied.length > 0) {
 	logger.info(`Applied ${applied.length} database migration(s)`, {

@@ -57,6 +57,19 @@ Welcome to the fruit documentation. See the guides for apples and bananas.
 `,
 	);
 
+	// Unicode content: the index tokenizes with unicode61, and the query
+	// tokenizer must split on Unicode-aware classes so these stay reachable.
+	writeFileSync(
+		join(fixtureDir, "unicode.md"),
+		`---
+title: Unicode Guide
+---
+
+This page documents the 温度 sensor and über calibration details. The 温度
+sensor pairs with the über mode for warm rooms.
+`,
+	);
+
 	const outDir = mkdtempSync(join(tmpdir(), "dsdk-docs-index-"));
 	indexPath = join(outDir, "docs-index.sqlite");
 
@@ -81,12 +94,12 @@ afterAll(() => {
 });
 
 describe("build-docs-index: indexing", () => {
-	test("indexes exactly the 3 fixture pages", () => {
+	test("indexes exactly the 4 fixture pages", () => {
 		const db = new Database(indexPath, { readonly: true });
 		const meta = db.query("SELECT doc_count FROM meta").get() as {
 			doc_count: number;
 		};
-		expect(meta.doc_count).toBe(3);
+		expect(meta.doc_count).toBe(4);
 		db.close();
 	});
 
@@ -96,7 +109,7 @@ describe("build-docs-index: indexing", () => {
 			path: string;
 		}[];
 		const paths = rows.map((r) => r.path).sort();
-		expect(paths).toEqual(["/", "/page-a/", "/sub/page-b/"]);
+		expect(paths).toEqual(["/", "/page-a/", "/sub/page-b/", "/unicode/"]);
 		db.close();
 	});
 
@@ -128,6 +141,20 @@ describe("devicesdk_docs_search (searchDocs) against the fixture index", () => {
 		expect(first.url).toBe("https://docs.devicesdk.com/page-a/");
 		expect(typeof first.snippet).toBe("string");
 		expect(first.snippet.length).toBeGreaterThan(0);
+	});
+
+	test("Unicode terms (CJK and accented) are tokenized and find matches", () => {
+		const cjk = searchDocs("温度", indexPath);
+		expect(cjk.success).toBe(true);
+		if (!cjk.success) return;
+		expect(cjk.result.matches.some((m) => m.path === "/unicode/")).toBe(true);
+
+		const accented = searchDocs("über", indexPath);
+		expect(accented.success).toBe(true);
+		if (!accented.success) return;
+		expect(accented.result.matches.some((m) => m.path === "/unicode/")).toBe(
+			true,
+		);
 	});
 
 	test("a query full of FTS5 operator syntax never throws - result set or empty", () => {

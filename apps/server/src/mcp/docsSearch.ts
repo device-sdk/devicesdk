@@ -55,13 +55,14 @@ export function resetDocsSearchCache(): void {
 /**
  * Sanitizes a free-text query for FTS5's own query syntax, which throws on
  * stray quotes/operators (a bare `"` or a dangling `AND` is a syntax error,
- * not a "no results" case). Splitting into alphanumeric tokens and
- * re-quoting each one guarantees a syntactically valid MATCH expression
- * regardless of what the caller typed.
+ * not a "no results" case). Splitting into tokens and re-quoting each one
+ * guarantees a syntactically valid MATCH expression regardless of what the
+ * caller typed. Splits on Unicode-aware letter/number classes so non-ASCII
+ * terms stay reachable (the index tokenizes with unicode61).
  */
 function toFtsQuery(query: string, joiner: "AND" | "OR"): string {
 	const tokens = query
-		.split(/[^A-Za-z0-9]+/)
+		.split(/[^\p{L}\p{N}]+/u)
 		.filter((t) => t.length > 0)
 		.map((t) => `"${t}"`);
 	return tokens.join(` ${joiner} `);

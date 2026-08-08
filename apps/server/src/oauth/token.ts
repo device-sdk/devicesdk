@@ -3,8 +3,7 @@ import type { AppContext, tableTokens } from "../types";
 import {
 	ACCESS_TOKEN_TTL_MS,
 	ACCESS_TOKEN_TTL_SECONDS,
-	deleteAuthCode,
-	findAuthCodeByRawCode,
+	consumeAuthCodeByRawCode,
 	getClient,
 	oauthJsonError,
 } from "./store";
@@ -96,13 +95,25 @@ export async function handleTokenExchange(c: AppContext) {
 			"code, redirect_uri, client_id, and code_verifier are all required.",
 		);
 	}
+	if (codeVerifier.length < 43 || codeVerifier.length > 128) {
+		return oauthJsonError(
+			c,
+			400,
+			"invalid_request",
+			"code_verifier must be between 43 and 128 characters (RFC 7636).",
+		);
+	}
 
 	const client = await getClient(c, clientId);
 	if (!client) {
 		return oauthJsonError(c, 401, "invalid_client", "Unknown client_id.");
 	}
 
-	const authCode = await findAuthCodeByRawCode(c, code);
+	// Atomic consume: DELETE ... RETURNING reads and invalidates the code in
+	// one statement, so two concurrent exchanges of the same code can never
+	// both pass (see store.ts). client_id/redirect_uri/PKCE are verified
+	// against the deleted row, then the token is minted.
+	const authCode = await consumeAuthCodeByRawCode(c, code);
 	if (!authCode) {
 		return oauthJsonError(
 			c,
@@ -131,9 +142,6 @@ export async function handleTokenExchange(c: AppContext) {
 			"code_verifier does not match code_challenge.",
 		);
 	}
-
-	// Every check passed - consume the code (single use) before minting.
-	await deleteAuthCode(c, authCode.id);
 
 	const rawToken = crypto.randomUUID().replaceAll("-", "");
 	const tokenHash = await hashToken(rawToken, c.env.config.apiTokenSecret);

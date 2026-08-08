@@ -116,46 +116,31 @@ export async function insertAuthCode(
 }
 
 /**
- * Looks up an unexpired authorization code by its raw value. Does NOT delete
- * it - the token endpoint verifies PKCE + client_id + redirect_uri first and
- * only calls `deleteAuthCode` once every check has passed, so a legitimate
- * client that made a mistake (e.g. redirect_uri typo) can still retry within
- * the 10-minute window instead of being locked out by its own error.
+ * Atomically consumes a single-use authorization code: DELETE ... RETURNING
+ * reads and deletes in one statement, so two concurrent exchanges of the same
+ * code cannot both pass - SQLite serializes the writes and exactly one DELETE
+ * matches a row (the loser gets null). The token endpoint verifies client_id,
+ * redirect_uri, and PKCE against the returned row before minting.
  */
-export async function findAuthCodeByRawCode(
+export async function consumeAuthCodeByRawCode(
 	c: AppContext,
 	rawCode: string,
 ): Promise<StoredAuthCode | null> {
 	const codeHash = await hashToken(rawCode, c.env.config.apiTokenSecret);
-	const res = await c
-		.get("qb")
-		.fetchOne<tableOauthAuthCodes>({
-			tableName: "oauth_auth_codes",
-			where: {
-				conditions: ["code_hash = ?1", "expires_at > ?2"],
-				params: [codeHash, Date.now()],
-			},
-		})
-		.execute();
-	if (!res.results) return null;
+	const row = await c.env.DB.prepare(
+		"DELETE FROM oauth_auth_codes WHERE code_hash = ?1 AND expires_at > ?2 " +
+			"RETURNING id, client_id, user_id, redirect_uri, code_challenge",
+	)
+		.bind(codeHash, Date.now())
+		.first<tableOauthAuthCodes>();
+	if (!row) return null;
 	return {
-		id: res.results.id,
-		client_id: res.results.client_id,
-		user_id: res.results.user_id,
-		redirect_uri: res.results.redirect_uri,
-		code_challenge: res.results.code_challenge,
+		id: row.id,
+		client_id: row.client_id,
+		user_id: row.user_id,
+		redirect_uri: row.redirect_uri,
+		code_challenge: row.code_challenge,
 	};
-}
-
-/** Deletes an authorization code by row id - call only after a successful exchange (single use). */
-export async function deleteAuthCode(c: AppContext, id: string): Promise<void> {
-	await c
-		.get("qb")
-		.delete({
-			tableName: "oauth_auth_codes",
-			where: { conditions: ["id = ?1"], params: [id] },
-		})
-		.execute();
 }
 
 /**

@@ -141,6 +141,7 @@ function renderConsentPage(
 	userEmail: string,
 	csrfToken: string,
 	fields: ConsentFields,
+	formAction: string,
 ) {
 	const hidden = [
 		hiddenField("response_type", fields.responseType),
@@ -160,11 +161,16 @@ function renderConsentPage(
       DeviceSDK server as <strong>${escapeHtml(userEmail)}</strong>.</p>
 
     <div class="note">
+      <p><strong>Client:</strong> ${escapeHtml(client.client_name)} (${escapeHtml(client.id)})</p>
+      <p><strong>Redirect URI:</strong> ${escapeHtml(fields.redirectUri)}</p>
+    </div>
+
+    <div class="note">
       Approving creates an API token you can revoke anytime in the dashboard's
       Tokens page. It expires automatically after 30 days.
     </div>
 
-    <form method="POST" action="/oauth/authorize">
+    <form method="POST" action="${escapeHtml(formAction)}">
       ${hidden}
       <div class="actions">
         <button type="submit" name="action" value="deny" class="btn-deny">Deny</button>
@@ -285,8 +291,19 @@ export async function getAuthorizePage(c: AppContext) {
 		maxAge: 600,
 	});
 
+	// The form posts back to the exact URL this page was served from
+	// (pathname only, so a reverse-proxy subpath prefix keeps working; the
+	// query string is re-derived from the hidden fields, never from the URL).
+	const formAction = new URL(c.req.url).pathname;
+
 	return c.html(
-		renderConsentPage(validation.client, user.email, csrfToken, validation),
+		renderConsentPage(
+			validation.client,
+			user.email,
+			csrfToken,
+			validation,
+			formAction,
+		),
 	);
 }
 

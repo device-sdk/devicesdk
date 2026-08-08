@@ -217,12 +217,57 @@ describe("oauth: dynamic client registration", () => {
 		);
 	});
 
-	test("default client_name is applied when omitted", async () => {
+	test("client_name is required - omitted -> 400 invalid_client_metadata", async () => {
 		const res = await srv.post("/oauth/register", {
 			body: { redirect_uris: ["https://example.com/cb"] },
 		});
-		expect(res.status).toBe(201);
-		expect((res.body as RegisteredClient).client_name).toBe("MCP client");
+		expect(res.status).toBe(400);
+		expect((res.body as { error: string }).error).toBe(
+			"invalid_client_metadata",
+		);
+	});
+
+	test("scriptable schemes (javascript:, data:) -> 400 invalid_client_metadata", async () => {
+		for (const uri of ["javascript:alert(1)", "data:text/html,hi"]) {
+			const res = await srv.post("/oauth/register", {
+				body: { client_name: "xss", redirect_uris: [uri] },
+			});
+			expect(res.status).toBe(400);
+			expect((res.body as { error: string }).error).toBe(
+				"invalid_client_metadata",
+			);
+		}
+	});
+
+	test("http on a non-loopback host -> 400 invalid_client_metadata", async () => {
+		for (const uri of [
+			"http://example.com/cb",
+			"http://192.168.1.50/cb",
+			"http://example.com@localhost/cb",
+		]) {
+			const res = await srv.post("/oauth/register", {
+				body: { client_name: "http client", redirect_uris: [uri] },
+			});
+			expect(res.status).toBe(400);
+			expect((res.body as { error: string }).error).toBe(
+				"invalid_client_metadata",
+			);
+		}
+	});
+
+	test("https (any host) and loopback http (any port) are accepted", async () => {
+		for (const uri of [
+			"https://example.com/cb",
+			"https://example.com:8443/cb",
+			"http://localhost:9999/cb",
+			"http://127.0.0.1:8080/cb",
+			"http://[::1]:3000/cb",
+		]) {
+			const res = await srv.post("/oauth/register", {
+				body: { client_name: "ok client", redirect_uris: [uri] },
+			});
+			expect(res.status).toBe(201);
+		}
 	});
 });
 
@@ -310,6 +355,37 @@ describe("oauth: full authorization code + PKCE flow", () => {
 		expect((second.body as { error: string }).error).toBe("invalid_grant");
 	});
 
+	test("concurrent double-exchange of the same code: exactly one succeeds", async () => {
+		const { verifier, challenge } = await generatePkcePair();
+		const auth = await driveAuthorize(srv, user.token, {
+			clientId: client.client_id,
+			redirectUri,
+			codeChallenge: challenge,
+		});
+		const code = codeFromLocation(auth.location);
+
+		// Fire both exchanges before either resolves: the DELETE ... RETURNING
+		// consume is atomic, so exactly one of the two must win the code.
+		const [a, b] = await Promise.all([
+			exchangeCode(srv, {
+				code,
+				redirectUri,
+				clientId: client.client_id,
+				codeVerifier: verifier,
+			}),
+			exchangeCode(srv, {
+				code,
+				redirectUri,
+				clientId: client.client_id,
+				codeVerifier: verifier,
+			}),
+		]);
+		const statuses = [a.status, b.status].sort((x, y) => x - y);
+		expect(statuses).toEqual([200, 400]);
+		const loser = a.status === 200 ? b : a;
+		expect((loser.body as { error: string }).error).toBe("invalid_grant");
+	});
+
 	test("expired code -> invalid_grant", async () => {
 		const { verifier, challenge } = await generatePkcePair();
 		const auth = await driveAuthorize(srv, user.token, {
@@ -354,7 +430,9 @@ describe("oauth: full authorization code + PKCE flow", () => {
 			code,
 			redirectUri,
 			clientId: client.client_id,
-			codeVerifier: "totally-the-wrong-verifier-value-12345",
+			// A wrong verifier that still satisfies the RFC 7636 length rules,
+			// so it reaches the PKCE comparison instead of the length check.
+			codeVerifier: "totally-the-wrong-verifier-value-12345-6789",
 		});
 		expect(res.status).toBe(400);
 		expect((res.body as { error: string }).error).toBe("invalid_grant");
@@ -397,6 +475,23 @@ describe("oauth: full authorization code + PKCE flow", () => {
 		expect(location.searchParams.get("error")).toBe("access_denied");
 		expect(location.searchParams.get("state")).toBe("denystate");
 		expect(location.searchParams.has("code")).toBe(false);
+	});
+
+	test("consent page shows client_id and redirect_uri so the user can identify the client", async () => {
+		const { challenge } = await generatePkcePair();
+		const page = await srv.get("/oauth/authorize", {
+			token: user.token,
+			query: {
+				response_type: "code",
+				client_id: client.client_id,
+				redirect_uri: redirectUri,
+				code_challenge: challenge,
+				code_challenge_method: "S256",
+			},
+		});
+		expect(page.status).toBe(200);
+		expect(page.text).toContain(client.client_id);
+		expect(page.text).toContain(redirectUri);
 	});
 
 	test("unknown client_id or unregistered redirect_uri renders an error page, not a redirect", async () => {

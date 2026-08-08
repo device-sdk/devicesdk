@@ -155,7 +155,7 @@ this.env.DEVICE.emitState(entityId: string, value: unknown): Promise<void>
 await this.env.DEVICE.reboot(): Promise<void>
 ```
 
-Soft-reboot the device. Don't chain commands after this - they queue and fire on reconnect.
+Soft-reboot the device. Don't chain commands after this - there is no offline command queue, so commands sent while the device is not connected throw (void methods) or reject (response-awaiting methods). Handle the rejection or retry from a cron or `onDeviceConnect`.
 
 ## Lower-level escape hatches
 

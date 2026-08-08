@@ -23,7 +23,7 @@ export type RemoteDevice<T> = {
 };
 
 /** @deprecated Use UserWorkerEnv instead */
-type RemoteDevices<T> = {
+export type RemoteDevices<T> = {
 	[K in keyof T]: T[K] extends object ? RemoteDevice<T[K]> : never;
 };
 

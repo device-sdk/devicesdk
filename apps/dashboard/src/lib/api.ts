@@ -102,6 +102,13 @@ async function call<T>(path: string, options?: ApiCallOptions): Promise<T> {
         { isNetworkError: true },
       );
     }
+    // A caller-initiated abort can surface as a plain AbortError without a
+    // recognizable name when the caller aborted with a custom reason - check
+    // the caller's signal directly so cancellation is never misread as a
+    // network failure.
+    if (callerSignal?.aborted) {
+      throw error;
+    }
     if (error instanceof DOMException) {
       if (error.name === 'AbortError') {
         throw error;

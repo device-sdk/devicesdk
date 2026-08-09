@@ -19,9 +19,9 @@ public:
     bool is_connected() const;
     void close_connection();
 
-    // Rate limiting support
+    // Reason code of the last close frame received from the server (0 if the
+    // connection was closed locally or by an error callback).
     uint16_t last_close_code = 0;
-    uint32_t rate_limit_retry_after_ms = 0;
 
     // HTTP status of the last handshake response (0 if none was received).
     // 401 means the server rejected the API token - the caller can use this

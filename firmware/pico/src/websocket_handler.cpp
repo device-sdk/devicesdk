@@ -7,6 +7,7 @@
 #include "commands/i2c_command_handler.h"
 #include "commands/sensor_commands.h"
 #include "base64.h"
+#include "hex.h"
 #include "pico/stdlib.h"
 #include <stdio.h>
 #include <string.h>
@@ -330,7 +331,10 @@ void handle_websocket_message(const picojson::value& v) {
             cmd->payload.i2c_write.bus = (uint8_t)bus_val;
 
             std::string addr_str = addr_it->second.get<std::string>();
-            cmd->payload.i2c_write.address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
+            if (!parse_hex_byte(addr_str, &cmd->payload.i2c_write.address)) {
+                send_error("Invalid I2C address (expected hex byte)");
+                return;
+            }
 
             // Parse data as an array of hex-string bytes (e.g. ["0xAE", "0x01"]),
             // matching the SDK contract and the spi/i2c_batch_write handlers.
@@ -343,7 +347,12 @@ void handle_websocket_message(const picojson::value& v) {
 
             for (size_t i = 0; i < len; i++) {
                 if (data_arr[i].is<std::string>()) {
-                    cmd->payload.i2c_write.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                    uint8_t byte;
+                    if (!parse_hex_byte(data_arr[i].get<std::string>(), &byte)) {
+                        send_error("Invalid hex byte in data");
+                        return;
+                    }
+                    cmd->payload.i2c_write.data[i] = byte;
                 } else if (data_arr[i].is<double>()) {
                     cmd->payload.i2c_write.data[i] = (uint8_t)data_arr[i].get<double>();
                 }
@@ -379,12 +388,22 @@ void handle_websocket_message(const picojson::value& v) {
             cmd->payload.i2c_read.bus = (uint8_t)bus_val;
 
             std::string addr_str = addr_it->second.get<std::string>();
-            cmd->payload.i2c_read.address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
+            if (!parse_hex_byte(addr_str, &cmd->payload.i2c_read.address)) {
+                send_error("Invalid I2C address (expected hex byte)");
+                return;
+            }
 
             cmd->payload.i2c_read.length = (size_t)len_val;
-            cmd->payload.i2c_read.reg = reg_it != payload.end() && reg_it->second.is<std::string>()
-                ? (int)strtol(reg_it->second.get<std::string>().c_str(), nullptr, 16)
-                : -1;
+            if (reg_it != payload.end() && reg_it->second.is<std::string>()) {
+                uint8_t reg_byte;
+                if (!parse_hex_byte(reg_it->second.get<std::string>(), &reg_byte)) {
+                    send_error("Invalid register_to_read (expected hex byte)");
+                    return;
+                }
+                cmd->payload.i2c_read.reg = (int)reg_byte;
+            } else {
+                cmd->payload.i2c_read.reg = -1;
+            }
 
             queue_command(cmd.get());
         } else {
@@ -505,7 +524,12 @@ void handle_websocket_message(const picojson::value& v) {
 
             for (size_t i = 0; i < len; i++) {
                 if (data_arr[i].is<std::string>()) {
-                    cmd->payload.spi_transfer.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                    uint8_t byte;
+                    if (!parse_hex_byte(data_arr[i].get<std::string>(), &byte)) {
+                        send_error("Invalid hex byte in data");
+                        return;
+                    }
+                    cmd->payload.spi_transfer.data[i] = byte;
                 } else if (data_arr[i].is<double>()) {
                     cmd->payload.spi_transfer.data[i] = (uint8_t)data_arr[i].get<double>();
                 }
@@ -540,7 +564,12 @@ void handle_websocket_message(const picojson::value& v) {
 
             for (size_t i = 0; i < len; i++) {
                 if (data_arr[i].is<std::string>()) {
-                    cmd->payload.spi_transfer.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                    uint8_t byte;
+                    if (!parse_hex_byte(data_arr[i].get<std::string>(), &byte)) {
+                        send_error("Invalid hex byte in data");
+                        return;
+                    }
+                    cmd->payload.spi_transfer.data[i] = byte;
                 } else if (data_arr[i].is<double>()) {
                     cmd->payload.spi_transfer.data[i] = (uint8_t)data_arr[i].get<double>();
                 }
@@ -661,7 +690,12 @@ void handle_websocket_message(const picojson::value& v) {
 
             for (size_t i = 0; i < len; i++) {
                 if (data_arr[i].is<std::string>()) {
-                    cmd->payload.uart_write.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                    uint8_t byte;
+                    if (!parse_hex_byte(data_arr[i].get<std::string>(), &byte)) {
+                        send_error("Invalid hex byte in data");
+                        return;
+                    }
+                    cmd->payload.uart_write.data[i] = byte;
                 } else if (data_arr[i].is<double>()) {
                     cmd->payload.uart_write.data[i] = (uint8_t)data_arr[i].get<double>();
                 }
@@ -848,7 +882,11 @@ void handle_websocket_message(const picojson::value& v) {
             return;
         }
 
-        uint8_t address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
+        uint8_t address;
+        if (!parse_hex_byte(addr_str, &address)) {
+            send_error("Invalid I2C address (expected hex byte)");
+            return;
+        }
 
         bool is_ssd1306 = (controller == "ssd1306");
         bool is_sh1106 = (controller == "sh1106");

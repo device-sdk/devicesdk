@@ -13,8 +13,8 @@
   instead of letting the server time out; strict hex parsing with address
   range validation
 - GPIO input monitoring actually stops when disabled (with ack)
-- WiFi reconnect uses bounded backoff and the client stops retrying after 5
-  consecutive 401 handshakes (re-flash with a valid token)
+- The client stops retrying after 5 consecutive 401 handshakes (re-flash with
+  a valid token)
 - Response contract aligned with `@devicesdk/core`: SPI responses carry `bus`,
   UART read responses carry `port`, the non-contractual `length` field was
   removed; virtual pin 99 (onboard LED) works on plain-GPIO boards

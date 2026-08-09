@@ -41,6 +41,10 @@ static std::string expected_ws_accept(const std::string& key);
 WebsocketClient::WebsocketClient() : tls_pcb(nullptr), tls_config(nullptr), use_tls(true), port(443), connected_state(0), http_response_complete(false), in_callback(false), last_rx_ms(0) {}
 
 WebsocketClient::~WebsocketClient() {
+    // Teardown mutates lwIP state (altcp_close frees the pcb), so it must
+    // hold the lwIP lock like every other main-loop lwIP call. Safe to take
+    // here: this runs from the main loop, never from an lwIP callback.
+    cyw43_arch_lwip_begin();
     if (tls_pcb) {
         altcp_close(tls_pcb);
     }
@@ -48,6 +52,7 @@ WebsocketClient::~WebsocketClient() {
         altcp_tls_free_config(tls_config);
         tls_config = nullptr;
     }
+    cyw43_arch_lwip_end();
 }
 
 bool WebsocketClient::connect(const char* host, const char* path, const char* token) {
@@ -358,6 +363,13 @@ void WebsocketClient::on_tcp_recv(struct altcp_pcb *tpcb, struct pbuf *p, err_t 
 }
 
 void WebsocketClient::close_connection() {
+    // lwIP teardown must hold the core lock: this runs from the main loop
+    // (dead-socket path in poll(), reconnect in connect()), where the CYW43
+    // background task can concurrently dispatch a recv/err callback on this
+    // pcb. The SDK documents locking as "not necessary (but harmless)" from
+    // within lwIP callbacks, so the recv-path call sites (process_rx_buffer)
+    // are safe to reach this locked section too.
+    cyw43_arch_lwip_begin();
     if (tls_pcb) {
         altcp_arg(tls_pcb, NULL);
         altcp_close(tls_pcb);
@@ -367,6 +379,7 @@ void WebsocketClient::close_connection() {
         altcp_tls_free_config(tls_config);
         tls_config = nullptr;
     }
+    cyw43_arch_lwip_end();
     connected_state = 0;
     http_response_complete = false;
     // Stale queued responses must not flush onto the next connection. The
@@ -579,7 +592,10 @@ size_t WebsocketClient::parse_frame(const char* buffer, size_t len) {
 // Returns an empty string when the header is absent.
 static std::string extract_header_value(const std::string& headers, const char* name) {
     std::string lower_headers = headers;
-    std::transform(lower_headers.begin(), lower_headers.end(), lower_headers.begin(), ::tolower);
+    // Cast through unsigned char: std::tolower is UB for negative (non-ASCII)
+    // char values.
+    std::transform(lower_headers.begin(), lower_headers.end(), lower_headers.begin(),
+                   [](unsigned char c) { return (char)std::tolower(c); });
     std::string needle = std::string(name) + ":";
     size_t pos = lower_headers.find(needle);
     if (pos == std::string::npos) return "";

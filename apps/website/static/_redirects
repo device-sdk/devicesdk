@@ -5,6 +5,10 @@
 
 # Removed docs pages (redirect straight to the closest still-existing parent
 # on the new docs subdomain - a single hop, not a chain through /docs/*).
+# The /api/ reference is still live on this site (static/api/), so the old
+# /docs/api/ URLs keep 301-ing to it.
+/docs/api/                              /api/                 301
+/docs/api/*                             /api/:splat           301
 /docs/guides/control-from-browser/      https://docs.devicesdk.com/guides/  301
 /docs/errors/account_suspended/         https://docs.devicesdk.com/errors/  301
 /docs/errors/account_deletion_pending/  https://docs.devicesdk.com/errors/  301

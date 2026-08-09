@@ -355,6 +355,46 @@ describe("oauth: full authorization code + PKCE flow", () => {
 		expect((second.body as { error: string }).error).toBe("invalid_grant");
 	});
 
+	test("failed exchange does not burn the code: retry with the right verifier succeeds", async () => {
+		const { verifier, challenge } = await generatePkcePair();
+		const auth = await driveAuthorize(srv, user.token, {
+			clientId: client.client_id,
+			redirectUri,
+			codeChallenge: challenge,
+		});
+		const code = codeFromLocation(auth.location);
+
+		// Wrong code_verifier: the code is verified but NOT consumed, so the
+		// user's already-granted consent survives a client-side mistake.
+		const bad = await exchangeCode(srv, {
+			code,
+			redirectUri,
+			clientId: client.client_id,
+			codeVerifier: "a".repeat(43),
+		});
+		expect(bad.status).toBe(400);
+		expect((bad.body as { error: string }).error).toBe("invalid_grant");
+
+		// Retry with the correct verifier within the 10-minute window.
+		const good = await exchangeCode(srv, {
+			code,
+			redirectUri,
+			clientId: client.client_id,
+			codeVerifier: verifier,
+		});
+		expect(good.status).toBe(200);
+
+		// And the code is still single-use after the successful exchange.
+		const reused = await exchangeCode(srv, {
+			code,
+			redirectUri,
+			clientId: client.client_id,
+			codeVerifier: verifier,
+		});
+		expect(reused.status).toBe(400);
+		expect((reused.body as { error: string }).error).toBe("invalid_grant");
+	});
+
 	test("concurrent double-exchange of the same code: exactly one succeeds", async () => {
 		const { verifier, challenge } = await generatePkcePair();
 		const auth = await driveAuthorize(srv, user.token, {

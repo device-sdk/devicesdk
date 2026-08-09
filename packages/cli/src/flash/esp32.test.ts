@@ -152,13 +152,20 @@ describe("esp32 flash", () => {
 			});
 
 			expect(result).toEqual({ port: "/dev/ttyUSB0" });
-			// Second execa call is the actual flash; --verify must be present
-			// because esptool v4 does not verify writes by default.
+			// Second execa call is the actual flash. --verify must NOT be
+			// passed: esptool verifies writes by default (v4+), and v5 removed
+			// the flag entirely (passing it aborts with an unknown-arg error).
 			expect(execaMock).toHaveBeenCalledWith(
 				"esptool.py",
-				expect.arrayContaining(["--port", "/dev/ttyUSB0", "--verify"]),
+				expect.arrayContaining(["--port", "/dev/ttyUSB0"]),
 				{ stdio: "pipe" },
 			);
+			const flashCall = execaMock.mock.calls.find(
+				(call) =>
+					Array.isArray(call[1]) &&
+					(call[1] as string[]).includes("write_flash"),
+			);
+			expect(flashCall?.[1]).not.toContain("--verify");
 		});
 
 		it("auto-detects a port that appears after the wait starts", async () => {

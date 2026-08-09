@@ -230,8 +230,13 @@ export default async function deploy(
 						deviceId,
 					);
 					status = currentStatus.current_version_id ? "updated" : "created";
-				} catch {
-					status = "updated";
+				} catch (error) {
+					// A 404 means the device does not exist yet - the upload
+					// below creates it, so report "created". Other failures
+					// keep the cosmetic default.
+					if (error instanceof DeviceSDKApiError && error.statusCode === 404) {
+						status = "created";
+					}
 				}
 				const result = await uploadScript(
 					token,

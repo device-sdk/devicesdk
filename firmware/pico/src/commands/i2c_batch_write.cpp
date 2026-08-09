@@ -1,6 +1,7 @@
 #include "i2c_batch_write.h"
 #include "i2c_command_handler.h"
 #include "hal.h"
+#include "hex.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -37,7 +38,11 @@ void handle_i2c_batch_write(const picojson::object& payload) {
     }
 
     // Parse address (hex string like "0x76")
-    uint8_t address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
+    uint8_t address;
+    if (!parse_hex_byte(addr_str, &address)) {
+        i2c_cmd_send_error("Invalid I2C address (must be 0x08-0x77)");
+        return;
+    }
 
     // Validate address range
     if (address < 0x08 || address > 0x77) {
@@ -67,7 +72,14 @@ void handle_i2c_batch_write(const picojson::object& payload) {
         size_t len = 0;
         for (const auto& item : data_arr) {
             if (item.is<std::string>() && len < sizeof(data)) {
-                data[len++] = (uint8_t)strtol(item.get<std::string>().c_str(), nullptr, 16);
+                uint8_t byte;
+                if (!parse_hex_byte(item.get<std::string>(), &byte)) {
+                    char error_msg[64];
+                    snprintf(error_msg, sizeof(error_msg), "Write %zu: invalid hex byte in data", write_index);
+                    i2c_cmd_send_error(error_msg);
+                    return;
+                }
+                data[len++] = byte;
             }
         }
 

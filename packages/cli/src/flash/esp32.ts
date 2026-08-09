@@ -193,9 +193,9 @@ export async function flashESP32(
 		"--after",
 		"hard_reset",
 		"write_flash",
-		// esptool v4 does not verify writes by default; verify explicitly so a
-		// silently corrupted flash is caught right after writing.
-		"--verify",
+		// No --verify flag: esptool verifies writes by default (v4+), and v5
+		// removed the flag entirely - passing it makes v5 abort with
+		// "unrecognized arguments: --verify".
 		"0x0",
 		options.firmwarePath,
 	];

@@ -15,6 +15,7 @@ export interface OauthClient {
 	client_name: string;
 	redirect_uris: string[];
 	created_at: number;
+	last_used_at: number | null;
 }
 
 function parseClientRow(row: tableOauthClients): OauthClient {
@@ -31,6 +32,7 @@ function parseClientRow(row: tableOauthClients): OauthClient {
 		client_name: row.client_name,
 		redirect_uris: redirectUris,
 		created_at: row.created_at,
+		last_used_at: row.last_used_at ?? null,
 	};
 }
 
@@ -50,6 +52,7 @@ export async function insertClient(
 				client_name: params.clientName,
 				redirect_uris: JSON.stringify(params.redirectUris),
 				created_at,
+				last_used_at: null,
 			},
 		})
 		.execute();
@@ -58,6 +61,7 @@ export async function insertClient(
 		client_name: params.clientName,
 		redirect_uris: params.redirectUris,
 		created_at,
+		last_used_at: null,
 	};
 }
 
@@ -116,20 +120,21 @@ export async function insertAuthCode(
 }
 
 /**
- * Atomically consumes a single-use authorization code: DELETE ... RETURNING
- * reads and deletes in one statement, so two concurrent exchanges of the same
- * code cannot both pass - SQLite serializes the writes and exactly one DELETE
- * matches a row (the loser gets null). The token endpoint verifies client_id,
- * redirect_uri, and PKCE against the returned row before minting.
+ * Reads a single-use authorization code WITHOUT consuming it. The token
+ * endpoint verifies client_id, redirect_uri, and PKCE against the returned
+ * row first, and only then deletes it (see deleteAuthCodeById) - so a
+ * legitimate client with a transient mistake (wrong code_verifier, redirect
+ * typo) can retry within the 10-minute window instead of being forced through
+ * a full re-authorization.
  */
-export async function consumeAuthCodeByRawCode(
+export async function getAuthCodeByRawCode(
 	c: AppContext,
 	rawCode: string,
 ): Promise<StoredAuthCode | null> {
 	const codeHash = await hashToken(rawCode, c.env.config.apiTokenSecret);
 	const row = await c.env.DB.prepare(
-		"DELETE FROM oauth_auth_codes WHERE code_hash = ?1 AND expires_at > ?2 " +
-			"RETURNING id, client_id, user_id, redirect_uri, code_challenge",
+		"SELECT id, client_id, user_id, redirect_uri, code_challenge " +
+			"FROM oauth_auth_codes WHERE code_hash = ?1 AND expires_at > ?2",
 	)
 		.bind(codeHash, Date.now())
 		.first<tableOauthAuthCodes>();
@@ -141,6 +146,23 @@ export async function consumeAuthCodeByRawCode(
 		redirect_uri: row.redirect_uri,
 		code_challenge: row.code_challenge,
 	};
+}
+
+/**
+ * Deletes a consumed authorization code. Returns false when no row was
+ * removed - which means a concurrent exchange consumed it first (SQLite
+ * serializes the deletes, so exactly one caller wins).
+ */
+export async function deleteAuthCodeById(
+	c: AppContext,
+	codeId: string,
+): Promise<boolean> {
+	const res = await c.env.DB.prepare(
+		"DELETE FROM oauth_auth_codes WHERE id = ?1",
+	)
+		.bind(codeId)
+		.run();
+	return res.meta.changes > 0;
 }
 
 /**

@@ -103,6 +103,8 @@ export type tableOauthClients = {
 	/** JSON-encoded array of exact-match redirect URIs. */
 	redirect_uris: string;
 	created_at: number;
+	/** Stamped on every successful token exchange; NULL for never-used rows. */
+	last_used_at: number | null;
 };
 
 export type tableOauthAuthCodes = {

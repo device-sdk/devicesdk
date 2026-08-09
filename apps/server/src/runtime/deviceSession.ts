@@ -9,8 +9,6 @@ import { DEVICE_TYPES } from "@devicesdk/core";
 import { z } from "zod";
 import {
 	type LogLevel,
-	MAX_KV_KEY_LENGTH,
-	MAX_KV_VALUE_BYTES,
 	VALID_LOG_LEVELS,
 	WS_CLOSE_REPLACED,
 } from "../foundation/consts";
@@ -18,8 +16,15 @@ import type { ServerLogger } from "../foundation/logger";
 import { recordDeviceUsage } from "../foundation/usageMetrics";
 import type { FsBlobStore } from "../storage/fsBlobStore";
 import { runWithLogCapture } from "./consoleCapture";
-import { type CronStorage, resolveDueCrons } from "./cronDispatch";
+import {
+	CRON_STORAGE_KEY,
+	type CronStorage,
+	earliestFireTime,
+	MAX_TIMER_DELAY_MS,
+	resolveDueCrons,
+} from "./cronDispatch";
 import { nextCronTime } from "./cronParser";
+import { DeviceKv } from "./deviceKv";
 import { LocalDeviceSender } from "./deviceSender";
 import {
 	broadcastStateFromMessage,
@@ -56,26 +61,6 @@ const DeviceConnectedPayloadSchema = z
 		device_type: z.enum(DEVICE_TYPES).optional(),
 	})
 	.passthrough();
-
-// Storage key for persisted cron schedule state (in device_kv). Uses the
-// __internal: prefix which is blocked in kvPut/kvGet/kvDelete so user code
-// cannot accidentally corrupt scheduler state.
-export const CRON_STORAGE_KEY = "__internal:cron_schedules";
-
-// Prefix reserved for internal keys; blocked from the user-facing kv API.
-const INTERNAL_KEY_PREFIX = "__internal:";
-
-// setTimeout clamps to a 32-bit signed millisecond delay; longer waits
-// (a cron months out) re-arm in hops.
-const MAX_TIMER_DELAY_MS = 2_147_000_000;
-
-/** Returns the earliest nextFireAt across all schedules. */
-function earliestFireTime(schedules: CronStorage): number {
-	return Object.values(schedules).reduce(
-		(min, s) => Math.min(min, s.nextFireAt),
-		Infinity,
-	);
-}
 
 interface PendingCommand {
 	resolve: (value: DeviceResponse) => void;
@@ -166,10 +151,14 @@ export class DeviceSession {
 
 	private cronTimer: ReturnType<typeof setTimeout> | null = null;
 
+	/** Per-device KV storage with the reserved-key rules (deviceKv.ts). */
+	private kv: DeviceKv;
+
 	constructor(projectId: string, deviceId: string, deps: SessionDeps) {
 		this.projectId = projectId;
 		this.deviceId = deviceId;
 		this.deps = deps;
+		this.kv = new DeviceKv(deps.db, deviceId);
 	}
 
 	// ---------------------------------------------------------------- device WS
@@ -781,74 +770,15 @@ export class DeviceSession {
 	// ----------------------------------------------------------------- user KV
 
 	async kvGet<T = unknown>(key: string): Promise<T | undefined> {
-		if (key.startsWith(INTERNAL_KEY_PREFIX)) {
-			throw new Error(`Key "${key}" is reserved for internal use`);
-		}
-		return this.internalKvGet<T>(key);
+		return this.kv.get<T>(key);
 	}
 
 	async kvPut<T>(key: string, value: T): Promise<void> {
-		if (key.startsWith(INTERNAL_KEY_PREFIX)) {
-			throw new Error(`Key "${key}" is reserved for internal use`);
-		}
-		if (key.length > MAX_KV_KEY_LENGTH) {
-			throw new Error(
-				`DeviceSDK: kv key exceeds ${MAX_KV_KEY_LENGTH} characters (got ${key.length})`,
-			);
-		}
-		// Serialize once: the byte count bounds the stored value, and the raw
-		// string is passed through so the write does not stringify again.
-		const serialized = JSON.stringify(value ?? null);
-		if (new TextEncoder().encode(serialized).length > MAX_KV_VALUE_BYTES) {
-			throw new Error(
-				`DeviceSDK: kv value exceeds ${MAX_KV_VALUE_BYTES} bytes when serialized`,
-			);
-		}
-		this.internalKvPutRaw(key, serialized);
+		this.kv.put(key, value);
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
-		// Deletes are idempotent - silently ignore reserved keys.
-		if (key.startsWith(INTERNAL_KEY_PREFIX)) return false;
-		const before = this.deps.db
-			.query("SELECT 1 AS one FROM device_kv WHERE device_id = ?1 AND key = ?2")
-			.get(this.deviceId, key);
-		this.deps.db
-			.query("DELETE FROM device_kv WHERE device_id = ?1 AND key = ?2")
-			.run(this.deviceId, key);
-		return before !== null;
-	}
-
-	private internalKvGet<T>(key: string): T | undefined {
-		const row = this.deps.db
-			.query("SELECT value FROM device_kv WHERE device_id = ?1 AND key = ?2")
-			.get(this.deviceId, key) as { value: string | null } | null;
-		if (!row || row.value === null) return undefined;
-		try {
-			return JSON.parse(row.value) as T;
-		} catch {
-			return undefined;
-		}
-	}
-
-	private internalKvPut(key: string, value: unknown): void {
-		this.internalKvPutRaw(key, JSON.stringify(value ?? null));
-	}
-
-	private internalKvPutRaw(key: string, serialized: string): void {
-		this.deps.db
-			.query(
-				`INSERT INTO device_kv (device_id, key, value, updated_at)
-				 VALUES (?1, ?2, ?3, ?4)
-				 ON CONFLICT (device_id, key) DO UPDATE SET value = ?3, updated_at = ?4`,
-			)
-			.run(this.deviceId, key, serialized, Date.now());
-	}
-
-	private internalKvDelete(key: string): void {
-		this.deps.db
-			.query("DELETE FROM device_kv WHERE device_id = ?1 AND key = ?2")
-			.run(this.deviceId, key);
+		return this.kv.remove(key);
 	}
 
 	// ------------------------------------------------------------------- crons
@@ -865,13 +795,13 @@ export class DeviceSession {
 		const crons = await worker.getCrons();
 
 		if (!crons || Object.keys(crons).length === 0) {
-			this.internalKvDelete(CRON_STORAGE_KEY);
+			this.kv.internalRemove(CRON_STORAGE_KEY);
 			this.clearCronTimer();
 			return;
 		}
 
 		const now = Date.now();
-		const existing = this.internalKvGet<CronStorage>(CRON_STORAGE_KEY) ?? {};
+		const existing = this.kv.internalGet<CronStorage>(CRON_STORAGE_KEY) ?? {};
 		const storage: CronStorage = {};
 
 		for (const [name, expr] of Object.entries(crons)) {
@@ -891,12 +821,12 @@ export class DeviceSession {
 		}
 
 		if (Object.keys(storage).length === 0) {
-			this.internalKvDelete(CRON_STORAGE_KEY);
+			this.kv.internalRemove(CRON_STORAGE_KEY);
 			this.clearCronTimer();
 			return;
 		}
 
-		this.internalKvPut(CRON_STORAGE_KEY, storage);
+		this.kv.internalPut(CRON_STORAGE_KEY, storage);
 		this.armCronTimer(earliestFireTime(storage));
 	}
 
@@ -906,7 +836,7 @@ export class DeviceSession {
 	 * it). Past fire times are recomputed so missed slots are skipped.
 	 */
 	private rearmCronsFromStorage(): void {
-		const schedules = this.internalKvGet<CronStorage>(CRON_STORAGE_KEY);
+		const schedules = this.kv.internalGet<CronStorage>(CRON_STORAGE_KEY);
 		if (!schedules || Object.keys(schedules).length === 0) return;
 
 		const now = Date.now();
@@ -925,7 +855,7 @@ export class DeviceSession {
 			}
 		}
 		if (changed) {
-			this.internalKvPut(CRON_STORAGE_KEY, schedules);
+			this.kv.internalPut(CRON_STORAGE_KEY, schedules);
 		}
 		this.armCronTimer(earliestFireTime(schedules));
 	}
@@ -967,7 +897,7 @@ export class DeviceSession {
 			// and skips the missed slot, never catching up.
 			if (!this.deviceWs) return;
 
-			const schedules = this.internalKvGet<CronStorage>(CRON_STORAGE_KEY);
+			const schedules = this.kv.internalGet<CronStorage>(CRON_STORAGE_KEY);
 			if (!schedules || Object.keys(schedules).length === 0) return;
 
 			const worker = await this.getWorker();
@@ -1028,14 +958,14 @@ export class DeviceSession {
 			}
 
 			if (Object.keys(updated).length > 0) {
-				this.internalKvPut(CRON_STORAGE_KEY, updated);
+				this.kv.internalPut(CRON_STORAGE_KEY, updated);
 				// Only re-arm while connected: a disconnect mid-dispatch must
 				// not leave a live timer. The reconnect path re-arms from the
 				// persisted schedule.
 				if (!this.deviceWs) return;
 				this.armCronTimer(earliestFireTime(updated));
 			} else {
-				this.internalKvDelete(CRON_STORAGE_KEY);
+				this.kv.internalRemove(CRON_STORAGE_KEY);
 			}
 		}, "onCron");
 	}

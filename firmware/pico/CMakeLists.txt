@@ -57,6 +57,7 @@ add_executable(devicesdk-client
         src/hal.cpp
         src/hal_onewire_dht.cpp
         src/utils/base64.cpp
+        src/utils/hex.cpp
         src/multicore/shared_buffers.cpp
         src/multicore/core1_worker.cpp
         src/commands/i2c_command_handler.cpp

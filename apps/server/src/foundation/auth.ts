@@ -259,8 +259,9 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		.execute();
 
 	if (!session.results) {
-		const secret = c.env.config.apiTokenSecret;
-		const apiTokenHash = await hashToken(token, secret);
+		// Same token, same secret: the session lookup already computed this
+		// digest - reuse it instead of hashing twice per request.
+		const apiTokenHash = sessionTokenHash;
 
 		const tokenUser = await c
 			.get("qb")

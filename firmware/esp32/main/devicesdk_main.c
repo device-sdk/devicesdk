@@ -87,8 +87,6 @@ static uint32_t last_ping_time = 0;
 static bool ws_connected = false;
 static esp_timer_handle_t wifi_reconnect_timer = NULL;
 static uint32_t wifi_retry_count = 0;
-static uint32_t rate_limit_retry_after_ms = 0;
-static uint32_t rate_limit_reconnect_at_ms = 0;
 
 // The server rejects the WS upgrade with HTTP 401 when the API token is
 // invalid; without a stop, the client would auto-reconnect every 10s forever.
@@ -595,14 +593,6 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             // reconnecting state until the next CONNECTED event (or a fresh
             // cloud display_update) overwrites it.
             display_boot_text("Server");
-            if (rate_limit_retry_after_ms > 0) {
-                uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
-                rate_limit_reconnect_at_ms = now_ms + rate_limit_retry_after_ms;
-                ESP_LOGW(TAG, "Rate limited: waiting %lu ms before reconnecting",
-                         (unsigned long)rate_limit_retry_after_ms);
-                rate_limit_retry_after_ms = 0;
-                esp_websocket_client_stop(ws_client);
-            }
             break;
         case WEBSOCKET_EVENT_DATA:
             if (data->data_len > 0) {
@@ -631,29 +621,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
                 s_ws_rx_frame[s_ws_rx_frame_len] = '\0';
                 ESP_LOGD(TAG, "Received: %s", s_ws_rx_frame);
 
-                // Check for rate_limit message before normal handling
-                cJSON *json = cJSON_Parse(s_ws_rx_frame);
-                if (json) {
-                    cJSON *type_field = cJSON_GetObjectItem(json, "type");
-                    if (type_field && cJSON_IsString(type_field) &&
-                        strcmp(type_field->valuestring, "rate_limit") == 0) {
-                        cJSON *payload_field = cJSON_GetObjectItem(json, "payload");
-                        if (payload_field) {
-                            cJSON *retry_after = cJSON_GetObjectItem(payload_field, "retry_after");
-                            if (retry_after && cJSON_IsNumber(retry_after)) {
-                                rate_limit_retry_after_ms = (uint32_t)(retry_after->valuedouble * 1000);
-                                ESP_LOGW(TAG, "Rate limited: retry after %u seconds",
-                                         (unsigned)(retry_after->valuedouble));
-                            }
-                        }
-                        cJSON_Delete(json);
-                    } else {
-                        cJSON_Delete(json);
-                        handle_websocket_message(s_ws_rx_frame);
-                    }
-                } else {
-                    handle_websocket_message(s_ws_rx_frame);
-                }
+                handle_websocket_message(s_ws_rx_frame);
                 s_ws_rx_frame_len = 0;
             }
             break;
@@ -773,16 +741,6 @@ static void websocket_task(void *pvParameters) {
             ws_permanently_stopped = true;
             ESP_LOGE(TAG, "WebSocket client stopped: invalid API token");
             esp_websocket_client_stop(ws_client);
-        }
-
-        // Reconnect after rate limit delay (non-blocking)
-        if (!ws_connected && !ws_permanently_stopped && rate_limit_reconnect_at_ms > 0) {
-            uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
-            if (now_ms >= rate_limit_reconnect_at_ms) {
-                rate_limit_reconnect_at_ms = 0;
-                ESP_LOGI(TAG, "Reconnecting after rate limit delay");
-                esp_websocket_client_start(ws_client);
-            }
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS);

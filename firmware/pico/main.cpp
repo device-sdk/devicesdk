@@ -82,22 +82,6 @@ static void process_ws_messages(WebsocketClient& client) {
         if (type_it == obj.end() || !type_it->second.is<std::string>()) continue;
         const std::string& type = type_it->second.get<std::string>();
 
-        // Rate-limit handling (the only control message the server sends);
-        // the rest are commands for handle_websocket_message.
-        if (type == "rate_limit") {
-            auto pl_it = obj.find("payload");
-            if (pl_it != obj.end() && pl_it->second.is<picojson::object>()) {
-                const picojson::object& pl = pl_it->second.get<picojson::object>();
-                auto retry_it = pl.find("retry_after");
-                if (retry_it != pl.end() && retry_it->second.is<double>()) {
-                    uint32_t retry_secs = (uint32_t)retry_it->second.get<double>();
-                    client.rate_limit_retry_after_ms = retry_secs * 1000;
-                    printf("[WS] Rate limited: retry after %u seconds\n", retry_secs);
-                }
-            }
-            continue;
-        }
-
         handle_websocket_message(v);
     }
 }
@@ -495,7 +479,6 @@ int main() {
 
     bool initial_message_sent = false;
     bool was_connected = false;
-    bool rate_limit_logged = false;
     bool auth_stopped = false;
     int auth_failure_count = 0;
     const int MAX_AUTH_FAILURES = 5;
@@ -586,16 +569,9 @@ int main() {
 
             initial_message_sent = false;
 
-            // Determine reconnect delay: use rate limit retry_after if set, otherwise default 5s
-            uint32_t reconnect_delay_ms = 5000;
-            if (client.rate_limit_retry_after_ms > 0) {
-                reconnect_delay_ms = client.rate_limit_retry_after_ms;
-                if (!rate_limit_logged) {
-                    printf("[Main] Rate limited (close code %u): waiting %u ms before reconnect\n",
-                           client.last_close_code, reconnect_delay_ms);
-                    rate_limit_logged = true;
-                }
-            }
+            // Fixed reconnect delay - the server sends no backoff frames, so
+            // there is no dynamic delay to honor.
+            const uint32_t reconnect_delay_ms = 5000;
 
             if (!auth_stopped &&
                 cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA) == CYW43_LINK_UP &&
@@ -619,11 +595,9 @@ int main() {
                 }
 
                 if (!auth_stopped) {
-                    // Reset rate limit state before reconnecting
-                    client.rate_limit_retry_after_ms = 0;
+                    // Reset close/status state before reconnecting
                     client.last_close_code = 0;
                     client.last_http_status = 0;
-                    rate_limit_logged = false;
 
                     client.close_connection();
                     client.connect(api_host, ws_path, WEBSOCKET_TOKEN);

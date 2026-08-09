@@ -22,10 +22,10 @@ export type ScriptId = string & Brand<"ScriptId">;
 /** A DeviceSDK API or CLI token. Use {@link asTokenId}. */
 export type TokenId = string & Brand<"TokenId">;
 
-/** Project ID validator: 3..64 chars, lowercase alnum + hyphen, must start with a letter. */
-export const PROJECT_ID_REGEX = /^[a-z][a-z0-9-]{2,63}$/;
+/** Project ID validator: 1..36 chars, lowercase alnum + hyphen, must start with a letter. */
+export const PROJECT_ID_REGEX = /^[a-z][a-z0-9-]{0,35}$/;
 /** Device ID validator: same shape as project IDs. */
-export const DEVICE_ID_REGEX = /^[a-z][a-z0-9-]{2,63}$/;
+export const DEVICE_ID_REGEX = /^[a-z][a-z0-9-]{0,35}$/;
 
 function brand<B extends string>(
 	value: string,
@@ -45,7 +45,7 @@ function brand<B extends string>(
 }
 
 const ID_FORMAT =
-	"lowercase letters, digits, hyphens; 3..64 chars; must start with a letter";
+	"lowercase letters, digits, hyphens; 1..36 chars; must start with a letter";
 
 /** Validate and brand a string as a {@link ProjectId}. Throws on invalid input. */
 export const asProjectId = (s: string): ProjectId =>

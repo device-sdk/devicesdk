@@ -17,14 +17,16 @@ DeviceSDK ships as a single Docker image that serves the API, WebSocket endpoint
 ## Quick start
 
 ```bash
-# Create a data directory for the SQLite database and scripts
-mkdir -p ~/devicesdk-data
+# Named volume for the SQLite database and scripts. A bind mount also works,
+# but the container runs as uid 1000 - with a bind mount you must `chown
+# 1000:1000` the directory first or the container cannot write to it.
+docker volume create devicesdk-data
 
 docker run -d \
   --name devicesdk \
   --restart unless-stopped \
   -p 8080:8080 \
-  -v ~/devicesdk-data:/data \
+  -v devicesdk-data:/data \
   -e ALLOW_REGISTRATION=false \
   ghcr.io/device-sdk/devicesdk:latest
 ```

@@ -441,19 +441,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useQuasar, copyToClipboard } from 'quasar';
+import { useQuasar } from 'quasar';
 import DeviceLogs from '@/components/DeviceLogs.vue';
 import DeviceMetricsPanel from '@/components/metrics/DeviceMetricsPanel.vue';
-import { scriptTemplates, templateCode } from '@/lib/scriptTemplates';
+import { useScriptEditor } from '@/composables/useScriptEditor';
+import { scriptTemplates } from '@/lib/scriptTemplates';
 import { formatDate } from '@/lib/time';
 import { formatFirmwareLabel } from '@/lib/firmwareLabel';
-import {
-  deviceService,
-  scriptService,
-  type Device,
-  type ScriptVersion,
-  type ScriptVersionDetail,
-} from '@/services/api.service';
+import { deviceService, type Device } from '@/services/api.service';
 
 const route = useRoute();
 const router = useRouter();
@@ -470,80 +465,54 @@ const liveDeviceType = ref<string | null>(null);
 const activeTab = ref('overview');
 const saving = ref(false);
 const deleting = ref(false);
-const deploying = ref(false);
-const rollingBackId = ref<string | null>(null);
 
 const showEditDialog = ref(false);
 const showDeleteDialog = ref(false);
-const showVersionDialog = ref(false);
-const showRollbackDialog = ref(false);
-const pendingRollbackId = ref<string | null>(null);
-
-const scriptContent = ref('');
-const deployMessage = ref('');
-const selectedTemplate = ref<string | null>(null);
-// The last script successfully loaded from (or deployed to) the server - the
-// baseline for "does the editor hold unsaved changes?" checks.
-const savedScript = ref('');
-
-const versions = ref<ScriptVersion[]>([]);
-const loadingVersions = ref(false);
-const versionsError = ref<string | null>(null);
-const viewingVersion = ref<ScriptVersionDetail | null>(null);
-// Monotonic sequence for fetchVersions stale-response guarding: an in-flight
-// request must not clear a newer request's loading state (mirrors fetchDevice's
-// AbortController identity check).
-let versionsFetchSeq = 0;
 
 const editForm = ref({
   name: '',
   description: '',
 });
 
-const versionColumns = [
-  { name: 'version_id', label: 'Version', field: 'version_id', align: 'left' as const },
-  { name: 'message', label: 'Message', field: 'message', align: 'left' as const },
-  { name: 'created_at', label: 'Created', field: 'created_at', align: 'left' as const },
-  { name: 'actions', label: 'Actions', field: 'actions', align: 'right' as const },
-];
-
-// Mirrors the canonical platform limit (@devicesdk/core MAX_SCRIPT_SIZE_BYTES =
-// 1 MiB). Kept as a local literal on purpose: the dashboard has no
-// @devicesdk/core dependency, and adding one to share a single number would
-// pull a build-ordered package into the SPA (and break the no-build lint /
-// component-test CI jobs).
-const SCRIPT_MAX_LENGTH = 1024 * 1024;
-
-const isScriptTooLarge = computed(() => scriptContent.value.length > SCRIPT_MAX_LENGTH);
-
 // Authoritative live connection state from the device's Durable Object (same
 // source as the project list's online/offline column), not a client-side
 // last-seen guess — so the chip can't disagree with the list view.
 const isOnline = computed(() => connected.value);
 
-const loadTemplate = (templateKey: string | null) => {
-  if (!templateKey || !templateCode[templateKey]) return;
-  const template = templateCode[templateKey];
-  const replace = () => {
-    scriptContent.value = template;
-    selectedTemplate.value = null;
-  };
-  if (scriptContent.value === template || scriptContent.value === savedScript.value) {
-    replace();
-    return;
-  }
-  // Loading a template overwrites the editor; confirm first so unsaved work
-  // isn't silently discarded.
-  $q.dialog({
-    title: 'Replace unsaved changes?',
-    message:
-      'Loading this template replaces the script in the editor. Unsaved changes will be lost.',
-    cancel: { label: 'Cancel', flat: true },
-    ok: { label: 'Replace', color: 'negative', unelevated: true },
-  }).onOk(replace).onDismiss(() => {
-    selectedTemplate.value = null;
-  });
-};
+// Script tab: editor, deploy/rollback, and version list state live in the
+// composable (useScriptEditor.ts) to keep this page under the LOC guideline.
+const {
+  scriptContent,
+  deployMessage,
+  selectedTemplate,
+  deploying,
+  versions,
+  loadingVersions,
+  versionsError,
+  viewingVersion,
+  showVersionDialog,
+  showRollbackDialog,
+  pendingRollbackId,
+  rollingBackId,
+  versionColumns,
+  isScriptTooLarge,
+  loadTemplate,
+  fetchCurrentScript,
+  fetchVersions,
+  deployScript,
+  viewVersion,
+  promptRollback,
+  confirmRollback,
+  onEditorTab,
+  copyViewingScript,
+  resetForDeviceSwitch,
+} = useScriptEditor({
+  projectId,
+  deviceId,
+  $q,
+  // fetchDevice is declared below; the closure only runs on deploy clicks.
+  onDeployed: () => fetchDevice(),
+});
 
 // Cancels an in-flight device fetch when the user navigates to a different
 // device, so a slow earlier response can't clobber the newer one.
@@ -605,131 +574,6 @@ const firmwareLabel = computed(() =>
   ),
 );
 
-const fetchCurrentScript = async () => {
-  // Capture the ids at call time and verify them on resolve: a slow response
-  // for the previous device must not clobber the new device's editor.
-  const pid = projectId.value;
-  const did = deviceId.value;
-  try {
-    const current = await scriptService.getCurrent(pid, did);
-    if (projectId.value !== pid || deviceId.value !== did) return;
-    savedScript.value = current.script || '';
-    scriptContent.value = current.script || '';
-  } catch {
-    // No script deployed yet, that's ok
-  }
-};
-
-const versionsCached = ref(false);
-
-const fetchVersions = async (force = false) => {
-  if (versionsCached.value && !force) return;
-  const seq = ++versionsFetchSeq;
-  const pid = projectId.value;
-  const did = deviceId.value;
-  try {
-    loadingVersions.value = true;
-    versionsError.value = null;
-    versions.value = await scriptService.getVersions(pid, did);
-    if (projectId.value !== pid || deviceId.value !== did) return;
-    versionsCached.value = true;
-  } catch (error) {
-    if (projectId.value !== pid || deviceId.value !== did) return;
-    console.error('Error fetching versions:', error);
-    versionsError.value =
-      error instanceof Error ? error.message : 'Failed to load versions';
-  } finally {
-    if (seq === versionsFetchSeq) loadingVersions.value = false;
-  }
-};
-
-const deployScript = async () => {
-  if (isScriptTooLarge.value) {
-    $q.notify({ type: 'negative', message: 'Script exceeds maximum size of 1MB', position: 'top' });
-    return;
-  }
-  try {
-    deploying.value = true;
-    await scriptService.upload(projectId.value, deviceId.value, {
-      script: scriptContent.value,
-      message: deployMessage.value || undefined,
-    });
-    $q.notify({ type: 'positive', message: 'Script deployed successfully', position: 'top' });
-    deployMessage.value = '';
-    savedScript.value = scriptContent.value;
-    versionsCached.value = false;
-    await fetchDevice();
-    await fetchVersions(true);
-  } catch (error) {
-    console.error('Error deploying script:', error);
-    const message = error instanceof Error ? error.message : 'Failed to deploy script';
-    $q.notify({ type: 'negative', message, position: 'top' });
-  } finally {
-    deploying.value = false;
-  }
-};
-
-const viewVersion = async (versionId: string) => {
-  try {
-    viewingVersion.value = await scriptService.getVersion(projectId.value, deviceId.value, versionId);
-    showVersionDialog.value = true;
-  } catch (error) {
-    console.error('Error fetching version:', error);
-    $q.notify({ type: 'negative', message: 'Failed to load version', position: 'top' });
-  }
-};
-
-const promptRollback = (versionId: string) => {
-  pendingRollbackId.value = versionId;
-  showRollbackDialog.value = true;
-};
-
-const confirmRollback = async () => {
-  const versionId = pendingRollbackId.value;
-  if (!versionId) return;
-  try {
-    rollingBackId.value = versionId;
-    await scriptService.deployVersion(projectId.value, deviceId.value, versionId);
-    showRollbackDialog.value = false;
-    $q.notify({ type: 'positive', message: 'Version deployed successfully', position: 'top' });
-    versionsCached.value = false;
-    await fetchDevice();
-    await fetchVersions(true);
-    await fetchCurrentScript();
-  } catch (error) {
-    console.error('Error deploying version:', error);
-    const message = error instanceof Error ? error.message : 'Failed to deploy version';
-    $q.notify({ type: 'negative', message, position: 'top' });
-  } finally {
-    rollingBackId.value = null;
-    pendingRollbackId.value = null;
-  }
-};
-
-// Insert two spaces on Tab instead of moving focus out of the editor, so users
-// can indent code in the textarea.
-const onEditorTab = (e: KeyboardEvent) => {
-  e.preventDefault();
-  const target = e.target as HTMLTextAreaElement;
-  const start = target.selectionStart;
-  const end = target.selectionEnd;
-  const value = scriptContent.value;
-  scriptContent.value = `${value.slice(0, start)}  ${value.slice(end)}`;
-  requestAnimationFrame(() => {
-    target.selectionStart = target.selectionEnd = start + 2;
-  });
-};
-
-const copyViewingScript = async () => {
-  if (!viewingVersion.value?.script) return;
-  try {
-    await copyToClipboard(viewingVersion.value.script);
-    $q.notify({ type: 'positive', message: 'Script copied to clipboard', position: 'top' });
-  } catch {
-    $q.notify({ type: 'negative', message: 'Failed to copy script', position: 'top' });
-  }
-};
-
 const updateDevice = async () => {
   try {
     saving.value = true;
@@ -777,21 +621,10 @@ watch(() => route.params, (newParams) => {
   if (newParams.projectId && newParams.deviceId) {
     projectId.value = newParams.projectId as string;
     deviceId.value = newParams.deviceId as string;
-    versionsCached.value = false;
     // This page stays mounted when navigating between devices of the same
     // route, so every device-scoped bit of state must reset here - otherwise
     // the Script tab would show (and deploy!) the previous device's code.
-    scriptContent.value = '';
-    savedScript.value = '';
-    deployMessage.value = '';
-    selectedTemplate.value = null;
-    versions.value = [];
-    versionsError.value = null;
-    loadingVersions.value = false;
-    viewingVersion.value = null;
-    showVersionDialog.value = false;
-    pendingRollbackId.value = null;
-    showRollbackDialog.value = false;
+    resetForDeviceSwitch();
     // A dialog left open across a device switch acts on the NEW device's refs
     // at click time (deleteDevice/updateDevice read projectId/deviceId then) -
     // close both and blank the edit form so nothing can target the wrong

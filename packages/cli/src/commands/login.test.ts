@@ -115,6 +115,26 @@ describe("login command", () => {
 		expect(credentialsMocks.saveCredentials).not.toHaveBeenCalled();
 	});
 
+	it("reports a denied request instead of 'Authentication failed'", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		apiMocks.startAuth.mockResolvedValue(START_AUTH_RESPONSE);
+		apiMocks.pollAuth.mockResolvedValueOnce("denied");
+
+		const loginPromise = login();
+		const assertion = expect(loginPromise).rejects.toThrow("exit:1");
+		await vi.advanceTimersByTimeAsync(6000);
+		await assertion;
+
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(
+			errorSpy.mock.calls.some(([msg]) =>
+				String(msg).includes("Login request was denied"),
+			),
+		).toBe(true);
+		expect(credentialsMocks.saveCredentials).not.toHaveBeenCalled();
+		errorSpy.mockRestore();
+	});
+
 	it("polls on the server-provided interval", async () => {
 		const loginPromise = login();
 		// Fixture interval is 5s - nothing should poll before it elapses.

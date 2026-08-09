@@ -142,9 +142,18 @@ static bool queue_command(worker_command_t *cmd) {
     cmd->sequence_id = ++s_sequence_counter;
 
 #ifndef UNIT_TEST
-    if (!s_cmd_queue) return false;
+    if (!s_cmd_queue) {
+        // No queue attached - the worker isn't running, so the server would
+        // otherwise time out after 5s. Resolve immediately instead.
+        reject_command(cmd->message_id, "Command queue not initialized");
+        return false;
+    }
     if (xQueueSend((QueueHandle_t)s_cmd_queue, cmd, 0) != pdTRUE) {
         LOG_E(TAG, "Command queue full");
+        // Every other validation failure gets a command_error (the server's
+        // pending command resolves immediately); a full queue must not be the
+        // one silent-failure path.
+        reject_command(cmd->message_id, "Command queue full");
         return false;
     }
 #else
@@ -627,9 +636,8 @@ bool handle_websocket_message(const char *message) {
             write_cmd.payload.i2c_write.data_len = data_len;
 
             if (!queue_command(&write_cmd)) {
-                char err_msg[64];
-                snprintf(err_msg, sizeof(err_msg), "i2c_batch_write: failed to queue write %d", i);
-                reject_command(msg_id, err_msg);
+                // queue_command already answered with a command_error
+                // ("Command queue full" / "not initialized"); abort the batch.
                 goto done;
             }
         }

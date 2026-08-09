@@ -148,10 +148,8 @@
         <q-card-section>
           <p>Are you sure you want to delete your account?</p>
           <p class="text-caption text-negative q-mb-md">
-            Your account will be scheduled for deletion with a 7-day grace period.
-            During this time you will not be able to log in.
-            After 7 days, all your projects, devices, and data will be permanently deleted.
-            Contact support@devicesdk.com within the grace period to cancel.
+            This will permanently delete your account and all your projects,
+            devices, and data immediately. This action cannot be undone.
           </p>
           <p>Type <strong>DELETE</strong> to confirm:</p>
           <q-input v-model="deleteConfirmation" outlined dense placeholder="DELETE" />

@@ -2,6 +2,7 @@
 #include "i2c_command_handler.h"
 #include "hal.h"
 #include "base64.h"
+#include "hex.h"
 #include "pico/cyw43_arch.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -296,7 +297,11 @@ void handle_display_update(const picojson::object& payload) {
         return;
     }
 
-    uint8_t address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
+    uint8_t address;
+    if (!parse_hex_byte(addr_str, &address)) {
+        i2c_cmd_send_error("Invalid I2C address (expected hex byte)");
+        return;
+    }
 
     // Validate controller type
     bool is_ssd1306 = (controller == "ssd1306");

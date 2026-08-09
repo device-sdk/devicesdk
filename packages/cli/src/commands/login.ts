@@ -1,5 +1,6 @@
 import open from "open";
 import {
+	type AuthPollResult,
 	DeviceSDKApiError,
 	getApiUrl,
 	getMe,
@@ -76,8 +77,9 @@ export default async function login(options?: {
 		while (!authResult && Date.now() - startTime < deadline) {
 			await new Promise((resolve) => setTimeout(resolve, intervalMs));
 
+			let pollResult: AuthPollResult;
 			try {
-				authResult = await pollAuth(authStart.device_code);
+				pollResult = await pollAuth(authStart.device_code);
 				pollErrors = 0;
 			} catch (error) {
 				// Transient poll failures (network blips, 5xx) must not abort
@@ -97,6 +99,18 @@ export default async function login(options?: {
 				}
 				continue;
 			}
+
+			// Outside the retry catch above: process.exit never returns (in
+			// production) but the test exit mock throws - a throw here must not
+			// be mistaken for a transient poll failure and retried.
+			if (pollResult === "denied") {
+				console.error("\n✗ Error: Login request was denied\n");
+				console.error(
+					"  Run `devicesdk login` again if you still want to sign in",
+				);
+				process.exit(EXIT.GENERIC);
+			}
+			authResult = pollResult === "pending" ? null : pollResult;
 
 			if (!authResult && isVerbose) {
 				const elapsed = Math.round((Date.now() - startTime) / 1000);

@@ -44,7 +44,10 @@ const statements = [
   "DELETE FROM user;",
 
   // onboarding_completed = 1 so the dashboard skips the first-run wizard.
-  `INSERT INTO user (id, name, email, verified_email, picture, created_at, onboarding_completed) VALUES ('user-1', 'Alice Johnson', 'alice@example.com', 1, 'https://example.com/alice.jpg', ${now}, 1);`,
+  // password_hash is argon2id so the delete-account flow (which re-verifies
+  // the password) actually works in E2E; "password123" matches the value the
+  // account.spec.ts test types into the dialog.
+  `INSERT INTO user (id, name, email, verified_email, picture, password_hash, created_at, onboarding_completed) VALUES ('user-1', 'Alice Johnson', 'alice@example.com', 1, 'https://example.com/alice.jpg', '${Bun.password.hashSync("password123", { algorithm: "argon2id" })}', ${now}, 1);`,
   `INSERT INTO user_sessions (user_id, token, created_at, expires_at) VALUES ('user-1', '${sessionTokenHash}', ${now}, ${expires});`,
 
   `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-1', 'user-1', 'smart-home', 'Smart Home', 'IoT smart home automation project', ${now});`,

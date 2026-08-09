@@ -87,9 +87,14 @@ export interface AuthPollResponse {
 	token_type: string;
 }
 
-export async function pollAuth(
-	deviceCode: string,
-): Promise<AuthPollResponse | null> {
+export type AuthPollResult = AuthPollResponse | "pending" | "denied";
+
+/**
+ * Polls the device-code flow. Returns the token response once the user
+ * approved, "pending" while they are still deciding (or the server 401s a
+ * not-yet-active code), and "denied" if they rejected the request.
+ */
+export async function pollAuth(deviceCode: string): Promise<AuthPollResult> {
 	try {
 		const result = await request<AuthPollResponse | { status: string }>(
 			"/v1/cli/auth/poll",
@@ -101,21 +106,20 @@ export async function pollAuth(
 			true,
 		);
 
-		// Check if the response indicates pending status
-		if (
-			result &&
-			typeof result === "object" &&
-			"status" in result &&
-			result.status === "pending"
-		) {
-			return null;
+		if (result && typeof result === "object" && "status" in result) {
+			// Still waiting for the user to approve/reject the request.
+			if (result.status === "pending") return "pending";
+			// The user actively rejected the request - do NOT fall through to
+			// the token path (a "denied" payload would otherwise be treated as
+			// an approved AuthPollResponse and fail confusingly in getMe).
+			if (result.status === "denied") return "denied";
 		}
 
 		return result as AuthPollResponse;
 	} catch (error) {
 		// If it's a 401 error, return null (user hasn't approved yet)
 		if (error instanceof DeviceSDKApiError && error.statusCode === 401) {
-			return null;
+			return "pending";
 		}
 		throw error;
 	}

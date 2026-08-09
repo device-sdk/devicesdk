@@ -89,11 +89,13 @@ jobs:
   build-and-push:
     needs: wait-for-firmware
     # On branch pushes, only build and push when the changeset release PR is
-    # merged. Tag pushes and manual dispatches always run.
+    # merged. Tag pushes and manual dispatches always run. `contains` (not
+    # `startsWith`) so a merge-commit style ("Merge pull request ..." subject
+    # with the PR title in the body) still matches.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.ref, 'refs/tags/') ||
-      startsWith(github.event.head_commit.message, 'chore: version packages')
+      contains(github.event.head_commit.message, 'version packages')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

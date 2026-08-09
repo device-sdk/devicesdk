@@ -1,8 +1,24 @@
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, createApp } from 'vue';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { useDeviceStream } from '@/composables/useDeviceStream';
 import { logService } from '@/services/api.service';
+
+/**
+ * Runs a composable inside a real component setup scope so lifecycle hooks
+ * (onUnmounted in useDeviceStream) register against an active instance
+ * instead of warning "no active component instance".
+ */
+function withSetup<T>(composable: () => T): T {
+  let result!: T;
+  createApp({
+    setup() {
+      result = composable();
+      return () => null;
+    },
+  }).mount(document.createElement('div'));
+  return result;
+}
 
 vi.mock('@/services/api.service', () => ({
   logService: {
@@ -75,7 +91,7 @@ describe('useDeviceStream', () => {
   });
 
   it('drops duplicate log ids within a single connection', () => {
-    const stream = useDeviceStream('proj-1', 'dev-1', { backfillLimit: 100 });
+    const stream = withSetup(() => useDeviceStream('proj-1', 'dev-1', { backfillLimit: 100 }));
     stream.connect();
     const ws = MockWebSocket.instances[0]!;
     ws.emitOpen();
@@ -90,7 +106,7 @@ describe('useDeviceStream', () => {
 
   it('accepts replayed ids on a fresh connection (per-connection dedupe)', () => {
     vi.useFakeTimers();
-    const stream = useDeviceStream('proj-1', 'dev-1', { backfillLimit: 100 });
+    const stream = withSetup(() => useDeviceStream('proj-1', 'dev-1', { backfillLimit: 100 }));
     stream.connect();
     let ws = MockWebSocket.instances[0]!;
     ws.emitOpen();
@@ -110,7 +126,7 @@ describe('useDeviceStream', () => {
   it('reconnects to the new ids and resets buffered data when the id refs change', async () => {
     const projectId = ref('proj-1');
     const deviceId = ref('dev-1');
-    const stream = useDeviceStream(projectId, deviceId, { backfillLimit: 100 });
+    const stream = withSetup(() => useDeviceStream(projectId, deviceId, { backfillLimit: 100 }));
     stream.connect();
     let ws = MockWebSocket.instances[0]!;
     ws.emitOpen();
@@ -134,7 +150,7 @@ describe('useDeviceStream', () => {
   it('drops the buffered logs when a device switch happens while disconnected', async () => {
     const projectId = ref('proj-1');
     const deviceId = ref('dev-1');
-    const stream = useDeviceStream(projectId, deviceId, { backfillLimit: 100 });
+    const stream = withSetup(() => useDeviceStream(projectId, deviceId, { backfillLimit: 100 }));
     stream.connect();
     const ws = MockWebSocket.instances[0]!;
     ws.emitOpen();

@@ -10,6 +10,23 @@
  * the I/O parts (reading/writing storage, calling `onCron` on the user worker).
  */
 
+/** device_kv key under which the per-device cron schedule is persisted. */
+export const CRON_STORAGE_KEY = "__internal:cron_schedules";
+
+/**
+ * setTimeout() delays above this would overflow the 32-bit timer used by the
+ * runtime; longer delays are split into hops.
+ */
+export const MAX_TIMER_DELAY_MS = 2_147_000_000;
+
+/** Returns the earliest nextFireAt across all schedules. */
+export function earliestFireTime(schedules: CronStorage): number {
+	return Object.values(schedules).reduce(
+		(min, s) => Math.min(min, s.nextFireAt),
+		Infinity,
+	);
+}
+
 export interface CronScheduleEntry {
 	cron: string;
 	nextFireAt: number;

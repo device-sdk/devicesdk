@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { CRON_STORAGE_KEY } from "../../src/runtime/deviceSession";
+import { CRON_STORAGE_KEY } from "../../src/runtime/cronDispatch";
 import { TestServer } from "../harness";
 
 const CRON_SCRIPT = `

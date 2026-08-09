@@ -30,6 +30,7 @@ export default async function whoami(
 
 		if (json) {
 			emitJsonError(message, {
+				code: "failed_to_get_user_info",
 				docs: "https://docs.devicesdk.com/cli/login/",
 			});
 		} else {

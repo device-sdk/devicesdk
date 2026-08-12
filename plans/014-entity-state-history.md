@@ -1,4 +1,4 @@
-# Plan 014: Persist entity state - last-known values, history, watch backfill, and dashboard charts
+# Plan 014: Persist entity state - last-known values, history, watch backfill, dashboard charts, and CLI
 
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
@@ -8,7 +8,7 @@
 > maintain the index.
 >
 > **Drift check (run first)**:
-> `git diff --stat e6d6454..HEAD -- apps/server/src/runtime/ apps/server/src/endpoints/devices/ apps/server/migrations/ apps/server/src/foundation/consts.ts apps/server/src/janitor.ts apps/dashboard/src/`
+> `git diff --stat e6d6454..HEAD -- apps/server/src/runtime/ apps/server/src/endpoints/devices/ apps/server/migrations/ apps/server/src/foundation/consts.ts apps/server/src/janitor.ts apps/dashboard/src/ packages/cli/src/`
 > If any in-scope file changed since this plan was written, compare the
 > "Current state" excerpts against the live code before proceeding; on a
 > mismatch, treat it as a STOP condition.
@@ -31,19 +31,22 @@ publishes sensor readings, but today the server only broadcasts the value to
 watcher WebSockets that happen to be open at that instant - nothing is stored.
 A temperature sensor emitting readings all day produces data nobody can ever
 see. There is no last-known value (a dashboard or Home Assistant client that
-connects sees nothing until the next emission), no history, and no charts.
-This plan persists entity state into SQLite with retention, replays last-known
-values to newly attached watchers, exposes latest + history over REST, and adds
-a State tab with charts to the dashboard.
+connects sees nothing until the next emission), no history, no charts, and no
+CLI surface - `devicesdk logs` explicitly ignores `state` frames
+(`packages/cli/src/commands/logs.ts:237`). This plan persists entity state into
+SQLite with retention, replays last-known values to newly attached watchers,
+exposes latest + history over REST (history keyed by state name), adds a State
+tab with charts to the dashboard, and a `devicesdk state` CLI command (latest
+values, per-entity history, live tail).
 
 ## Current state
 
 Relevant files, each with its role:
 
 - `apps/server/src/runtime/deviceSession.ts` - per-device session. `emitState`
-  (lines 574-580) broadcasts and drops the value; `attachWatcher` (lines
-  506-555) sends a `status` frame then an optional log backfill;
-  `logStream` field is initialized at line 103.
+  (lines 672-678) broadcasts and drops the value; `attachWatcher` (lines
+  607-653) sends a `status` frame then an optional log backfill; `logStream`
+  field is initialized at line 127.
 - `apps/server/src/runtime/logStore.ts` - the pattern to mirror:
   `broadcastToWatchers` (22-36), `persistAndBroadcastLog` (102-141, including
   throttled cleanup), `fetchRecentLogs` (148-170). Also contains
@@ -54,8 +57,9 @@ Relevant files, each with its role:
   `LOG_CLEANUP_MIN_INTERVAL_MS = 6h`). New state constants go beside them.
 - `apps/server/src/janitor.ts` - hourly retention pruning; add one DELETE.
 - `apps/server/migrations/` - sequential SQL files; latest is
-  `0026_drop_tokens_plaintext_column.sql`, so the new one is `0027_...` (if
-  0027 is already taken when you start, use the next free number everywhere).
+  `0031_add_firmware_info_to_devices.sql` (0028-0030 are unused numbers), so
+  the new one is `0032_...` (if taken when you start, use the next free number
+  everywhere).
 - `apps/server/src/types.d.ts` - table row types (`tableDevices` at line 66).
 - `apps/server/src/endpoints/devices/getDeviceEntities.ts` - the endpoint
   pattern to copy (Chanfana `BaseRoute`, `c.get("qb")`, project→device
@@ -74,10 +78,23 @@ Relevant files, each with its role:
   charts; do not add a new chart library.
 - `apps/dashboard/src/pages/DeviceDetailsPage.vue` - tab strip at lines 57-62
   (`overview`, `metrics`, `script`, `versions`, `logs`, `settings`).
+- `packages/cli/src/api/logs.ts` - `getWatchUrl` watcher-WS URL builder
+  (19-38); the new `states.ts` API module sits beside it.
+- `packages/cli/src/api/entities.ts` - `request()` HTTP helper pattern to copy
+  for the state endpoints.
+- `packages/cli/src/commands/logs.ts` - the only watcher-WS consumer today;
+  line 237 explicitly ignores `state` frames (stays unchanged).
+- `packages/cli/src/commands/status.ts` - table-output and project/device
+  resolution idiom to copy for the new `state` command.
+- `packages/cli/src/index.ts` - command registration; `status` block at
+  245-262, `logs` block at 171-208.
+- `packages/cli/src/simulator/localDeviceSender.ts:295-297` - `emitState` is a
+  no-op in the local dev simulator (out of scope - the CLI `state` command
+  targets a deployed server).
 
 Key excerpts (verify these against live code before editing):
 
-`deviceSession.ts:574-580`:
+`deviceSession.ts:672-678`:
 ```ts
 emitState(entityId: string, value: unknown): void {
 	broadcastToWatchers(this.watchers, "state", {
@@ -88,7 +105,7 @@ emitState(entityId: string, value: unknown): void {
 }
 ```
 
-`deviceSession.ts:103`:
+`deviceSession.ts:127`:
 ```ts
 private logStream: LogStreamState = { logWriteCount: 0, lastLogCleanupAt: 0 };
 ```
@@ -110,8 +127,8 @@ Watch protocol (documented in AGENTS.md, consumed by dashboard + CLI + future
 HA integration): frames are `{event: "log"|"status"|"state"|"history_complete",
 data, replay?}`. Adding `replay: true` state frames on watcher attach is
 additive and consistent with the documented `replay?` field. The CLI already
-ignores frame events it does not handle (state frames flow live today when a
-device emits while `devicesdk logs` is attached).
+tolerates state frames (it ignores them today; the new `state` command
+consumes them, replayed and live).
 
 Repo conventions that apply:
 
@@ -131,18 +148,19 @@ Repo conventions that apply:
 | Server typecheck | `pnpm check-types --filter @devicesdk/server` | exit 0 |
 | Server lint | `pnpm lint --filter @devicesdk/server` | exit 0 |
 | Server tests | `pnpm test --filter @devicesdk/server` | all pass |
-| CLI tests (protocol regression) | `pnpm test --filter @devicesdk/cli` | all pass |
+| CLI typecheck | `pnpm check-types --filter @devicesdk/cli` | exit 0 |
+| CLI tests (incl. state command) | `pnpm test --filter @devicesdk/cli` | all pass |
 | Dashboard unit tests | `pnpm test:unit --filter @devicesdk/dashboard` | all pass |
 | Full build | `pnpm build` | exit 0 |
 | Regenerate OpenAPI | `cd apps/server && bun run scripts/generate-openapi.ts` | openapi.json updated, exit 0 |
-| Changeset | `pnpm changeset` | interactive; see step 12 |
+| Changeset | `pnpm changeset` | interactive; see step 13 |
 | Root lint (pre-commit) | `pnpm lint` | exit 0 |
 
 ## Scope
 
 **In scope** (the only files you should modify or create):
 
-- `apps/server/migrations/0027_add_device_entity_states.sql` (create)
+- `apps/server/migrations/0032_add_device_entity_states.sql` (create)
 - `apps/server/src/types.d.ts` (add two table types)
 - `apps/server/src/foundation/consts.ts` (add STATE_* constants)
 - `apps/server/src/runtime/stateStore.ts` (create)
@@ -160,9 +178,14 @@ Repo conventions that apply:
 - `apps/dashboard/src/components/DeviceStatePanel.vue` (create)
 - `apps/dashboard/src/pages/DeviceDetailsPage.vue` (add State tab)
 - `apps/dashboard/tests/unit/stateFrames.spec.ts` (create)
+- `packages/cli/src/api/states.ts` (create - HTTP helpers for the two endpoints)
+- `packages/cli/src/commands/state.ts` (create - `devicesdk state` command)
+- `packages/cli/src/commands/state.test.ts` (create)
+- `packages/cli/src/index.ts` (register the `state` command)
+- `apps/docs/src/content/docs/cli/state.md` (create)
 - `AGENTS.md` (one-line watch-protocol doc update; CLAUDE.md is a symlink to
   it - edit AGENTS.md only)
-- `.changeset/*.md` (two new changesets)
+- `.changeset/*.md` (three new changesets)
 - `plans/README.md` (status row only)
 
 **Out of scope** (do NOT touch):
@@ -172,7 +195,12 @@ Repo conventions that apply:
   ephemeral in v1. GPIO edges can be very chatty; persisting them is a
   deliberate non-goal. Only user `emitState` persists.
 - `packages/core` - the `emitState` contract and types are unchanged.
-- `packages/cli` - no CLI changes; you only run its tests as a regression gate.
+- `packages/cli/src/commands/logs.ts` - its `state`-frame ignore comment (line
+  237) stays; the CLI's state surface is the new dedicated `state` command.
+- `packages/cli/src/simulator/` - `devicesdk dev` has no watchers to notify
+  (`localDeviceSender.ts:295-297`); the `state` command targets a deployed
+  server. Surfacing simulator-emitted states is a recorded follow-up, not
+  scope.
 - `apps/server/src/endpoints/logs/` - the log-only paging endpoint is
   unrelated to entity state; do not extend it to cover entity history or
   model the new history endpoint on it.
@@ -194,10 +222,10 @@ Repo conventions that apply:
 
 ### Step 1: Migration
 
-Create `apps/server/migrations/0027_add_device_entity_states.sql`:
+Create `apps/server/migrations/0032_add_device_entity_states.sql`:
 
 ```sql
--- Migration number: 0027    2026-07-06
+-- Migration number: 0032    2026-07-06
 -- Entity state persistence: history rows (janitor-pruned) plus a last-known
 -- value per (device, entity) that survives retention so quiet sensors still
 -- have a value to show.
@@ -313,11 +341,11 @@ ascending order (subquery: select newest N descending, then order ascending).
 
 ### Step 4: Wire into `deviceSession.ts`
 
-- Add a field next to `logStream` (line 103):
+- Add a field next to `logStream` (line 127):
   `private stateStream: StateStreamState = { stateWriteCount: 0, lastStateCleanupAt: 0, lastPersistAtByEntity: new Map() };`
-- Replace the body of `emitState` (574-580) with a call to
+- Replace the body of `emitState` (672-678) with a call to
   `persistAndBroadcastState(this.deps.db, this.deviceId, this.watchers, this.stateStream, entityId, value, "user")`.
-- In `attachWatcher`, after the initial `status` send (line 521's try/catch)
+- In `attachWatcher`, after the initial `status` send (line 613-622's try/catch)
   and **before** the log backfill block, replay last-known states:
 
 ```ts
@@ -414,7 +442,100 @@ Regenerate OpenAPI: `cd apps/server && bun run scripts/generate-openapi.ts`.
 **Verify**: `git diff --stat apps/server/openapi.json` shows the file changed;
 `pnpm check-types --filter @devicesdk/server` → exit 0.
 
-### Step 7: Server tests
+### Step 7: CLI `state` command
+
+Adds the terminal surface for the same data: latest values, per-state-name
+(per-entity) history, and live tailing - so `emitState` output is visible
+without the dashboard.
+
+Create `packages/cli/src/api/states.ts` (model on `entities.ts`; uses the
+`request` helper from `shared.ts`):
+
+```ts
+export interface EntityStateRow {
+	entity_id: string;
+	value: unknown;
+	source: string;
+	updated_at?: number;
+	created_at?: number;
+}
+
+export async function getDeviceState(
+	token: string,
+	projectId: string,
+	deviceId: string,
+): Promise<{ states: EntityStateRow[] }> {
+	return request<{ states: EntityStateRow[] }>(
+		`/v1/projects/${projectId}/devices/${deviceId}/state`,
+		{ method: "GET" },
+		token,
+	);
+}
+
+export async function getDeviceStateHistory(
+	token: string,
+	projectId: string,
+	deviceId: string,
+	entityId: string,
+	opts?: { from?: number; to?: number; limit?: number },
+): Promise<{ states: EntityStateRow[] }> {
+	const params = new URLSearchParams({ entityId });
+	if (opts?.from != null) params.set("from", String(opts.from));
+	if (opts?.to != null) params.set("to", String(opts.to));
+	if (opts?.limit != null) params.set("limit", String(opts.limit));
+	return request<{ states: EntityStateRow[] }>(
+		`/v1/projects/${projectId}/devices/${deviceId}/state/history?${params.toString()}`,
+		{ method: "GET" },
+		token,
+	);
+}
+```
+
+Create `packages/cli/src/commands/state.ts` (`state [project-id] [device-id]`).
+Copy the project/device resolution from `logs.ts:279-316` (positional args →
+`devicesdk.ts` config → single-device auto-pick) and the table formatting from
+`status.ts` (column widths, relative "X ago" timestamps, `--json` via
+`emitJsonSuccess`).
+
+Three modes:
+
+1. **Latest (default)**: `getDeviceState` → table `ENTITY / VALUE / SOURCE /
+   UPDATED`, or `--json` `{ success, result: { states } }`. No states →
+   "No state emitted yet - call DEVICE.emitState() from your script."
+2. **History by state name**: `-e, --entity <name>` →
+   `getDeviceStateHistory` → ascending table `TIME / VALUE / SOURCE`.
+   `-n, --limit` (default 100, clamped 1..2000) mirrors the REST `limit`.
+   Values render via a `formatStateValue` helper: numbers/booleans/strings
+   raw, objects/arrays `JSON.stringify`'d truncated to ~120 chars, `null` as
+   `null`.
+3. **Live tail**: `-f, --tail` → watcher WS via the existing `getWatchUrl`
+   helper (no `backfillLimit` - the step-4 last-known replay seeds the map on
+   connect). Keep a `Map<entity_id, row>`; on every `state` frame (replay or
+   live) update the map and print `entity = value (source)`; with `--entity`
+   filter to that state name only. Reuse the `logs.ts` reconnect/backoff and
+   SIGINT handling (`RECONNECT_*`, `finish()`).
+
+Register in `packages/cli/src/index.ts` after the `status` block (line 262),
+mirroring that block's options/help shape and pointing `More:` at
+`https://docs.devicesdk.com/cli/state/`.
+
+Add `packages/cli/src/commands/state.test.ts` (vitest; model the ws-mock and
+frame-driving structure on `logs.test.ts`, mock `../api.js` for the HTTP
+calls). Cover: latest-table output; history output with `--entity`; `--json`
+shapes for both; empty-state message; `--limit` clamping; tail frame handling
+(replay seeds the map, a live frame overwrites it, `--entity` filters).
+
+Create `apps/docs/src/content/docs/cli/state.md` (model on `logs.md`):
+usage/options/examples including `--entity temperature` history lookup, and
+note that only user `emitState` calls persist (hardware auto-states like
+`gpio_state_changed` are live-only). If the CLI docs index
+(`apps/docs/src/content/docs/cli/index.md`) enumerates commands, add a line.
+
+**Verify**: `pnpm test --filter @devicesdk/cli` → all pass including
+`state.test.ts`; `pnpm check-types --filter @devicesdk/cli` → exit 0;
+`pnpm build` → exit 0 (dist build includes the new command).
+
+### Step 8: Server tests
 
 `apps/server/tests/unit/state-store.test.ts` (bun:test, model the structure on
 `tests/unit/db-layer.test.ts`): create an in-memory `Database`, execute the
@@ -449,7 +570,7 @@ directly:
 new files. Then `pnpm test --filter @devicesdk/cli` → all pass (regression
 gate: CLI watch-frame handling tolerates replayed state frames).
 
-### Step 8: Dashboard service + frame helper
+### Step 9: Dashboard service + frame helper
 
 In `apps/dashboard/src/services/api.service.ts` add (near `logService`):
 
@@ -497,7 +618,7 @@ assigns when non-null, and return `entityStates` from the composable.
 
 **Verify**: `pnpm lint --filter @devicesdk/dashboard` → exit 0.
 
-### Step 9: Dashboard State tab
+### Step 10: Dashboard State tab
 
 Create `apps/dashboard/src/components/DeviceStatePanel.vue`:
 
@@ -530,7 +651,7 @@ Then run the app if feasible (`pnpm local`), open a device page, and confirm
 the State tab renders its empty state without console errors. If you cannot
 run the dev servers in your environment, note that in your report.
 
-### Step 10: Dashboard unit test
+### Step 11: Dashboard unit test
 
 `apps/dashboard/tests/unit/stateFrames.spec.ts` (vitest; model file structure
 on `tests/unit/metricsFormat.spec.ts`): cover applyStateFrame with (a) a valid
@@ -540,7 +661,7 @@ oversized entity_id) → null, (e) replay frames treated identically.
 
 **Verify**: `pnpm test:unit --filter @devicesdk/dashboard` → all pass.
 
-### Step 11: Docs line
+### Step 12: Docs line
 
 In `AGENTS.md`, find the "Watch protocol" bullet (starts "**Watch protocol**
 (unchanged from the cloud era..."). Append one sentence to that bullet: on
@@ -552,9 +673,9 @@ CLAUDE.md (it is a symlink to AGENTS.md).
 **Verify**: `git diff AGENTS.md` shows only that bullet changed;
 `readlink CLAUDE.md` → `AGENTS.md`.
 
-### Step 12: Changesets
+### Step 13: Changesets
 
-Create two changesets (via `pnpm changeset` or by writing the files directly
+Create three changesets (via `pnpm changeset` or by writing the files directly
 under `.changeset/`):
 
 - `@devicesdk/server`: minor - "Persist entity state: last-known values and
@@ -562,6 +683,8 @@ under `.changeset/`):
   GET .../state and GET .../state/history endpoints."
 - `@devicesdk/dashboard`: minor - "New State tab on the device page: latest
   entity values with live updates and history charts."
+- `@devicesdk/cli`: minor - "New `devicesdk state` command: latest entity
+  values, per-entity history by state name, and live tailing."
 
 Never set a major bump (repo rule).
 
@@ -570,12 +693,15 @@ package it describes.
 
 ## Test plan
 
-Covered by steps 7 and 10. Summary of required new tests:
+Covered by steps 7 (CLI), 8 (server), and 11 (dashboard). Summary of required
+new tests:
 
 - `apps/server/tests/unit/state-store.test.ts` - persist/coalesce/oversize/
-  fetch ordering (5 cases listed in step 7).
+  fetch ordering (5 cases listed in step 8).
 - `apps/server/tests/e2e/device-state.test.ts` - endpoint auth + shapes
-  (6 cases listed in step 7).
+  (6 cases listed in step 8).
+- `packages/cli/src/commands/state.test.ts` - command output modes and tail
+  frame handling (6 cases listed in step 7).
 - `apps/dashboard/tests/unit/stateFrames.spec.ts` - frame guard (5 cases).
 - Regression gates: full server suite, CLI suite, dashboard unit suite.
 
@@ -586,16 +712,20 @@ ALL must hold:
 - [ ] `pnpm check-types --filter @devicesdk/server` exits 0
 - [ ] `pnpm test --filter @devicesdk/server` exits 0, including the two new
       test files
-- [ ] `pnpm test --filter @devicesdk/cli` exits 0
+- [ ] `pnpm check-types --filter @devicesdk/cli` exits 0
+- [ ] `pnpm test --filter @devicesdk/cli` exits 0, including `state.test.ts`
 - [ ] `pnpm test:unit --filter @devicesdk/dashboard` exits 0, including
       `stateFrames.spec.ts`
 - [ ] `pnpm build` exits 0
 - [ ] `pnpm lint` exits 0
 - [ ] `grep -n "reserved for future UI features" apps/dashboard/src/composables/useDeviceStream.ts`
       returns no matches (the branch is implemented)
+- [ ] `grep -n '"state \[project-id' packages/cli/src/index.ts` returns a match
+      (the command is registered)
 - [ ] `apps/server/openapi.json` contains `devices-get-state` and
       `devices-get-state-history`
-- [ ] Two changeset files exist (server minor, dashboard minor)
+- [ ] `apps/docs/src/content/docs/cli/state.md` exists
+- [ ] Three changeset files exist (server, dashboard, cli)
 - [ ] `git status` shows no modified files outside the in-scope list
 - [ ] `plans/README.md` status row for 014 updated
 
@@ -608,9 +738,10 @@ Stop and report back (do not improvise) if:
 - Migration numbering conflicts in a way renumbering does not solve (e.g. a
   migration with the same table names already exists - another plan may have
   added state persistence).
-- CLI tests fail on watch-frame handling after step 4 - that means the CLI
-  does NOT tolerate replayed state frames; do not patch the CLI (out of
-  scope), report instead.
+- CLI tests fail on watch-frame handling after step 4 - the existing
+  `devicesdk logs` path must keep tolerating replayed state frames. Fix the
+  new `state` command if it trips; report if the failure is in `logs.ts`
+  (its ignore-comment handling should never have changed).
 - `tests/harness.ts` does not expose a usable `db` handle for seeding.
 - The dashboard has no existing echarts registration covering line/time-axis
   charts (check `apps/dashboard/src/lib/echarts.ts`); registering more echarts
@@ -627,6 +758,9 @@ Stop and report back (do not improvise) if:
 - Hardware-message states (`broadcastStateFromMessage`) intentionally do not
   persist. If users ask for GPIO history, extend `persistAndBroadcastState`
   with a per-source policy rather than persisting everything.
+- The local dev simulator (`devicesdk dev`) still drops `emitState` calls
+  (`localDeviceSender.ts:295-297`); wiring a state feed into the simulator UI
+  is a recorded follow-up, not scope here.
 - Reviewer should scrutinize: the coalescing map (`lastPersistAtByEntity`)
   growth - it is bounded by distinct entity ids per session, which is fine;
   and that `attachWatcher` state replay stays before log backfill so

@@ -34,7 +34,7 @@ done.
 | 011  | Design spike: extract device runtime into packages/device-engine (kill workerd) | P3 | M | — (avoid overlap with 007) | TODO |
 | 012  | Device KV inspector: REST list/delete endpoints + dashboard Storage tab | P2 | S | — | TODO |
 | 013  | Design spike: multi-user project sharing (household roles, report-only) | P3 | M | — (coordinate with 003 tokens) | TODO |
-| 014  | Persist entity state: last-known + history + watch backfill + dashboard charts | P1 | M | — (best before 001 executes) | TODO |
+| 014  | Persist entity state: last-known + history + watch backfill + dashboard charts + CLI `state` command | P1 | M | — (best before 001 executes) | TODO |
 | 015  | Flash devices from the dashboard: WebSerial ESP32 + patched UF2 download | P2 | M | — (retest after 008) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)

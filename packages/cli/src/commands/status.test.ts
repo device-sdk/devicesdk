@@ -36,6 +36,8 @@ function makeStatus(
 		connected_since: null,
 		last_connected_at: null,
 		current_version_id: null,
+		firmware_version: null,
+		device_type: null,
 		...overrides,
 	};
 }
@@ -157,6 +159,69 @@ describe("status command", () => {
 		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
 		expect(output).toContain("-");
 		expect(output).toContain("never");
+	});
+
+	it("renders firmware version and device type in the FIRMWARE column", async () => {
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
+		apiMocks.getDeviceStatus.mockResolvedValue(
+			makeStatus({
+				connected: false,
+				firmware_version: "1.2.3",
+				device_type: "esp32c3",
+			}),
+		);
+
+		await status({});
+
+		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
+		expect(output).toContain("FIRMWARE");
+		expect(output).toContain("1.2.3 (esp32c3)");
+	});
+
+	it("renders 'unknown' for device with no firmware report", async () => {
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
+		apiMocks.getDeviceStatus.mockResolvedValue(
+			makeStatus({ connected: false }),
+		);
+
+		await status({});
+
+		const output = consoleSpy.mock.calls.map((c) => c[0]).join("\n");
+		expect(output).toContain("unknown");
+	});
+
+	it("includes firmwareVersion and deviceType in JSON output", async () => {
+		const stdoutSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
+		apiMocks.getDeviceStatus.mockResolvedValue(
+			makeStatus({
+				connected: false,
+				firmware_version: "2.0.1",
+				device_type: "pico-w",
+			}),
+		);
+
+		try {
+			await status({ json: true });
+
+			const written = stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
+			const parsed = JSON.parse(written) as {
+				success: boolean;
+				result: {
+					devices: Array<{
+						firmwareVersion: string;
+						deviceType: string;
+					}>;
+				};
+			};
+			expect(parsed.success).toBe(true);
+			expect(parsed.result.devices[0].firmwareVersion).toBe("2.0.1");
+			expect(parsed.result.devices[0].deviceType).toBe("pico-w");
+		} finally {
+			stdoutSpy.mockRestore();
+		}
 	});
 
 	it("filters by --device flag", async () => {

@@ -25,6 +25,7 @@ The `status` command shows the live connection status of all devices in your pro
 - **DEVICE** - the device slug
 - **STATUS** - `● online`, `○ offline`, or `⚠ error` (status fetch failed)
 - **VERSION** - the first 8 characters of the deployed script version ID
+- **FIRMWARE** - the firmware version reported by the device, with the device type in parentheses (e.g. `0.2.0 (pico-w)`), or `unknown` when the firmware predates version reporting
 - **LAST SEEN** - how long ago the device last connected (or "never" if it has never connected)
 
 Device status is read in real time from your server - there is no caching.
@@ -51,11 +52,11 @@ devicesdk status --project my-project-id
 ```
 Project: my-project
 
-  DEVICE               STATUS     VERSION   LAST SEEN
-  ─────────────────────────────────────────────────────
-  temperature-sensor   ● online   a1b2c3d4  connected 2m ago
-  humidity-sensor      ○ offline  a1b2c3d4  5h ago
-  door-sensor          ○ offline  -         never
+  DEVICE               STATUS     VERSION   FIRMWARE        LAST SEEN
+  ─────────────────────────────────────────────────────────────────────
+  temperature-sensor   ● online   a1b2c3d4  0.2.0 (pico-w)  connected 2m ago
+  humidity-sensor      ○ offline  a1b2c3d4  0.2.0 (pico-w)  5h ago
+  door-sensor          ○ offline  -         unknown         never
 ```
 
 ## Exit Codes

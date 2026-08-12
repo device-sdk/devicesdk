@@ -99,6 +99,10 @@
                     </span>
                   </div>
                   <div class="info-row">
+                    <span class="info-label">Firmware</span>
+                    <span class="info-value">{{ firmwareLabel }}</span>
+                  </div>
+                  <div class="info-row">
                     <span class="info-label">Created</span>
                     <span class="info-value">{{ formatDate(device.created_at, { withTime: true }) }}</span>
                   </div>
@@ -426,6 +430,7 @@ import DeviceLogs from '@/components/DeviceLogs.vue';
 import DeviceMetricsPanel from '@/components/metrics/DeviceMetricsPanel.vue';
 import { scriptTemplates, templateCode } from '@/lib/scriptTemplates';
 import { formatDate } from '@/lib/time';
+import { formatFirmwareLabel } from '@/lib/firmwareLabel';
 import {
   deviceService,
   scriptService,
@@ -444,6 +449,8 @@ const device = ref<Device | null>(null);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
 const connected = ref(false);
+const liveFirmwareVersion = ref<string | null>(null);
+const liveDeviceType = ref<string | null>(null);
 const activeTab = ref('overview');
 const saving = ref(false);
 const deleting = ref(false);
@@ -533,12 +540,28 @@ const refreshStatus = async (signal?: AbortSignal) => {
   try {
     const status = await deviceService.getStatus(projectId.value, deviceId.value, signal);
     connected.value = status.connected;
+    liveFirmwareVersion.value = status.firmware_version;
+    liveDeviceType.value = status.device_type;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') return;
     // Status is best-effort; fall back to offline rather than blocking the page.
+    // Reset the live firmware refs too, so a failed fetch can't leak the
+    // previously-viewed device's firmware onto this page.
     connected.value = false;
+    liveFirmwareVersion.value = null;
+    liveDeviceType.value = null;
   }
 };
+
+// Prefers the live status fields (null = legacy firmware that does not report
+// a version) and falls back to the persisted last-known values on the device
+// row, then to a plain "Unknown".
+const firmwareLabel = computed(() =>
+  formatFirmwareLabel(
+    liveFirmwareVersion.value ?? device.value?.firmware_version,
+    liveDeviceType.value ?? device.value?.device_type,
+  ),
+);
 
 const fetchCurrentScript = async () => {
   try {

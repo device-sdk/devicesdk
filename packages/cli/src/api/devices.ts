@@ -1,4 +1,4 @@
-import type { DeviceType } from "../config.js";
+import type { DeviceType } from "@devicesdk/core";
 import {
 	buildErrorMessage,
 	DeviceSDKApiError,
@@ -22,6 +22,8 @@ export interface Device {
 	created_at: number;
 	updated_at: number;
 	status?: string;
+	firmware_version?: string | null;
+	device_type?: string | null;
 }
 
 export async function listDevices(
@@ -65,6 +67,8 @@ export interface DeviceStatus {
 	connected_since: number | null;
 	last_connected_at: number | null;
 	current_version_id: string | null;
+	firmware_version: string | null;
+	device_type: string | null;
 }
 
 export async function getDeviceStatus(

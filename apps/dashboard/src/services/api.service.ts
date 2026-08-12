@@ -91,6 +91,8 @@ export interface Device {
   name?: string | null;
   description?: string | null;
   current_version_id?: string | null;
+  firmware_version?: string | null;
+  device_type?: string | null;
   last_connected_at?: number | null;
   created_at: number;
   updated_at: number;
@@ -101,6 +103,8 @@ export interface DeviceLiveStatus {
   connected_since: number | null;
   last_connected_at: number | null;
   current_version_id: string | null;
+  firmware_version: string | null;
+  device_type: string | null;
 }
 
 export interface ScriptVersion {
@@ -489,6 +493,8 @@ export interface DeviceLog {
 export interface DeviceStatus {
   connected: boolean;
   connectedSince: number | null;
+  firmwareVersion?: string | null;
+  deviceType?: string | null;
 }
 
 export const logService = {

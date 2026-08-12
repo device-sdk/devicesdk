@@ -33,6 +33,35 @@ class RecordingTransport implements SenderTransport {
 	}
 	persistLog(): void {}
 	emitState(): void {}
+	getFirmwareInfo(): {
+		firmwareVersion: string | null;
+		deviceType: string | null;
+	} {
+		return { firmwareVersion: null, deviceType: null };
+	}
+}
+
+/**
+ * Transport that reports a fixed firmware version + device type, so the
+ * sender's firmware gate can be exercised without a device or a socket.
+ */
+class FirmwareTransport extends RecordingTransport {
+	constructor(
+		private readonly firmwareVersion: string | null,
+		private readonly deviceType: string | null,
+	) {
+		super();
+	}
+
+	override getFirmwareInfo(): {
+		firmwareVersion: string | null;
+		deviceType: string | null;
+	} {
+		return {
+			firmwareVersion: this.firmwareVersion,
+			deviceType: this.deviceType,
+		};
+	}
 }
 
 let transport: RecordingTransport;
@@ -139,5 +168,77 @@ describe("dhtRead", () => {
 	test("rejects a sensor pin above the platform cap", async () => {
 		await expect(sender.dhtRead(99, "dht22")).rejects.toThrow(/invalid pin/);
 		expect(transport.sent).toHaveLength(0);
+	});
+});
+
+describe("firmware version gate", () => {
+	test.each([
+		"dht_read",
+		"onewire_search",
+		"onewire_read_temp",
+	])("%s fails fast on firmware older than 0.2.0", async (commandType) => {
+		const oldTransport = new FirmwareTransport("0.1.0", "esp32c3");
+		const oldSender = new LocalDeviceSender(oldTransport);
+		const pin = 4;
+		const call =
+			commandType === "dht_read"
+				? oldSender.dhtRead(pin, "dht22")
+				: commandType === "onewire_search"
+					? oldSender.onewireSearch(pin)
+					: oldSender.onewireReadTemperature(pin);
+		await expect(call).rejects.toThrow(/requires firmware 0\.2\.0/);
+		await expect(call).rejects.toThrow(/Reflash it with: devicesdk flash/);
+		expect(oldTransport.sent).toHaveLength(0);
+	});
+
+	test.each([
+		"dht_read",
+		"onewire_search",
+		"onewire_read_temp",
+	])("%s rejects with code firmware_incompatible on old firmware", async (commandType) => {
+		const oldSender = new LocalDeviceSender(
+			new FirmwareTransport("0.1.0", "esp32c3"),
+		);
+		const pin = 4;
+		try {
+			if (commandType === "dht_read") {
+				await oldSender.dhtRead(pin, "dht22");
+			} else if (commandType === "onewire_search") {
+				await oldSender.onewireSearch(pin);
+			} else {
+				await oldSender.onewireReadTemperature(pin);
+			}
+			throw new Error("expected a firmware gate failure");
+		} catch (error) {
+			expect((error as Error & { code?: string }).code).toBe(
+				"firmware_incompatible",
+			);
+		}
+	});
+
+	test.each([
+		"dht_read",
+		"onewire_search",
+		"onewire_read_temp",
+	])("%s passes on firmware 0.2.0", async (commandType) => {
+		const currentTransport = new FirmwareTransport("0.2.0", "esp32c3");
+		const currentSender = new LocalDeviceSender(currentTransport);
+		const pin = 4;
+		if (commandType === "dht_read") {
+			await currentSender.dhtRead(pin, "dht22");
+		} else if (commandType === "onewire_search") {
+			await currentSender.onewireSearch(pin);
+		} else {
+			await currentSender.onewireReadTemperature(pin);
+		}
+		expect(currentTransport.sent).toHaveLength(1);
+		expect(currentTransport.sent[0].type).toBe(commandType);
+	});
+
+	test("newer firmware than the minimum passes", async () => {
+		const transport = new FirmwareTransport("0.3.0", "pico-w");
+		const sender = new LocalDeviceSender(transport);
+		await sender.dhtRead(4, "dht11");
+		expect(transport.sent).toHaveLength(1);
 	});
 });

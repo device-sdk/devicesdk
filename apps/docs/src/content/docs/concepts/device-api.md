@@ -168,6 +168,14 @@ await this.env.DEVICE.sendCommandAndWait<T>(command: Omit<T, "id">): Promise<Dev
 
 Prefer the typed methods above whenever possible.
 
+## Firmware version reporting
+
+When a device connects, its firmware reports a semver `firmware_version` (e.g. `0.2.0`) and a `device_type` (e.g. `esp32c3`, `pico-w`) as part of the connection handshake. The server stores and exposes both: `devicesdk status` shows a FIRMWARE column, the dashboard device page shows a Firmware row, and the REST API returns `firmware_version` and `device_type` on the device object.
+
+> A device on firmware that predates version reporting shows as `unknown` - reflash it with current firmware and the version appears after the next connect. Devices with an unknown firmware version keep working normally.
+
+The server also uses the reported version to gate capabilities. `dhtRead`, `onewireSearch`, and `onewireReadTemperature` need firmware **0.2.0 or newer**; when the server knows a device's firmware is too old for one of them, the command fails fast with a `firmware_incompatible` error asking you to reflash, instead of waiting out the usual 5 second command timeout. When the version is `unknown` no comparison is possible, so the command is attempted normally.
+
 ## Related
 
 - [Device entrypoints](/concepts/entrypoints/) - how methods on `DeviceEntrypoint` connect to this surface.

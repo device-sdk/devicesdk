@@ -72,3 +72,20 @@ export const asTokenId = (s: string): TokenId =>
  * await this.env.DEVICE.setGpioState(OnboardLED, "high");
  */
 export const OnboardLED = 99 as const;
+
+/** Device targets DeviceSDK ships firmware for. */
+export type DeviceType =
+	| "pico-w"
+	| "pico2-w"
+	| "esp32"
+	| "esp32c61"
+	| "esp32c3";
+
+/** Runtime array of every DeviceType, for zod enums / validation. */
+export const DEVICE_TYPES = [
+	"pico-w",
+	"pico2-w",
+	"esp32",
+	"esp32c61",
+	"esp32c3",
+] as const satisfies readonly DeviceType[];

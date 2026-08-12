@@ -26,6 +26,8 @@ export class GetDeviceStatus extends BaseRoute {
 							connected_since: z.number().nullable(),
 							last_connected_at: z.number().nullable(),
 							current_version_id: z.string().nullable(),
+							firmware_version: z.string().nullable(),
+							device_type: z.string().nullable(),
 						}),
 					}),
 				),
@@ -88,6 +90,12 @@ export class GetDeviceStatus extends BaseRoute {
 				connected_since: liveStatus.connectedSince,
 				last_connected_at: device.last_connected_at ?? null,
 				current_version_id: device.current_version_id ?? null,
+				firmware_version: liveStatus.connected
+					? (liveStatus.firmwareVersion ?? device.firmware_version ?? null)
+					: (device.firmware_version ?? null),
+				device_type: liveStatus.connected
+					? (liveStatus.deviceType ?? device.device_type ?? null)
+					: (device.device_type ?? null),
 			},
 		});
 	}

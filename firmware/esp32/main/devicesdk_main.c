@@ -24,6 +24,16 @@
 #include "shared_buffers.h"
 #include "worker_task.h"
 
+// Device type reported in the device_connected handshake. Derived from the IDF
+// target macros (sdkconfig.h is included above).
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+#define DEVICESDK_DEVICE_TYPE "esp32c3"
+#elif defined(CONFIG_IDF_TARGET_ESP32C61)
+#define DEVICESDK_DEVICE_TYPE "esp32c61"
+#else
+#define DEVICESDK_DEVICE_TYPE "esp32"
+#endif
+
 static const char *TAG = "DeviceSDK";
 
 // Strip null padding from binary-patched credentials (matching Pico main.cpp:186-194)
@@ -458,8 +468,11 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             display_boot_text("Connected");
             devicesdk_hal_blink_led(3);
             {
-                const char *msg = "{\"type\":\"device_connected\"}";
-                esp_websocket_client_send_text(ws_client, msg, strlen(msg), portMAX_DELAY);
+                char conn_msg[160];
+                snprintf(conn_msg, sizeof(conn_msg),
+                         "{\"type\":\"device_connected\",\"payload\":{\"firmware_version\":\"%s\",\"device_type\":\"%s\"}}",
+                         DEVICESDK_FIRMWARE_VERSION, DEVICESDK_DEVICE_TYPE);
+                esp_websocket_client_send_text(ws_client, conn_msg, strlen(conn_msg), portMAX_DELAY);
                 ESP_LOGI(TAG, "Sent device_connected message");
             }
             last_ping_time = xTaskGetTickCount() * portTICK_PERIOD_MS;

@@ -414,7 +414,11 @@ int main() {
 
             if (!initial_message_sent) {
                 blink(3); // 3. WebSocket connected blink
-                client.send_text("{\"type\": \"device_connected\"}");
+                char conn_msg[160];
+                snprintf(conn_msg, sizeof(conn_msg),
+                    "{\"type\":\"device_connected\",\"payload\":{\"firmware_version\":\"%s\",\"device_type\":\"%s\"}}",
+                    DEVICESDK_FIRMWARE_VERSION, DEVICESDK_DEVICE_TYPE);
+                client.send_text(conn_msg);
                 initial_message_sent = true;
                 last_ping_time = now;
             }

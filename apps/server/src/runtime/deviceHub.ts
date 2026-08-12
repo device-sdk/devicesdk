@@ -13,6 +13,8 @@ export interface DeviceHandle {
 	getConnectionStatus(): Promise<{
 		connected: boolean;
 		connectedSince: number | null;
+		firmwareVersion: string | null;
+		deviceType: string | null;
 	}>;
 	handleCommand(
 		command: Omit<DeviceCommand, "id">,

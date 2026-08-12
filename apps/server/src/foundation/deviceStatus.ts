@@ -5,6 +5,8 @@ import { logger } from "./logger";
 export interface DeviceStatusResult {
 	connected: boolean;
 	connectedSince: number | null;
+	firmwareVersion: string | null;
+	deviceType: string | null;
 }
 
 /**
@@ -28,6 +30,11 @@ export async function getDeviceConnectionStatus(
 			`getDeviceConnectionStatus: device session unreachable for ${deviceId} in ${projectId} - likely never connected`,
 			{ error: err instanceof Error ? err.message : String(err) },
 		);
-		return { connected: false, connectedSince: null };
+		return {
+			connected: false,
+			connectedSince: null,
+			firmwareVersion: null,
+			deviceType: null,
+		};
 	}
 }

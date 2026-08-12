@@ -72,6 +72,8 @@ export type tableDevices = {
 	current_version_id?: string;
 	last_connected_at?: number;
 	connected?: number;
+	firmware_version?: string | null;
+	device_type?: string | null;
 	created_at: number;
 	updated_at: number;
 };

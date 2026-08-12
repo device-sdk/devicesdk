@@ -8,6 +8,8 @@ sidebar:
 
 The DS18B20 is the waterproof stainless-steel probe you use for a fridge, a boiler, or a fermenter: several of them share one GPIO, each answering to its own 64-bit ROM code. The DHT11/DHT22 is the cheap plastic block that gives you temperature *and* humidity from a single pin. This recipe wires up both, discovers the probes on connect, and logs every reading once a minute.
 
+> The commands in this recipe need firmware **0.2.0 or newer**. When the server knows a device's firmware is older, they fail fast with a `firmware_incompatible` error telling you to reflash - see [Firmware version reporting](/concepts/device-api/#firmware-version-reporting).
+
 ## Wiring (Pico W)
 
 | Sensor pin | Pico W pin |

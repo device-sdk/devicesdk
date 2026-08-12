@@ -34,7 +34,12 @@ export function useDeviceStream(
   options: UseDeviceStreamOptions = {},
 ) {
   const streamedLogs = ref<DeviceLog[]>([]);
-  const deviceStatus = ref<DeviceStatus>({ connected: false, connectedSince: null });
+  const deviceStatus = ref<DeviceStatus>({
+    connected: false,
+    connectedSince: null,
+    firmwareVersion: null,
+    deviceType: null,
+  });
   /** True while the dashboard's watcher socket is open. */
   const streaming = ref(false);
   /** True while we're between connection attempts (backing off). */
@@ -109,7 +114,15 @@ export function useDeviceStream(
             typeof d === 'object' &&
             'connected' in d && typeof (d as Record<string, unknown>).connected === 'boolean'
           ) {
-            deviceStatus.value = d as DeviceStatus;
+            const status = d as Record<string, unknown>;
+            const versionOk =
+              status.firmwareVersion == null ||
+              typeof status.firmwareVersion === 'string';
+            const typeOk =
+              status.deviceType == null || typeof status.deviceType === 'string';
+            if (versionOk && typeOk) {
+              deviceStatus.value = d as DeviceStatus;
+            }
           }
         } else if (frame.event === 'history_complete') {
           historyLoaded.value = true;

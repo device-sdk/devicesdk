@@ -1,5 +1,11 @@
 # @devicesdk/core
 
+## 1.6.0
+
+### Minor Changes
+
+- eefbd27: Add a shared `DeviceType` union and firmware/device-type reporting to `devicesdk status`: the status table now shows the FIRMWARE column (firmware version and device type reported by the device) and JSON output gains `firmwareVersion` / `deviceType`.
+
 ## 1.5.0
 
 ### Minor Changes

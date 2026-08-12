@@ -1,5 +1,17 @@
 # @devicesdk/cli
 
+## 0.10.0
+
+### Minor Changes
+
+- eefbd27: Add a shared `DeviceType` union and firmware/device-type reporting to `devicesdk status`: the status table now shows the FIRMWARE column (firmware version and device type reported by the device) and JSON output gains `firmwareVersion` / `deviceType`.
+
+### Patch Changes
+
+- 41c0892: `devicesdk logs` now renders console messages in human-readable form instead of showing the raw JSON array (e.g. `["hello",42]` becomes `hello 42`), matching the dashboard and docker logs output.
+- Updated dependencies [eefbd27]
+  - @devicesdk/core@1.6.0
+
 ## 0.9.0
 
 ### Minor Changes

@@ -87,6 +87,28 @@ describe("formatLogLine", () => {
 		expect(line).toContain("test message");
 	});
 
+	it("de-serializes JSON-array console messages for display", () => {
+		const line = formatLogLine(
+			makeEntry({ message: JSON.stringify(["hello", "world"]) }),
+		);
+		expect(line.endsWith("hello world")).toBe(true);
+		expect(line).not.toContain('["hello"');
+	});
+
+	it("keeps non-string array items JSON-serialized", () => {
+		const line = formatLogLine(
+			makeEntry({ message: JSON.stringify(["temp", 42, { a: 1 }]) }),
+		);
+		expect(line).toContain('temp 42 {"a":1}');
+	});
+
+	it("passes through messages that are not JSON arrays", () => {
+		const raw = "just a message";
+		expect(formatLogLine(makeEntry({ message: raw }))).toContain(raw);
+		const json = '{"a":1}';
+		expect(formatLogLine(makeEntry({ message: json }))).toContain(json);
+	});
+
 	it("pads level to 5 characters", () => {
 		expect(formatLogLine(makeEntry({ level: "log" }))).toContain("[LOG  ]");
 		expect(formatLogLine(makeEntry({ level: "warn" }))).toContain("[WARN ]");

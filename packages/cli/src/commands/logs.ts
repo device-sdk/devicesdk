@@ -31,6 +31,20 @@ const RECONNECT_INITIAL_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
+function formatMessage(message: string): string {
+	try {
+		const parsed = JSON.parse(message);
+		if (Array.isArray(parsed)) {
+			return parsed
+				.map((item) => (typeof item === "string" ? item : JSON.stringify(item)))
+				.join(" ");
+		}
+		return message;
+	} catch {
+		return message;
+	}
+}
+
 export function formatLogLine(entry: LogEntry): string {
 	const ts = new Date(entry.created_at).toLocaleTimeString(undefined, {
 		hour: "2-digit",
@@ -42,7 +56,7 @@ export function formatLogLine(entry: LogEntry): string {
 	const color = useColor ? (LEVEL_COLORS[entry.level] ?? "") : "";
 	const reset = useColor && color ? RESET : "";
 	const level = entry.level.toUpperCase().padEnd(5);
-	return `${ts}  ${color}[${level}]${reset}  ${entry.message}`;
+	return `${ts}  ${color}[${level}]${reset}  ${formatMessage(entry.message)}`;
 }
 
 interface WatcherFrame {

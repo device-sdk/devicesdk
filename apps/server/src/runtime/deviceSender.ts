@@ -1,4 +1,12 @@
-import type { DeviceCommand, DeviceResponse } from "@devicesdk/core";
+import type {
+	DeviceCommand,
+	DeviceResponse,
+	DeviceType,
+} from "@devicesdk/core";
+import {
+	FIRMWARE_MIN_VERSION,
+	firmwareSupportsCommand,
+} from "../foundation/firmwareCapabilities";
 import type { KVInterface } from "./types";
 
 // --- Client-side validation helpers ---
@@ -122,6 +130,10 @@ export interface SenderTransport {
 	kvDelete(key: string): Promise<boolean>;
 	persistLog(level: string, message: string): void;
 	emitState(entityId: string, value: unknown): void;
+	getFirmwareInfo(): {
+		firmwareVersion: string | null;
+		deviceType: string | null;
+	};
 }
 
 /**
@@ -141,6 +153,34 @@ export class LocalDeviceSender {
 			put: <T>(key: string, value: T) => transport.kvPut(key, value),
 			delete: (key: string) => transport.kvDelete(key),
 		};
+	}
+
+	/**
+	 * Sensor commands need firmware >= 0.2.0; older firmware has no handler and
+	 * the command would silently time out after 5 seconds. When the device
+	 * reports a version known to be too old, fail fast with an actionable
+	 * reflash error. Unknown versions (null) and unknown device types always
+	 * pass through (backward compat - the device knows best).
+	 */
+	private assertFirmwareSupports(
+		commandType: "dht_read" | "onewire_search" | "onewire_read_temp",
+	): void {
+		const { deviceType, firmwareVersion } = this.transport.getFirmwareInfo();
+		const supported = firmwareSupportsCommand(
+			deviceType,
+			firmwareVersion,
+			commandType,
+		);
+		if (supported !== false) return;
+
+		const min = FIRMWARE_MIN_VERSION[commandType]?.[deviceType as DeviceType];
+		const error = new Error(
+			`DeviceSDK: ${commandType} requires firmware ${min ?? "a newer release"} on ${deviceType}, but the device reports ${firmwareVersion}. Reflash it with: devicesdk flash <device>`,
+		);
+		(error as Error & { code?: string; docs?: string }).code =
+			"firmware_incompatible";
+		(error as Error & { code?: string; docs?: string }).docs = ONEWIRE_DOCS;
+		throw error;
 	}
 
 	async sendCommand(command: Omit<DeviceCommand, "id">): Promise<void> {
@@ -536,6 +576,7 @@ export class LocalDeviceSender {
 	}
 
 	async onewireSearch(pin: number): Promise<DeviceResponse> {
+		this.assertFirmwareSupports("onewire_search");
 		validateSensorPin(pin, ONEWIRE_DOCS);
 		return this.sendCommandAndWait({
 			type: "onewire_search",
@@ -547,6 +588,7 @@ export class LocalDeviceSender {
 		pin: number,
 		rom?: string,
 	): Promise<DeviceResponse> {
+		this.assertFirmwareSupports("onewire_read_temp");
 		validateSensorPin(pin, ONEWIRE_DOCS);
 		if (rom !== undefined && (typeof rom !== "string" || !ROM_RE.test(rom))) {
 			fail(
@@ -566,6 +608,7 @@ export class LocalDeviceSender {
 		pin: number,
 		model: "dht11" | "dht22",
 	): Promise<DeviceResponse> {
+		this.assertFirmwareSupports("dht_read");
 		validateSensorPin(pin, ONEWIRE_DOCS);
 		if (model !== "dht11" && model !== "dht22") {
 			fail("model", model, '"dht11" or "dht22"', ONEWIRE_DOCS);

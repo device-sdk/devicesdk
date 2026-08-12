@@ -31,6 +31,13 @@ else()
     message(STATUS "DEVICESDK_BOARD not set, defaulting to pico2_w.")
 endif()
 
+# Device type string reported in the device_connected handshake.
+if(PICO_BOARD STREQUAL "pico_w")
+    set(DEVICESDK_DEVICE_TYPE "pico-w")
+else()
+    set(DEVICESDK_DEVICE_TYPE "pico2-w")
+endif()
+
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
@@ -56,6 +63,16 @@ add_executable(devicesdk-client
         src/commands/sensor_commands.cpp
 )
 
+# Bake the firmware release version (from package.json) into the binary so the
+# device can report it in the device_connected handshake. The version matches
+# the CI release tag for this firmware.
+file(READ "${CMAKE_CURRENT_LIST_DIR}/package.json" DEVICESDK_PACKAGE_JSON)
+if(DEVICESDK_PACKAGE_JSON MATCHES "\"version\"[[:space:]]*:[[:space:]]*\"([^\"]+)\"")
+    set(DEVICESDK_FIRMWARE_VERSION "${CMAKE_MATCH_1}")
+else()
+    set(DEVICESDK_FIRMWARE_VERSION "0.0.0-dev")
+endif()
+
 # Build-time patch placeholders - NOT real credentials.
 # These fixed-length ASCII strings are baked into the compiled firmware binary.
 # When a user downloads firmware via the DeviceSDK server, the server locates
@@ -72,6 +89,12 @@ target_compile_definitions(devicesdk-client PRIVATE
     DEVICESDK_DEVICE_ID="d09f91a7729141eb8911d7a0f1e1595f"
 )
 
+# Firmware version and device type reported in the device_connected handshake.
+target_compile_definitions(devicesdk-client PRIVATE
+    DEVICESDK_FIRMWARE_VERSION="${DEVICESDK_FIRMWARE_VERSION}"
+    DEVICESDK_DEVICE_TYPE="${DEVICESDK_DEVICE_TYPE}"
+)
+
 # LwIP configuration
 target_compile_definitions(devicesdk-client PRIVATE
     NO_SYS=1
@@ -80,7 +103,7 @@ target_compile_definitions(devicesdk-client PRIVATE
 )
 
 pico_set_program_name(devicesdk-client "devicesdk-client")
-pico_set_program_version(devicesdk-client "0.1")
+pico_set_program_version(devicesdk-client "${DEVICESDK_FIRMWARE_VERSION}")
 
 # Enable exceptions
 

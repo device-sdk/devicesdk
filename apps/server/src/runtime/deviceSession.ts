@@ -3,7 +3,9 @@ import type {
 	CommandResponseTypeMap,
 	DeviceCommand,
 	DeviceResponse,
+	DeviceType,
 } from "@devicesdk/core";
+import { DEVICE_TYPES } from "@devicesdk/core";
 import { z } from "zod";
 import {
 	type LogLevel,
@@ -33,6 +35,20 @@ const DeviceMessageSchema = z.object({
 	type: z.string().max(64),
 	payload: z.record(z.string(), z.unknown()).optional().default({}),
 });
+
+// Payload of the `device_connected` handshake (firmware >= 0.2.0). Legacy
+// firmware sends no payload at all - both fields stay optional so that path
+// keeps working, and unknown extra fields are tolerated for forward compat.
+const DeviceConnectedPayloadSchema = z
+	.object({
+		firmware_version: z
+			.string()
+			.max(32)
+			.regex(/^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$/)
+			.optional(),
+		device_type: z.enum(DEVICE_TYPES).optional(),
+	})
+	.passthrough();
 
 // Storage key for persisted cron schedule state (in device_kv). Uses the
 // __internal: prefix which is blocked in kvPut/kvGet/kvDelete so user code
@@ -98,6 +114,14 @@ export class DeviceSession {
 	private connectedSince: number | null = null;
 	private meta: DeviceMeta | null = null;
 
+	// Last-known firmware handshake values. device_type is sticky (once a
+	// device reports it, it is kept), firmwareVersion is replaced by whatever
+	// the latest payload says (null when absent).
+	private firmwareInfo: {
+		firmwareVersion: string | null;
+		deviceType: DeviceType | null;
+	} = { firmwareVersion: null, deviceType: null };
+
 	private watchers = new Set<RuntimeSocket>();
 	private pendingCommands = new Map<string, PendingCommand>();
 	private logStream: LogStreamState = { logWriteCount: 0, lastLogCleanupAt: 0 };
@@ -151,10 +175,7 @@ export class DeviceSession {
 			)
 			.run(this.connectedSince, this.deviceId);
 
-		emitStatusEvent(this.watchers, {
-			connected: true,
-			connectedSince: this.connectedSince,
-		});
+		emitStatusEvent(this.watchers, this.buildStatusEvent());
 
 		// Resume any persisted cron schedule now that a device socket is live
 		// again (crons are connection-gated; missed slots are skipped, never
@@ -167,6 +188,73 @@ export class DeviceSession {
 				error: (err as Error).message,
 			});
 		}
+	}
+
+	/**
+	 * Parses the firmware handshake payload of a `device_connected` frame,
+	 * persists the last-known values, and re-emits the status event so
+	 * watchers see the firmware fields. Legacy firmware (no payload) and
+	 * malformed payloads are tolerated: the session keeps working, and
+	 * firmwareInfo stays untouched on validation failure.
+	 */
+	private applyDeviceConnectedPayload(message: DeviceResponse): void {
+		// The DeviceConnected core type predates the handshake payload, but
+		// DeviceMessageSchema already validated `payload` as an object at the
+		// WS boundary - cast there and parse the raw fields.
+		const payload =
+			(message as DeviceResponse & { payload?: Record<string, unknown> })
+				.payload ?? {};
+		const payloadResult = DeviceConnectedPayloadSchema.safeParse(payload);
+		if (!payloadResult.success) {
+			this.deps.logger.warn("Invalid device_connected payload", {
+				deviceId: this.deviceId,
+				error: payloadResult.error.message,
+			});
+			return;
+		}
+
+		this.firmwareInfo.firmwareVersion =
+			payloadResult.data.firmware_version ?? null;
+		if (payloadResult.data.device_type) {
+			this.firmwareInfo.deviceType = payloadResult.data.device_type;
+		}
+
+		try {
+			this.deps.db
+				.query(
+					`UPDATE devices
+					 SET firmware_version = ?1, device_type = COALESCE(?2, device_type), updated_at = ?3
+					 WHERE id = ?4`,
+				)
+				.run(
+					this.firmwareInfo.firmwareVersion,
+					this.firmwareInfo.deviceType,
+					Date.now(),
+					this.deviceId,
+				);
+		} catch (err) {
+			this.deps.logger.warn("firmware info write failed (degraded)", {
+				deviceId: this.deviceId,
+				error: (err as Error).message,
+			});
+		}
+
+		emitStatusEvent(this.watchers, this.buildStatusEvent());
+	}
+
+	/** The status payload watchers receive on connect/disconnect/handshake. */
+	private buildStatusEvent(): {
+		connected: boolean;
+		connectedSince: number | null;
+		firmwareVersion: string | null;
+		deviceType: string | null;
+	} {
+		return {
+			connected: this.deviceWs !== null,
+			connectedSince: this.connectedSince,
+			firmwareVersion: this.firmwareInfo.firmwareVersion,
+			deviceType: this.firmwareInfo.deviceType,
+		};
 	}
 
 	handleDeviceMessage(ws: RuntimeSocket, data: string | ArrayBuffer): void {
@@ -201,6 +289,7 @@ export class DeviceSession {
 
 		try {
 			if (message.type === "device_connected") {
+				this.applyDeviceConnectedPayload(message);
 				this.dispatch(async () => {
 					const worker = await this.getWorker();
 					await worker.onDeviceConnect();
@@ -278,7 +367,7 @@ export class DeviceSession {
 		// The schedule stays persisted; reconnect re-arms it.
 		this.clearCronTimer();
 
-		emitStatusEvent(this.watchers, { connected: false, connectedSince: null });
+		emitStatusEvent(this.watchers, this.buildStatusEvent());
 
 		try {
 			this.deps.db
@@ -429,11 +518,23 @@ export class DeviceSession {
 	async getConnectionStatus(): Promise<{
 		connected: boolean;
 		connectedSince: number | null;
+		firmwareVersion: string | null;
+		deviceType: string | null;
 	}> {
 		return {
 			connected: this.deviceWs !== null,
 			connectedSince: this.deviceWs ? this.connectedSince : null,
+			firmwareVersion: this.firmwareInfo.firmwareVersion,
+			deviceType: this.firmwareInfo.deviceType,
 		};
+	}
+
+	/** Last-known firmware handshake values (used by the command sender). */
+	getFirmwareInfo(): {
+		firmwareVersion: string | null;
+		deviceType: string | null;
+	} {
+		return this.firmwareInfo;
 	}
 
 	async handleCommand(
@@ -513,10 +614,7 @@ export class DeviceSession {
 			ws.send(
 				JSON.stringify({
 					event: "status",
-					data: {
-						connected: this.deviceWs !== null,
-						connectedSince: this.deviceWs ? this.connectedSince : null,
-					},
+					data: this.buildStatusEvent(),
 				}),
 			);
 		} catch (error) {

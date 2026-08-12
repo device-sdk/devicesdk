@@ -42,6 +42,10 @@ function formatVersion(versionId: string | null): string {
 	return versionId.slice(0, 8);
 }
 
+function formatFirmware(s: DeviceStatus): string {
+	return `${s.firmware_version ?? "unknown"}${s.device_type ? ` (${s.device_type})` : ""}`;
+}
+
 export default async function status(
 	options: StatusOptions = {},
 ): Promise<void> {
@@ -116,6 +120,8 @@ export default async function status(
 						connected_since: null,
 						last_connected_at: null,
 						current_version_id: null,
+						firmware_version: null,
+						device_type: null,
 					},
 		);
 		const statusErrors: boolean[] = settledStatuses.map(
@@ -131,6 +137,8 @@ export default async function status(
 					connectedSince: statuses[i].connected_since,
 					lastConnectedAt: statuses[i].last_connected_at,
 					currentVersionId: statuses[i].current_version_id,
+					firmwareVersion: statuses[i].firmware_version,
+					deviceType: statuses[i].device_type,
 					statusError: statusErrors[i] || undefined,
 				})),
 			});
@@ -148,6 +156,10 @@ export default async function status(
 			7, // "VERSION"
 			...rows.map((r) => formatVersion(r.s.current_version_id).length),
 		);
+		const maxFirmwareLen = Math.max(
+			8, // "FIRMWARE"
+			...rows.map((r) => formatFirmware(r.s).length),
+		);
 		const maxLastSeenLen = Math.max(
 			9, // "LAST SEEN"
 			...statuses.map((s) => formatLastSeen(s).length),
@@ -159,6 +171,7 @@ export default async function status(
 			"  DEVICE".padEnd(maxDeviceLen + 2),
 			"STATUS    ",
 			"VERSION".padEnd(maxVersionLen + 2),
+			"FIRMWARE".padEnd(maxFirmwareLen + 2),
 			"LAST SEEN".padEnd(maxLastSeenLen),
 		].join("  ");
 		console.log(header);
@@ -178,10 +191,11 @@ export default async function status(
 			const version = formatVersion(s.current_version_id).padEnd(
 				maxVersionLen + 2,
 			);
+			const firmware = formatFirmware(s).padEnd(maxFirmwareLen + 2);
 			const lastSeen = formatLastSeen(s).padEnd(maxLastSeenLen);
 
 			console.log(
-				`  ${device.device_id.padEnd(maxDeviceLen)}  ${dot}  ${version}  ${lastSeen}`,
+				`  ${device.device_id.padEnd(maxDeviceLen)}  ${dot}  ${version}  ${firmware}  ${lastSeen}`,
 			);
 		}
 

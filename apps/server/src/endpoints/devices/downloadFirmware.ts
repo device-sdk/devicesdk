@@ -1,3 +1,4 @@
+import { DEVICE_TYPES } from "@devicesdk/core";
 import { ApiException } from "chanfana";
 import { z } from "zod";
 import { BaseRoute } from "../../foundation/baseRoute";
@@ -45,13 +46,7 @@ export class DownloadFirmware extends BaseRoute {
 							ssid: z.string().max(32).optional(),
 							pass: z.string().max(63).optional(),
 							host: z.string().optional(),
-							device_type: z.enum([
-								"pico-w",
-								"pico2-w",
-								"esp32",
-								"esp32c61",
-								"esp32c3",
-							]),
+							device_type: z.enum(DEVICE_TYPES),
 						}),
 					},
 				},

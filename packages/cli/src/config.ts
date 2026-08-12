@@ -1,23 +1,15 @@
-import type { HaEntityDeclaration } from "@devicesdk/core";
+import {
+	DEVICE_TYPES,
+	type DeviceType,
+	type HaEntityDeclaration,
+} from "@devicesdk/core";
 import { z } from "zod";
 
-// Re-export the canonical type from core so CLI consumers (e.g. downstream
-// configs) can continue to `import { HaEntityDeclaration } from "@devicesdk/cli"`.
-export type { HaEntityDeclaration } from "@devicesdk/core";
+// Re-export the canonical types from core so CLI consumers (e.g. downstream
+// configs) can continue to `import { DeviceType, HaEntityDeclaration } from "@devicesdk/cli"`.
+export type { DeviceType, HaEntityDeclaration } from "@devicesdk/core";
 
-export type DeviceType =
-	| "pico-w"
-	| "pico2-w"
-	| "esp32"
-	| "esp32c61"
-	| "esp32c3";
-const deviceTypeSchema: z.ZodType<DeviceType> = z.enum([
-	"pico-w",
-	"pico2-w",
-	"esp32",
-	"esp32c61",
-	"esp32c3",
-]);
+const deviceTypeSchema: z.ZodType<DeviceType> = z.enum(DEVICE_TYPES);
 
 // Zod schema must stay in the CLI (core has no runtime deps). The type assertion
 // below ensures this schema shape matches `HaEntityDeclaration` from core - if

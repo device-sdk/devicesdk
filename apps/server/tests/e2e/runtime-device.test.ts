@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { TestServer } from "../harness";
+import { type ApiResponse, TestServer } from "../harness";
 
 // A script that drives a wide slice of the DEVICE sender surface from onMessage,
 // so the device simulator can trigger each path by sending a typed frame.
@@ -168,6 +168,96 @@ describe("device session runtime", () => {
 		);
 
 		stopAck();
+		watcher.close();
+		await device.close();
+	});
+
+	test("device_connected handshake payload persists firmware info and reaches the status endpoint + watchers", async () => {
+		const token = await setupRig("fwhandshake");
+
+		// Fresh-restart window: the device is connected but its handshake
+		// hasn't been processed yet, so the live session reports no firmware
+		// info. Seed the row as a previous process would have persisted it,
+		// then expect the status endpoint to fall back to those values.
+		srv.db
+			.query(
+				"UPDATE devices SET firmware_version = ?, device_type = ? WHERE device_slug = ?",
+			)
+			.run("0.2.0", "esp32c3", "dev");
+		const preHandshake = await srv.connectDevice(token, "fwhandshake", "dev");
+		let preHandshakeStatus: ApiResponse<{
+			result: {
+				connected: boolean;
+				firmware_version: string | null;
+				device_type: string | null;
+			};
+		}>;
+		const deadline = Date.now() + 5000;
+		do {
+			preHandshakeStatus = await srv.get(
+				"/v1/projects/fwhandshake/devices/dev/status",
+				{ token },
+			);
+			if (preHandshakeStatus.body.result.connected) break;
+			await Bun.sleep(50);
+		} while (Date.now() < deadline);
+		expect(preHandshakeStatus.body.result).toMatchObject({
+			connected: true,
+			firmware_version: "0.2.0",
+			device_type: "esp32c3",
+		});
+		await preHandshake.close();
+
+		const watcher = await srv.connectWatcher(token, "fwhandshake", "dev");
+		const device = await srv.connectDevice(token, "fwhandshake", "dev");
+		device.send({
+			type: "device_connected",
+			payload: { firmware_version: "0.2.0", device_type: "esp32c3" },
+		});
+
+		// The handshake re-emits a status event carrying the firmware fields.
+		const handshakeStatus = await watcher.waitFor(
+			(e) =>
+				e.event === "status" &&
+				(e.data as { firmwareVersion?: string }).firmwareVersion === "0.2.0",
+		);
+		expect(handshakeStatus.data).toMatchObject({
+			connected: true,
+			firmwareVersion: "0.2.0",
+			deviceType: "esp32c3",
+		});
+
+		// The status endpoint prefers the live session values.
+		const status = await srv.get(
+			"/v1/projects/fwhandshake/devices/dev/status",
+			{ token },
+		);
+		expect(status.body.result).toMatchObject({
+			connected: true,
+			firmware_version: "0.2.0",
+			device_type: "esp32c3",
+		});
+
+		// The device endpoint reflects the persisted values too.
+		const deviceRes = await srv.get("/v1/projects/fwhandshake/devices/dev", {
+			token,
+		});
+		expect(deviceRes.body.result).toMatchObject({
+			firmware_version: "0.2.0",
+			device_type: "esp32c3",
+		});
+
+		// Legacy bare handshake (no payload) must keep working. The version is
+		// replaced by null (not sticky); device_type is sticky and survives.
+		device.send({ type: "device_connected", payload: {} });
+		await Bun.sleep(100);
+		const statusAfter = await srv.get(
+			"/v1/projects/fwhandshake/devices/dev/status",
+			{ token },
+		);
+		expect(statusAfter.body.result.firmware_version).toBeNull();
+		expect(statusAfter.body.result.device_type).toBe("esp32c3");
+
 		watcher.close();
 		await device.close();
 	});

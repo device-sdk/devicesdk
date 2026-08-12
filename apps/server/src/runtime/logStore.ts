@@ -37,7 +37,12 @@ export function broadcastToWatchers(
 
 export function emitStatusEvent(
 	watchers: Set<RuntimeSocket>,
-	status: { connected: boolean; connectedSince: number | null },
+	status: {
+		connected: boolean;
+		connectedSince: number | null;
+		firmwareVersion: string | null;
+		deviceType: string | null;
+	},
 ): void {
 	broadcastToWatchers(watchers, "status", status);
 }

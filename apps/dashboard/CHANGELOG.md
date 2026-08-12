@@ -1,5 +1,11 @@
 # @devicesdk/dashboard
 
+## 0.5.0
+
+### Minor Changes
+
+- eefbd27: The device details page now shows the firmware version and device type a device is running (from the new firmware-version handshake), with an `Unknown` fallback for legacy firmware that does not report a version.
+
 ## 0.4.3
 
 ### Patch Changes

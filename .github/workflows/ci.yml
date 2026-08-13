@@ -71,6 +71,59 @@ jobs:
             turbo-${{ github.job }}-
       - run: pnpm exec turbo run check-types
 
+  release-notes-test:
+    name: Release Notes Script Test
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
+      (github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && github.event.pull_request.user.login == 'dependabot[bot]')
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test firmware/scripts/release-notes.sh
+        run: |
+          set -euo pipefail
+          script=firmware/scripts/release-notes.sh
+          bash -n "$script"
+
+          fixture=$(mktemp)
+          cat > "$fixture" <<'EOF'
+          # @devicesdk/firmware-esp32
+
+          ## 0.5.0
+
+          ### Minor Changes
+
+          - abc123: first bullet
+
+          ## 0.4.0
+
+          ### Patch Changes
+
+          - def456: older bullet
+          EOF
+
+          if bash "$script" /nonexistent/changelog.md 0.5.0 >/dev/null 2>&1; then
+            echo "expected failure: missing changelog file" >&2
+            exit 1
+          fi
+          if bash "$script" "$fixture" 9.9.9 >/dev/null 2>&1; then
+            echo "expected failure: missing version section" >&2
+            exit 1
+          fi
+          if bash "$script" "$fixture" 0.4 >/dev/null 2>&1; then
+            echo "expected failure: prefix must not match ## 0.4.0" >&2
+            exit 1
+          fi
+
+          out=$(bash "$script" "$fixture" 0.5.0 "intro line")
+          [ "$(printf '%s\n' "$out" | sed -n '1p')" = "intro line" ] || { echo "intro line missing" >&2; exit 1; }
+          [ "$(printf '%s\n' "$out" | sed -n '2p')" = "" ] || { echo "blank line after intro missing" >&2; exit 1; }
+          [ "$(printf '%s\n' "$out" | sed -n '3p')" = "### Minor Changes" ] || { echo "section heading missing" >&2; exit 1; }
+
+          out=$(bash "$script" "$fixture" 0.4.0)
+          [ "$(printf '%s\n' "$out" | sed -n '1p')" = "### Patch Changes" ] || { echo "no-intro output should start with the section heading" >&2; exit 1; }
+
   test:
     name: Test
     needs: [lint, typecheck]

@@ -38,9 +38,11 @@ const firmwares = new FsBlobStore(config.firmwaresDir);
 
 // Fetch the exact firmware release this server build pins (see firmwareSync).
 // Best-effort and never blocks boot; existing binaries are kept on failure.
-void syncFirmware(firmwares, (message) => logger.info(message)).catch((err) =>
-	logger.error(err, "Firmware sync failed"),
-);
+void syncFirmware(
+	firmwares,
+	(message) => logger.info(message),
+	config.firmwareRepo,
+).catch((err) => logger.error(err, "Firmware sync failed"));
 
 // --- device runtime ---
 const hub = new DeviceHub({ db, scripts, logger });

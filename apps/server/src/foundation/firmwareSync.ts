@@ -2,7 +2,7 @@ import esp32Manifest from "@devicesdk/firmware-esp32/package.json";
 import picoManifest from "@devicesdk/firmware-pico/package.json";
 import type { FsBlobStore } from "../storage/fsBlobStore";
 
-const FIRMWARE_REPO = "device-sdk/devicesdk";
+const FIRMWARE_REPO_DEFAULT = "device-sdk/devicesdk";
 
 const FAMILIES = [
 	{
@@ -32,6 +32,7 @@ function markerKey(family: string): string {
 export async function syncFirmware(
 	store: FsBlobStore,
 	log: (message: string) => void,
+	repo = FIRMWARE_REPO_DEFAULT,
 ): Promise<void> {
 	await Promise.all(
 		FAMILIES.map(async ({ family, version, assets }) => {
@@ -46,7 +47,7 @@ export async function syncFirmware(
 				const downloaded = await Promise.all(
 					assets.map(async (asset) => {
 						const res = await fetch(
-							`https://github.com/${FIRMWARE_REPO}/releases/download/firmware-${family}@v${version}/${asset}`,
+							`https://github.com/${repo}/releases/download/firmware-${family}@v${version}/${asset}`,
 							{ signal: AbortSignal.timeout(30_000) },
 						);
 						if (!res.ok) {

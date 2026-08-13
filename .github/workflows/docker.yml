@@ -26,6 +26,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Wait for the firmware releases the image pins
         env:
@@ -38,22 +40,46 @@ jobs:
             exit 0
           fi
 
+          before="${{ github.event.before }}"
           deadline=$(( $(date +%s) + 6000 ))
-          for dir in esp32 pico; do
+
+          for family in esp32:3 pico:2; do
+            dir="${family%%:*}"
+            expected="${family##*:}"
             version=$(node -p "require('./firmware/$dir/package.json').version")
             tag="firmware-$dir@v$version"
-            echo "Waiting for $tag"
-            while [ "$(date +%s)" -lt "$deadline" ]; do
-              if gh release view "$tag" --json id -q .id >/dev/null 2>&1; then
-                echo "Release $tag published"
-                break
-              fi
-              sleep 30
-            done
-            if ! gh release view "$tag" --json id -q .id >/dev/null 2>&1; then
-              echo "::error::Release $tag was never published; refusing to publish an image that cannot serve firmware. Re-run the firmware workflow (or dispatch docker once it publishes)."
+
+            previous=""
+            if [ -n "$before" ] && [[ "$before" =~ ^[0-9a-f]{40}$ ]]; then
+              previous=$(git show "$before:firmware/$dir/package.json" 2>/dev/null \
+                | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).version))" \
+                || echo "")
+            fi
+
+            if [ "$previous" != "$version" ]; then
+              # This merge bumped the firmware, so its release is being published
+              # in parallel by the firmware workflow. Wait for it (asset count
+              # included, so a partial upload does not satisfy the wait).
+              echo "firmware/$dir bumped $previous -> $version; waiting for $tag"
+              while [ "$(date +%s)" -lt "$deadline" ]; do
+                count=$(gh release view "$tag" --json assets -q '.assets | length' 2>/dev/null || echo 0)
+                if [ "$count" -ge "$expected" ]; then
+                  break
+                fi
+                sleep 30
+              done
+            else
+              # Unchanged by this merge: the release was published earlier, so
+              # just verify it is complete instead of burning the wait budget.
+              echo "firmware/$dir unchanged at $version"
+            fi
+
+            count=$(gh release view "$tag" --json assets -q '.assets | length' 2>/dev/null || echo 0)
+            if [ "$count" -lt "$expected" ]; then
+              echo "::error::Release $tag has $count/$expected assets; refusing to publish an image that cannot serve firmware. Re-run the firmware workflow (or dispatch docker once it publishes)."
               exit 1
             fi
+            echo "Release $tag ready ($count assets)"
           done
 
   build-and-push:

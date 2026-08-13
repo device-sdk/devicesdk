@@ -85,6 +85,15 @@ describe("syncFirmware", () => {
 		expect(await marker?.text()).toBe(esp32Manifest.version);
 	});
 
+	test("uses the configured repo for the download URLs", async () => {
+		await syncFirmware(store, () => {}, "acme/devicesdk");
+
+		expect(fetchMock).toHaveBeenCalledWith(
+			`https://github.com/acme/devicesdk/releases/download/firmware-esp32@v${esp32Manifest.version}/esp32-client.bin`,
+			expect.any(Object),
+		);
+	});
+
 	test("keeps existing binaries and does not throw when a download fails", async () => {
 		globalThis.fetch = mock((url: string | URL | Request) =>
 			String(url).endsWith("esp32-client.bin")

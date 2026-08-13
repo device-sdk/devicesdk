@@ -1,5 +1,11 @@
 # @devicesdk/docs
 
+## 0.2.2
+
+### Patch Changes
+
+- b8ae3ea: Fix the changelog's firmware distribution description: firmware ships as versioned GitHub Releases that the server fetches at boot, not bundled into the Docker image.
+
 ## 0.2.1
 
 ### Patch Changes

@@ -65,7 +65,7 @@ jobs:
 
       - name: Run protocol tests
         working-directory: firmware/esp32
-        run: ../../.venv/bin/python -m pytest test_websocket_mock.py test_message_handler.py test_integration.py -v
+        run: ../../.venv/bin/python -m pytest test_websocket_mock.py test_message_handler.py test_integration.py test_rtos_config.py -v
 
   build:
     name: Build ESP32 firmware

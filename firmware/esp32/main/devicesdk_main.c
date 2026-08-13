@@ -37,6 +37,17 @@
 #define DEVICESDK_DEVICE_TYPE "esp32"
 #endif
 
+// The worker task is pinned to the last available core: APP_CPU on the
+// dual-core ESP32, core 0 on single-core parts (ESP32-C3/C61). Do NOT hardcode
+// a core here - xTaskCreatePinnedToCore asserts at runtime on an out-of-range
+// core ID when configNUMBER_OF_CORES == 1 (ESP-IDF 5.5,
+// freertos_tasks_c_additions.h:163), which crashed single-core targets on
+// every boot. This static assert turns a regression into a compile error on
+// the single-core CI builds instead of a runtime crash loop on hardware.
+#define DEVICESDK_WORKER_CORE (configNUM_CORES - 1)
+_Static_assert(DEVICESDK_WORKER_CORE >= 0 && DEVICESDK_WORKER_CORE < configNUM_CORES,
+               "worker task core ID out of range on this target");
+
 static const char *TAG = "DeviceSDK";
 
 // Strip null padding from binary-patched credentials (matching Pico main.cpp:186-194)
@@ -748,13 +759,12 @@ void app_main(void) {
 
     wifi_init_sta();
 
-    // Start worker task — 16 KB needed: handle_display_update puts a
+    // Start worker task - 16 KB needed: handle_display_update puts a
     // 1 KB MAX_DISPLAY_BUFFER_SIZE fb_data[] + 192 B segments[] on stack
     // before recursing into the SSD1306/SH1106 driver + I2C writes.
-    // Pinned to core 1 (APP_CPU) so the sensor bit-bang (DHT, up to ~250 us
-    // of interrupts off per bit slot) never stalls the WiFi stack on core 0;
-    // the core argument is ignored on single-core targets (C3/C61).
-    xTaskCreatePinnedToCore(worker_task_entry, "worker", 16384, NULL, 4, NULL, 1);
+    // Pinned to DEVICESDK_WORKER_CORE (see the static assert near the top).
+    xTaskCreatePinnedToCore(worker_task_entry, "worker", 16384, NULL, 4, NULL,
+                            DEVICESDK_WORKER_CORE);
 
     // Start WebSocket task (higher priority)
     xTaskCreate(websocket_task, "websocket", 8192, NULL, 5, NULL);

@@ -12,6 +12,7 @@
 #include "pico/rand.h"
 #include "lwip/netif.h"
 #include "lwip/ip4_addr.h"
+#include "backoff.h"
 #include <cstring>
 
 // mbedTLS platform time function (required by MBEDTLS_PLATFORM_MS_TIME_ALT)
@@ -342,13 +343,6 @@ void blink(int count) {
     }
 }
 
-// Exponential backoff for WiFi reconnect: 1s, 2s, 4s, ... capped at 30s, plus
-// up to ~20% jitter so devices on a LAN don't retry in lockstep.
-static uint32_t wifi_backoff_delay_ms(uint32_t retry_count) {
-    uint32_t base_ms = (retry_count >= 5) ? 30000 : (1000U << retry_count);
-    return base_ms + (get_rand_32() % (base_ms / 5 + 1));
-}
-
 // Build a DHCP hostname from the patched device slug. Sanitize defensively and
 // cap the length so the router's client list shows a readable name.
 static void build_dhcp_hostname(char *out, size_t out_size) {
@@ -405,7 +399,7 @@ int main() {
         return 1;
     } else {
         blink(2); // 2. Wi-Fi connected blink
-        int rssi = 0;
+        int32_t rssi = 0;
         cyw43_wifi_get_rssi(&cyw43_state, &rssi);
         printf("[Main] connected to %s, IP %s, RSSI %d dBm\n",
                wifi_ssid, ip4addr_ntoa(netif_ip4_addr(&cyw43_state.netif[0])), rssi);
@@ -446,17 +440,22 @@ int main() {
     while (true) {
         // WiFi link monitoring with exponential backoff reconnect. The initial
         // connect above is synchronous; this handles the link dropping later.
-        int link_status = cyw43_wifi_link_status(&cyw43_state);
+        int link_status = cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA);
         if (link_status == CYW43_LINK_UP) {
             wifi_retry_count = 0;
+            last_wifi_reconnect_at = 0;
         } else if (link_status == CYW43_LINK_DOWN || link_status == CYW43_LINK_FAIL ||
-                   link_status == CYW43_LINK_BAD_AUTH || link_status == CYW43_LINK_NONET) {
+                   link_status == CYW43_LINK_BADAUTH || link_status == CYW43_LINK_NONET) {
             uint32_t now = to_ms_since_boot(get_absolute_time());
-            uint32_t delay_ms = wifi_backoff_delay_ms(wifi_retry_count);
-            if (now - last_wifi_reconnect_at >= delay_ms) {
+            if (last_wifi_reconnect_at == 0) {
+                last_wifi_reconnect_at = now;  // mark when the link was first seen down
+            }
+            uint32_t down_ms = now - last_wifi_reconnect_at;
+            uint32_t delay_ms = wifi_backoff_delay_ms(wifi_retry_count, get_rand_32());
+            if (down_ms >= delay_ms) {
+                printf("[Main] wifi link lost (status=%d), retrying after %lu ms down (attempt %lu)\n",
+                       link_status, (unsigned long)down_ms, (unsigned long)wifi_retry_count);
                 last_wifi_reconnect_at = now;
-                printf("[Main] wifi link lost (status=%d), retrying in %lu ms (attempt %lu)\n",
-                       link_status, (unsigned long)delay_ms, (unsigned long)wifi_retry_count);
                 cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 5000);
                 wifi_retry_count++;
             }
@@ -511,7 +510,7 @@ int main() {
                 }
             }
 
-            if (cyw43_wifi_link_status(&cyw43_state) == CYW43_LINK_UP &&
+            if (cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA) == CYW43_LINK_UP &&
                 now - last_reconnect_attempt >= reconnect_delay_ms) {
                 // Reset rate limit state before reconnecting
                 client.rate_limit_retry_after_ms = 0;

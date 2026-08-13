@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include <errno.h>
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -26,6 +25,7 @@
 #include "response_queue.h"
 #include "shared_buffers.h"
 #include "worker_task.h"
+#include "backoff.h"
 
 // Device type reported in the device_connected handshake. Derived from the IDF
 // target macros (sdkconfig.h is included above).
@@ -398,13 +398,8 @@ static void wifi_reconnect_timer_cb(void *arg) {
     esp_wifi_connect();
 }
 
-// Exponential backoff: 1s, 2s, 4s, 8s, 16s, then capped at 30s, plus up to
-// ~20% jitter so a fleet of devices doesn't retry in lockstep.
-static uint32_t wifi_backoff_delay_ms(uint32_t retry_count) {
-    uint32_t base_ms = (retry_count >= 5) ? 30000 : (1000U << retry_count);
-    return base_ms + (esp_random() % (base_ms / 5 + 1));
-}
-
+// Exponential backoff lives in backoff.c; `esp_random()` is supplied by the
+// caller so the pure math is host-testable.
 static void event_handler(void* arg, esp_event_base_t event_base,
                           int32_t event_id, void* event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -414,9 +409,9 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
         wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *)event_data;
         int reason = disconn ? (int)disconn->reason : -1;
-        uint32_t delay_ms = wifi_backoff_delay_ms(wifi_retry_count);
+        uint32_t delay_ms = wifi_backoff_delay_ms(wifi_retry_count, esp_random());
         ESP_LOGI(TAG, "wifi disconnected, reason=%d, retry in %lums (attempt %lu)",
-                 reason, (unsigned long)delay_ms, (unsigned long)wifi_retry_count);
+                 reason, (unsigned long)delay_ms, (unsigned long)(wifi_retry_count + 1));
         if (wifi_reconnect_timer) {
             esp_timer_stop(wifi_reconnect_timer);
             esp_timer_start_once(wifi_reconnect_timer, (uint64_t)delay_ms * 1000);
@@ -428,7 +423,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         wifi_ap_record_t ap_info;
         if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
             ESP_LOGI(TAG, "connected to AP \"%.32s\" (channel %u, RSSI %d dBm)",
-                     ap_info.ssid, ap_info.primary, ap_info.rssi);
+                     (const char *)ap_info.ssid, ap_info.primary, ap_info.rssi);
         }
         if (wifi_reconnect_timer) {
             esp_timer_stop(wifi_reconnect_timer);
@@ -602,12 +597,13 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             }
             break;
         case WEBSOCKET_EVENT_ERROR:
-            if (data->error_handle) {
-                int ws_err = data->error_handle->esp_tls_last_error.last_error;
+            if (data->error_handle.esp_transport_sock_errno != 0) {
+                int ws_err = data->error_handle.esp_transport_sock_errno;
                 ESP_LOGI(TAG, "WEBSOCKET_EVENT_ERROR: %s (errno=%d)",
                          strerror(ws_err), ws_err);
             } else {
-                ESP_LOGI(TAG, "WEBSOCKET_EVENT_ERROR");
+                ESP_LOGI(TAG, "WEBSOCKET_EVENT_ERROR: %s",
+                         esp_err_to_name(data->error_handle.esp_tls_last_esp_err));
             }
             break;
     }

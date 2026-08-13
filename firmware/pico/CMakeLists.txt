@@ -52,6 +52,7 @@ pico_sdk_init()
 add_executable(devicesdk-client
         main.cpp
         lib/lwip_ws/ws_client.cpp
+        src/backoff.cpp
         src/websocket_handler.cpp
         src/hal.cpp
         src/hal_onewire_dht.cpp

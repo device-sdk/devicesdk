@@ -20,6 +20,7 @@ enable_testing()
 
 # Source files to test (non-HAL dependencies)
 set(TESTABLE_SOURCES
+    ../src/backoff.cpp
     ../src/utils/base64.cpp
     ../src/commands/i2c_command_handler.cpp
     ../src/commands/i2c_configure.cpp
@@ -44,6 +45,7 @@ set(TEST_SOURCES
     unit/test_display_update.cpp
     unit/test_ws_client.cpp
     unit/test_sensor_commands.cpp
+    unit/test_backoff.cpp
 )
 
 add_executable(run_tests

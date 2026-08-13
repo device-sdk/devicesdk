@@ -31,6 +31,7 @@ enable_testing()
 
 # Source files to test
 set(TESTABLE_SOURCES
+    ../main/backoff.c
     ../main/base64.c
     ../main/worker_task.c
     ../main/websocket_handler.c
@@ -45,6 +46,7 @@ set(MOCK_SOURCES
 
 # Test sources (C++ for gtest)
 set(TEST_SOURCES
+    unit/test_backoff.cpp
     unit/test_base64.cpp
     unit/test_worker_commands.cpp
     unit/test_websocket_handler.cpp

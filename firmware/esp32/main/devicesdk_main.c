@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -13,6 +14,8 @@
 #include "nvs_flash.h"
 #include "esp_websocket_client.h"
 #include "esp_crt_bundle.h"
+#include "esp_random.h"
+#include "esp_timer.h"
 #include "cJSON.h"
 
 #include "hal.h"
@@ -70,6 +73,8 @@ static const int WIFI_FAIL_BIT = BIT1;
 static esp_websocket_client_handle_t ws_client = NULL;
 static uint32_t last_ping_time = 0;
 static bool ws_connected = false;
+static esp_timer_handle_t wifi_reconnect_timer = NULL;
+static uint32_t wifi_retry_count = 0;
 static uint32_t rate_limit_retry_after_ms = 0;
 static uint32_t rate_limit_reconnect_at_ms = 0;
 
@@ -384,6 +389,22 @@ static void process_gpio_notifications(void) {
     }
 }
 
+// One-shot esp_timer callback that performs the actual WiFi reconnect. The
+// DISCONNECTED handler schedules this instead of calling esp_wifi_connect()
+// directly so the WiFi event-loop task is never blocked by a retry delay.
+static void wifi_reconnect_timer_cb(void *arg) {
+    ESP_LOGI(TAG, "retrying wifi connection (attempt %lu)",
+             (unsigned long)wifi_retry_count);
+    esp_wifi_connect();
+}
+
+// Exponential backoff: 1s, 2s, 4s, 8s, 16s, then capped at 30s, plus up to
+// ~20% jitter so a fleet of devices doesn't retry in lockstep.
+static uint32_t wifi_backoff_delay_ms(uint32_t retry_count) {
+    uint32_t base_ms = (retry_count >= 5) ? 30000 : (1000U << retry_count);
+    return base_ms + (esp_random() % (base_ms / 5 + 1));
+}
+
 static void event_handler(void* arg, esp_event_base_t event_base,
                           int32_t event_id, void* event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -391,13 +412,51 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED_BIT);
         xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
-        esp_wifi_connect();
-        ESP_LOGI(TAG, "retry to connect to the AP");
+        wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *)event_data;
+        int reason = disconn ? (int)disconn->reason : -1;
+        uint32_t delay_ms = wifi_backoff_delay_ms(wifi_retry_count);
+        ESP_LOGI(TAG, "wifi disconnected, reason=%d, retry in %lums (attempt %lu)",
+                 reason, (unsigned long)delay_ms, (unsigned long)wifi_retry_count);
+        if (wifi_reconnect_timer) {
+            esp_timer_stop(wifi_reconnect_timer);
+            esp_timer_start_once(wifi_reconnect_timer, (uint64_t)delay_ms * 1000);
+        }
+        wifi_retry_count++;
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        wifi_ap_record_t ap_info;
+        if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+            ESP_LOGI(TAG, "connected to AP \"%.32s\" (channel %u, RSSI %d dBm)",
+                     ap_info.ssid, ap_info.primary, ap_info.rssi);
+        }
+        if (wifi_reconnect_timer) {
+            esp_timer_stop(wifi_reconnect_timer);
+        }
+        wifi_retry_count = 0;
         xEventGroupClearBits(wifi_event_group, WIFI_FAIL_BIT);
         xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
+    }
+}
+
+// Advertise a DHCP hostname derived from the patched device slug so the
+// router's client list shows a readable name instead of the Espressif default.
+// The slug is validated at creation as [a-z][a-z0-9-]*, but sanitize and cap
+// defensively anyway.
+static void build_dhcp_hostname(char *out, size_t out_size) {
+    size_t o = 0;
+    for (size_t i = 0; device_id[i] != '\0' && o + 1 < out_size; ++i) {
+        char ch = device_id[i];
+        if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-') {
+            out[o++] = ch;
+        }
+    }
+    while (o > 0 && out[o - 1] == '-') {
+        o--;
+    }
+    out[o] = '\0';
+    if (o == 0) {
+        snprintf(out, out_size, "devicesdk");
     }
 }
 
@@ -406,7 +465,7 @@ static void wifi_init_sta(void) {
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
+    esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -423,6 +482,20 @@ static void wifi_init_sta(void) {
                                                         &event_handler,
                                                         NULL,
                                                         &instance_got_ip));
+
+    // Set the DHCP hostname before starting WiFi so the router's client list
+    // shows this device's name instead of the generic "espressif" default.
+    char dhcp_hostname[32];
+    build_dhcp_hostname(dhcp_hostname, sizeof(dhcp_hostname));
+    ESP_ERROR_CHECK(esp_netif_set_hostname(sta_netif, dhcp_hostname));
+    ESP_LOGI(TAG, "advertising DHCP hostname %s", dhcp_hostname);
+
+    // One-shot reconnect timer; armed by the DISCONNECTED event handler.
+    esp_timer_create_args_t timer_args = {
+        .callback = wifi_reconnect_timer_cb,
+        .name = "wifi_reconnect",
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&timer_args, &wifi_reconnect_timer));
 
     wifi_config_t wifi_config = {
         .sta = {
@@ -529,7 +602,13 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             }
             break;
         case WEBSOCKET_EVENT_ERROR:
-            ESP_LOGI(TAG, "WEBSOCKET_EVENT_ERROR");
+            if (data->error_handle) {
+                int ws_err = data->error_handle->esp_tls_last_error.last_error;
+                ESP_LOGI(TAG, "WEBSOCKET_EVENT_ERROR: %s (errno=%d)",
+                         strerror(ws_err), ws_err);
+            } else {
+                ESP_LOGI(TAG, "WEBSOCKET_EVENT_ERROR");
+            }
             break;
     }
 }
@@ -550,7 +629,11 @@ static void websocket_task(void *pvParameters) {
     // rather than a defensive parse.
     const bool use_tls = (strchr(api_host, ':') == NULL);
     snprintf(uri, sizeof(uri), "%s://%s%s", use_tls ? "wss" : "ws", api_host, ws_path);
+    ESP_LOGI(TAG, "connecting to %s", uri);
     snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s\r\n", api_token);
+    size_t token_len = strlen(api_token);
+    ESP_LOGI(TAG, "using api token ...%s",
+             token_len >= 4 ? api_token + token_len - 4 : "????");
 
     esp_websocket_client_config_t websocket_cfg = {
         .uri = uri,

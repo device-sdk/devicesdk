@@ -88,8 +88,11 @@ Website build consumes `apps/server/openapi.json` for the `/api/` reference.
 `ws://` when the configured host contains an explicit port** (self-hosted LAN)
 and TLS-on-443 for bare hostnames. Binaries are published to versioned GitHub
 Releases (`firmware-esp32@vX.Y.Z`, `firmware-pico@vX.Y.Z` tags) only when the
-changeset "Version packages" PR bumps a firmware version, and bundled into the Docker
-image.
+changeset "Version packages" PR bumps a firmware version: the workflow gates
+publishing on whether that version's release tag already exists (a failed
+publish self-heals on the next firmware push) and fills the release notes from
+the changeset changelog section in `firmware/*/CHANGELOG.md` via
+`firmware/scripts/release-notes.sh`. Firmware is bundled into the Docker image.
 
 ### Server architecture (apps/server)
 
@@ -261,7 +264,7 @@ on the user's own server - that's the trust model).
   are not versioned and need no changeset entry.
 - **Firmware changes MUST include a changeset**
   (`@devicesdk/firmware-esp32` / `@devicesdk/firmware-pico`) - the version bump
-  triggers the firmware build + rolling-release publish (`firmware-*.yml`). No
+  triggers the firmware build + versioned-release publish (`firmware-*.yml`). No
   changeset = won't ship.
 - **Never set a `major` bump without explicit user consent.**
 - **Finish the change by opening a PR into `main`** (`gh pr create --base main`)

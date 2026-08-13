@@ -177,49 +177,43 @@ jobs:
             firmware/esp32/dist/esp32c3-client.bin
           if-no-files-found: error
 
-  detect-version-bump:
-    name: Detect firmware version bump
+  needs-release:
+    name: Check whether this firmware version is already released
+    if: github.event_name != 'pull_request'
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
-      bumped: ${{ steps.check.outputs.bumped }}
+      publish: ${{ steps.check.outputs.publish }}
       version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
-      - name: Compare firmware package version with previous main commit
+      - name: Check release tag existence
         id: check
         working-directory: firmware/esp32
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          current_version=$(python3 -c "import json; print(json.load(open('package.json'))['version'])")
-          echo "version=$current_version" >> "$GITHUB_OUTPUT"
-
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "bumped=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${{ github.event_name }}" != "push" ]; then
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          previous_version=$(git show "${{ github.event.before }}:firmware/esp32/package.json" \
-            | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])")
-          if [ "$current_version" != "$previous_version" ]; then
-            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          # A release counts as published only once it carries every binary
+          # uploaded by publish-release (3 for ESP32). Keep this
+          # threshold in sync with the asset list in the publish step below.
+          version=$(python3 -c "import json; print(json.load(open('package.json'))['version'])")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          assets=$(gh release view "firmware-esp32@v$version" --json assets -q '.assets | length' 2>/dev/null || echo 0)
+          if [ "$assets" -ge 3 ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
           else
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
   publish-release:
     name: Publish firmware to GitHub Release
     runs-on: [self-hosted, linux, proxmox-ephemeral]
     timeout-minutes: 10
-    needs: [build, detect-version-bump]
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.detect-version-bump.outputs.bumped == 'true')
+    needs: [build, needs-release]
+    if: github.event_name != 'pull_request' && needs.needs-release.outputs.publish == 'true'
     permissions:
       contents: write
     steps:
@@ -233,17 +227,35 @@ jobs:
       # Versioned releases per firmware family: each publish creates a unique
       # tag (firmware-esp32@vX.Y.Z) so immutable-release repositories do not
       # need to delete/recreate a rolling tag. The Dockerfile queries the
-      # latest versioned release at image build time.
+      # latest versioned release at image build time. Release notes come from
+      # the changeset changelog section for this version. A partial release
+      # (cancelled/failed upload) is completed in place with fresh binaries;
+      # the tag keeps its original commit because GitHub ignores target
+      # changes for existing tags.
       - name: Upload binaries to the firmware-esp32 release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="firmware-esp32@v${{ needs.detect-version-bump.outputs.version }}"
-          gh release create "$tag" \
-            --target ${{ github.sha }} \
-            --title "ESP32 firmware v${{ needs.detect-version-bump.outputs.version }}" \
-            --notes "ESP32/C3/C61 client binaries for @devicesdk/firmware-esp32 v${{ needs.detect-version-bump.outputs.version }}." \
-            --latest=false \
-            firmware-dist/esp32-client.bin \
-            firmware-dist/esp32c61-client.bin \
-            firmware-dist/esp32c3-client.bin
+          version="${{ needs.needs-release.outputs.version }}"
+          tag="firmware-esp32@v$version"
+          bash firmware/scripts/release-notes.sh \
+            firmware/esp32/CHANGELOG.md \
+            "$version" \
+            "ESP32/C3/C61 client binaries for @devicesdk/firmware-esp32 v$version." \
+            > "$RUNNER_TEMP/firmware-release-notes.md"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" \
+              firmware-dist/esp32-client.bin \
+              firmware-dist/esp32c61-client.bin \
+              firmware-dist/esp32c3-client.bin \
+              --clobber
+          else
+            gh release create "$tag" \
+              --target ${{ github.sha }} \
+              --title "ESP32 firmware v$version" \
+              --notes-file "$RUNNER_TEMP/firmware-release-notes.md" \
+              --latest=false \
+              firmware-dist/esp32-client.bin \
+              firmware-dist/esp32c61-client.bin \
+              firmware-dist/esp32c3-client.bin
+          fi

@@ -92,7 +92,10 @@ changeset "Version packages" PR bumps a firmware version: the workflow gates
 publishing on whether that version's release tag already exists (a failed
 publish self-heals on the next firmware push) and fills the release notes from
 the changeset changelog section in `firmware/*/CHANGELOG.md` via
-`firmware/scripts/release-notes.sh`. Firmware is bundled into the Docker image.
+`firmware/scripts/release-notes.sh`. The Docker image build waits for the
+firmware releases published by the same "version packages" merge before
+bundling, so the image never races the firmware build and ships a stale
+bundle. Firmware is bundled into the Docker image.
 
 ### Server architecture (apps/server)
 

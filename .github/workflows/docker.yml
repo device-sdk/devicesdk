@@ -7,7 +7,77 @@ on:
   workflow_dispatch:
 
 jobs:
+  wait-for-firmware:
+    name: Wait for the firmware releases this merge publishes
+    # The Dockerfile bundles whatever firmware releases are newest when the
+    # image builds. On a "chore: version packages" merge that bumps a firmware
+    # version, the firmware workflow publishes that release in parallel - up to
+    # ~60 minutes later for ESP32 - so the build must wait for it, or the image
+    # races the firmware build and ships the previous release. Manual
+    # dispatches and tag pushes build against whatever is already published.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      startsWith(github.event.head_commit.message, 'chore: version packages')
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Wait for bumped firmware releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Only the push path can be racing in-flight firmware builds; manual
+          # dispatches and tag pushes just bundle whatever is published.
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "Skipping firmware wait for ${{ github.event_name }}"
+            exit 0
+          fi
+
+          before="${{ github.event.before }}"
+          if [ -z "$before" ] || [[ "$before" =~ ^0+$ ]]; then
+            echo "No previous commit for this push; skipping firmware wait"
+            exit 0
+          fi
+
+          wait_for() {
+            local prefix="$1"
+            local version="$2"
+            local tag="${prefix}@v${version}"
+            local deadline=$(( $(date +%s) + 5400 ))
+            while [ "$(date +%s)" -lt "$deadline" ]; do
+              if gh release view "$tag" --json id -q .id >/dev/null 2>&1; then
+                echo "Release $tag published"
+                return 0
+              fi
+              sleep 30
+            done
+            echo "::warning::Timed out waiting for $tag; the image will bundle whatever is published"
+            return 0
+          }
+
+          for dir in esp32 pico; do
+            current=$(node -p "require('./firmware/$dir/package.json').version")
+            previous=$(git show "$before:firmware/$dir/package.json" 2>/dev/null \
+              | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).version))" \
+              || echo "")
+            if [ "$current" != "$previous" ]; then
+              echo "firmware/$dir bumped $previous -> $current"
+              wait_for "firmware-$dir" "$current"
+            else
+              echo "firmware/$dir unchanged at $current"
+            fi
+          done
+
   build-and-push:
+    needs: wait-for-firmware
     # On branch pushes, only build and push when the changeset release PR is
     # merged. Tag pushes and manual dispatches always run.
     if: >-

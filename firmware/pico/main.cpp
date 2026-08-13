@@ -9,6 +9,10 @@
 #include "multicore/shared_buffers.h"
 #include "multicore/core1_worker.h"
 #include "hardware/watchdog.h"
+#include "pico/rand.h"
+#include "lwip/netif.h"
+#include "lwip/ip4_addr.h"
+#include "backoff.h"
 #include <cstring>
 
 // mbedTLS platform time function (required by MBEDTLS_PLATFORM_MS_TIME_ALT)
@@ -318,6 +322,7 @@ const char WEBSOCKET_TOKEN[] = DEVICESDK_API_TOKEN;
 const char API_HOST[] = DEVICESDK_API_HOST;
 const char PROJECT_ID[] = DEVICESDK_PROJECT_ID;
 const char DEVICE_ID[] = DEVICESDK_DEVICE_ID;
+static char device_id[sizeof(DEVICE_ID)];
 
 static void sanitize_credential(const char* src, size_t src_len, char* dest, size_t dest_size) {
     size_t out = 0;
@@ -338,6 +343,25 @@ void blink(int count) {
     }
 }
 
+// Build a DHCP hostname from the patched device slug. Sanitize defensively and
+// cap the length so the router's client list shows a readable name.
+static void build_dhcp_hostname(char *out, size_t out_size) {
+    size_t o = 0;
+    for (size_t i = 0; device_id[i] != '\0' && o + 1 < out_size; ++i) {
+        char ch = device_id[i];
+        if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-') {
+            out[o++] = ch;
+        }
+    }
+    while (o > 0 && out[o - 1] == '-') {
+        o--;
+    }
+    out[o] = '\0';
+    if (o == 0) {
+        snprintf(out, out_size, "devicesdk");
+    }
+}
+
 int main() {
     stdio_init_all();
 
@@ -354,17 +378,31 @@ int main() {
     char wifi_password[sizeof(WIFI_PASSWORD)] = {};
     char api_host[sizeof(API_HOST)] = {};
     char project_id[sizeof(PROJECT_ID)] = {};
-    char device_id[sizeof(DEVICE_ID)] = {};
     sanitize_credential(WIFI_SSID, sizeof(WIFI_SSID), wifi_ssid, sizeof(wifi_ssid));
     sanitize_credential(WIFI_PASSWORD, sizeof(WIFI_PASSWORD), wifi_password, sizeof(wifi_password));
     sanitize_credential(API_HOST, sizeof(API_HOST), api_host, sizeof(api_host));
     sanitize_credential(PROJECT_ID, sizeof(PROJECT_ID), project_id, sizeof(project_id));
     sanitize_credential(DEVICE_ID, sizeof(DEVICE_ID), device_id, sizeof(device_id));
 
+    // Advertise a DHCP hostname from the patched device slug so the router's
+    // client list shows a readable name instead of the generic default.
+    // lwIP's netif_set_hostname only stores the pointer, so keep the buffer
+    // alive for the program lifetime (main's stack frame never returns).
+    char dhcp_hostname[32];
+    build_dhcp_hostname(dhcp_hostname, sizeof(dhcp_hostname));
+    cyw43_arch_lwip_begin();
+    netif_set_hostname(&cyw43_state.netif[0], dhcp_hostname);
+    cyw43_arch_lwip_end();
+    printf("[Main] DHCP hostname: %s\n", dhcp_hostname);
+
     if (cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
         return 1;
     } else {
         blink(2); // 2. Wi-Fi connected blink
+        int32_t rssi = 0;
+        cyw43_wifi_get_rssi(&cyw43_state, &rssi);
+        printf("[Main] connected to %s, IP %s, RSSI %d dBm\n",
+               wifi_ssid, ip4addr_ntoa(netif_ip4_addr(&cyw43_state.netif[0])), rssi);
     }
 
     // Initialize inter-core queues BEFORE launching Core 1
@@ -389,6 +427,8 @@ int main() {
     bool rate_limit_logged = false;
     uint32_t last_ping_time = 0;
     uint32_t last_reconnect_attempt = 0;
+    uint32_t wifi_retry_count = 0;
+    uint32_t last_wifi_reconnect_at = 0;
 
     websocket_handler_init(ws_send_response, nullptr);
 
@@ -398,6 +438,29 @@ int main() {
     last_reconnect_attempt = to_ms_since_boot(get_absolute_time());
 
     while (true) {
+        // WiFi link monitoring with exponential backoff reconnect. The initial
+        // connect above is synchronous; this handles the link dropping later.
+        int link_status = cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA);
+        if (link_status == CYW43_LINK_UP) {
+            wifi_retry_count = 0;
+            last_wifi_reconnect_at = 0;
+        } else if (link_status == CYW43_LINK_DOWN || link_status == CYW43_LINK_FAIL ||
+                   link_status == CYW43_LINK_BADAUTH || link_status == CYW43_LINK_NONET) {
+            uint32_t now = to_ms_since_boot(get_absolute_time());
+            if (last_wifi_reconnect_at == 0) {
+                last_wifi_reconnect_at = now;  // mark when the link was first seen down
+            }
+            uint32_t down_ms = now - last_wifi_reconnect_at;
+            uint32_t delay_ms = wifi_backoff_delay_ms(wifi_retry_count, get_rand_32());
+            if (down_ms >= delay_ms) {
+                printf("[Main] wifi link lost (status=%d), retrying after %lu ms down (attempt %lu)\n",
+                       link_status, (unsigned long)down_ms, (unsigned long)wifi_retry_count);
+                last_wifi_reconnect_at = now;
+                cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 5000);
+                wifi_retry_count++;
+            }
+        }
+        // CYW43_LINK_JOIN / CYW43_LINK_NOIP: association or DHCP in progress; wait.
         cyw43_arch_poll();
         client.poll(); // Poll for WebSocket events
 
@@ -447,7 +510,8 @@ int main() {
                 }
             }
 
-            if (now - last_reconnect_attempt >= reconnect_delay_ms) {
+            if (cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA) == CYW43_LINK_UP &&
+                now - last_reconnect_attempt >= reconnect_delay_ms) {
                 // Reset rate limit state before reconnecting
                 client.rate_limit_retry_after_ms = 0;
                 client.last_close_code = 0;

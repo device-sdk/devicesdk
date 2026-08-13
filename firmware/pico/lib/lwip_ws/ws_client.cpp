@@ -50,6 +50,12 @@ bool WebsocketClient::connect(const char* host, const char* path, const char* to
         this->use_tls = true;
     }
 
+    printf("[WS] connecting to %s://%s:%d%s\n",
+           use_tls ? "wss" : "ws", this->host.c_str(), (int)this->port, path);
+    size_t token_len = strlen(token);
+    printf("[WS] using api token ...%s\n",
+           token_len >= 4 ? token + token_len - 4 : "????");
+
     this->path = path;
     this->token = token;
 
@@ -163,11 +169,14 @@ void WebsocketClient::on_dns_found(const ip_addr_t *ipaddr) {
         connected_state = 1;
         altcp_connect(tls_pcb, &remote_addr, this->port, tcp_connected_callback);
         cyw43_arch_lwip_end();
+    } else {
+        printf("[WS] DNS lookup failed for %s\n", this->host.c_str());
     }
 }
 
 void WebsocketClient::on_tcp_connected(struct altcp_pcb *tpcb, err_t err) {
     if (err != ERR_OK) {
+        printf("[WS] TCP connect failed: %s (err=%d)\n", lwip_strerr(err), (int)err);
         close_connection();
         return;
     }
@@ -243,7 +252,8 @@ void WebsocketClient::close_connection() {
     rx_buffer.shrink_to_fit();
 }
 
-void WebsocketClient::on_tcp_err() {
+void WebsocketClient::on_tcp_err(err_t err) {
+    printf("[WS] connection error: %s (err=%d)\n", lwip_strerr(err), (int)err);
     // The pcb is already freed by lwIP when this runs; forget it WITHOUT
     // closing (that would be a use-after-free). Freeing the TLS config is a
     // separate allocation and is safe.
@@ -436,7 +446,7 @@ void WebsocketClient::tcp_err_callback(void *arg, err_t err) {
     // lwIP has already freed the pcb before invoking the error callback, so we
     // must NOT call altcp_close()/altcp_arg() on it (use-after-free). Just drop
     // our reference and tear down the rest of the connection state.
-    ((WebsocketClient*)arg)->on_tcp_err();
+    ((WebsocketClient*)arg)->on_tcp_err(err);
 }
 
 err_t WebsocketClient::tcp_poll_callback(void *arg, struct altcp_pcb *tpcb) {

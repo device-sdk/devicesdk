@@ -19,6 +19,8 @@
 	},
 	"dependencies": {
 		"@devicesdk/core": "workspace:*",
+		"@devicesdk/firmware-esp32": "workspace:*",
+		"@devicesdk/firmware-pico": "workspace:*",
 		"@hono/mcp": "^0.3.0",
 		"@modelcontextprotocol/sdk": "^1.29.0",
 		"chanfana": "3.3.0",

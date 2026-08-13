@@ -1,9 +1,10 @@
 import { Database } from "bun:sqlite";
-import { cpSync, existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { loadConfig } from "./config";
 import { BunSqliteQB } from "./db/bunSqliteQB";
 import { D1CompatDatabase } from "./db/d1Compat";
 import { applyMigrations } from "./db/migrate";
+import { syncFirmware } from "./foundation/firmwareSync";
 import { createLogger, type ServerLogger } from "./foundation/logger";
 import { startMdnsResponder } from "./foundation/mdns/responder";
 import { app } from "./index";
@@ -35,12 +36,11 @@ const qb = new BunSqliteQB(db);
 const scripts = new FsBlobStore(config.scriptsDir);
 const firmwares = new FsBlobStore(config.firmwaresDir);
 
-// Seed firmware binaries bundled in the image into the data dir (first boot
-// or after an image upgrade adds new targets; existing files are replaced so
-// upgrades ship fresh binaries).
-if (config.firmwaresDistDir && existsSync(config.firmwaresDistDir)) {
-	cpSync(config.firmwaresDistDir, config.firmwaresDir, { recursive: true });
-}
+// Fetch the exact firmware release this server build pins (see firmwareSync).
+// Best-effort and never blocks boot; existing binaries are kept on failure.
+void syncFirmware(firmwares, (message) => logger.info(message)).catch((err) =>
+	logger.error(err, "Firmware sync failed"),
+);
 
 // --- device runtime ---
 const hub = new DeviceHub({ db, scripts, logger });

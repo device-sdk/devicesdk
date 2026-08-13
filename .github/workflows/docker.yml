@@ -7,7 +7,57 @@ on:
   workflow_dispatch:
 
 jobs:
+  wait-for-firmware:
+    name: Wait for the pinned firmware releases
+    # The server fetches its pinned firmware release from GitHub at boot, so an
+    # image published before that release exists would 404 on first boot. The
+    # firmware workflow publishes the pinned releases in parallel - up to ~60
+    # minutes after the merge for ESP32 - so the build waits for both before
+    # publishing, and FAILS on timeout rather than shipping an image that
+    # cannot serve firmware. Manual dispatches and tag pushes build immediately
+    # (explicit operator override).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      startsWith(github.event.head_commit.message, 'chore: version packages')
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Wait for the firmware releases the image pins
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "Skipping firmware wait for ${{ github.event_name }}"
+            exit 0
+          fi
+
+          deadline=$(( $(date +%s) + 6000 ))
+          for dir in esp32 pico; do
+            version=$(node -p "require('./firmware/$dir/package.json').version")
+            tag="firmware-$dir@v$version"
+            echo "Waiting for $tag"
+            while [ "$(date +%s)" -lt "$deadline" ]; do
+              if gh release view "$tag" --json id -q .id >/dev/null 2>&1; then
+                echo "Release $tag published"
+                break
+              fi
+              sleep 30
+            done
+            if ! gh release view "$tag" --json id -q .id >/dev/null 2>&1; then
+              echo "::error::Release $tag was never published; refusing to publish an image that cannot serve firmware. Re-run the firmware workflow (or dispatch docker once it publishes)."
+              exit 1
+            fi
+          done
+
   build-and-push:
+    needs: wait-for-firmware
     # On branch pushes, only build and push when the changeset release PR is
     # merged. Tag pushes and manual dispatches always run.
     if: >-

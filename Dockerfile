@@ -33,40 +33,6 @@ RUN cd apps/server \
 RUN cd apps/server \
 	&& bun run scripts/build-docs-index.ts ../../apps/docs/src/content/docs /out/docs-index.sqlite
 
-# ---- stage 2.5: fetch prebuilt firmware binaries (best-effort) ----
-# Firmware workflows publish versioned releases (tags firmware-esp32@vX.Y.Z /
-# firmware-pico@vX.Y.Z) only when the changeset "Version packages" PR bumps a
-# firmware version. The Dockerfile queries the GitHub API for the latest
-# versioned release per family. Downloads are best-effort so the image still
-# builds before the first firmware release exists (the firmware flash endpoint
-# then reports "not published" until binaries are dropped into /data/firmwares).
-FROM oven/bun:1.3.14-slim AS firmware
-ARG FIRMWARE_REPO=device-sdk/devicesdk
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
-	&& rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /firmwares && cd /firmwares \
-	&& base="https://github.com/${FIRMWARE_REPO}/releases/download" \
-	&& api="https://api.github.com/repos/${FIRMWARE_REPO}/releases?per_page=100" \
-	&& esp32_tag=$(curl -fsSL "$api" \
-		| grep -oE '"tag_name": "firmware-esp32@v[^"]*"' \
-		| head -1 \
-		| sed -E 's/.*"([^"]+)".*/\1/' || true) \
-	&& if [ -n "$esp32_tag" ]; then \
-		for f in esp32-client.bin esp32c61-client.bin esp32c3-client.bin; do \
-			curl -fsSL -o "$f" "$base/$esp32_tag/$f" || rm -f "$f"; \
-		done; \
-	fi \
-	&& pico_tag=$(curl -fsSL "$api" \
-		| grep -oE '"tag_name": "firmware-pico@v[^"]*"' \
-		| head -1 \
-		| sed -E 's/.*"([^"]+)".*/\1/' || true) \
-	&& if [ -n "$pico_tag" ]; then \
-		for f in devicesdk-pico-w-client.uf2 devicesdk-pico2-w-client.uf2; do \
-			curl -fsSL -o "$f" "$base/$pico_tag/$f" || rm -f "$f"; \
-		done; \
-	fi \
-	&& ls -la /firmwares
-
 # ---- stage 3: minimal runtime ----
 FROM oven/bun:1.3.14-slim
 WORKDIR /app
@@ -74,13 +40,11 @@ COPY --from=serverbuild /out/server.js /app/server.js
 COPY --from=serverbuild /out/docs-index.sqlite /app/docs-index.sqlite
 COPY --from=build /repo/apps/server/migrations /app/migrations
 COPY --from=build /repo/apps/dashboard/dist/spa /app/public
-COPY --from=firmware /firmwares /app/firmwares-dist
 
 ENV PORT=8080 \
 	DATA_DIR=/data \
 	PUBLIC_DIR=/app/public \
 	MIGRATIONS_DIR=/app/migrations \
-	FIRMWARES_DIST_DIR=/app/firmwares-dist \
 	DOCS_INDEX_PATH=/app/docs-index.sqlite
 
 # Run as an unprivileged user. The bun image ships a `bun` group/user (uid 1000),

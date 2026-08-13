@@ -13,7 +13,7 @@ sidebar:
   - **Install:** `docker compose up -d`, open `http://localhost:8080`, and the first account you register becomes the admin. Set `ALLOW_REGISTRATION=false` to close sign-ups afterwards.
   - **Local accounts** - register/login with email + password on the dashboard your server serves. Google sign-in and the hosted dashboard are gone.
   - **CLI now targets your server.** There is no default API URL: run `devicesdk login --host http://<server>:8080` (credentials are saved to `~/.devicesdk/credentials.json`). For CI, set `DEVICESDK_TOKEN`.
-  - **Devices connect on your LAN** - firmware uses plain `ws://<server>:8080` when the host has an explicit port, and TLS on 443 for bare hostnames. Firmware binaries ship via rolling GitHub Releases and are bundled into the Docker image.
+  - **Devices connect on your LAN** - firmware uses plain `ws://<server>:8080` when the host has an explicit port, and TLS on 443 for bare hostnames. Firmware binaries ship as versioned GitHub Releases that the server fetches at boot.
   - **No telemetry, no phone-home, no billing.** Your data never leaves your hardware.
 
 ## May 2026

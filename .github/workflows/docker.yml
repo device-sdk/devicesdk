@@ -7,7 +7,83 @@ on:
   workflow_dispatch:
 
 jobs:
+  wait-for-firmware:
+    name: Wait for the pinned firmware releases
+    # The server fetches its pinned firmware release from GitHub at boot, so an
+    # image published before that release exists would 404 on first boot. The
+    # firmware workflow publishes the pinned releases in parallel - up to ~60
+    # minutes after the merge for ESP32 - so the build waits for both before
+    # publishing, and FAILS on timeout rather than shipping an image that
+    # cannot serve firmware. Manual dispatches and tag pushes build immediately
+    # (explicit operator override).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      startsWith(github.event.head_commit.message, 'chore: version packages')
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Wait for the firmware releases the image pins
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "Skipping firmware wait for ${{ github.event_name }}"
+            exit 0
+          fi
+
+          before="${{ github.event.before }}"
+          deadline=$(( $(date +%s) + 6000 ))
+
+          for family in esp32:3 pico:2; do
+            dir="${family%%:*}"
+            expected="${family##*:}"
+            version=$(node -p "require('./firmware/$dir/package.json').version")
+            tag="firmware-$dir@v$version"
+
+            previous=""
+            if [ -n "$before" ] && [[ "$before" =~ ^[0-9a-f]{40}$ ]]; then
+              previous=$(git show "$before:firmware/$dir/package.json" 2>/dev/null \
+                | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).version))" \
+                || echo "")
+            fi
+
+            if [ "$previous" != "$version" ]; then
+              # This merge bumped the firmware, so its release is being published
+              # in parallel by the firmware workflow. Wait for it (asset count
+              # included, so a partial upload does not satisfy the wait).
+              echo "firmware/$dir bumped $previous -> $version; waiting for $tag"
+              while [ "$(date +%s)" -lt "$deadline" ]; do
+                count=$(gh release view "$tag" --json assets -q '.assets | length' 2>/dev/null || echo 0)
+                if [ "$count" -ge "$expected" ]; then
+                  break
+                fi
+                sleep 30
+              done
+            else
+              # Unchanged by this merge: the release was published earlier, so
+              # just verify it is complete instead of burning the wait budget.
+              echo "firmware/$dir unchanged at $version"
+            fi
+
+            count=$(gh release view "$tag" --json assets -q '.assets | length' 2>/dev/null || echo 0)
+            if [ "$count" -lt "$expected" ]; then
+              echo "::error::Release $tag has $count/$expected assets; refusing to publish an image that cannot serve firmware. Re-run the firmware workflow (or dispatch docker once it publishes)."
+              exit 1
+            fi
+            echo "Release $tag ready ($count assets)"
+          done
+
   build-and-push:
+    needs: wait-for-firmware
     # On branch pushes, only build and push when the changeset release PR is
     # merged. Tag pushes and manual dispatches always run.
     if: >-

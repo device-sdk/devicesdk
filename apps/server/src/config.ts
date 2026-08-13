@@ -15,8 +15,8 @@ export interface ServerConfig {
 	secureCookies: boolean;
 	/** Directory with built dashboard SPA to serve at /; empty disables. */
 	publicDir: string;
-	/** Directory with bundled firmware binaries used to seed the data dir. */
-	firmwaresDistDir: string;
+	/** GitHub repo publishing the firmware releases the server fetches at boot. */
+	firmwareRepo: string;
 	/** Advertise this server over mDNS as `<mdnsHostname>.local` for device discovery. */
 	mdnsEnabled: boolean;
 	/** Short mDNS hostname (no `.local`); override to run multiple servers on one LAN. */
@@ -86,7 +86,7 @@ export function loadConfig(
 		allowRegistration: parseBool(env.ALLOW_REGISTRATION, true),
 		secureCookies: parseBool(env.SECURE_COOKIES, false),
 		publicDir: env.PUBLIC_DIR || "",
-		firmwaresDistDir: env.FIRMWARES_DIST_DIR || "",
+		firmwareRepo: env.FIRMWARE_REPO || "device-sdk/devicesdk",
 		mdnsEnabled: parseBool(env.MDNS_ENABLED, true),
 		mdnsHostname: env.MDNS_HOSTNAME || "devicesdk",
 		trustProxy: parseBool(env.TRUST_PROXY, false),

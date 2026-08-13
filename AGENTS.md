@@ -92,15 +92,22 @@ changeset "Version packages" PR bumps a firmware version: the workflow gates
 publishing on whether that version's release tag already exists (a failed
 publish self-heals on the next firmware push) and fills the release notes from
 the changeset changelog section in `firmware/*/CHANGELOG.md` via
-`firmware/scripts/release-notes.sh`. Firmware is bundled into the Docker image.
+`firmware/scripts/release-notes.sh`. `@devicesdk/server` depends on both
+firmware packages (`workspace:*`), so changesets bump the server in lockstep
+with every firmware release; the server fetches exactly the pinned firmware
+release from GitHub Releases at boot (`foundation/firmwareSync.ts`) instead of
+bundling firmware into the image, so a freshly built image always serves the
+firmware it was released with. docker.yml waits for the pinned firmware
+releases to exist (failing on timeout) before publishing an image, so a pulled
+image never 404s on first boot.
 
 ### Server architecture (apps/server)
 
 - **Boot**: `src/server.ts` - loadConfig → open SQLite (WAL) → `applyMigrations`
-  → construct services → `Bun.serve` → janitor interval. Services object is
-  passed as `c.env` to Hono and **keeps the old Cloudflare binding names**
-  (`SCRIPTS`, `FIRMWARES`, `DEVICE`, `DB`) so ported endpoint code reads
-  naturally.
+  → construct services → start firmware sync → `Bun.serve` → janitor interval.
+  Services object is passed as `c.env` to Hono and **keeps the old Cloudflare
+  binding names** (`SCRIPTS`, `FIRMWARES`, `DEVICE`, `DB`) so ported endpoint
+  code reads naturally.
 - **DB layer**: `src/db/bunSqliteQB.ts` (workers-qb QueryBuilder over
   bun:sqlite, D1-shaped results) for `c.get("qb")`; `src/db/d1Compat.ts`
   (prepare/bind/first/all/run/batch facade) for `c.env.DB` call sites;

@@ -203,6 +203,12 @@ importers:
       '@devicesdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@devicesdk/firmware-esp32':
+        specifier: workspace:*
+        version: link:../../firmware/esp32
+      '@devicesdk/firmware-pico':
+        specifier: workspace:*
+        version: link:../../firmware/pico
       '@hono/mcp':
         specifier: ^0.3.0
         version: 0.3.0(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(hono-rate-limiter@0.5.3(hono@4.12.23)(unstorage@1.17.5))(hono@4.12.23)(zod@4.3.6)

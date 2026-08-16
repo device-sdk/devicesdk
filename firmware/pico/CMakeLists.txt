@@ -68,10 +68,14 @@ add_executable(devicesdk-client
 # device can report it in the device_connected handshake. The version matches
 # the CI release tag for this firmware.
 file(READ "${CMAKE_CURRENT_LIST_DIR}/package.json" DEVICESDK_PACKAGE_JSON)
-if(DEVICESDK_PACKAGE_JSON MATCHES "\"version\"[[:space:]]*:[[:space:]]*\"([^\"]+)\"")
+# CMake regex only supports escape-sequence whitespace ([ \t\r\n]), not POSIX
+# character classes like [[:space:]] - reusing the class silently fell back to
+# 0.0.0-dev on every device. Failure is fatal so a broken extraction can never
+# ship a placeholder version again.
+if(DEVICESDK_PACKAGE_JSON MATCHES "\"version\"[ \t\r\n]*:[ \t\r\n]*\"([^\"]+)\"")
     set(DEVICESDK_FIRMWARE_VERSION "${CMAKE_MATCH_1}")
 else()
-    set(DEVICESDK_FIRMWARE_VERSION "0.0.0-dev")
+    message(FATAL_ERROR "Could not extract the firmware version from package.json")
 endif()
 
 # Build-time patch placeholders - NOT real credentials.

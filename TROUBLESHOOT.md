@@ -1,5 +1,12 @@
 # Troubleshooting Log
 
+### Firmware binaries report `0.0.0-dev` even though package.json has a real version
+**Date**: 2026-08-16
+**Question/Problem**: ESP32-C3/Pico devices reported `0.0.0-dev` in the WebSocket `device_connected` handshake and in the server's firmware column, while ESP-IDF boot logs showed the git-derived app version. Neither `package.json` nor the version plumbing was wrong - the version regex in the build never matched.
+**Root Cause**: Both `firmware/esp32/main/CMakeLists.txt` and `firmware/pico/CMakeLists.txt` extracted the version with the CMake regex `"\"version\"[[:space:]]*:[[:space:]]*\"([^\"]+)\""`. CMake's regex engine does **not** support POSIX character classes like `[[:space:]]`, so the match always failed and the `0.0.0-dev` fallback was compiled into every binary. The right spelling is escape-sequence whitespace: `[ \t\r\n]` (verified: the class form never matches, the escape form does).
+**Solution**: Fixed both CMakeLists to use `[ \t\r\n]` and made an extraction failure `message(FATAL_ERROR)` instead of silently shipping the placeholder. Added `firmware/scripts/check_version.cmake`, which re-runs the exact build regex and compares against an independent manual parse of package.json; it runs in both firmware `unit-tests` CI jobs and both `pnpm test` package scripts and needs only cmake (no ESP-IDF/Pico SDK).
+**Rule**: In CMake regexes, whitespace is `[ \t\r\n]` - never `[[:space:]]` or `\s` (the POSIX class and `\s` are unsupported; `\t`, `\r`, `\n` are not regex escapes at all - they work because quoted arguments convert them into real control characters before the regex sees them, and you can compare against them the same way in `if()`). One script-mode gotcha hit while writing the check: `while(TRUE)` does not iterate under `cmake -P` (new policies; use an exit-flag loop).
+
 ### Docker image bundles the PREVIOUS firmware release after a "Version packages" merge
 **Date**: 2026-08-13
 **Question/Problem**: A Docker image built from a `chore: version packages` merge carried the previous firmware release even though that merge bumped the firmware version - e.g. the image served esp32 v0.3.0 while `main` was already at 0.3.1. Flashing from the image gave devices the older binaries.

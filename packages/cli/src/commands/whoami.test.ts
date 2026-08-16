@@ -53,8 +53,11 @@ describe("whoami command", () => {
 		expect(exitSpy).not.toHaveBeenCalled();
 	});
 
-	it("should exit with 3 when not logged in", async () => {
+	it("exits with 1 when requireAuth fails (auth failures exit 3 inside requireAuth itself)", async () => {
 		const { requireAuth } = await import("../credentials.js");
+		// requireAuth never rejects in production - it process.exit(3)s first.
+		// This asserts whoami does not special-case the old unreachable ENOENT
+		// branch: any rejection is treated as a generic failure.
 		const notLoggedInError = Object.assign(new Error("ENOENT: no such file"), {
 			code: "ENOENT",
 		});
@@ -62,8 +65,8 @@ describe("whoami command", () => {
 			notLoggedInError,
 		);
 
-		await expect(whoami()).rejects.toThrowError(/exit:3/);
-		expect(exitSpy).toHaveBeenCalledWith(3);
+		await expect(whoami()).rejects.toThrowError(/exit:1/);
+		expect(exitSpy).toHaveBeenCalledWith(1);
 		expect(getMeMock).not.toHaveBeenCalled();
 	});
 

@@ -1,12 +1,14 @@
 import type { DeviceType } from "@devicesdk/core";
 import {
 	buildErrorMessage,
+	DEFAULT_REQUEST_TIMEOUT_MS,
 	DeviceSDKApiError,
 	dumpResponseBodyIfVerbose,
 	fetchAllPages,
 	getApiUrl,
 	parseErrorBody,
 	request,
+	runWithTimeout,
 } from "./shared.js";
 
 export type { DeviceType };
@@ -121,41 +123,47 @@ export async function downloadDeviceFirmware(
 ): Promise<Buffer> {
 	const url = `${await getApiUrl()}/v1/projects/${projectId}/devices/${deviceId}/firmware`;
 
-	const response = await fetch(url, {
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${token}`,
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
-			ssid: wifi.ssid,
-			pass: wifi.password,
-			device_type: deviceType,
-			...(options?.host ? { host: options.host } : {}),
-		}),
-	});
+	const arrayBuffer = await runWithTimeout(async (signal) => {
+		const response = await fetch(url, {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${token}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				ssid: wifi.ssid,
+				pass: wifi.password,
+				device_type: deviceType,
+				...(options?.host ? { host: options.host } : {}),
+			}),
+			signal,
+		});
 
-	if (!response.ok) {
-		let responseBody: unknown;
-		let responseText: string | undefined;
-		try {
-			responseText = await response.text();
-			responseBody = responseText ? JSON.parse(responseText) : undefined;
-		} catch {
-			// ignore parse failure
+		if (!response.ok) {
+			let responseBody: unknown;
+			let responseText: string | undefined;
+			try {
+				responseText = await response.text();
+				responseBody = responseText ? JSON.parse(responseText) : undefined;
+			} catch {
+				// ignore parse failure
+			}
+
+			const parsed = parseErrorBody(responseBody);
+			dumpResponseBodyIfVerbose(response.status, responseBody, responseText);
+			throw new DeviceSDKApiError(
+				buildErrorMessage(response.status, parsed),
+				response.status,
+				parsed.code,
+				parsed.docs,
+				responseBody ?? responseText,
+			);
 		}
 
-		const parsed = parseErrorBody(responseBody);
-		dumpResponseBodyIfVerbose(response.status, responseBody, responseText);
-		throw new DeviceSDKApiError(
-			buildErrorMessage(response.status, parsed),
-			response.status,
-			parsed.code,
-			parsed.docs,
-			responseBody ?? responseText,
-		);
-	}
+		// Read the body inside the timeout too: a server that sends headers
+		// and then stalls would otherwise hang the CLI forever.
+		return response.arrayBuffer();
+	}, DEFAULT_REQUEST_TIMEOUT_MS);
 
-	const arrayBuffer = await response.arrayBuffer();
 	return Buffer.from(arrayBuffer);
 }

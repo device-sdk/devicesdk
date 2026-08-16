@@ -8,6 +8,9 @@
 // The DB path is passed via DSDK_E2E_DB so this file stays decoupled from the
 // server's config resolution.
 import { Database } from "bun:sqlite";
+import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 const dbPath = process.env.DSDK_E2E_DB;
 if (!dbPath) {
@@ -18,11 +21,21 @@ if (!dbPath) {
 const now = Date.now();
 const expires = now + 86_400_000; // +1 day
 
+// Sessions are stored as HMAC-SHA256 hashes, never raw tokens (the server
+// hashes the presented token before lookup - see apps/server/src/foundation/
+// tokenHash.ts). The server persists its HMAC secret at DATA_DIR/.api-token-
+// secret, which sits next to the SQLite file; mirror the hash here so the
+// seeded "test-session-token" cookie actually authenticates.
+const dataDir = dirname(dbPath);
+const secret = readFileSync(join(dataDir, ".api-token-secret"), "utf-8").trim();
+const sessionTokenHash = createHmac("sha256", secret)
+  .update("test-session-token")
+  .digest("hex");
+
 // Order matters: children are deleted before parents and inserted after them.
 // Foreign keys are left off for the seed connection so the delete/insert order
 // is the only thing keeping referential integrity - which it does.
 const statements = [
-  "DELETE FROM rate_limits;",
   "DELETE FROM device_scripts;",
   "DELETE FROM devices;",
   "DELETE FROM tokens;",
@@ -31,8 +44,11 @@ const statements = [
   "DELETE FROM user;",
 
   // onboarding_completed = 1 so the dashboard skips the first-run wizard.
-  `INSERT INTO user (id, name, email, verified_email, picture, created_at, onboarding_completed) VALUES ('user-1', 'Alice Johnson', 'alice@example.com', 1, 'https://example.com/alice.jpg', ${now}, 1);`,
-  `INSERT INTO user_sessions (user_id, token, created_at, expires_at) VALUES ('user-1', 'test-session-token', ${now}, ${expires});`,
+  // password_hash is argon2id so the delete-account flow (which re-verifies
+  // the password) actually works in E2E; "password123" matches the value the
+  // account.spec.ts test types into the dialog.
+  `INSERT INTO user (id, name, email, verified_email, picture, password_hash, created_at, onboarding_completed) VALUES ('user-1', 'Alice Johnson', 'alice@example.com', 1, 'https://example.com/alice.jpg', '${Bun.password.hashSync("password123", { algorithm: "argon2id" })}', ${now}, 1);`,
+  `INSERT INTO user_sessions (user_id, token, created_at, expires_at) VALUES ('user-1', '${sessionTokenHash}', ${now}, ${expires});`,
 
   `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-1', 'user-1', 'smart-home', 'Smart Home', 'IoT smart home automation project', ${now});`,
   `INSERT INTO projects (id, user_id, project_slug, name, description, created_at) VALUES ('proj-2', 'user-1', 'weather-station', 'Weather Station', 'IoT weather monitoring system', ${now});`,

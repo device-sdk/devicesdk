@@ -55,6 +55,23 @@ export class DeleteProject extends BaseRoute {
 			return c.json({ success: false, error: "Project not found" }, 404);
 		}
 
+		// device_kv/device_logs/device_usage have no FK to devices (and
+		// project deletion cascades to devices) - delete explicitly so a
+		// deleted project leaves no KV/log/usage orphans behind.
+		await c.env.DB.prepare(
+			"DELETE FROM device_kv WHERE device_id IN (SELECT id FROM devices WHERE project_id = ?)",
+		)
+			.bind(project.id)
+			.run();
+		await c.env.DB.prepare(
+			"DELETE FROM device_logs WHERE device_id IN (SELECT id FROM devices WHERE project_id = ?)",
+		)
+			.bind(project.id)
+			.run();
+		await c.env.DB.prepare("DELETE FROM device_usage WHERE project_id = ?")
+			.bind(project.id)
+			.run();
+
 		// Delete the project (cascades to devices and device_scripts via FK)
 		await qb
 			.delete({
@@ -66,14 +83,20 @@ export class DeleteProject extends BaseRoute {
 			})
 			.execute();
 
-		// Best-effort R2 cleanup - DB delete already committed
+		// Best-effort blob cleanup - DB delete already committed. list() pages
+		// at 1000 keys, so follow the cursor until every page is drained (a
+		// project at its device/version limits holds ~2100 blobs).
 		try {
 			const r2 = c.env.SCRIPTS;
 			const prefix = `${user.id}/${projectId}/`;
-			const objects = await r2.list({ prefix });
-			for (const obj of objects.objects) {
-				await r2.delete(obj.key);
-			}
+			let cursor: string | undefined;
+			do {
+				const listed = await r2.list({ prefix, cursor });
+				for (const obj of listed.objects) {
+					await r2.delete(obj.key);
+				}
+				cursor = listed.truncated ? listed.cursor : undefined;
+			} while (cursor);
 		} catch (err) {
 			logger.error(err as Error, "Unhandled error");
 		}

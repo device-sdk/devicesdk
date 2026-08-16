@@ -119,9 +119,15 @@ export function persistAndBroadcastLog(
 			: message;
 	const id = crypto.randomUUID();
 	const now = Date.now();
-	db.query(
-		"INSERT INTO device_logs (id, device_id, level, message, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-	).run(id, deviceId, level, truncated, now);
+	try {
+		db.query(
+			"INSERT INTO device_logs (id, device_id, level, message, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+		).run(id, deviceId, level, truncated, now);
+	} catch (error) {
+		// Best-effort like recordDeviceUsage - a busy/full DB must never throw
+		// into user-code logging paths. Watchers still get the event.
+		logger.error(error, "Failed to persist device log");
+	}
 	broadcastToWatchers(watchers, "log", {
 		id,
 		level,
@@ -134,14 +140,18 @@ export function persistAndBroadcastLog(
 		now - state.lastLogCleanupAt > LOG_CLEANUP_MIN_INTERVAL_MS
 	) {
 		state.lastLogCleanupAt = now;
-		db.query(
-			"DELETE FROM device_logs WHERE device_id = ?1 AND created_at < ?2",
-		).run(deviceId, now - LOG_RETENTION_MS);
-		db.query(
-			`DELETE FROM device_logs WHERE device_id = ?1 AND id NOT IN (
-				SELECT id FROM device_logs WHERE device_id = ?1 ORDER BY created_at DESC LIMIT ?2
-			)`,
-		).run(deviceId, LOG_MAX_STORED);
+		try {
+			db.query(
+				"DELETE FROM device_logs WHERE device_id = ?1 AND created_at < ?2",
+			).run(deviceId, now - LOG_RETENTION_MS);
+			db.query(
+				`DELETE FROM device_logs WHERE device_id = ?1 AND id NOT IN (
+					SELECT id FROM device_logs WHERE device_id = ?1 ORDER BY created_at DESC LIMIT ?2
+				)`,
+			).run(deviceId, LOG_MAX_STORED);
+		} catch (error) {
+			logger.error(error, "Failed to prune old device logs");
+		}
 	}
 }
 

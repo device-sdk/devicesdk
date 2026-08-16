@@ -38,13 +38,16 @@ export async function pruneOldVersions(
 
 	const rows = staleVersions.results ?? [];
 	for (const row of rows) {
-		await r2.delete(
-			`${userId}/${projectSlug}/${deviceSlug}/${row.version_id}.js`,
-		);
+		// Delete the DB row first, then the blob: if the row DELETE fails, the
+		// version still has its blob (getVersion keeps working). If the blob
+		// delete fails after the row is gone, the orphaned blob is harmless.
 		await db
 			.prepare("DELETE FROM device_scripts WHERE id = ?")
 			.bind(row.id)
 			.run();
+		await r2.delete(
+			`${userId}/${projectSlug}/${deviceSlug}/${row.version_id}.js`,
+		);
 	}
 
 	return rows.length;

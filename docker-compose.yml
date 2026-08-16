@@ -14,12 +14,20 @@ services:
       - "8080:8080"
     volumes:
       # All persistent state: SQLite database, device scripts, firmware images.
-      - ./data:/data
+      # Named volume (not a bind mount): on first use Docker seeds it from the
+      # image's /data, which already carries bun:bun ownership - a host bind
+      # mount would be created root:root and the container (uid 1000) could not
+      # write to it.
+      - devicesdk-data:/data
     environment:
       # The first registered user is always allowed; set this to "false"
       # afterwards to prevent further account sign-ups.
       ALLOW_REGISTRATION: "false"
-      # Set to "false" only when running plain HTTP on a trusted LAN without a
-      # reverse proxy. Production / HTTPS deployments must keep this "true".
-      SECURE_COOKIES: "true"
+      # Plain-HTTP LAN setup (http://devicesdk.local:8080): browsers drop
+      # Secure cookies over plain HTTP, which breaks dashboard login. Set this
+      # to "true" only when serving behind TLS (reverse proxy).
+      SECURE_COOKIES: "false"
     restart: unless-stopped
+
+volumes:
+  devicesdk-data:

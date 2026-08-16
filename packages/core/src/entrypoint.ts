@@ -8,7 +8,6 @@ type LifecycleMethods =
 	| "onDeviceConnect"
 	| "onDeviceDisconnect"
 	| "onMessage"
-	| "onAlarm"
 	| "onCron";
 type InternalProps = "env" | "ctx";
 
@@ -24,7 +23,7 @@ export type RemoteDevice<T> = {
 };
 
 /** @deprecated Use UserWorkerEnv instead */
-type RemoteDevices<T> = {
+export type RemoteDevices<T> = {
 	[K in keyof T]: T[K] extends object ? RemoteDevice<T[K]> : never;
 };
 
@@ -43,7 +42,10 @@ export type GetEnv<ProjectDevices = Record<string, never>> =
  *
  * Your script runs **in-process on your self-hosted DeviceSDK server** -
  * **not on the microcontroller and not in Node.js**. Avoid `node:*` imports,
- * filesystem access, and long-running loops; each event is handled serially.
+ * filesystem access, and long-running loops; each event is handled serially
+ * (one at a time, per device). Exception: a public method invoked remotely by
+ * another device via `this.env.DEVICES[...].method()` runs outside that
+ * serialization, so it may overlap an in-flight event handler.
  *
  * @example
  * import { DeviceEntrypoint, type DeviceResponse } from "@devicesdk/core";

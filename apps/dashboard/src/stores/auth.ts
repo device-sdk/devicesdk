@@ -16,10 +16,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => user.value !== null);
 
-  const fetchUser = async (): Promise<User | null> => {
+  const fetchUser = async (timeoutMs?: number): Promise<User | null> => {
     try {
       loading.value = true;
-      const fetchedUser = await userService.getMe();
+      const fetchedUser = await userService.getMe(timeoutMs);
       user.value = fetchedUser;
       networkError.value = false;
       return fetchedUser;
@@ -59,7 +59,11 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('Server-side logout failed:', error);
     }
     user.value = null;
-    window.location.href = '/login';
+    // Respect VUE_ROUTER_BASE (sub-path installs) instead of hardcoding
+    // /login; no ?expired=true marker - this is an intentional sign-out, not
+    // an expired session.
+    const base = (process.env.VUE_ROUTER_BASE ?? '').replace(/\/$/, '');
+    window.location.href = `${base}/login`;
   };
 
   return {

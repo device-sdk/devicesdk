@@ -131,8 +131,10 @@ export function nextCronTime(cronExpr: string, after: number): number {
 	const domRestricted = domField !== "*";
 	const dowRestricted = dowField !== "*";
 
-	// Start from the next minute boundary after `after`
-	let cursor = new Date(Math.ceil((after + 1) / 60_000) * 60_000);
+	// Start from the next minute boundary after `after`. floor+1 (not
+	// Math.ceil((after + 1) / 60_000)): a fractional-millisecond `after`
+	// just before a boundary must resolve to that boundary, not skip it.
+	let cursor = new Date((Math.floor(after / 60_000) + 1) * 60_000);
 	cursor.setUTCSeconds(0, 0);
 
 	const maxTime = after + 366 * 24 * 60 * 60 * 1_000;

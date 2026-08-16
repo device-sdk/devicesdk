@@ -1,5 +1,6 @@
 #include "websocket_handler.h"
 #include "command_queue.h"
+#include "response_queue.h"
 #include "shared_buffers.h"
 #include "base64.h"
 #include "cJSON.h"
@@ -11,19 +12,23 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "soc/soc_caps.h"
 static const char *TAG = "WSHandler";
 #define LOG_I(tag, fmt, ...) ESP_LOGI(tag, fmt, ##__VA_ARGS__)
 #define LOG_E(tag, fmt, ...) ESP_LOGE(tag, fmt, ##__VA_ARGS__)
 #define LOG_W(tag, fmt, ...) ESP_LOGW(tag, fmt, ##__VA_ARGS__)
+#define MAX_GPIO_PIN (SOC_GPIO_PIN_COUNT - 1)
 #else
 #include <stdio.h>
 static const char *TAG = "WSHandler";
 #define LOG_I(tag, fmt, ...) (void)tag
 #define LOG_E(tag, fmt, ...) (void)tag
 #define LOG_W(tag, fmt, ...) (void)tag
+#define MAX_GPIO_PIN 255
 #endif
 
 static void *s_cmd_queue = NULL;
+static void *s_resp_queue = NULL;
 static uint32_t s_sequence_counter = 0;
 
 #ifdef UNIT_TEST
@@ -95,13 +100,60 @@ static bool parse_rom_hex(const char *hex, uint8_t out[ONEWIRE_ROM_LEN]) {
     return true;
 }
 
+void websocket_handler_set_response_queue(void *resp_queue_handle) {
+    s_resp_queue = resp_queue_handle;
+}
+
+// Answer a rejected command with a command_error response (same shape the Pico
+// sends) so the server's pending command resolves immediately instead of
+// timing out after 5s. No-op until a response queue is attached.
+static void reject_command(const char *msg_id, const char *message) {
+    LOG_E(TAG, "Command rejected: %s", message);
+
+    worker_response_t resp;
+    memset(&resp, 0, sizeof(resp));
+    resp.status = RESPONSE_ERROR;
+    strncpy(resp.message_id, msg_id, MAX_MESSAGE_ID_LEN - 1);
+    resp.message_id[MAX_MESSAGE_ID_LEN - 1] = '\0';
+    strncpy(resp.error_msg, message, MAX_ERROR_MSG_LEN - 1);
+    resp.error_msg[MAX_ERROR_MSG_LEN - 1] = '\0';
+
+#ifndef UNIT_TEST
+    if (s_resp_queue) {
+        xQueueSend((QueueHandle_t)s_resp_queue, &resp, 0);
+    }
+#else
+    (void)s_resp_queue;
+#endif
+}
+
+// Parse a full hex byte string ("0x3C" or "3C"). Rejects trailing garbage and
+// out-of-range values instead of silently truncating like bare strtol would.
+static bool parse_hex_byte(const char *s, uint8_t *out) {
+    if (!s || *s == '\0') return false;
+    char *end = NULL;
+    long v = strtol(s, &end, 16);
+    if (end == s || *end != '\0' || v < 0 || v > 0xFF) return false;
+    *out = (uint8_t)v;
+    return true;
+}
+
 static bool queue_command(worker_command_t *cmd) {
     cmd->sequence_id = ++s_sequence_counter;
 
 #ifndef UNIT_TEST
-    if (!s_cmd_queue) return false;
+    if (!s_cmd_queue) {
+        // No queue attached - the worker isn't running, so the server would
+        // otherwise time out after 5s. Resolve immediately instead.
+        reject_command(cmd->message_id, "Command queue not initialized");
+        return false;
+    }
     if (xQueueSend((QueueHandle_t)s_cmd_queue, cmd, 0) != pdTRUE) {
         LOG_E(TAG, "Command queue full");
+        // Every other validation failure gets a command_error (the server's
+        // pending command resolves immediately); a full queue must not be the
+        // one silent-failure path.
+        reject_command(cmd->message_id, "Command queue full");
         return false;
     }
 #else
@@ -156,10 +208,13 @@ bool handle_websocket_message(const char *message) {
         cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
         cJSON *state_obj = cJSON_GetObjectItem(payload, "state");
 
-        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(state_obj)) goto done;
+        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(state_obj)) {
+            reject_command(msg_id, "Missing pin or state parameter");
+            goto done;
+        }
 
         if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid pin number");
+            reject_command(msg_id, "Invalid pin number");
             goto done;
         }
         cmd.type = CMD_GPIO_SET;
@@ -167,8 +222,11 @@ bool handle_websocket_message(const char *message) {
 
         if (strcmp(state_obj->valuestring, "high") == 0) {
             cmd.payload.gpio.state = WORKER_GPIO_HIGH;
-        } else {
+        } else if (strcmp(state_obj->valuestring, "low") == 0) {
             cmd.payload.gpio.state = WORKER_GPIO_LOW;
+        } else {
+            reject_command(msg_id, "Invalid state value");
+            goto done;
         }
         queue_command(&cmd);
     }
@@ -178,10 +236,13 @@ bool handle_websocket_message(const char *message) {
         cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
         cJSON *mode_obj = cJSON_GetObjectItem(payload, "mode");
 
-        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(mode_obj)) goto done;
+        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsString(mode_obj)) {
+            reject_command(msg_id, "Missing pin or mode parameter");
+            goto done;
+        }
 
         if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid pin number");
+            reject_command(msg_id, "Invalid pin number");
             goto done;
         }
         cmd.payload.gpio.pin = (uint8_t)pin_obj->valuedouble;
@@ -191,6 +252,7 @@ bool handle_websocket_message(const char *message) {
         } else if (strcmp(mode_obj->valuestring, "analog") == 0) {
             cmd.type = CMD_GPIO_GET_ANALOG;
         } else {
+            reject_command(msg_id, "Invalid mode (use 'digital' or 'analog')");
             goto done;
         }
         queue_command(&cmd);
@@ -202,14 +264,20 @@ bool handle_websocket_message(const char *message) {
         cJSON *freq_obj = cJSON_GetObjectItem(payload, "frequency");
         cJSON *duty_obj = cJSON_GetObjectItem(payload, "duty_cycle");
 
-        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsNumber(freq_obj) || !cJSON_IsNumber(duty_obj)) goto done;
+        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsNumber(freq_obj) || !cJSON_IsNumber(duty_obj)) {
+            reject_command(msg_id, "Missing pin, frequency, or duty_cycle parameter");
+            goto done;
+        }
 
-        if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid pin number");
+        // PWM pins must be real GPIOs: the LEDC channel map is indexed by pin,
+        // so reject anything past the chip's maximum pin number here as well
+        // as in hal.c (defense in depth against an OOB array access).
+        if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > MAX_GPIO_PIN) {
+            reject_command(msg_id, "Invalid pin number");
             goto done;
         }
         if (freq_obj->valuedouble < 0 || freq_obj->valuedouble > UINT32_MAX) {
-            LOG_E(TAG, "Invalid frequency");
+            reject_command(msg_id, "Invalid frequency");
             goto done;
         }
         cmd.type = CMD_PWM_SET;
@@ -224,10 +292,13 @@ bool handle_websocket_message(const char *message) {
         cJSON *pin_obj = cJSON_GetObjectItem(payload, "pin");
         cJSON *enable_obj = cJSON_GetObjectItem(payload, "enable");
 
-        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsBool(enable_obj)) goto done;
+        if (!cJSON_IsNumber(pin_obj) || !cJSON_IsBool(enable_obj)) {
+            reject_command(msg_id, "Invalid pin or enable parameter");
+            goto done;
+        }
 
         if (pin_obj->valuedouble < 0 || pin_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid pin number");
+            reject_command(msg_id, "Invalid pin number");
             goto done;
         }
         uint8_t pin = (uint8_t)pin_obj->valuedouble;
@@ -248,8 +319,13 @@ bool handle_websocket_message(const char *message) {
                 }
             }
             queue_command(&cmd);
+        } else {
+            // Disable monitoring: queue a command so the worker stops polling
+            // this pin and the server gets a monitoring_disabled ack.
+            cmd.type = CMD_GPIO_DISABLE_MONITORING;
+            cmd.payload.gpio.pin = pin;
+            queue_command(&cmd);
         }
-        // Disable monitoring: no command needed, just don't start monitoring
     }
     // === I2C CONFIGURE ===
     else if (strcmp(type, "i2c_configure") == 0) {
@@ -259,22 +335,25 @@ bool handle_websocket_message(const char *message) {
         cJSON *scl_obj = cJSON_GetObjectItem(payload, "scl_pin");
         cJSON *freq_obj = cJSON_GetObjectItem(payload, "frequency");
 
-        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(sda_obj) || !cJSON_IsNumber(scl_obj)) goto done;
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(sda_obj) || !cJSON_IsNumber(scl_obj)) {
+            reject_command(msg_id, "Missing bus, sda_pin, or scl_pin parameter");
+            goto done;
+        }
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+            reject_command(msg_id, "Invalid bus number");
             goto done;
         }
         if (sda_obj->valuedouble < 0 || sda_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid sda_pin number");
+            reject_command(msg_id, "Invalid sda_pin number");
             goto done;
         }
         if (scl_obj->valuedouble < 0 || scl_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid scl_pin number");
+            reject_command(msg_id, "Invalid scl_pin number");
             goto done;
         }
         if (cJSON_IsNumber(freq_obj) && (freq_obj->valuedouble < 0 || freq_obj->valuedouble > UINT32_MAX)) {
-            LOG_E(TAG, "Invalid frequency");
+            reject_command(msg_id, "Invalid frequency");
             goto done;
         }
         cmd.type = CMD_I2C_CONFIGURE;
@@ -290,10 +369,13 @@ bool handle_websocket_message(const char *message) {
     else if (strcmp(type, "i2c_scan") == 0) {
         if (!cJSON_IsObject(payload)) goto done;
         cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
-        if (!cJSON_IsNumber(bus_obj)) goto done;
+        if (!cJSON_IsNumber(bus_obj)) {
+            reject_command(msg_id, "Missing bus parameter");
+            goto done;
+        }
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+            reject_command(msg_id, "Invalid bus number");
             goto done;
         }
         cmd.type = CMD_I2C_SCAN;
@@ -307,15 +389,23 @@ bool handle_websocket_message(const char *message) {
         cJSON *addr_obj = cJSON_GetObjectItem(payload, "address");
         cJSON *data_obj = cJSON_GetObjectItem(payload, "data");
 
-        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsArray(data_obj)) goto done;
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsArray(data_obj)) {
+            reject_command(msg_id, "Missing bus, address, or data parameter");
+            goto done;
+        }
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+            reject_command(msg_id, "Invalid bus number");
             goto done;
         }
         cmd.type = CMD_I2C_WRITE;
         cmd.payload.i2c_write.bus = (uint8_t)bus_obj->valuedouble;
-        cmd.payload.i2c_write.address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
+        uint8_t address;
+        if (!parse_hex_byte(addr_obj->valuestring, &address)) {
+            reject_command(msg_id, "Invalid I2C address");
+            goto done;
+        }
+        cmd.payload.i2c_write.address = address;
 
         // Parse data as an array of hex-string bytes (e.g. ["0xAE", "0x01"]),
         // matching the SDK contract and the i2c_batch_write handler below.
@@ -324,12 +414,16 @@ bool handle_websocket_message(const char *message) {
         for (int i = 0; i < data_count && data_len < MAX_I2C_DATA_LEN; i++) {
             cJSON *byte_obj = cJSON_GetArrayItem(data_obj, i);
             if (cJSON_IsString(byte_obj)) {
-                cmd.payload.i2c_write.data[data_len++] =
-                    (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+                uint8_t byte;
+                if (!parse_hex_byte(byte_obj->valuestring, &byte)) {
+                    reject_command(msg_id, "Invalid hex byte in data");
+                    goto done;
+                }
+                cmd.payload.i2c_write.data[data_len++] = byte;
             }
         }
         if (data_len == 0) {
-            LOG_E(TAG, "i2c_write: no data");
+            reject_command(msg_id, "i2c_write: no data");
             goto done;
         }
         cmd.payload.i2c_write.data_len = data_len;
@@ -346,23 +440,38 @@ bool handle_websocket_message(const char *message) {
         cJSON *len_obj = cJSON_GetObjectItem(payload, "bytes_to_read");
         cJSON *reg_obj = cJSON_GetObjectItem(payload, "register_to_read");
 
-        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsNumber(len_obj)) goto done;
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsNumber(len_obj)) {
+            reject_command(msg_id, "Missing bus, address, or bytes_to_read parameter");
+            goto done;
+        }
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+            reject_command(msg_id, "Invalid bus number");
             goto done;
         }
         if (len_obj->valuedouble < 0 || len_obj->valuedouble > MAX_I2C_DATA_LEN) {
-            LOG_E(TAG, "I2C read length too large");
+            reject_command(msg_id, "I2C read length too large");
             goto done;
         }
         cmd.type = CMD_I2C_READ;
         cmd.payload.i2c_read.bus = (uint8_t)bus_obj->valuedouble;
-        cmd.payload.i2c_read.address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
+        uint8_t address;
+        if (!parse_hex_byte(addr_obj->valuestring, &address)) {
+            reject_command(msg_id, "Invalid I2C address");
+            goto done;
+        }
+        cmd.payload.i2c_read.address = address;
         cmd.payload.i2c_read.length = (size_t)len_obj->valuedouble;
-        cmd.payload.i2c_read.reg = cJSON_IsString(reg_obj)
-            ? (int)strtol(reg_obj->valuestring, NULL, 16)
-            : -1;
+        if (cJSON_IsString(reg_obj)) {
+            uint8_t reg;
+            if (!parse_hex_byte(reg_obj->valuestring, &reg)) {
+                reject_command(msg_id, "Invalid register_to_read");
+                goto done;
+            }
+            cmd.payload.i2c_read.reg = (int)reg;
+        } else {
+            cmd.payload.i2c_read.reg = -1;
+        }
         queue_command(&cmd);
     }
     // === ONEWIRE SEARCH ===
@@ -447,22 +556,38 @@ bool handle_websocket_message(const char *message) {
         cJSON *addr_obj = cJSON_GetObjectItem(payload, "address");
         cJSON *writes_obj = cJSON_GetObjectItem(payload, "writes");
 
-        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsArray(writes_obj)) goto done;
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) || !cJSON_IsArray(writes_obj)) {
+            reject_command(msg_id, "Missing required parameters: bus, address, writes");
+            goto done;
+        }
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+            reject_command(msg_id, "Invalid bus number");
             goto done;
         }
         uint8_t bus = (uint8_t)bus_obj->valuedouble;
-        uint8_t address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
-        int writes_count = cJSON_GetArraySize(writes_obj);
 
         if (bus > 1) {
-            LOG_E(TAG, "i2c_batch_write: invalid bus %d", bus);
+            reject_command(msg_id, "Invalid bus number (must be 0 or 1)");
             goto done;
         }
+
+        uint8_t address;
+        if (!parse_hex_byte(addr_obj->valuestring, &address)) {
+            reject_command(msg_id, "Invalid I2C address");
+            goto done;
+        }
+
+        // Validate address range, matching the Pico firmware
+        if (address < 0x08 || address > 0x77) {
+            reject_command(msg_id, "Invalid I2C address (must be 0x08-0x77)");
+            goto done;
+        }
+
+        int writes_count = cJSON_GetArraySize(writes_obj);
+
         if (writes_count == 0) {
-            LOG_E(TAG, "i2c_batch_write: empty writes array");
+            reject_command(msg_id, "i2c_batch_write: empty writes array");
             goto done;
         }
 
@@ -470,29 +595,9 @@ bool handle_websocket_message(const char *message) {
         for (int i = 0; i < writes_count; i++) {
             cJSON *write_op = cJSON_GetArrayItem(writes_obj, i);
             if (!cJSON_IsArray(write_op)) {
-                // cJSON_Delete cascade-frees err_payload; err_str free()'d before goto done.
-                cJSON *err_resp = cJSON_CreateObject();
-                cJSON *err_payload = cJSON_CreateObject();
-                cJSON_AddStringToObject(err_resp, "type", "command_error");
                 char err_msg[64];
                 snprintf(err_msg, sizeof(err_msg), "Write %d is not an array", i);
-                cJSON_AddStringToObject(err_payload, "error", err_msg);
-                cJSON_AddItemToObject(err_resp, "payload", err_payload);
-                if (msg_id[0] != '\0') {
-                    cJSON_AddStringToObject(err_resp, "id", msg_id);
-                }
-                // Store JSON for sending after cleanup
-                char *err_str = cJSON_PrintUnformatted(err_resp);
-                cJSON_Delete(err_resp);
-                if (err_str) {
-#ifndef UNIT_TEST
-                    // Send via websocket — we need access to ws_send, but websocket_handler
-                    // doesn't have direct access. Use the response queue mechanism instead.
-                    // For inline commands, we log the error. The caller can check logs.
-                    LOG_E(TAG, "i2c_batch_write error: %s", err_str);
-#endif
-                    free(err_str);
-                }
+                reject_command(msg_id, err_msg);
                 goto done;
             }
 
@@ -503,12 +608,19 @@ bool handle_websocket_message(const char *message) {
             for (int j = 0; j < data_count && data_len < sizeof(data); j++) {
                 cJSON *byte_obj = cJSON_GetArrayItem(write_op, j);
                 if (cJSON_IsString(byte_obj)) {
-                    data[data_len++] = (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+                    uint8_t byte;
+                    if (!parse_hex_byte(byte_obj->valuestring, &byte)) {
+                        reject_command(msg_id, "Invalid hex byte in write data");
+                        goto done;
+                    }
+                    data[data_len++] = byte;
                 }
             }
 
             if (data_len == 0) {
-                LOG_E(TAG, "i2c_batch_write: write %d has no data", i);
+                char err_msg[64];
+                snprintf(err_msg, sizeof(err_msg), "Write %d has no data", i);
+                reject_command(msg_id, err_msg);
                 goto done;
             }
 
@@ -524,7 +636,8 @@ bool handle_websocket_message(const char *message) {
             write_cmd.payload.i2c_write.data_len = data_len;
 
             if (!queue_command(&write_cmd)) {
-                LOG_E(TAG, "i2c_batch_write: failed to queue write %d", i);
+                // queue_command already answered with a command_error
+                // ("Command queue full" / "not initialized"); abort the batch.
                 goto done;
             }
         }
@@ -535,10 +648,13 @@ bool handle_websocket_message(const char *message) {
         cJSON *timeout_obj = cJSON_GetObjectItem(payload, "timeout_ms");
         cJSON *enable_obj = cJSON_GetObjectItem(payload, "enable");
 
-        if (!cJSON_IsNumber(timeout_obj) || !cJSON_IsBool(enable_obj)) goto done;
+        if (!cJSON_IsNumber(timeout_obj) || !cJSON_IsBool(enable_obj)) {
+            reject_command(msg_id, "Missing timeout_ms or enable parameter");
+            goto done;
+        }
 
         if (timeout_obj->valuedouble < 0 || timeout_obj->valuedouble > UINT32_MAX) {
-            LOG_E(TAG, "Invalid timeout_ms");
+            reject_command(msg_id, "Invalid timeout_ms");
             goto done;
         }
         cmd.type = CMD_WATCHDOG_CONFIGURE;
@@ -564,34 +680,37 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(clk_obj) ||
             !cJSON_IsNumber(mosi_obj) || !cJSON_IsNumber(miso_obj) ||
-            !cJSON_IsNumber(cs_obj)) goto done;
+            !cJSON_IsNumber(cs_obj)) {
+            reject_command(msg_id, "Missing bus, clk_pin, mosi_pin, miso_pin, or cs_pin parameter");
+            goto done;
+        }
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+            reject_command(msg_id, "Invalid bus number");
             goto done;
         }
         if (clk_obj->valuedouble < 0 || clk_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid clk_pin number");
+            reject_command(msg_id, "Invalid clk_pin number");
             goto done;
         }
         if (mosi_obj->valuedouble < 0 || mosi_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid mosi_pin number");
+            reject_command(msg_id, "Invalid mosi_pin number");
             goto done;
         }
         if (miso_obj->valuedouble < 0 || miso_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid miso_pin number");
+            reject_command(msg_id, "Invalid miso_pin number");
             goto done;
         }
         if (cs_obj->valuedouble < 0 || cs_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid cs_pin number");
+            reject_command(msg_id, "Invalid cs_pin number");
             goto done;
         }
         if (cJSON_IsNumber(freq_obj) && (freq_obj->valuedouble < 0 || freq_obj->valuedouble > UINT32_MAX)) {
-            LOG_E(TAG, "Invalid frequency");
+            reject_command(msg_id, "Invalid frequency");
             goto done;
         }
         if (cJSON_IsNumber(mode_obj) && (mode_obj->valuedouble < 0 || mode_obj->valuedouble > 255)) {
-            LOG_E(TAG, "Invalid mode");
+            reject_command(msg_id, "Invalid mode");
             goto done;
         }
         cmd.type = CMD_SPI_CONFIGURE;
@@ -610,10 +729,13 @@ bool handle_websocket_message(const char *message) {
         cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
         cJSON *data_obj = cJSON_GetObjectItem(payload, "data");
 
-        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsArray(data_obj)) goto done;
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsArray(data_obj)) {
+            reject_command(msg_id, "Missing bus or data parameter");
+            goto done;
+        }
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+            reject_command(msg_id, "Invalid bus number");
             goto done;
         }
         cmd.type = CMD_SPI_TRANSFER;
@@ -624,7 +746,12 @@ bool handle_websocket_message(const char *message) {
         for (int i = 0; i < data_count && data_len < MAX_SPI_DATA_LEN; i++) {
             cJSON *byte_obj = cJSON_GetArrayItem(data_obj, i);
             if (cJSON_IsString(byte_obj)) {
-                cmd.payload.spi_data.data[data_len++] = (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+                uint8_t byte;
+                if (!parse_hex_byte(byte_obj->valuestring, &byte)) {
+                    reject_command(msg_id, "Invalid hex byte in data");
+                    goto done;
+                }
+                cmd.payload.spi_data.data[data_len++] = byte;
             }
         }
         cmd.payload.spi_data.data_len = data_len;
@@ -636,10 +763,13 @@ bool handle_websocket_message(const char *message) {
         cJSON *bus_obj = cJSON_GetObjectItem(payload, "bus");
         cJSON *data_obj = cJSON_GetObjectItem(payload, "data");
 
-        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsArray(data_obj)) goto done;
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsArray(data_obj)) {
+            reject_command(msg_id, "Missing bus or data parameter");
+            goto done;
+        }
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+            reject_command(msg_id, "Invalid bus number");
             goto done;
         }
         cmd.type = CMD_SPI_WRITE;
@@ -650,7 +780,12 @@ bool handle_websocket_message(const char *message) {
         for (int i = 0; i < data_count && data_len < MAX_SPI_DATA_LEN; i++) {
             cJSON *byte_obj = cJSON_GetArrayItem(data_obj, i);
             if (cJSON_IsString(byte_obj)) {
-                cmd.payload.spi_data.data[data_len++] = (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+                uint8_t byte;
+                if (!parse_hex_byte(byte_obj->valuestring, &byte)) {
+                    reject_command(msg_id, "Invalid hex byte in data");
+                    goto done;
+                }
+                cmd.payload.spi_data.data[data_len++] = byte;
             }
         }
         cmd.payload.spi_data.data_len = data_len;
@@ -663,14 +798,19 @@ bool handle_websocket_message(const char *message) {
         // SDK contract (core SpiReadCommand) sends "bytes_to_read", not "length".
         cJSON *len_obj = cJSON_GetObjectItem(payload, "bytes_to_read");
 
-        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(len_obj)) goto done;
-
-        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+        if (!cJSON_IsNumber(bus_obj) || !cJSON_IsNumber(len_obj)) {
+            reject_command(msg_id, "Missing bus or bytes_to_read parameter");
             goto done;
         }
-        if (len_obj->valuedouble < 0 || len_obj->valuedouble > MAX_SPI_DATA_LEN) {
-            LOG_E(TAG, "SPI read length too large");
+
+        if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
+            reject_command(msg_id, "Invalid bus number");
+            goto done;
+        }
+        // The worker caps read results at MAX_SPI_RESPONSE_DATA, so reject
+        // larger requests here rather than queuing a doomed command.
+        if (len_obj->valuedouble < 0 || len_obj->valuedouble > MAX_SPI_RESPONSE_DATA) {
+            reject_command(msg_id, "SPI read length too large");
             goto done;
         }
         cmd.type = CMD_SPI_READ;
@@ -690,34 +830,37 @@ bool handle_websocket_message(const char *message) {
         cJSON *parity_obj = cJSON_GetObjectItem(payload, "parity");
 
         if (!cJSON_IsNumber(port_obj) || !cJSON_IsNumber(tx_obj) ||
-            !cJSON_IsNumber(rx_obj) || !cJSON_IsNumber(baud_obj)) goto done;
+            !cJSON_IsNumber(rx_obj) || !cJSON_IsNumber(baud_obj)) {
+            reject_command(msg_id, "Missing port, tx_pin, rx_pin, or baud_rate parameter");
+            goto done;
+        }
 
         if (port_obj->valuedouble < 0 || port_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid port number");
+            reject_command(msg_id, "Invalid port number");
             goto done;
         }
         if (tx_obj->valuedouble < 0 || tx_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid tx_pin number");
+            reject_command(msg_id, "Invalid tx_pin number");
             goto done;
         }
         if (rx_obj->valuedouble < 0 || rx_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid rx_pin number");
+            reject_command(msg_id, "Invalid rx_pin number");
             goto done;
         }
         if (baud_obj->valuedouble < 0 || baud_obj->valuedouble > UINT32_MAX) {
-            LOG_E(TAG, "Invalid baud_rate");
+            reject_command(msg_id, "Invalid baud_rate");
             goto done;
         }
         if (cJSON_IsNumber(data_bits_obj) && (data_bits_obj->valuedouble < 0 || data_bits_obj->valuedouble > 255)) {
-            LOG_E(TAG, "Invalid data_bits");
+            reject_command(msg_id, "Invalid data_bits");
             goto done;
         }
         if (cJSON_IsNumber(stop_bits_obj) && (stop_bits_obj->valuedouble < 0 || stop_bits_obj->valuedouble > 255)) {
-            LOG_E(TAG, "Invalid stop_bits");
+            reject_command(msg_id, "Invalid stop_bits");
             goto done;
         }
         if (cJSON_IsNumber(parity_obj) && (parity_obj->valuedouble < 0 || parity_obj->valuedouble > 255)) {
-            LOG_E(TAG, "Invalid parity");
+            reject_command(msg_id, "Invalid parity");
             goto done;
         }
         cmd.type = CMD_UART_CONFIGURE;
@@ -736,10 +879,13 @@ bool handle_websocket_message(const char *message) {
         cJSON *port_obj = cJSON_GetObjectItem(payload, "port");
         cJSON *data_obj = cJSON_GetObjectItem(payload, "data");
 
-        if (!cJSON_IsNumber(port_obj) || !cJSON_IsArray(data_obj)) goto done;
+        if (!cJSON_IsNumber(port_obj) || !cJSON_IsArray(data_obj)) {
+            reject_command(msg_id, "Missing port or data parameter");
+            goto done;
+        }
 
         if (port_obj->valuedouble < 0 || port_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid port number");
+            reject_command(msg_id, "Invalid port number");
             goto done;
         }
         cmd.type = CMD_UART_WRITE;
@@ -750,7 +896,12 @@ bool handle_websocket_message(const char *message) {
         for (int i = 0; i < data_count && data_len < MAX_UART_DATA_LEN; i++) {
             cJSON *byte_obj = cJSON_GetArrayItem(data_obj, i);
             if (cJSON_IsString(byte_obj)) {
-                cmd.payload.uart_write.data[data_len++] = (uint8_t)strtol(byte_obj->valuestring, NULL, 16);
+                uint8_t byte;
+                if (!parse_hex_byte(byte_obj->valuestring, &byte)) {
+                    reject_command(msg_id, "Invalid hex byte in data");
+                    goto done;
+                }
+                cmd.payload.uart_write.data[data_len++] = byte;
             }
         }
         cmd.payload.uart_write.data_len = data_len;
@@ -764,18 +915,23 @@ bool handle_websocket_message(const char *message) {
         cJSON *len_obj = cJSON_GetObjectItem(payload, "bytes_to_read");
         cJSON *timeout_obj = cJSON_GetObjectItem(payload, "timeout_ms");
 
-        if (!cJSON_IsNumber(port_obj) || !cJSON_IsNumber(len_obj)) goto done;
-
-        if (port_obj->valuedouble < 0 || port_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid port number");
+        if (!cJSON_IsNumber(port_obj) || !cJSON_IsNumber(len_obj)) {
+            reject_command(msg_id, "Missing port or bytes_to_read parameter");
             goto done;
         }
-        if (len_obj->valuedouble < 0 || len_obj->valuedouble > MAX_UART_DATA_LEN) {
-            LOG_E(TAG, "UART read length too large");
+
+        if (port_obj->valuedouble < 0 || port_obj->valuedouble > 255) {
+            reject_command(msg_id, "Invalid port number");
+            goto done;
+        }
+        // The worker caps read results at MAX_UART_RESPONSE_DATA, so reject
+        // larger requests here rather than queuing a doomed command.
+        if (len_obj->valuedouble < 0 || len_obj->valuedouble > MAX_UART_RESPONSE_DATA) {
+            reject_command(msg_id, "UART read length too large");
             goto done;
         }
         if (cJSON_IsNumber(timeout_obj) && (timeout_obj->valuedouble < 0 || timeout_obj->valuedouble > UINT32_MAX)) {
-            LOG_E(TAG, "Invalid timeout_ms");
+            reject_command(msg_id, "Invalid timeout_ms");
             goto done;
         }
         cmd.type = CMD_UART_READ;
@@ -799,33 +955,40 @@ bool handle_websocket_message(const char *message) {
 
         if (!cJSON_IsNumber(bus_obj) || !cJSON_IsString(addr_obj) ||
             !cJSON_IsString(controller_obj) || !cJSON_IsNumber(width_obj) ||
-            !cJSON_IsNumber(height_obj) || !cJSON_IsArray(segments_obj)) goto done;
+            !cJSON_IsNumber(height_obj) || !cJSON_IsArray(segments_obj)) {
+            reject_command(msg_id, "Missing required parameters for display_update");
+            goto done;
+        }
 
         if (bus_obj->valuedouble < 0 || bus_obj->valuedouble > 255) {
-            LOG_E(TAG, "Invalid bus number");
+            reject_command(msg_id, "Invalid bus number");
             goto done;
         }
         if (width_obj->valuedouble <= 0 || width_obj->valuedouble > 128) {
-            LOG_E(TAG, "Invalid width (must be 1-128)");
+            reject_command(msg_id, "Invalid width (must be 1-128)");
             goto done;
         }
         if (height_obj->valuedouble <= 0 || height_obj->valuedouble > 64 ||
             ((uint32_t)height_obj->valuedouble % 8) != 0) {
-            LOG_E(TAG, "Invalid height (must be 1-64 and a multiple of 8)");
+            reject_command(msg_id, "Invalid height (must be 1-64 and a multiple of 8)");
             goto done;
         }
         if (cJSON_IsNumber(col_off_obj) &&
             (col_off_obj->valuedouble < 0 || col_off_obj->valuedouble > 127)) {
-            LOG_E(TAG, "Invalid columnOffset (must be 0-127)");
+            reject_command(msg_id, "Invalid columnOffset (must be 0-127)");
             goto done;
         }
         if (cJSON_IsNumber(page_off_obj) &&
             (page_off_obj->valuedouble < 0 || page_off_obj->valuedouble > 7)) {
-            LOG_E(TAG, "Invalid pageOffset (must be 0-7)");
+            reject_command(msg_id, "Invalid pageOffset (must be 0-7)");
             goto done;
         }
         uint8_t bus = (uint8_t)bus_obj->valuedouble;
-        uint8_t address = (uint8_t)strtol(addr_obj->valuestring, NULL, 16);
+        uint8_t address;
+        if (!parse_hex_byte(addr_obj->valuestring, &address)) {
+            reject_command(msg_id, "Invalid display address");
+            goto done;
+        }
         const char *controller = controller_obj->valuestring;
         uint8_t width = (uint8_t)width_obj->valuedouble;
         uint8_t height = (uint8_t)height_obj->valuedouble;
@@ -833,20 +996,26 @@ bool handle_websocket_message(const char *message) {
         uint8_t page_offset = cJSON_IsNumber(page_off_obj) ? (uint8_t)page_off_obj->valuedouble : 0;
 
         if ((uint32_t)col_offset + width > 128) {
-            LOG_E(TAG, "columnOffset + width exceeds 128");
+            reject_command(msg_id, "columnOffset + width exceeds 128");
             goto done;
         }
         if ((uint32_t)page_offset + (height / 8) > 8) {
-            LOG_E(TAG, "pageOffset + height/8 exceeds 8");
+            reject_command(msg_id, "pageOffset + height/8 exceeds 8");
             goto done;
         }
 
         bool is_ssd1306 = (strcmp(controller, "ssd1306") == 0);
         bool is_sh1106 = (strcmp(controller, "sh1106") == 0);
-        if (!is_ssd1306 && !is_sh1106) goto done;
+        if (!is_ssd1306 && !is_sh1106) {
+            reject_command(msg_id, "Invalid controller type");
+            goto done;
+        }
 
         size_t fb_size = (size_t)width * height / 8;
-        if (fb_size > MAX_DISPLAY_BUFFER_SIZE) goto done;
+        if (fb_size > MAX_DISPLAY_BUFFER_SIZE) {
+            reject_command(msg_id, "Framebuffer too large");
+            goto done;
+        }
 
         uint8_t fb_data[MAX_DISPLAY_BUFFER_SIZE];
         memset(fb_data, 0, sizeof(fb_data));
@@ -863,12 +1032,16 @@ bool handle_websocket_message(const char *message) {
             cJSON *data_obj = cJSON_GetObjectItem(seg, "data");
             if (!cJSON_IsNumber(offset_obj) || !cJSON_IsString(data_obj)) continue;
 
+            // Reject out-of-range offsets before casting: (size_t) of a huge
+            // double is UB and can wrap small, passing a sum-based bounds check.
+            if (offset_obj->valuedouble < 0 || offset_obj->valuedouble > (double)fb_size) continue;
+
             size_t offset = (size_t)offset_obj->valuedouble;
             size_t decoded_len = 0;
             uint8_t *decoded = base64_decode(data_obj->valuestring, &decoded_len);
             if (!decoded) continue;
 
-            if (offset + decoded_len <= fb_size) {
+            if (decoded_len <= fb_size - offset) {
                 memcpy(&fb_data[offset], decoded, decoded_len);
                 seg_info[seg_count].offset = offset;
                 seg_info[seg_count].length = decoded_len;
@@ -896,6 +1069,7 @@ bool handle_websocket_message(const char *message) {
     }
     else {
         LOG_W(TAG, "Unknown command type: %s", type);
+        reject_command(msg_id, "Unknown command type");
     }
 
 done:

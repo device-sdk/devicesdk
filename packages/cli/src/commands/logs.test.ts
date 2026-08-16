@@ -332,6 +332,111 @@ describe("logs command (WS)", () => {
 		expect(err.message).toMatch(/exit:0/);
 	});
 
+	it("tail: a server that opens and immediately closes exhausts the reconnect budget", async () => {
+		vi.useFakeTimers();
+		const captured = logs("proj", "dev", { tail: true, lines: 10 }).catch(
+			(e: Error) => e,
+		);
+
+		for (let i = 0; i < 6; i++) {
+			await vi.advanceTimersByTimeAsync(0);
+			const ws = wsInstances[wsInstances.length - 1];
+			ws.emit("open");
+			// Close before the 5s minimum lifetime - counted as an attempt.
+			ws.emit("close");
+			await vi.advanceTimersByTimeAsync(35_000);
+		}
+
+		const err = await captured;
+		expect(err).toBeInstanceOf(Error);
+		expect((err as Error).message).toMatch(/exit:1/);
+		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toContain(
+			"Failed to reconnect",
+		);
+		vi.useRealTimers();
+	});
+
+	it("tail: a connection surviving the minimum lifetime resets the attempt budget", async () => {
+		vi.useFakeTimers();
+		const captured = logs("proj", "dev", { tail: true, lines: 10 }).catch(
+			(e: Error) => e,
+		);
+
+		// Two healthy cycles (6s each) - the budget must never accumulate.
+		for (let cycle = 0; cycle < 2; cycle++) {
+			await vi.advanceTimersByTimeAsync(0);
+			const ws = wsInstances[wsInstances.length - 1];
+			ws.emit("open");
+			await vi.advanceTimersByTimeAsync(6_000);
+			ws.emit("close");
+			await vi.advanceTimersByTimeAsync(2_000);
+			expect(exitSpy).not.toHaveBeenCalled();
+			expect(wsInstances.length).toBe(cycle + 2);
+		}
+
+		// Tear down via SIGINT so the test exits cleanly.
+		try {
+			process.emit("SIGINT");
+		} catch {
+			/* exitSpy throws */
+		}
+		const err = (await captured) as Error;
+		expect(err.message).toMatch(/exit:0/);
+		vi.useRealTimers();
+	});
+
+	it("tail: a stalled handshake times out with a clear error", async () => {
+		const captured = logs("proj", "dev", { tail: true, lines: 10 }).catch(
+			(e: Error) => e,
+		);
+		await new Promise((r) => setTimeout(r, 0));
+		const ws = wsInstances[0];
+
+		ws.emit("error", new Error("Opening handshake has timed out"));
+
+		const err = (await captured) as Error;
+		expect(err).toBeInstanceOf(Error);
+		expect(err.message).toMatch(/exit:1/);
+		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toContain(
+			"timed out during the WebSocket handshake",
+		);
+		// No reconnect was attempted - the timeout is fatal.
+		expect(wsInstances).toHaveLength(1);
+	});
+
+	it("defaults a NaN --lines to 50 in the watch URL", async () => {
+		const captured = logs("proj", "dev", {
+			tail: false,
+			lines: Number.NaN,
+		}).catch((e: Error) => e);
+		await new Promise((r) => setTimeout(r, 0));
+
+		expect(wsInstances[0].url).toContain("backfillLimit=50");
+		expect(wsInstances[0].url).not.toContain("NaN");
+
+		wsInstances[0].emit("open");
+		wsInstances[0].emit(
+			"message",
+			Buffer.from(JSON.stringify({ event: "history_complete" })),
+		);
+		await captured;
+	});
+
+	it("rejects an unknown --level before connecting", async () => {
+		const captured = logs("proj", "dev", {
+			tail: false,
+			lines: 50,
+			level: "bogus",
+		}).catch((e: Error) => e);
+
+		const err = (await captured) as Error;
+		expect(err.message).toMatch(/exit:2/);
+		expect(wsInstances).toHaveLength(0);
+		expect(consoleErrorSpy.mock.calls.flat().join("\n")).toContain(
+			'Invalid log level "bogus"',
+		);
+	});
+
 	it("tail: 429 upgrade rejection terminates immediately without reconnecting", async () => {
 		const captured = logs("proj", "dev", { tail: true, lines: 10 }).catch(
 			(e: Error) => e,

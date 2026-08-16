@@ -1,6 +1,6 @@
 import net from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { isPortAvailable } from "./dev";
+import { isPortAvailable, parseDevPort, probePort } from "./dev";
 
 describe("dev command port selection", () => {
 	const servers: net.Server[] = [];
@@ -38,5 +38,44 @@ describe("dev command port selection", () => {
 
 		const available = await isPortAvailable(addr.port);
 		expect(available).toBe(false);
+	});
+
+	it("probePort reports an in-use port as in_use", async () => {
+		const server = net.createServer();
+		servers.push(server);
+		await new Promise<void>((resolve) => {
+			server.listen(0, () => resolve());
+		});
+		const addr = server.address() as net.AddressInfo;
+
+		expect(await probePort(addr.port)).toBe("in_use");
+	});
+
+	it("probePort reports a free port as available", async () => {
+		const server = net.createServer();
+		servers.push(server);
+		await new Promise<void>((resolve) => {
+			server.listen(0, () => resolve());
+		});
+		const addr = server.address() as net.AddressInfo;
+		server.close();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(await probePort(addr.port)).toBe("available");
+	});
+
+	it("parseDevPort accepts valid ports and the default", () => {
+		expect(parseDevPort(undefined)).toBe(8181);
+		expect(parseDevPort("3000")).toBe(3000);
+		expect(parseDevPort("1")).toBe(1);
+		expect(parseDevPort("65535")).toBe(65535);
+	});
+
+	it("parseDevPort rejects non-integer and out-of-range values", () => {
+		expect(Number.isNaN(parseDevPort("abc"))).toBe(true);
+		expect(Number.isNaN(parseDevPort("12.5"))).toBe(true);
+		expect(Number.isNaN(parseDevPort("0"))).toBe(true);
+		expect(Number.isNaN(parseDevPort("65536"))).toBe(true);
+		expect(Number.isNaN(parseDevPort(""))).toBe(true);
 	});
 });

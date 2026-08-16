@@ -129,6 +129,37 @@ describe("recalculateEsp32Checksum", () => {
 		await expect(recalculateEsp32Checksum(bytes)).rejects.toThrow(/too small/i);
 	});
 
+	test("throws on a truncated header (length between APP_OFFSET and APP_OFFSET+HEADER_SIZE)", async () => {
+		// Old guard only required length > APP_OFFSET, so bytes[APP_OFFSET+23]
+		// read undefined and produced a misleading error. The header needs the
+		// full 24 bytes (magic + segment_count + hash_appended at byte 23).
+		const bytes = new Uint8Array(APP_OFFSET + HEADER_SIZE - 1);
+		await expect(recalculateEsp32Checksum(bytes)).rejects.toThrow(/too small/i);
+	});
+
+	test("recomputes the SHA256 trailer for any non-zero hash_appended flag (upstream ESP-IDF semantics)", async () => {
+		const segments = [[1, 2, 3]];
+		// Build with hash space, then flip the flag to a non-zero value other
+		// than 1 - ESP-IDF treats any non-zero byte as hash-appended.
+		const bytes = buildEsp32Image({ segments, hashAppended: true });
+		bytes[APP_OFFSET + 23] = 2;
+
+		await recalculateEsp32Checksum(bytes);
+
+		const imageSize =
+			HEADER_SIZE + segments.reduce((a, s) => a + 8 + s.length, 0);
+		const alignedSize = Math.ceil((imageSize + 1) / 16) * 16;
+		const checksumOffset = APP_OFFSET + alignedSize - 1;
+		const hashOffset = checksumOffset + 1;
+
+		const hashInput = bytes.slice(APP_OFFSET, checksumOffset + 1);
+		const digest = new Uint8Array(
+			await crypto.subtle.digest("SHA-256", hashInput),
+		);
+		const written = bytes.slice(hashOffset, hashOffset + 32);
+		expect([...written]).toEqual([...digest]);
+	});
+
 	test("throws on a bad ESP image magic byte", async () => {
 		const bytes = buildEsp32Image({
 			segments: [[1, 2, 3]],

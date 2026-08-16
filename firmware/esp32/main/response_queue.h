@@ -57,12 +57,14 @@ typedef struct {
 
 // SPI transfer/read response data
 typedef struct {
+    uint8_t bus;
     uint8_t data[MAX_SPI_RESPONSE_DATA];
     size_t data_len;
 } spi_response_data_t;
 
 // UART read response data
 typedef struct {
+    uint8_t port;
     uint8_t data[MAX_UART_RESPONSE_DATA];
     size_t data_len;
 } uart_read_response_data_t;

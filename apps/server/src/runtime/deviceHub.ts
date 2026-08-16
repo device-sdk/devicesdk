@@ -26,6 +26,8 @@ export interface DeviceHubDeps {
 	db: Database;
 	scripts: FsBlobStore;
 	logger: ServerLogger;
+	/** connected_seconds accrual interval; overridable for tests. */
+	usageTickMs?: number;
 }
 
 /**
@@ -56,6 +58,7 @@ export class DeviceHub {
 				db: this.deps.db,
 				scripts: this.deps.scripts,
 				logger: this.deps.logger,
+				usageTickMs: this.deps.usageTickMs,
 				makeBridge: (meta) =>
 					makeBridge(
 						{

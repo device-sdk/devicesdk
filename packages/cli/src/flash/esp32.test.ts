@@ -152,19 +152,33 @@ describe("esp32 flash", () => {
 			});
 
 			expect(result).toEqual({ port: "/dev/ttyUSB0" });
-			// Second execa call is the actual flash
+			// Second execa call is the actual flash. --verify must NOT be
+			// passed: esptool verifies writes by default (v4+), and v5 removed
+			// the flag entirely (passing it aborts with an unknown-arg error).
 			expect(execaMock).toHaveBeenCalledWith(
 				"esptool.py",
 				expect.arrayContaining(["--port", "/dev/ttyUSB0"]),
 				{ stdio: "pipe" },
 			);
+			const flashCall = execaMock.mock.calls.find(
+				(call) =>
+					Array.isArray(call[1]) &&
+					(call[1] as string[]).includes("write_flash"),
+			);
+			expect(flashCall?.[1]).not.toContain("--verify");
 		});
 
-		it("auto-detects port and passes --port to esptool", async () => {
+		it("auto-detects a port that appears after the wait starts", async () => {
 			vi.spyOn(os, "platform").mockReturnValue("linux");
-			vi.spyOn(fs, "readdir").mockResolvedValue([
-				"ttyUSB0",
-			] as unknown as Awaited<ReturnType<typeof fs.readdir>>);
+			// First readdir call snapshots the pre-existing ports (none); the
+			// second poll sees the freshly plugged-in board.
+			const readdirMock = vi.spyOn(fs, "readdir");
+			readdirMock.mockResolvedValueOnce(
+				[] as unknown as Awaited<ReturnType<typeof fs.readdir>>,
+			);
+			readdirMock.mockResolvedValueOnce(["ttyUSB0"] as unknown as Awaited<
+				ReturnType<typeof fs.readdir>
+			>);
 			vi.spyOn(fs, "access").mockResolvedValue();
 			// esptool flash call
 			execaMock.mockResolvedValueOnce(
@@ -183,22 +197,62 @@ describe("esp32 flash", () => {
 			);
 		});
 
-		it("picks first port when multiple ttyUSB ports exist", async () => {
+		it("names pre-existing ports on timeout instead of a generic message", async () => {
 			vi.spyOn(os, "platform").mockReturnValue("linux");
-			vi.spyOn(fs, "readdir").mockResolvedValue([
+			// A board plugged in before the wait started must never be
+			// selected, but the timeout must name it so the user knows the
+			// board WAS detected.
+			const readdirMock = vi.spyOn(fs, "readdir");
+			readdirMock.mockResolvedValue(["ttyUSB0"] as unknown as Awaited<
+				ReturnType<typeof fs.readdir>
+			>);
+			vi.spyOn(fs, "access").mockResolvedValue();
+
+			await expect(
+				flashESP32({ firmwarePath: "/tmp/fw.bin", timeoutMs: 50 }),
+			).rejects.toThrow(
+				/Found \/dev\/ttyUSB0 already connected - unplug and replug the board, or pass --port/,
+			);
+		});
+
+		it("surfaces the dialout fix when a pre-existing port is not writable", async () => {
+			vi.spyOn(os, "platform").mockReturnValue("linux");
+			const readdirMock = vi.spyOn(fs, "readdir");
+			readdirMock.mockResolvedValue(["ttyUSB0"] as unknown as Awaited<
+				ReturnType<typeof fs.readdir>
+			>);
+			// The permission probe in waitForSerialPort rejects; the flash
+			// never starts so esptool is never invoked.
+			vi.spyOn(fs, "access").mockRejectedValue(new Error("EACCES"));
+
+			const promise = flashESP32({
+				firmwarePath: "/tmp/fw.bin",
+				timeoutMs: 50,
+			});
+			await expect(promise).rejects.toThrow(
+				/\/dev\/ttyUSB0 is not writable \(permission denied\)/,
+			);
+			await expect(promise).rejects.toThrow(/sudo usermod -a -G dialout/);
+			expect(execaMock).toHaveBeenCalledTimes(1);
+		});
+
+		it("errors instead of guessing when multiple new ports appear", async () => {
+			vi.spyOn(os, "platform").mockReturnValue("linux");
+			const readdirMock = vi.spyOn(fs, "readdir");
+			readdirMock.mockResolvedValueOnce(
+				[] as unknown as Awaited<ReturnType<typeof fs.readdir>>,
+			);
+			readdirMock.mockResolvedValueOnce([
 				"ttyUSB0",
 				"ttyUSB1",
 			] as unknown as Awaited<ReturnType<typeof fs.readdir>>);
 			vi.spyOn(fs, "access").mockResolvedValue();
-			execaMock.mockResolvedValueOnce(
-				{} as Awaited<ReturnType<typeof execaMock>>,
+
+			await expect(
+				flashESP32({ firmwarePath: "/tmp/fw.bin", timeoutMs: 10_000 }),
+			).rejects.toThrow(
+				/Multiple new serial ports detected: \/dev\/ttyUSB0, \/dev\/ttyUSB1/,
 			);
-
-			const result = await flashESP32({
-				firmwarePath: "/tmp/fw.bin",
-			});
-
-			expect(result).toEqual({ port: "/dev/ttyUSB0" });
 		});
 
 		it("throws permission error when port is not accessible", async () => {

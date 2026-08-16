@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import MetricsChart from '@/components/metrics/MetricsChart.vue';
 import {
@@ -111,7 +111,14 @@ const chartAriaLabel = computed(
     `${formatCount(totals.value.messages_out)} sent.`,
 );
 
+// Cancels an in-flight fetch when the device or window changes, so a slow
+// response for the previous device can't clobber the new device's chart.
+let fetchController: AbortController | null = null;
+
 const fetchMetrics = async () => {
+  fetchController?.abort();
+  const controller = new AbortController();
+  fetchController = controller;
   try {
     loading.value = true;
     error.value = false;
@@ -119,18 +126,36 @@ const fetchMetrics = async () => {
       props.projectId,
       props.deviceId,
       window.value,
+      controller.signal,
     );
+    if (controller.signal.aborted) return;
     series.value = data.series ?? [];
     totals.value = data.totals ?? { ...EMPTY_TOTALS };
   } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return;
     console.error('Error fetching device metrics:', err);
     error.value = true;
     const message = err instanceof Error ? err.message : 'Failed to load metrics';
     $q.notify({ type: 'negative', message, position: 'top' });
   } finally {
-    loading.value = false;
+    if (fetchController === controller) {
+      loading.value = false;
+      fetchController = null;
+    }
   }
 };
 
+// This panel stays mounted when navigating between devices of the same route;
+// refetch for the new ids instead of showing the previous device's chart.
+watch(
+  () => [props.projectId, props.deviceId],
+  () => {
+    void fetchMetrics();
+  },
+);
+
 onMounted(fetchMetrics);
+onUnmounted(() => {
+  fetchController?.abort();
+});
 </script>

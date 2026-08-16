@@ -28,9 +28,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/data
+      - devicesdk-data:/data
     environment:
       ALLOW_REGISTRATION: "true"
+
+volumes:
+  devicesdk-data:
 ```
 
 Then start it:
@@ -40,7 +43,7 @@ docker compose up -d
 # open http://localhost:8080  →  the first account you register becomes the admin
 ```
 
-Devices on your LAN connect to `ws://<this-machine>:8080`. All state (SQLite database, device scripts, firmware images) is persisted under the `./data` volume you control.
+Devices on your LAN connect to `ws://<this-machine>:8080`. All state (SQLite database, device scripts, firmware images) is persisted in the `devicesdk-data` Docker volume you control.
 
 The server also advertises itself over **mDNS** as `devicesdk.local`, so you can reach it and flash devices against it without knowing its LAN IP (`http://devicesdk.local:8080`). Set `MDNS_HOSTNAME` to a different name to run several DeviceSDK servers on one network.
 

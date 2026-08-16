@@ -1,4 +1,5 @@
 import { API_HOST } from '@/config/apiHost';
+import { redirectToLogin } from '@/lib/redirect';
 
 const API_BASE_URL = API_HOST;
 
@@ -41,15 +42,45 @@ type ApiCallOptions = RequestInit & {
    * logged in" and should be handled by the caller, not trigger a redirect.
    */
   suppressAuthRedirect?: boolean;
+  /** Abort the request if the server hasn't responded within this many ms. */
+  timeoutMs?: number;
 };
+
+const DEFAULT_TIMEOUT_MS = 60_000;
 
 async function call<T>(path: string, options?: ApiCallOptions): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
-  const { suppressAuthRedirect, ...fetchOptions } = options ?? {};
+  const {
+    suppressAuthRedirect,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    signal: callerSignal,
+    ...fetchOptions
+  } = options ?? {};
+
+  // Merge the caller's AbortSignal (cancellation on navigation/unmount) with a
+  // per-request timeout into one controller, so a hung server can't leave a
+  // spinner up forever and callers can still cancel their own requests.
+  const controller = new AbortController();
+  // Safari 14 / Chrome <98 ignore the abort reason and surface a timeout as a
+  // plain AbortError, so classify by this flag rather than signal.reason.
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort(new DOMException('Request timed out', 'TimeoutError'));
+  }, timeoutMs);
+  const onCallerAbort = () => controller.abort(callerSignal?.reason);
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      controller.abort(callerSignal.reason);
+    } else {
+      callerSignal.addEventListener('abort', onCallerAbort, { once: true });
+    }
+  }
 
   const finalOptions: RequestInit = {
     credentials: 'include',
     ...fetchOptions,
+    signal: controller.signal,
     headers: {
       'Content-Type': 'application/json',
       ...fetchOptions.headers,
@@ -61,16 +92,44 @@ async function call<T>(path: string, options?: ApiCallOptions): Promise<T> {
     response = await fetch(url, finalOptions);
   } catch (error) {
     // fetch only rejects for network-level failures (offline, DNS, CORS,
-    // aborted). Re-throw AbortError untouched so callers can ignore it; wrap
-    // everything else as a network ApiError with a friendly message.
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    // aborted, timed out). Re-throw AbortError untouched so callers can
+    // ignore caller-initiated cancellations; a timeout is a network-style
+    // failure and gets the friendly retry message.
+    if (timedOut) {
+      console.error(`API call to ${path} timed out after ${timeoutMs}ms`);
+      throw new ApiError(
+        'The request timed out. Check your connection and try again.',
+        { isNetworkError: true },
+      );
+    }
+    // A caller-initiated abort can surface as a plain AbortError without a
+    // recognizable name when the caller aborted with a custom reason - check
+    // the caller's signal directly so cancellation is never misread as a
+    // network failure.
+    if (callerSignal?.aborted) {
       throw error;
+    }
+    if (error instanceof DOMException) {
+      if (error.name === 'AbortError') {
+        throw error;
+      }
+      if (error.name === 'TimeoutError') {
+        console.error(`API call to ${path} timed out after ${timeoutMs}ms`);
+        throw new ApiError(
+          'The request timed out. Check your connection and try again.',
+          { isNetworkError: true },
+        );
+      }
     }
     console.error(`API call to ${path} failed (network):`, error);
     throw new ApiError(
       'Unable to reach the server. Check your connection and try again.',
       { isNetworkError: true },
     );
+  } finally {
+    clearTimeout(timeoutId);
+    timedOut = false;
+    callerSignal?.removeEventListener('abort', onCallerAbort);
   }
 
   if (!response.ok) {
@@ -78,7 +137,7 @@ async function call<T>(path: string, options?: ApiCallOptions): Promise<T> {
     // Skipped for the initial auth probe (suppressAuthRedirect), where a 401
     // is expected when the user is simply not logged in.
     if (response.status === 401 && !suppressAuthRedirect) {
-      window.location.href = '/login?expired=true';
+      redirectToLogin();
       // Return a never-resolving promise so callers don't continue.
       return new Promise<never>(() => {});
     }

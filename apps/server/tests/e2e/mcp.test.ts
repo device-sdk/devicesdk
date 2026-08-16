@@ -236,6 +236,92 @@ describe("POST /mcp: tools/call", () => {
 		);
 	});
 
+	test("devicesdk_env_delete rejects traversal/query-injection keys without touching other routes", async () => {
+		// Pre-fix, path segments were interpolated unencoded: a slug with "/"
+		// or ".." normalized into a different route (key ".." deleted the
+		// project). The env key itself was encodeURIComponent'd, but the
+		// slug params (projectId/deviceId/versionId) were raw.
+		await srv.post("/v1/projects", {
+			token: owner.token,
+			body: { project_slug: "mcp-x", name: "X" },
+		});
+		await srv.put("/v1/projects/mcp-x/env", {
+			token: owner.token,
+			body: { vars: { KEEP: "me" } },
+		});
+
+		// ".." previously normalized to DELETE /v1/projects/P (deleting the
+		// whole project); "?x" truncated the path and injected a query into
+		// another route. Both must now be rejected at the zod boundary.
+		for (const key of ["..", "?x"]) {
+			const res = await srv.post("/mcp", {
+				token: owner.token,
+				body: toolCall("devicesdk_env_delete", { projectId: "mcp-x", key }),
+				headers: MCP_HEADERS,
+			});
+			expect(res.status).toBe(200);
+			const body = res.body as McpEnvelope<ToolCallResult>;
+			expect(body.result?.isError).toBe(true);
+			expect(body.result?.content[0]?.text ?? "").toContain(
+				"Invalid arguments for tool devicesdk_env_delete",
+			);
+		}
+
+		// The project and its env var are untouched.
+		const list = await srv.get("/v1/projects", { token: owner.token });
+		const projects = (
+			list.body as {
+				result: { items: { project_slug: string }[] };
+			}
+		).result.items;
+		expect(projects.some((p) => p.project_slug === "mcp-x")).toBe(true);
+
+		const env = await srv.get("/v1/projects/mcp-x/env", { token: owner.token });
+		const vars = (env.body as { result: { vars: { key: string }[] } }).result
+			.vars;
+		expect(vars.some((v) => v.key === "KEEP")).toBe(true);
+	});
+
+	test("slug params with traversal separators are rejected at the boundary, never routed", async () => {
+		// projectId and deviceId are URL path segments in the loopback; a
+		// "/" or ".." in either must fail validation rather than re-route the
+		// in-process request.
+		for (const projectId of ["../mcp-x", "a/b", ".."]) {
+			const res = await srv.post("/mcp", {
+				token: owner.token,
+				body: toolCall("devicesdk_list_devices", { projectId }),
+				headers: MCP_HEADERS,
+			});
+			expect(res.status).toBe(200);
+			const body = res.body as McpEnvelope<ToolCallResult>;
+			expect(body.result?.isError).toBe(true);
+			expect(body.result?.content[0]?.text ?? "").toContain(
+				"Invalid arguments for tool devicesdk_list_devices",
+			);
+		}
+		for (const deviceId of ["../x", "a/b"]) {
+			const res = await srv.post("/mcp", {
+				token: owner.token,
+				body: toolCall("devicesdk_device_status", {
+					projectId: "mcp-x",
+					deviceId,
+				}),
+				headers: MCP_HEADERS,
+			});
+			const body = res.body as McpEnvelope<ToolCallResult>;
+			expect(body.result?.isError).toBe(true);
+		}
+
+		// Still intact after all the attempts.
+		const list = await srv.get("/v1/projects", { token: owner.token });
+		const projects = (
+			list.body as {
+				result: { items: { project_slug: string }[] };
+			}
+		).result.items;
+		expect(projects.some((p) => p.project_slug === "mcp-x")).toBe(true);
+	});
+
 	test("devicesdk_send_command against an unconnected device -> isError (503)", async () => {
 		await srv.post("/v1/projects", {
 			token: owner.token,

@@ -66,9 +66,23 @@ test.describe("Account page", () => {
       .getByRole("button", { name: "Delete Account" });
     await expect(deleteBtn).toBeDisabled();
 
-    // Type DELETE to enable
+    // Type DELETE + the account password to enable
     await page.getByPlaceholder("DELETE").fill("DELETE");
+    await expect(deleteBtn).toBeDisabled();
+    await page.getByPlaceholder("Enter your password").fill("password123");
     await expect(deleteBtn).toBeEnabled();
+
+    // Submit with a wrong password: the server re-verifies the password
+    // (argon2id) and rejects with 401 - asserting the request actually
+    // round-trips. A real deletion is intentionally NOT submitted here: the
+    // seeded user is shared by every spec file in the run.
+    await page.getByPlaceholder("Enter your password").fill("wrong-password");
+    await deleteBtn.click();
+    await expect(page.getByText("Password is incorrect.")).toBeVisible({
+      timeout: 10000,
+    });
+    // Account survives: the dialog is still open.
+    await expect(page.getByPlaceholder("DELETE")).toBeVisible();
 
     // Close dialog
     await page.keyboard.press("Escape");

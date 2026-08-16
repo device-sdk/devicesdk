@@ -15,14 +15,26 @@ public:
     bool connect(const char* host, const char* path, const char* token);
     void poll();
     bool send_text(const char* payload);
+    bool send_ping();
     bool is_connected() const;
     void close_connection();
 
-    // Rate limiting support
+    // Reason code of the last close frame received from the server (0 if the
+    // connection was closed locally or by an error callback).
     uint16_t last_close_code = 0;
-    uint32_t rate_limit_retry_after_ms = 0;
+
+    // HTTP status of the last handshake response (0 if none was received).
+    // 401 means the server rejected the API token - the caller can use this
+    // to stop the reconnect loop instead of retrying forever.
+    uint16_t last_http_status = 0;
 
 private:
+    // Protocol-level keepalive: we send PING frames periodically and the
+    // server PONGs them, so last_rx_ms advances even on an idle connection.
+    // A silent NAT idle-drop stops the PONGs and the dead-socket timeout
+    // closes the connection so the caller can reconnect.
+    std::string ws_key;
+    uint32_t last_rx_ms = 0;
     struct altcp_pcb* tls_pcb;
     struct altcp_tls_config* tls_config;
     // Plain-WS support for self-hosted servers: an explicit port in the host
@@ -37,6 +49,11 @@ private:
     int connected_state;
     bool http_response_complete;
     bool in_callback;
+    // Set from the lwIP callback context (close/error) to signal poll() on the
+    // main loop that queued responses must be dropped before the next flush.
+    // tx_queue is only ever mutated from the main loop; callbacks must not
+    // touch it directly (the background task can preempt a mid-push queue).
+    bool discard_pending_tx = false;
     std::vector<char> rx_buffer;
     std::queue<std::string> tx_queue;
 
@@ -52,10 +69,14 @@ private:
     void on_tcp_err(err_t err);
     void on_dns_found(const ip_addr_t *ipaddr);
 
-    size_t build_frame(char* buffer, size_t buffer_len, const char* payload, size_t payload_len);
+    size_t build_frame(char* buffer, size_t buffer_len, const char* payload, size_t payload_len, uint8_t opcode);
     void process_rx_buffer();
     size_t parse_frame(const char* buffer, size_t len);
     bool send_text_internal(const char* payload);
+    bool send_ctrl_frame(uint8_t opcode, const char* payload, size_t len);
+    bool send_frame_buffered(uint8_t opcode, const char* payload, size_t len,
+                             char* buffer, size_t buffer_len);
+    bool send_pong(const char* payload, size_t len);
 };
 
 #endif // WS_CLIENT_H

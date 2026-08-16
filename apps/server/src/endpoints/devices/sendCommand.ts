@@ -134,7 +134,10 @@ export class SendDeviceCommand extends BaseRoute {
 		}
 
 		if (doResult.status !== 200) {
-			return c.json({ success: false, error: doResult.body }, 500);
+			// The error body is device-owned and unbounded; cap it so a chatty
+			// or compromised device can't bloat the API response.
+			const message = doResult.body.slice(0, 500);
+			return c.json({ success: false, error: message }, 500);
 		}
 
 		let deviceResponse: {

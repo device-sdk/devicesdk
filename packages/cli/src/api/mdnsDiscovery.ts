@@ -189,11 +189,14 @@ export async function discoverMdnsHost(
 		const socket = dgram.createSocket({ type: "udp4", reuseAddr: true });
 		let resolved = false;
 		let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+		const sendTimers: ReturnType<typeof setTimeout>[] = [];
 
 		function finish(result: string | null) {
 			if (resolved) return;
 			resolved = true;
 			clearTimeout(timeoutHandle);
+			for (const timer of sendTimers) clearTimeout(timer);
+			sendTimers.length = 0;
 			try {
 				socket.close();
 			} catch {
@@ -223,12 +226,31 @@ export async function discoverMdnsHost(
 				// still reach the local segment on some systems.
 			}
 			const query = encodeAQuery(fqdn);
-			socket.send(query, MDNS_PORT, MDNS_ADDRESS, (err) => {
-				if (err) finish(null);
-			});
+			// Multicast UDP is lossy: a single dropped packet would otherwise
+			// fail discovery for the whole process. Re-query a few times inside
+			// the window (the overall timeout still bounds the wait).
+			const interval = Math.max(100, Math.floor(timeoutMs / 3));
+			for (let i = 0; i < 3; i++) {
+				const send = () => {
+					socket.send(query, MDNS_PORT, MDNS_ADDRESS, (err) => {
+						if (err) finish(null);
+					});
+				};
+				if (i === 0) {
+					send();
+				} else {
+					sendTimers.push(setTimeout(send, i * interval));
+				}
+			}
 		});
 
 		timeoutHandle = setTimeout(() => finish(null), timeoutMs);
-		socket.bind();
+		try {
+			socket.bind();
+		} catch {
+			// A synchronous bind failure (e.g. port in use) must not escape as
+			// an unhandled rejection - treat it as "no server discovered".
+			finish(null);
+		}
 	});
 }

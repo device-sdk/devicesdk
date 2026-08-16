@@ -74,16 +74,18 @@ describe("whoami", () => {
 		});
 	});
 
-	it("exits NOT_AUTHENTICATED when credentials file is missing", async () => {
+	it("exits GENERIC when requireAuth rejects (auth failures exit 3 inside requireAuth itself)", async () => {
 		const enoent = Object.assign(new Error("ENOENT"), { code: "ENOENT" });
 		vi.mocked(requireAuth).mockRejectedValue(enoent);
 
-		await expect(whoami()).rejects.toThrow("process.exit(3)");
+		await expect(whoami()).rejects.toThrow("process.exit(1)");
 
 		expect(getMe).not.toHaveBeenCalled();
 		expect(errorSpy).toHaveBeenCalled();
-		// Exit code 3 = NOT_AUTHENTICATED in EXIT enum
-		expect(exitSpy).toHaveBeenCalledWith(3);
+		// Exit code 1 = GENERIC: whoami no longer special-cases ENOENT (the
+		// branch was unreachable - requireAuth exits 3 before whoami's catch
+		// could ever see it).
+		expect(exitSpy).toHaveBeenCalledWith(1);
 	});
 
 	it("exits with generic error when getMe fails for non-auth reasons", async () => {

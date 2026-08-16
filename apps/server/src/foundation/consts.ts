@@ -2,6 +2,11 @@ export const DEVICE_SINGLETON_NAME = "DEVICE";
 export const SESSION_COOKIE_NAME = "devicesdk-session";
 export const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
+// CLI access tokens are enforced by cli_tokens.expires_at; the expires_in
+// claim in poll/refresh responses must match so clients compute the same
+// deadline (previously advertised 24h while enforcement was 30 days).
+export const CLI_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+
 // Device logging limits
 export const VALID_LOG_LEVELS = [
 	"log",
@@ -36,6 +41,11 @@ export const RESOURCE_LIMITS = {
 	maxApiTokens: 100,
 	maxEnvVarsPerProject: 200,
 } as const;
+
+// device_kv bounds enforced in the user-facing kvPut; the __internal: cron
+// storage is exempt.
+export const MAX_KV_KEY_LENGTH = 128;
+export const MAX_KV_VALUE_BYTES = 4096;
 
 /**
  * WebSocket close code used when a new device connection supersedes a stale

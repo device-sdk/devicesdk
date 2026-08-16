@@ -3,8 +3,8 @@ import type { AppContext, tableTokens } from "../types";
 import {
 	ACCESS_TOKEN_TTL_MS,
 	ACCESS_TOKEN_TTL_SECONDS,
-	deleteAuthCode,
-	findAuthCodeByRawCode,
+	deleteAuthCodeById,
+	getAuthCodeByRawCode,
 	getClient,
 	oauthJsonError,
 } from "./store";
@@ -96,13 +96,28 @@ export async function handleTokenExchange(c: AppContext) {
 			"code, redirect_uri, client_id, and code_verifier are all required.",
 		);
 	}
+	if (codeVerifier.length < 43 || codeVerifier.length > 128) {
+		return oauthJsonError(
+			c,
+			400,
+			"invalid_request",
+			"code_verifier must be between 43 and 128 characters (RFC 7636).",
+		);
+	}
 
 	const client = await getClient(c, clientId);
 	if (!client) {
 		return oauthJsonError(c, 401, "invalid_client", "Unknown client_id.");
 	}
 
-	const authCode = await findAuthCodeByRawCode(c, code);
+	// Read the code WITHOUT consuming it: client_id/redirect_uri/PKCE are
+	// verified against the row first, and only a fully verified exchange
+	// deletes it (store.ts). A verification failure leaves the code intact so
+	// the client can retry within the 10-minute window. Race safety comes from
+	// the delete's row count: two concurrent exchanges of the same code both
+	// verify, but only one DELETE removes a row - the loser gets
+	// "already used" below.
+	const authCode = await getAuthCodeByRawCode(c, code);
 	if (!authCode) {
 		return oauthJsonError(
 			c,
@@ -132,8 +147,23 @@ export async function handleTokenExchange(c: AppContext) {
 		);
 	}
 
-	// Every check passed - consume the code (single use) before minting.
-	await deleteAuthCode(c, authCode.id);
+	const consumed = await deleteAuthCodeById(c, authCode.id);
+	if (!consumed) {
+		return oauthJsonError(
+			c,
+			400,
+			"invalid_grant",
+			"Code is invalid, expired, or already used.",
+		);
+	}
+
+	// Stamp the client as used so the janitor's idle sweep never drops an
+	// actively used registration.
+	await c.env.DB.prepare(
+		"UPDATE oauth_clients SET last_used_at = ?1 WHERE id = ?2",
+	)
+		.bind(Date.now(), client.id)
+		.run();
 
 	const rawToken = crypto.randomUUID().replaceAll("-", "");
 	const tokenHash = await hashToken(rawToken, c.env.config.apiTokenSecret);

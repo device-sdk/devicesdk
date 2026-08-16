@@ -26,8 +26,24 @@ function buildLoopback(appLike: AppRequester, c: AppContext): LoopbackFn {
 	const authHeader = c.req.header("Authorization");
 	const cookieHeader = c.req.header("Cookie");
 
-	return async (method, path, opts) => {
-		const url = new URL(path, "http://internal.invalid");
+	// Joins raw path segments into an absolute path, encoding each segment
+	// individually. No user-controlled string ever reaches `new URL` below
+	// unencoded: "/" and "?"/"#" inside a value become %2F/%3F/%23 instead of
+	// introducing extra path segments or a query string.
+	function joinSegments(segments: string[]): string {
+		return `/${segments.map((s) => encodeURIComponent(s)).join("/")}`;
+	}
+
+	return async (method, segments, opts) => {
+		// Belt-and-braces on top of the per-tool zod charset checks: ".."
+		// survives encodeURIComponent unchanged, so re-parse the joined path
+		// and verify URL normalization left it alone. A mismatch means a
+		// traversal attempt slipped past validation - refuse loudly.
+		const rawPath = joinSegments(segments);
+		const url = new URL(rawPath, "http://internal.invalid");
+		if (url.pathname !== rawPath) {
+			throw new Error(`Unsafe loopback path: ${rawPath}`);
+		}
 		if (opts?.query) {
 			for (const [key, value] of Object.entries(opts.query)) {
 				if (value !== undefined) url.searchParams.set(key, String(value));

@@ -23,6 +23,18 @@ describe("nextCronTime - standard expressions", () => {
 		expect(next).toBe(utc(2026, 6, 12, 10, 31, 0));
 	});
 
+	test("a fractional-millisecond after just before a boundary resolves to that boundary", () => {
+		// 0.5 ms before 10:31:00 - Math.ceil((after + 1) / 60_000) would round
+		// up past the boundary and skip to 10:32:00.
+		const after = utc(2026, 6, 12, 10, 30, 0) + 59_999.5;
+		const next = nextCronTime("* * * * *", after);
+		expect(next).toBe(utc(2026, 6, 12, 10, 31, 0));
+		// Just past a boundary still resolves to the following minute.
+		expect(nextCronTime("* * * * *", utc(2026, 6, 12, 10, 30, 0) + 0.5)).toBe(
+			utc(2026, 6, 12, 10, 31, 0),
+		);
+	});
+
 	test("daily at midnight rolls to the next day", () => {
 		const after = utc(2026, 6, 12, 10, 30, 0);
 		const next = nextCronTime("0 0 * * *", after);

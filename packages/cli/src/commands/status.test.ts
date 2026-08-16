@@ -241,11 +241,11 @@ describe("status command", () => {
 		);
 	});
 
-	it("exits 1 when --device flag specifies unknown device", async () => {
+	it("exits 2 when --device flag specifies unknown device", async () => {
 		apiMocks.listDevices.mockResolvedValue([makeDevice("sensor-1")]);
 
-		await expect(status({ device: "unknown" })).rejects.toThrowError(/exit:1/);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		await expect(status({ device: "unknown" })).rejects.toThrowError(/exit:2/);
+		expect(exitSpy).toHaveBeenCalledWith(2);
 	});
 
 	it("exits 1 when project is not found (404)", async () => {

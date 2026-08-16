@@ -1,8 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { MAX_SCRIPT_SIZE_BYTES } from "@devicesdk/core";
 import {
 	createProject,
 	DeviceSDKApiError,
+	getDeviceStatus,
 	getProject,
 	uploadScript,
 	uploadScriptsBatch,
@@ -151,6 +153,19 @@ export default async function deploy(
 					buildDir,
 					{},
 				);
+				// Catch oversized scripts locally with the same threshold the
+				// server enforces - uploading one would just round-trip to a
+				// 400 after a multi-minute upload on slow links.
+				if (size > MAX_SCRIPT_SIZE_BYTES) {
+					const msg = `${deviceId}: Script exceeds maximum size of ${formatSize(MAX_SCRIPT_SIZE_BYTES)} (${formatSize(size)})`;
+					if (json)
+						emitJsonError(msg, {
+							code: "script_too_large",
+							docs: DEPLOY_DOCS,
+						});
+					else console.error(`✗ ${msg}`);
+					process.exit(EXIT.BUILD_ERROR);
+				}
 				const script = await fs.readFile(outfile, "utf-8");
 				builtDevices.push({
 					deviceId,
@@ -203,6 +218,26 @@ export default async function deploy(
 			// Single device upload
 			const { deviceId, script, entrypointName } = builtDevices[0];
 			try {
+				// Derive created vs updated like the batch path: the single
+				// upload endpoint returns no status field, so a device with no
+				// current version yet gets "created", anything else "updated".
+				// The status call is cosmetic - never let it fail the deploy.
+				let status: "created" | "updated" = "updated";
+				try {
+					const currentStatus = await getDeviceStatus(
+						token,
+						config.projectId,
+						deviceId,
+					);
+					status = currentStatus.current_version_id ? "updated" : "created";
+				} catch (error) {
+					// A 404 means the device does not exist yet - the upload
+					// below creates it, so report "created". Other failures
+					// keep the cosmetic default.
+					if (error instanceof DeviceSDKApiError && error.statusCode === 404) {
+						status = "created";
+					}
+				}
 				const result = await uploadScript(
 					token,
 					config.projectId,
@@ -214,12 +249,13 @@ export default async function deploy(
 				deployedVersions.push({
 					deviceId,
 					versionId: result.version_id,
-					status: "updated",
+					status,
 					deviceRebooted: result.device_rebooted,
 					rebootReason: result.reboot_reason,
 				});
 				if (!json) {
-					console.log(`\n✓ ${deviceId}  ${result.version_id}  (updated)`);
+					const statusText = status === "created" ? "(created)" : "(updated)";
+					console.log(`\n✓ ${deviceId}  ${result.version_id}  ${statusText}`);
 					if (result.device_rebooted) {
 						console.log(`  Device rebooted: ${result.reboot_reason}`);
 					} else {
@@ -260,7 +296,19 @@ export default async function deploy(
 				);
 
 				if (!json) console.log("");
+				const failed: string[] = [];
 				for (const version of result.versions) {
+					if (version.status === "error") {
+						failed.push(
+							`${version.device_id}: ${version.error ?? "unknown error"}`,
+						);
+						if (!json) {
+							console.error(
+								`✗ ${version.device_id.padEnd(20)} ${version.error ?? "unknown error"}`,
+							);
+						}
+						continue;
+					}
 					deployedVersions.push({
 						deviceId: version.device_id,
 						versionId: version.version_id,
@@ -278,6 +326,24 @@ export default async function deploy(
 							`✓ ${version.device_id.padEnd(20)} ${version.version_id}  ${statusText}  (${rebootText})`,
 						);
 					}
+				}
+
+				if (failed.length > 0) {
+					const okCount = result.versions.length - failed.length;
+					if (json) {
+						emitJsonError(
+							`Deploy failed for ${failed.length} device(s): ${failed.join(" | ")}`,
+							{
+								code: "deploy_partial_failure",
+								docs: DEPLOY_DOCS,
+							},
+						);
+					} else {
+						console.error(
+							`\n✗ Deployed ${okCount} device(s) successfully, ${failed.length} failed`,
+						);
+					}
+					process.exit(EXIT.DEPLOY_ERROR);
 				}
 
 				if (!json) {

@@ -148,13 +148,21 @@
         <q-card-section>
           <p>Are you sure you want to delete your account?</p>
           <p class="text-caption text-negative q-mb-md">
-            Your account will be scheduled for deletion with a 7-day grace period.
-            During this time you will not be able to log in.
-            After 7 days, all your projects, devices, and data will be permanently deleted.
-            Contact support@devicesdk.com within the grace period to cancel.
+            This will permanently delete your account and all your projects,
+            devices, and data immediately. This action cannot be undone.
           </p>
           <p>Type <strong>DELETE</strong> to confirm:</p>
           <q-input v-model="deleteConfirmation" outlined dense placeholder="DELETE" />
+          <q-input
+            v-model="deletePassword"
+            type="password"
+            outlined
+            dense
+            class="q-mt-md"
+            label="Password"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+          />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
@@ -162,7 +170,7 @@
             flat
             color="negative"
             label="Delete Account"
-            :disable="deleteConfirmation !== 'DELETE'"
+            :disable="deleteConfirmation !== 'DELETE' || !deletePassword"
             :loading="deleting"
             @click="deleteAccount"
           />
@@ -176,6 +184,7 @@
 import { ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import { useAuth } from '@/composables/useAuth';
+import { ApiError } from '@/lib/api';
 import { userService } from '@/services/api.service';
 import { formatDate } from '@/lib/time';
 
@@ -185,6 +194,7 @@ const user = auth.user;
 
 const showDeleteDialog = ref(false);
 const deleteConfirmation = ref('');
+const deletePassword = ref('');
 const deleting = ref(false);
 
 function usageColor(used: number, max: number): string {
@@ -207,7 +217,7 @@ const tierLimits = computed(() => {
 const deleteAccount = async () => {
   try {
     deleting.value = true;
-    await userService.deleteAccount();
+    await userService.deleteAccount(deletePassword.value);
     $q.notify({
       type: 'warning',
       message: 'Account and all its data deleted.',
@@ -216,10 +226,15 @@ const deleteAccount = async () => {
     });
     showDeleteDialog.value = false;
     deleteConfirmation.value = '';
+    deletePassword.value = '';
     await auth.signOut();
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Failed to delete account. Please try again.';
+      error instanceof ApiError && error.status === 401
+        ? 'Password is incorrect.'
+        : error instanceof Error
+          ? error.message
+          : 'Failed to delete account. Please try again.';
     $q.notify({
       type: 'negative',
       message,

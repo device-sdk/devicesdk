@@ -18,7 +18,6 @@ devicesdk init [project-name] [flags]
 
 ## Flags
 
-- `--yes, -y` - Skip interactive prompts and use defaults
 - `--template <name>` - Use a specific template (basic, multi-device, empty)
 - `--no-git` - Skip initializing a git repository in the new project
 
@@ -72,7 +71,7 @@ devicesdk init my-project --template empty
 
 Create with defaults:
 ```bash
-devicesdk init my-iot-app --yes
+devicesdk init my-iot-app
 ```
 
 Create with specific template:
@@ -83,7 +82,7 @@ devicesdk init sensor-network --template multi-device
 Create in current directory:
 ```bash
 mkdir my-project && cd my-project
-devicesdk init . --yes
+devicesdk init .
 ```
 
 ## Project Structure

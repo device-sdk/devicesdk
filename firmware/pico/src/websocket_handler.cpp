@@ -7,11 +7,13 @@
 #include "commands/i2c_command_handler.h"
 #include "commands/sensor_commands.h"
 #include "base64.h"
+#include "hex.h"
 #include "pico/stdlib.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <climits>
+#include <memory>
 
 // Forward declarations for callbacks used by i2c_command_handler
 static void send_response(const char* type, const picojson::value& data);
@@ -58,29 +60,47 @@ static void send_error(const char* message) {
     send_response("command_error", picojson::value(payload));
 }
 
-// Queue a command to Core 1
+// Queue a command to Core 1. queue_t copies the struct into its own storage,
+// so the caller can keep the large struct off its stack; the caller owns the
+// heap allocation and frees it (via unique_ptr) on every path.
 static bool queue_command(worker_command_t* cmd) {
     cmd->sequence_id = ++g_sequence_counter;
     strncpy(cmd->message_id, g_current_message_id.c_str(), MAX_MESSAGE_ID_LEN - 1);
     cmd->message_id[MAX_MESSAGE_ID_LEN - 1] = '\0';
 
-    if (!queue_try_add(&g_command_queue, cmd)) {
+    bool ok = queue_try_add(&g_command_queue, cmd);
+    if (!ok) {
         send_error("Command queue full");
-        return false;
     }
-    return true;
+    return ok;
 }
 
-static uint8_t hex_to_byte(const char* hex) {
-    uint8_t result = 0;
-    for (int i = 0; i < 2; i++) {
-        result <<= 4;
-        char c = hex[i];
-        if (c >= '0' && c <= '9') result |= (c - '0');
-        else if (c >= 'a' && c <= 'f') result |= (c - 'a' + 10);
-        else if (c >= 'A' && c <= 'F') result |= (c - 'A' + 10);
+// Enqueue a raw WS payload for the main-loop consumer. Heap-allocates a
+// NUL-terminated copy so the recv callback (CYW43 background task, small
+// stack) never copies the payload into a stack buffer.
+void queue_ws_message(const char* data, size_t len) {
+    if (!data || len == 0) return;
+
+    if (len >= MAX_WS_MESSAGE_SIZE) {
+        printf("[WS] Dropping %zu-byte message (exceeds %d bytes)\n", len, MAX_WS_MESSAGE_SIZE - 1);
+        return;
     }
-    return result;
+
+    char* copy = (char*)malloc(len + 1);
+    if (!copy) {
+        printf("[WS] Out of memory, dropping message\n");
+        return;
+    }
+    memcpy(copy, data, len);
+    copy[len] = '\0';
+
+    ws_message_t msg = { copy, len };
+    if (!queue_try_add(&g_ws_message_queue, &msg)) {
+        // Bounded queue: drop rather than block the recv callback. A dropped
+        // command gets no ack and the server-side pending command times out.
+        printf("[WS] Message queue full, dropping message\n");
+        free(copy);
+    }
 }
 
 void handle_websocket_message(const picojson::value& v) {
@@ -105,13 +125,17 @@ void handle_websocket_message(const picojson::value& v) {
         payload = payload_it->second.get<picojson::object>();
     }
 
-    worker_command_t cmd;
-    memset(&cmd, 0, sizeof(cmd));
+    // Heap-allocated so this handler (which runs on the main loop) keeps its
+    // stack small: worker_command_t carries 4 KB of payload union. queue_t
+    // copies the struct into the queue; the unique_ptr frees our heap copy on
+    // every path (including early-return validation errors).
+    std::unique_ptr<worker_command_t> cmd(new worker_command_t());
+    memset(cmd.get(), 0, sizeof(worker_command_t));
 
     // === REBOOT ===
     if (type == "reboot") {
-        cmd.type = CMD_REBOOT;
-        queue_command(&cmd);
+        cmd->type = CMD_REBOOT;
+        queue_command(cmd.get());
     }
     // === SET GPIO STATE ===
     else if (type == "set_gpio_state") {
@@ -124,20 +148,20 @@ void handle_websocket_message(const picojson::value& v) {
             double pin_val = pin_it->second.get<double>();
             if (pin_val < 0 || pin_val > 255) { send_error("Invalid pin number"); return; }
 
-            cmd.type = CMD_GPIO_SET;
-            cmd.payload.gpio.pin = (uint8_t)pin_val;
+            cmd->type = CMD_GPIO_SET;
+            cmd->payload.gpio.pin = (uint8_t)pin_val;
 
             const std::string& state_str = state_it->second.get<std::string>();
             if (state_str == "high") {
-                cmd.payload.gpio.state = WORKER_GPIO_HIGH;
+                cmd->payload.gpio.state = WORKER_GPIO_HIGH;
             } else if (state_str == "low") {
-                cmd.payload.gpio.state = WORKER_GPIO_LOW;
+                cmd->payload.gpio.state = WORKER_GPIO_LOW;
             } else {
                 send_error("Invalid state value");
                 return;
             }
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing pin or state parameter");
         }
@@ -157,12 +181,12 @@ void handle_websocket_message(const picojson::value& v) {
             double freq_val = freq_it->second.get<double>();
             if (freq_val < 0 || freq_val > UINT32_MAX) { send_error("Invalid frequency"); return; }
 
-            cmd.type = CMD_PWM_SET;
-            cmd.payload.pwm.pin = (uint8_t)pin_val;
-            cmd.payload.pwm.frequency = (uint32_t)freq_val;
-            cmd.payload.pwm.duty_cycle = (float)duty_it->second.get<double>();
+            cmd->type = CMD_PWM_SET;
+            cmd->payload.pwm.pin = (uint8_t)pin_val;
+            cmd->payload.pwm.frequency = (uint32_t)freq_val;
+            cmd->payload.pwm.duty_cycle = (float)duty_it->second.get<double>();
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing pin, frequency, or duty_cycle parameter");
         }
@@ -181,16 +205,16 @@ void handle_websocket_message(const picojson::value& v) {
             const std::string& mode = mode_it->second.get<std::string>();
 
             if (mode == "digital") {
-                cmd.type = CMD_GPIO_GET_DIGITAL;
+                cmd->type = CMD_GPIO_GET_DIGITAL;
             } else if (mode == "analog") {
-                cmd.type = CMD_GPIO_GET_ANALOG;
+                cmd->type = CMD_GPIO_GET_ANALOG;
             } else {
                 send_error("Invalid mode (use 'digital' or 'analog')");
                 return;
             }
 
-            cmd.payload.gpio.pin = pin;
-            queue_command(&cmd);
+            cmd->payload.gpio.pin = pin;
+            queue_command(cmd.get());
         } else {
             send_error("Missing pin or mode parameter");
         }
@@ -210,31 +234,30 @@ void handle_websocket_message(const picojson::value& v) {
             bool enable = enable_it->second.get<bool>();
 
             if (enable) {
-                cmd.type = CMD_GPIO_CONFIGURE_INPUT;
-                cmd.payload.gpio.pin = pin;
+                cmd->type = CMD_GPIO_CONFIGURE_INPUT;
+                cmd->payload.gpio.pin = pin;
 
                 // Parse pull configuration
-                cmd.payload.gpio.pull = WORKER_PULL_UP;  // Default
+                cmd->payload.gpio.pull = WORKER_PULL_UP;  // Default
                 if (pull_it != payload.end() && pull_it->second.is<std::string>()) {
                     const std::string& pull_str = pull_it->second.get<std::string>();
                     if (pull_str == "up") {
-                        cmd.payload.gpio.pull = WORKER_PULL_UP;
+                        cmd->payload.gpio.pull = WORKER_PULL_UP;
                     } else if (pull_str == "down") {
-                        cmd.payload.gpio.pull = WORKER_PULL_DOWN;
+                        cmd->payload.gpio.pull = WORKER_PULL_DOWN;
                     } else if (pull_str == "none") {
-                        cmd.payload.gpio.pull = WORKER_PULL_NONE;
+                        cmd->payload.gpio.pull = WORKER_PULL_NONE;
                     }
                 }
 
-                queue_command(&cmd);
+                queue_command(cmd.get());
             } else {
-                // Disable monitoring - send response immediately since Core 1 tracks this
-                // TODO: Add CMD_GPIO_DISABLE_MONITORING if needed
-                picojson::object ack;
-                ack["command"] = picojson::value("configure_gpio_input_monitoring");
-                ack["pin"] = picojson::value((double)pin);
-                ack["status"] = picojson::value("monitoring_disabled");
-                send_response("command_ack", picojson::value(ack));
+                // Disable monitoring - route through Core 1 so the poll loop
+                // actually stops watching the pin (a direct ack here would
+                // leave polling running and reporting phantom state changes).
+                cmd->type = CMD_GPIO_DISABLE_MONITORING;
+                cmd->payload.gpio.pin = pin;
+                queue_command(cmd.get());
             }
         } else {
             send_error("Invalid pin or enable parameter");
@@ -265,13 +288,13 @@ void handle_websocket_message(const picojson::value& v) {
                 frequency = (uint32_t)freq_val;
             }
 
-            cmd.type = CMD_I2C_CONFIGURE;
-            cmd.payload.i2c_configure.bus = (uint8_t)bus_val;
-            cmd.payload.i2c_configure.sda_pin = (uint8_t)sda_val;
-            cmd.payload.i2c_configure.scl_pin = (uint8_t)scl_val;
-            cmd.payload.i2c_configure.frequency = frequency;
+            cmd->type = CMD_I2C_CONFIGURE;
+            cmd->payload.i2c_configure.bus = (uint8_t)bus_val;
+            cmd->payload.i2c_configure.sda_pin = (uint8_t)sda_val;
+            cmd->payload.i2c_configure.scl_pin = (uint8_t)scl_val;
+            cmd->payload.i2c_configure.frequency = frequency;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing bus, sda_pin, or scl_pin parameter");
         }
@@ -284,9 +307,9 @@ void handle_websocket_message(const picojson::value& v) {
             double bus_val = bus_it->second.get<double>();
             if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
 
-            cmd.type = CMD_I2C_SCAN;
-            cmd.payload.i2c_scan.bus = (uint8_t)bus_val;
-            queue_command(&cmd);
+            cmd->type = CMD_I2C_SCAN;
+            cmd->payload.i2c_scan.bus = (uint8_t)bus_val;
+            queue_command(cmd.get());
         } else {
             send_error("Missing bus parameter");
         }
@@ -304,11 +327,14 @@ void handle_websocket_message(const picojson::value& v) {
             double bus_val = bus_it->second.get<double>();
             if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
 
-            cmd.type = CMD_I2C_WRITE;
-            cmd.payload.i2c_write.bus = (uint8_t)bus_val;
+            cmd->type = CMD_I2C_WRITE;
+            cmd->payload.i2c_write.bus = (uint8_t)bus_val;
 
             std::string addr_str = addr_it->second.get<std::string>();
-            cmd.payload.i2c_write.address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
+            if (!parse_hex_byte(addr_str, &cmd->payload.i2c_write.address)) {
+                send_error("Invalid I2C address (expected hex byte)");
+                return;
+            }
 
             // Parse data as an array of hex-string bytes (e.g. ["0xAE", "0x01"]),
             // matching the SDK contract and the spi/i2c_batch_write handlers.
@@ -321,14 +347,19 @@ void handle_websocket_message(const picojson::value& v) {
 
             for (size_t i = 0; i < len; i++) {
                 if (data_arr[i].is<std::string>()) {
-                    cmd.payload.i2c_write.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                    uint8_t byte;
+                    if (!parse_hex_byte(data_arr[i].get<std::string>(), &byte)) {
+                        send_error("Invalid hex byte in data");
+                        return;
+                    }
+                    cmd->payload.i2c_write.data[i] = byte;
                 } else if (data_arr[i].is<double>()) {
-                    cmd.payload.i2c_write.data[i] = (uint8_t)data_arr[i].get<double>();
+                    cmd->payload.i2c_write.data[i] = (uint8_t)data_arr[i].get<double>();
                 }
             }
-            cmd.payload.i2c_write.data_len = len;
+            cmd->payload.i2c_write.data_len = len;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing bus, address, or data parameter");
         }
@@ -353,18 +384,28 @@ void handle_websocket_message(const picojson::value& v) {
             double len_val = len_it->second.get<double>();
             if (len_val < 0 || len_val > MAX_I2C_DATA_LEN) { send_error("I2C read length too large"); return; }
 
-            cmd.type = CMD_I2C_READ;
-            cmd.payload.i2c_read.bus = (uint8_t)bus_val;
+            cmd->type = CMD_I2C_READ;
+            cmd->payload.i2c_read.bus = (uint8_t)bus_val;
 
             std::string addr_str = addr_it->second.get<std::string>();
-            cmd.payload.i2c_read.address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
+            if (!parse_hex_byte(addr_str, &cmd->payload.i2c_read.address)) {
+                send_error("Invalid I2C address (expected hex byte)");
+                return;
+            }
 
-            cmd.payload.i2c_read.length = (size_t)len_val;
-            cmd.payload.i2c_read.reg = reg_it != payload.end() && reg_it->second.is<std::string>()
-                ? (int)strtol(reg_it->second.get<std::string>().c_str(), nullptr, 16)
-                : -1;
+            cmd->payload.i2c_read.length = (size_t)len_val;
+            if (reg_it != payload.end() && reg_it->second.is<std::string>()) {
+                uint8_t reg_byte;
+                if (!parse_hex_byte(reg_it->second.get<std::string>(), &reg_byte)) {
+                    send_error("Invalid register_to_read (expected hex byte)");
+                    return;
+                }
+                cmd->payload.i2c_read.reg = (int)reg_byte;
+            } else {
+                cmd->payload.i2c_read.reg = -1;
+            }
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing bus, address, or bytes_to_read parameter");
         }
@@ -377,8 +418,8 @@ void handle_websocket_message(const picojson::value& v) {
     }
     // === GET TEMPERATURE ===
     else if (type == "get_temperature") {
-        cmd.type = CMD_GET_TEMPERATURE;
-        queue_command(&cmd);
+        cmd->type = CMD_GET_TEMPERATURE;
+        queue_command(cmd.get());
     }
     // === WATCHDOG CONFIGURE ===
     else if (type == "watchdog_configure") {
@@ -391,19 +432,19 @@ void handle_websocket_message(const picojson::value& v) {
             double timeout_val = timeout_it->second.get<double>();
             if (timeout_val < 0 || timeout_val > UINT32_MAX) { send_error("Invalid timeout_ms"); return; }
 
-            cmd.type = CMD_WATCHDOG_CONFIGURE;
-            cmd.payload.watchdog_configure.timeout_ms = (uint32_t)timeout_val;
-            cmd.payload.watchdog_configure.enable = enable_it->second.get<bool>();
+            cmd->type = CMD_WATCHDOG_CONFIGURE;
+            cmd->payload.watchdog_configure.timeout_ms = (uint32_t)timeout_val;
+            cmd->payload.watchdog_configure.enable = enable_it->second.get<bool>();
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing timeout_ms or enable parameter");
         }
     }
     // === WATCHDOG FEED ===
     else if (type == "watchdog_feed") {
-        cmd.type = CMD_WATCHDOG_FEED;
-        queue_command(&cmd);
+        cmd->type = CMD_WATCHDOG_FEED;
+        queue_command(cmd.get());
     }
     // === SPI CONFIGURE ===
     else if (type == "spi_configure") {
@@ -446,16 +487,16 @@ void handle_websocket_message(const picojson::value& v) {
                 mode = (uint8_t)mode_val;
             }
 
-            cmd.type = CMD_SPI_CONFIGURE;
-            cmd.payload.spi_configure.bus = (uint8_t)bus_val;
-            cmd.payload.spi_configure.clk_pin = (uint8_t)clk_val;
-            cmd.payload.spi_configure.mosi_pin = (uint8_t)mosi_val;
-            cmd.payload.spi_configure.miso_pin = (uint8_t)miso_val;
-            cmd.payload.spi_configure.cs_pin = (uint8_t)cs_val;
-            cmd.payload.spi_configure.frequency = frequency;
-            cmd.payload.spi_configure.mode = mode;
+            cmd->type = CMD_SPI_CONFIGURE;
+            cmd->payload.spi_configure.bus = (uint8_t)bus_val;
+            cmd->payload.spi_configure.clk_pin = (uint8_t)clk_val;
+            cmd->payload.spi_configure.mosi_pin = (uint8_t)mosi_val;
+            cmd->payload.spi_configure.miso_pin = (uint8_t)miso_val;
+            cmd->payload.spi_configure.cs_pin = (uint8_t)cs_val;
+            cmd->payload.spi_configure.frequency = frequency;
+            cmd->payload.spi_configure.mode = mode;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing bus, clk_pin, mosi_pin, miso_pin, or cs_pin parameter");
         }
@@ -471,8 +512,8 @@ void handle_websocket_message(const picojson::value& v) {
             double bus_val = bus_it->second.get<double>();
             if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
 
-            cmd.type = CMD_SPI_TRANSFER;
-            cmd.payload.spi_transfer.bus = (uint8_t)bus_val;
+            cmd->type = CMD_SPI_TRANSFER;
+            cmd->payload.spi_transfer.bus = (uint8_t)bus_val;
 
             const picojson::array& data_arr = data_it->second.get<picojson::array>();
             size_t len = data_arr.size();
@@ -483,14 +524,19 @@ void handle_websocket_message(const picojson::value& v) {
 
             for (size_t i = 0; i < len; i++) {
                 if (data_arr[i].is<std::string>()) {
-                    cmd.payload.spi_transfer.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                    uint8_t byte;
+                    if (!parse_hex_byte(data_arr[i].get<std::string>(), &byte)) {
+                        send_error("Invalid hex byte in data");
+                        return;
+                    }
+                    cmd->payload.spi_transfer.data[i] = byte;
                 } else if (data_arr[i].is<double>()) {
-                    cmd.payload.spi_transfer.data[i] = (uint8_t)data_arr[i].get<double>();
+                    cmd->payload.spi_transfer.data[i] = (uint8_t)data_arr[i].get<double>();
                 }
             }
-            cmd.payload.spi_transfer.data_len = len;
+            cmd->payload.spi_transfer.data_len = len;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing bus or data parameter");
         }
@@ -506,8 +552,8 @@ void handle_websocket_message(const picojson::value& v) {
             double bus_val = bus_it->second.get<double>();
             if (bus_val < 0 || bus_val > 255) { send_error("Invalid bus number"); return; }
 
-            cmd.type = CMD_SPI_WRITE;
-            cmd.payload.spi_transfer.bus = (uint8_t)bus_val;
+            cmd->type = CMD_SPI_WRITE;
+            cmd->payload.spi_transfer.bus = (uint8_t)bus_val;
 
             const picojson::array& data_arr = data_it->second.get<picojson::array>();
             size_t len = data_arr.size();
@@ -518,14 +564,19 @@ void handle_websocket_message(const picojson::value& v) {
 
             for (size_t i = 0; i < len; i++) {
                 if (data_arr[i].is<std::string>()) {
-                    cmd.payload.spi_transfer.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                    uint8_t byte;
+                    if (!parse_hex_byte(data_arr[i].get<std::string>(), &byte)) {
+                        send_error("Invalid hex byte in data");
+                        return;
+                    }
+                    cmd->payload.spi_transfer.data[i] = byte;
                 } else if (data_arr[i].is<double>()) {
-                    cmd.payload.spi_transfer.data[i] = (uint8_t)data_arr[i].get<double>();
+                    cmd->payload.spi_transfer.data[i] = (uint8_t)data_arr[i].get<double>();
                 }
             }
-            cmd.payload.spi_transfer.data_len = len;
+            cmd->payload.spi_transfer.data_len = len;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing bus or data parameter");
         }
@@ -544,11 +595,11 @@ void handle_websocket_message(const picojson::value& v) {
             double len_val = len_it->second.get<double>();
             if (len_val < 0 || len_val > MAX_SPI_DATA_LEN) { send_error("SPI read length too large"); return; }
 
-            cmd.type = CMD_SPI_READ;
-            cmd.payload.spi_read.bus = (uint8_t)bus_val;
-            cmd.payload.spi_read.length = (size_t)len_val;
+            cmd->type = CMD_SPI_READ;
+            cmd->payload.spi_read.bus = (uint8_t)bus_val;
+            cmd->payload.spi_read.length = (size_t)len_val;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing bus or bytes_to_read parameter");
         }
@@ -602,16 +653,16 @@ void handle_websocket_message(const picojson::value& v) {
                 parity = (uint8_t)par_val;
             }
 
-            cmd.type = CMD_UART_CONFIGURE;
-            cmd.payload.uart_configure.port = (uint8_t)port_val;
-            cmd.payload.uart_configure.tx_pin = (uint8_t)tx_val;
-            cmd.payload.uart_configure.rx_pin = (uint8_t)rx_val;
-            cmd.payload.uart_configure.baud_rate = baud_rate;
-            cmd.payload.uart_configure.data_bits = data_bits;
-            cmd.payload.uart_configure.stop_bits = stop_bits;
-            cmd.payload.uart_configure.parity = parity;
+            cmd->type = CMD_UART_CONFIGURE;
+            cmd->payload.uart_configure.port = (uint8_t)port_val;
+            cmd->payload.uart_configure.tx_pin = (uint8_t)tx_val;
+            cmd->payload.uart_configure.rx_pin = (uint8_t)rx_val;
+            cmd->payload.uart_configure.baud_rate = baud_rate;
+            cmd->payload.uart_configure.data_bits = data_bits;
+            cmd->payload.uart_configure.stop_bits = stop_bits;
+            cmd->payload.uart_configure.parity = parity;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing port, tx_pin, or rx_pin parameter");
         }
@@ -627,8 +678,8 @@ void handle_websocket_message(const picojson::value& v) {
             double port_val = port_it->second.get<double>();
             if (port_val < 0 || port_val > 255) { send_error("Invalid port number"); return; }
 
-            cmd.type = CMD_UART_WRITE;
-            cmd.payload.uart_write.port = (uint8_t)port_val;
+            cmd->type = CMD_UART_WRITE;
+            cmd->payload.uart_write.port = (uint8_t)port_val;
 
             const picojson::array& data_arr = data_it->second.get<picojson::array>();
             size_t len = data_arr.size();
@@ -639,14 +690,19 @@ void handle_websocket_message(const picojson::value& v) {
 
             for (size_t i = 0; i < len; i++) {
                 if (data_arr[i].is<std::string>()) {
-                    cmd.payload.uart_write.data[i] = (uint8_t)strtol(data_arr[i].get<std::string>().c_str(), nullptr, 16);
+                    uint8_t byte;
+                    if (!parse_hex_byte(data_arr[i].get<std::string>(), &byte)) {
+                        send_error("Invalid hex byte in data");
+                        return;
+                    }
+                    cmd->payload.uart_write.data[i] = byte;
                 } else if (data_arr[i].is<double>()) {
-                    cmd.payload.uart_write.data[i] = (uint8_t)data_arr[i].get<double>();
+                    cmd->payload.uart_write.data[i] = (uint8_t)data_arr[i].get<double>();
                 }
             }
-            cmd.payload.uart_write.data_len = len;
+            cmd->payload.uart_write.data_len = len;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing port or data parameter");
         }
@@ -673,12 +729,12 @@ void handle_websocket_message(const picojson::value& v) {
                 timeout_ms = (uint32_t)timeout_val;
             }
 
-            cmd.type = CMD_UART_READ;
-            cmd.payload.uart_read.port = (uint8_t)port_val;
-            cmd.payload.uart_read.bytes_to_read = (size_t)len_val;
-            cmd.payload.uart_read.timeout_ms = timeout_ms;
+            cmd->type = CMD_UART_READ;
+            cmd->payload.uart_read.port = (uint8_t)port_val;
+            cmd->payload.uart_read.bytes_to_read = (size_t)len_val;
+            cmd->payload.uart_read.timeout_ms = timeout_ms;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing port or bytes_to_read parameter");
         }
@@ -690,16 +746,16 @@ void handle_websocket_message(const picojson::value& v) {
              type == "dht_read") {
         std::string parse_error;
         bool parsed = (type == "onewire_search")
-            ? parse_onewire_search(payload, &cmd, &parse_error)
+            ? parse_onewire_search(payload, cmd.get(), &parse_error)
             : (type == "onewire_read_temp")
-                ? parse_onewire_read_temp(payload, &cmd, &parse_error)
-                : parse_dht_read(payload, &cmd, &parse_error);
+                ? parse_onewire_read_temp(payload, cmd.get(), &parse_error)
+                : parse_dht_read(payload, cmd.get(), &parse_error);
 
         if (!parsed) {
             send_error(parse_error.c_str());
             return;
         }
-        queue_command(&cmd);
+        queue_command(cmd.get());
     }
     // === PIO WS2812 CONFIGURE ===
     else if (type == "pio_ws2812_configure") {
@@ -714,11 +770,11 @@ void handle_websocket_message(const picojson::value& v) {
             double num_val = num_leds_it->second.get<double>();
             if (num_val < 0 || num_val > MAX_WS2812_LEDS) { send_error("Invalid num_leds"); return; }
 
-            cmd.type = CMD_PIO_WS2812_CONFIGURE;
-            cmd.payload.pio_ws2812_configure.pin = (uint8_t)pin_val;
-            cmd.payload.pio_ws2812_configure.num_leds = (uint16_t)num_val;
+            cmd->type = CMD_PIO_WS2812_CONFIGURE;
+            cmd->payload.pio_ws2812_configure.pin = (uint8_t)pin_val;
+            cmd->payload.pio_ws2812_configure.num_leds = (uint16_t)num_val;
 
-            queue_command(&cmd);
+            queue_command(cmd.get());
         } else {
             send_error("Missing pin or num_leds parameter");
         }
@@ -736,7 +792,8 @@ void handle_websocket_message(const picojson::value& v) {
                 return;
             }
 
-            uint8_t pixel_data[MAX_WS2812_BUFFER_SIZE];
+            // Heap-allocated to keep the main-loop stack small (768 bytes).
+            std::unique_ptr<uint8_t[]> pixel_data(new uint8_t[MAX_WS2812_BUFFER_SIZE]());
             size_t pixel_len = 0;
 
             for (size_t i = 0; i < num_pixels; i++) {
@@ -750,13 +807,13 @@ void handle_websocket_message(const picojson::value& v) {
             }
 
             // Write pixel data to shared buffer
-            if (!shared_ws2812_buffer_write(pixel_data, pixel_len)) {
+            if (!shared_ws2812_buffer_write(pixel_data.get(), pixel_len)) {
                 send_error("Failed to write WS2812 pixel buffer");
                 return;
             }
 
-            cmd.type = CMD_PIO_WS2812_UPDATE;
-            queue_command(&cmd);
+            cmd->type = CMD_PIO_WS2812_UPDATE;
+            queue_command(cmd.get());
         } else {
             send_error("Missing pixels parameter");
         }
@@ -825,7 +882,11 @@ void handle_websocket_message(const picojson::value& v) {
             return;
         }
 
-        uint8_t address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
+        uint8_t address;
+        if (!parse_hex_byte(addr_str, &address)) {
+            send_error("Invalid I2C address (expected hex byte)");
+            return;
+        }
 
         bool is_ssd1306 = (controller == "ssd1306");
         bool is_sh1106 = (controller == "sh1106");
@@ -841,7 +902,9 @@ void handle_websocket_message(const picojson::value& v) {
             return;
         }
 
-        uint8_t fb_data[MAX_DISPLAY_BUFFER_SIZE] = {0};
+        // Heap-allocated framebuffer (up to 1 KB) to keep the main-loop stack
+        // small; zero-initialised so untouched bytes stay black.
+        std::unique_ptr<uint8_t[]> fb_data(new uint8_t[MAX_DISPLAY_BUFFER_SIZE]());
         display_segment_t seg_info[MAX_DISPLAY_SEGMENTS];
         size_t seg_count = 0;
 
@@ -858,11 +921,18 @@ void handle_websocket_message(const picojson::value& v) {
                 continue;
             }
 
-            size_t offset = (size_t)offset_it->second.get<double>();
+            // Reject out-of-range offsets before casting: (size_t) of a huge
+            // double wraps on 32-bit targets and a wrapped (offset + length)
+            // sum could pass the bounds check below (same fix as ESP32).
+            double offset_val = offset_it->second.get<double>();
+            if (offset_val < 0 || offset_val > (double)fb_size) {
+                continue;
+            }
+            size_t offset = (size_t)offset_val;
             const std::string& data_b64 = data_it->second.get<std::string>();
             std::vector<uint8_t> data = base64_decode(data_b64);
 
-            if (offset + data.size() <= fb_size) {
+            if (data.size() <= fb_size - offset) {
                 memcpy(&fb_data[offset], data.data(), data.size());
                 seg_info[seg_count].offset = offset;
                 seg_info[seg_count].length = data.size();
@@ -871,25 +941,25 @@ void handle_websocket_message(const picojson::value& v) {
         }
 
         // Write to shared buffer
-        if (!shared_display_buffer_write(fb_data, fb_size, seg_info, seg_count)) {
+        if (!shared_display_buffer_write(fb_data.get(), fb_size, seg_info, seg_count)) {
             send_error("Failed to write display buffer");
             return;
         }
 
         // Queue command
-        cmd.type = CMD_DISPLAY_UPDATE;
-        cmd.payload.display.bus = bus;
-        cmd.payload.display.address = address;
-        cmd.payload.display.width = width;
-        cmd.payload.display.height = height;
-        cmd.payload.display.controller = is_ssd1306 ? 0 : 1;
-        cmd.payload.display.col_offset = col_offset;
-        cmd.payload.display.page_offset = page_offset;
-        cmd.payload.display.init = init_it != payload.end() && init_it->second.is<bool>()
+        cmd->type = CMD_DISPLAY_UPDATE;
+        cmd->payload.display.bus = bus;
+        cmd->payload.display.address = address;
+        cmd->payload.display.width = width;
+        cmd->payload.display.height = height;
+        cmd->payload.display.controller = is_ssd1306 ? 0 : 1;
+        cmd->payload.display.col_offset = col_offset;
+        cmd->payload.display.page_offset = page_offset;
+        cmd->payload.display.init = init_it != payload.end() && init_it->second.is<bool>()
             ? init_it->second.get<bool>()
             : false;
 
-        queue_command(&cmd);
+        queue_command(cmd.get());
     }
     else {
         printf("Unknown command type: %s\n", type.c_str());

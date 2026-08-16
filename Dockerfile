@@ -1,7 +1,10 @@
 # DeviceSDK self-hosted server image: Bun API/WebSocket server + dashboard SPA.
 #
 #   docker build -t devicesdk .
-#   docker run -p 8080:8080 -v ./data:/data devicesdk
+#   docker run -p 8080:8080 -v devicesdk-data:/data devicesdk
+#
+# For a bind mount, create it with the container's ownership first:
+#   mkdir -p ./data && chown 1000:1000 ./data
 #
 # Multi-arch (amd64 + arm64 for Raspberry Pi) via docker buildx; see
 # .github/workflows/docker.yml.

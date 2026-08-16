@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadConfig } from "../src/config";
 import { BunSqliteQB } from "../src/db/bunSqliteQB";
 import { D1CompatDatabase } from "../src/db/d1Compat";
@@ -24,7 +25,7 @@ import { websocket } from "../src/ws";
 // never swallows test or server output.
 installConsoleCapture();
 
-const MIGRATIONS_DIR = new URL("../migrations", import.meta.url).pathname;
+const MIGRATIONS_DIR = fileURLToPath(new URL("../migrations", import.meta.url));
 
 export interface ApiResponse<T = unknown> {
 	status: number;
@@ -301,7 +302,6 @@ export class TestServer {
 			DATA_DIR: dataDir,
 			ENV: "local",
 			MDNS_ENABLED: "0",
-			PORT: "0",
 			// Tests run many register/login requests through Bun.serve's test fetch,
 			// which has no reliable socket IP. Trust forwarded headers so the harness
 			// can assign a unique source IP per request and avoid tripping the global
@@ -313,12 +313,23 @@ export class TestServer {
 		const db = new Database(config.dbPath, { create: true });
 		db.exec("PRAGMA journal_mode = WAL;");
 		db.exec("PRAGMA foreign_keys = ON;");
+		db.exec("PRAGMA busy_timeout = 5000;");
 		applyMigrations(db, config.migrationsDir);
 		const qb = new BunSqliteQB(db);
 		const scripts = new FsBlobStore(config.scriptsDir);
 		const firmwares = new FsBlobStore(config.firmwaresDir);
 		const logger = createLogger(config);
-		const hub = new DeviceHub({ db, scripts, logger });
+		// Test-only knob: shrinks the connected_seconds accrual interval so
+		// usage tests observe ticks without waiting 60 s. Not part of loadConfig.
+		const usageTickMs = Number(envOverrides.USAGE_TICK_MS);
+		const hub = new DeviceHub({
+			db,
+			scripts,
+			logger,
+			...(Number.isInteger(usageTickMs) && usageTickMs > 0
+				? { usageTickMs }
+				: {}),
+		});
 		hub.resetConnectionState();
 
 		const services: Env = {

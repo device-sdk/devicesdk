@@ -36,6 +36,11 @@ export type tableUser = {
 	verified_email: number;
 	password_hash?: string;
 	onboarding_completed: number;
+	// Vestigial schema columns (migrations 0016-0018): present in the table
+	// (NOT NULL DEFAULT 'free' / nullable) but not read anywhere yet.
+	plan?: string;
+	suspended_at?: number | null;
+	deletion_requested_at?: number | null;
 	created_at: number;
 };
 export type tableUserSessions = {
@@ -54,13 +59,6 @@ export type tableProjects = {
 	description?: string;
 	created_at: number;
 	updated_at?: number;
-};
-
-export type tableProjectVersions = {
-	id: string;
-	project_id: string;
-	version_id: string;
-	created_at: number;
 };
 
 export type tableDevices = {
@@ -105,6 +103,8 @@ export type tableOauthClients = {
 	/** JSON-encoded array of exact-match redirect URIs. */
 	redirect_uris: string;
 	created_at: number;
+	/** Stamped on every successful token exchange; NULL for never-used rows. */
+	last_used_at: number | null;
 };
 
 export type tableOauthAuthCodes = {

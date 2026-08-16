@@ -1,5 +1,9 @@
 import { request } from "./shared.js";
 
+// Uploads carry the full bundle JSON body; large projects can take minutes on
+// slow links. The dashboard uses 300s for the same endpoint.
+const UPLOAD_TIMEOUT_MS = 300_000;
+
 // Script endpoints
 export interface ScriptVersion {
 	version_id: string;
@@ -50,6 +54,7 @@ export async function uploadScript(
 		{
 			method: "PUT",
 			body: JSON.stringify(body),
+			timeoutMs: UPLOAD_TIMEOUT_MS,
 		},
 		token,
 	);
@@ -98,10 +103,14 @@ export async function deployScriptVersion(
 }
 
 export interface BatchUploadResult {
+	/** "failed" when every device failed, "partial" when some failed, "success" only when all succeeded. */
+	status: "success" | "partial" | "failed";
 	versions: Array<{
 		device_id: string;
 		version_id: string;
-		status: "success" | "created";
+		status: "success" | "created" | "error";
+		/** Present when status is "error". */
+		error?: string;
 		device_rebooted: boolean;
 		reboot_reason: string;
 	}>;
@@ -119,6 +128,7 @@ export async function uploadScriptsBatch(
 		{
 			method: "PUT",
 			body: JSON.stringify({ devices, message }),
+			timeoutMs: UPLOAD_TIMEOUT_MS,
 		},
 		token,
 	);

@@ -22,11 +22,13 @@ typedef struct {
 } i2c_scan_result_t;
 
 typedef struct {
+    uint8_t bus;
     uint8_t data[256];
     size_t len;
 } spi_transfer_result_t;
 
 typedef struct {
+    uint8_t port;
     uint8_t data[256];
     size_t len;
 } uart_read_result_t;

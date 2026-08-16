@@ -19,7 +19,7 @@ const CHECKSUM_INIT = 0xef;
 export async function recalculateEsp32Checksum(
 	bytes: Uint8Array,
 ): Promise<void> {
-	if (bytes.length <= APP_OFFSET) {
+	if (bytes.length < APP_OFFSET + HEADER_SIZE) {
 		throw new Error(
 			`Binary too small: ${bytes.length} bytes, need at least ${APP_OFFSET + HEADER_SIZE}`,
 		);
@@ -87,8 +87,9 @@ export async function recalculateEsp32Checksum(
 
 	bytes[checksumOffset] = checksum & 0xff;
 
-	// Recalculate SHA256 if hash_appended flag is set
-	if (hashAppended === 1) {
+	// Recalculate SHA256 if hash_appended flag is set. ESP-IDF treats any
+	// non-zero byte as "hash appended" (not just exactly 1).
+	if (hashAppended !== 0) {
 		const hashOffset = checksumOffset + 1;
 		if (hashOffset + 32 > bytes.length) {
 			throw new Error(

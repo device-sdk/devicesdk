@@ -20,7 +20,13 @@ export default {
 		// WebSocket proxy: /ws/:deviceId
 		const wsMatch = url.pathname.match(/^\/ws\/(.+)$/);
 		if (wsMatch) {
-			return handleWebSocket(request, env, wsMatch[1]);
+			let deviceId: string;
+			try {
+				deviceId = decodeURIComponent(wsMatch[1]);
+			} catch {
+				return new Response("Invalid device ID in URL", { status: 400 });
+			}
+			return handleWebSocket(request, env, deviceId);
 		}
 
 		// API: list configured devices
@@ -42,7 +48,9 @@ async function handleWebSocket(
 	deviceId: string,
 ): Promise<Response> {
 	const upgradeHeader = request.headers.get("Upgrade");
-	if (!upgradeHeader || upgradeHeader !== "websocket") {
+	// RFC 6455: header names are case-insensitive; some clients send
+	// "WebSocket" / "WEBSOCKET".
+	if (!upgradeHeader || upgradeHeader.toLowerCase() !== "websocket") {
 		return new Response("Expected Upgrade: websocket", { status: 426 });
 	}
 

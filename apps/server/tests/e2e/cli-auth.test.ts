@@ -27,6 +27,13 @@ function csrfCookie(headers: Headers): string {
 	return decodeURIComponent(m[1]);
 }
 
+function entryCookie(headers: Headers): string {
+	const raw = headers.get("set-cookie") ?? "";
+	const m = raw.match(/cli_entry=([^;]+)/);
+	if (!m) throw new Error(`no cli_entry cookie in: ${raw}`);
+	return decodeURIComponent(m[1]);
+}
+
 async function registerFresh(srv: TestServer, email: string): Promise<string> {
 	const res = await srv.post("/v1/auth/register", {
 		headers: freshIpHeaders(),
@@ -59,8 +66,10 @@ async function startFlow(srv: TestServer): Promise<StartResult> {
 }
 
 /**
- * Drives the approval page: GET it (authenticated) to obtain a CSRF token +
- * cookie, then POST the approve/deny form with matching CSRF.
+ * Drives the approval flow: the approval page only renders after the user
+ * typed the code on the entry page, so first GET the entry page (obtains the
+ * cli_entry cookie), then GET the code-bearing URL with it (obtains the CSRF
+ * cookie), then POST the approve/deny form with matching CSRF.
  */
 async function approve(
 	srv: TestServer,
@@ -68,9 +77,12 @@ async function approve(
 	userCode: string,
 	action: "approve" | "deny" = "approve",
 ): Promise<void> {
+	const entry = await srv.get("/cli/auth", { token });
+	expect(entry.status).toBe(200);
 	const page = await srv.get("/cli/auth", {
 		token,
 		query: { code: userCode },
+		headers: { Cookie: `cli_entry=${entryCookie(entry.headers)}` },
 	});
 	expect(page.status).toBe(200);
 	const csrf = csrfCookie(page.headers);
@@ -128,13 +140,22 @@ describe("cli-auth: poll before/around approval", () => {
 		);
 	});
 
-	test("poll without device_code -> 400 missing_device_code", async () => {
+	test("poll without device_code -> 400 Invalid request body", async () => {
 		const res = await srv.post("/v1/cli/auth/poll", {
 			headers: freshIpHeaders(),
 			body: {},
 		});
 		expect(res.status).toBe(400);
-		expect((res.body as { error: string }).error).toBe("missing_device_code");
+		expect((res.body as { error: string }).error).toBe("Invalid request body.");
+	});
+
+	test("poll with a non-string device_code -> 400 Invalid request body", async () => {
+		const res = await srv.post("/v1/cli/auth/poll", {
+			headers: freshIpHeaders(),
+			body: { device_code: 12345 },
+		});
+		expect(res.status).toBe(400);
+		expect((res.body as { error: string }).error).toBe("Invalid request body.");
 	});
 
 	test("poll with unknown device_code -> 400 invalid_device_code", async () => {
@@ -170,11 +191,29 @@ describe("cli-auth: approval page (auth gating)", () => {
 		expect(res.text).toContain("Enter the code");
 	});
 
-	test("GET /cli/auth with a valid code renders the approval page + CSRF cookie", async () => {
+	test("GET /cli/auth with a code but no entry cookie renders the entry page, never the approval page (phishing defense)", async () => {
 		const { user_code } = await startFlow(srv);
 		const res = await srv.get("/cli/auth", {
 			token,
 			query: { code: user_code },
+		});
+		expect(res.status).toBe(200);
+		expect(res.text).toContain("Enter the code");
+		expect(res.text).not.toContain("Verification Code");
+		// entry cookie is hardened like the session cookie: HttpOnly + Strict
+		expect(res.headers.get("set-cookie")).toContain("cli_entry=");
+		expect(res.headers.get("set-cookie")).toContain("HttpOnly");
+		expect(res.headers.get("set-cookie")).toContain("SameSite=Strict");
+		expect(res.headers.get("set-cookie")).toContain("Path=/cli/auth");
+	});
+
+	test("GET /cli/auth with a code + entry cookie renders the approval page + CSRF cookie", async () => {
+		const { user_code } = await startFlow(srv);
+		const entry = await srv.get("/cli/auth", { token });
+		const res = await srv.get("/cli/auth", {
+			token,
+			query: { code: user_code },
+			headers: { Cookie: `cli_entry=${entryCookie(entry.headers)}` },
 		});
 		expect(res.status).toBe(200);
 		expect(res.text).toContain("Verification Code");
@@ -183,9 +222,11 @@ describe("cli-auth: approval page (auth gating)", () => {
 	});
 
 	test("GET /cli/auth with an unknown code renders an error page", async () => {
+		const entry = await srv.get("/cli/auth", { token });
 		const res = await srv.get("/cli/auth", {
 			token,
 			query: { code: "ZZZZ-9999" },
+			headers: { Cookie: `cli_entry=${entryCookie(entry.headers)}` },
 		});
 		expect(res.status).toBe(200);
 		expect(res.text).toContain("Invalid or expired code");
@@ -193,10 +234,13 @@ describe("cli-auth: approval page (auth gating)", () => {
 
 	test("POST /cli/auth with mismatched CSRF -> 403", async () => {
 		const { user_code } = await startFlow(srv);
-		// fetch page to set a real cookie, then post a wrong csrf_token
+		// fetch the entry + approval pages to set real cookies, then post a
+		// wrong csrf_token
+		const entry = await srv.get("/cli/auth", { token });
 		const page = await srv.get("/cli/auth", {
 			token,
 			query: { code: user_code },
+			headers: { Cookie: `cli_entry=${entryCookie(entry.headers)}` },
 		});
 		const csrf = csrfCookie(page.headers);
 		const res = await srv.post("/cli/auth", {
@@ -262,12 +306,14 @@ describe("cli-auth: full approve -> poll -> use -> refresh -> revoke", () => {
 					access_token: string;
 					refresh_token: string;
 					token_type: string;
+					expires_in: number;
 					user: { email: string } | null;
 				};
 			}
 		).result;
 		expect(result.status).toBe("approved");
 		expect(result.token_type).toBe("Bearer");
+		expect(result.expires_in).toBe(30 * 24 * 60 * 60);
 		expect(result.access_token).toMatch(/^dsdk_[0-9a-f]{64}$/);
 		expect(result.refresh_token).toMatch(/^dsdk_refresh_[0-9a-f]{64}$/);
 		expect(result.user?.email).toBeTruthy();
@@ -369,13 +415,13 @@ describe("cli-auth: refresh / revoke error branches", () => {
 	});
 	afterAll(() => srv.stop());
 
-	test("refresh without a token -> 400 missing_refresh_token", async () => {
+	test("refresh without a token -> 400 Invalid request body", async () => {
 		const res = await srv.post("/v1/cli/auth/refresh", {
 			headers: freshIpHeaders(),
 			body: {},
 		});
 		expect(res.status).toBe(400);
-		expect((res.body as { error: string }).error).toBe("missing_refresh_token");
+		expect((res.body as { error: string }).error).toBe("Invalid request body.");
 	});
 
 	test("refresh with an unknown token -> 401 invalid_refresh_token", async () => {
@@ -394,20 +440,21 @@ describe("cli-auth: refresh / revoke error branches", () => {
 		expect(res.status).toBe(401);
 	});
 
-	test("revoke with no refresh_token is a no-op success", async () => {
+	test("revoke with no refresh_token -> 400 Invalid request body", async () => {
 		const res = await srv.post("/v1/cli/auth/revoke", { token, body: {} });
-		expect(res.status).toBe(200);
-		expect((res.body as { result: { revoked: boolean } }).result.revoked).toBe(
-			true,
-		);
+		expect(res.status).toBe(400);
+		expect((res.body as { error: string }).error).toBe("Invalid request body.");
 	});
 
-	test("revoke an unknown token still succeeds (idempotent)", async () => {
+	test("revoke an unknown token reports revoked: false", async () => {
 		const res = await srv.post("/v1/cli/auth/revoke", {
 			token,
 			body: { refresh_token: "dsdk_refresh_unknown" },
 		});
 		expect(res.status).toBe(200);
+		expect((res.body as { result: { revoked: boolean } }).result.revoked).toBe(
+			false,
+		);
 	});
 
 	test("revoke is scoped to the authenticated user", async () => {

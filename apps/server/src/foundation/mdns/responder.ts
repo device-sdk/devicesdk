@@ -109,7 +109,13 @@ export function startMdnsResponder(options: StartMdnsOptions): MdnsResponder {
 				errorMessage: (err as Error).message,
 			});
 		}
-		announce();
+		try {
+			announce();
+		} catch (err) {
+			logger.error(err, "mDNS responder failed sending announcement", {
+				fqdn,
+			});
+		}
 		logger.info("mDNS responder advertising", {
 			fqdn,
 			addresses: getAddresses(),

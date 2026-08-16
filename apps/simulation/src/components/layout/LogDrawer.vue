@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import type { DeviceCommand } from "@devicesdk/core";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useSimulatorStore } from "@/stores/simulator";
 
 const simulator = useSimulatorStore();
 const collapsed = ref(false);
+
+const logRows = computed(() =>
+	simulator.logs.map((log) => ({ log, badge: badgeInfo(log.commandType) })),
+);
 
 function badgeInfo(
 	commandType?: DeviceCommand["type"],
@@ -93,19 +97,19 @@ function badgeInfo(
 				No events yet. Interact with a pin to start.
 			</p>
 			<div
-				v-for="(log, index) in simulator.logs"
+				v-for="(row, index) in logRows"
 				:key="index"
 				class="flex items-start gap-2 text-xs py-0.5 border-b border-border/30 last:border-0"
 			>
-				<span class="font-mono text-muted-foreground shrink-0">{{ log.timestamp }}</span>
+				<span class="font-mono text-muted-foreground shrink-0">{{ row.log.timestamp }}</span>
 				<span
-					v-if="badgeInfo(log.commandType)"
+					v-if="row.badge"
 					class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold shrink-0"
-					:class="badgeInfo(log.commandType)!.classes"
+					:class="row.badge.classes"
 				>
-					{{ badgeInfo(log.commandType)!.label }}
+					{{ row.badge.label }}
 				</span>
-				<span class="text-foreground">{{ log.message }}</span>
+				<span class="text-foreground">{{ row.log.message }}</span>
 			</div>
 		</div>
 	</section>

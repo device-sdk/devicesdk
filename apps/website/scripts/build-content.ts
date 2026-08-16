@@ -329,6 +329,11 @@ function writeGeneratedFiles(): void {
 	ensureDir(path.join(GENERATED_DIR, "routes.ts"));
 
 	const routeImports = new Map<string, string>();
+	// WARNING: every top-level content section must have a route component here.
+	// A content file whose path is missing from this map still lands in
+	// sitemap.xml and static/*.md (via writeIndexMdMirror) but has no Vue route,
+	// so the built site serves a 404 for it. Add a `"/path/" -> Component` entry
+	// when creating a new section, and add the component to componentImports too.
 	routeImports.set("/", "HomePage");
 	routeImports.set("/product/", "ProductPage");
 	routeImports.set("/solutions/", "SolutionsPage");

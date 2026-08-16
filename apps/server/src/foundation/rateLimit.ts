@@ -31,8 +31,15 @@ function clientIp(c: AppContext): string {
 export function rateLimitMiddleware(
 	maxRequests: number,
 	windowMs: number,
+	methods?: string[],
 ): MiddlewareHandler {
 	return async (c, next) => {
+		// The bucket key is IP + path, so a method filter lets a path with both
+		// cheap reads and brute-forceable writes (e.g. /v1/user/me) limit only
+		// the sensitive method.
+		if (methods && !methods.includes(c.req.method)) {
+			return next();
+		}
 		const key = `${clientIp(c as AppContext)}:${new URL(c.req.url).pathname}`;
 		const now = Date.now();
 		const entry = windows.get(key);

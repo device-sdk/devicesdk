@@ -94,6 +94,10 @@ export default defineConfig({
 - `this.env.VARS.get(key)` / `getAll()` - project-scoped secrets.
 - `this.env.DEVICES["other-slug"].method(...)` - typed RPC to other devices in
   the same project. The CLI generates types from `devicesdk.ts` on each build.
+  Note: RPC invocations run outside the per-device serialized event queue (a
+  device awaiting a command response must not deadlock an incoming RPC), so a
+  method called via `DEVICES` may overlap an in-flight
+  `onMessage`/`onCron`/lifecycle handler on the target device.
 - Lifecycle hooks (override on your subclass): `onDeviceConnect()`,
   `onDeviceDisconnect()`, `onMessage(message)`, `onCron(name)`.
 

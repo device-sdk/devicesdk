@@ -102,7 +102,9 @@ export default async function status(
 						docs: "https://docs.devicesdk.com/cli/status/",
 					});
 				else console.error(`✗ ${msg}`);
-				process.exit(EXIT.GENERIC);
+				// Unknown/missing device is an invalid argument - same class as
+				// deploy's "device not found in config" (CONFIG_INVALID).
+				process.exit(EXIT.CONFIG_INVALID);
 			}
 		}
 

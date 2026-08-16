@@ -22,6 +22,7 @@ enable_testing()
 set(TESTABLE_SOURCES
     ../src/backoff.cpp
     ../src/utils/base64.cpp
+    ../src/utils/hex.cpp
     ../src/commands/i2c_command_handler.cpp
     ../src/commands/i2c_configure.cpp
     ../src/commands/i2c_scan.cpp

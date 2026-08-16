@@ -1,15 +1,17 @@
+import { randomInt } from "node:crypto";
 import type { AppContext } from "../../types";
 
 function generateUserCode(): string {
 	const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // No I, O to avoid confusion
-	const bytes = new Uint8Array(8);
-	crypto.getRandomValues(bytes);
-	const letterPart = Array.from(bytes.slice(0, 4))
-		.map((b) => letters[b % letters.length])
-		.join("");
-	const numberPart = Array.from(bytes.slice(4, 8))
-		.map((b) => b % 10)
-		.join("");
+	// randomInt is unbiased (modulo on random bytes skews toward the start of
+	// the alphabet); the format stays XXXX-0000.
+	const letterPart = Array.from(
+		{ length: 4 },
+		() => letters[randomInt(0, letters.length)],
+	).join("");
+	const numberPart = Array.from({ length: 4 }, () =>
+		String(randomInt(0, 10)),
+	).join("");
 	return `${letterPart}-${numberPart}`;
 }
 

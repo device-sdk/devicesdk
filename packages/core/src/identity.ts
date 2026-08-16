@@ -22,23 +22,30 @@ export type ScriptId = string & Brand<"ScriptId">;
 /** A DeviceSDK API or CLI token. Use {@link asTokenId}. */
 export type TokenId = string & Brand<"TokenId">;
 
-/** Project ID validator: 3..64 chars, lowercase alnum + hyphen, must start with a letter. */
-export const PROJECT_ID_REGEX = /^[a-z][a-z0-9-]{2,63}$/;
+/** Project ID validator: 1..36 chars, lowercase alnum + hyphen, must start with a letter. */
+export const PROJECT_ID_REGEX = /^[a-z][a-z0-9-]{0,35}$/;
 /** Device ID validator: same shape as project IDs. */
-export const DEVICE_ID_REGEX = /^[a-z][a-z0-9-]{2,63}$/;
+export const DEVICE_ID_REGEX = /^[a-z][a-z0-9-]{0,35}$/;
 
 function brand<B extends string>(
 	value: string,
 	check: ((s: string) => boolean) | undefined,
 	label: string,
+	format: string,
 ): string & Brand<B> {
-	if (check && !check(value)) {
-		throw new Error(
-			`Invalid ${label}: "${value}". Expected ${label === "ProjectId" ? "lowercase letters, digits, hyphens; 3..64 chars; must start with a letter" : "the documented format"}.`,
+	if (typeof value !== "string") {
+		throw new TypeError(
+			`Invalid ${label}: expected a string, got ${typeof value}.`,
 		);
+	}
+	if (check && !check(value)) {
+		throw new Error(`Invalid ${label}: "${value}". Expected ${format}.`);
 	}
 	return value as string & Brand<B>;
 }
+
+const ID_FORMAT =
+	"lowercase letters, digits, hyphens; 1..36 chars; must start with a letter";
 
 /** Validate and brand a string as a {@link ProjectId}. Throws on invalid input. */
 export const asProjectId = (s: string): ProjectId =>
@@ -46,16 +53,22 @@ export const asProjectId = (s: string): ProjectId =>
 		s,
 		(v) => PROJECT_ID_REGEX.test(v),
 		"ProjectId",
+		ID_FORMAT,
 	) as ProjectId;
 /** Validate and brand a string as a {@link DeviceId}. Throws on invalid input. */
 export const asDeviceId = (s: string): DeviceId =>
-	brand<"DeviceId">(s, (v) => DEVICE_ID_REGEX.test(v), "DeviceId") as DeviceId;
+	brand<"DeviceId">(
+		s,
+		(v) => DEVICE_ID_REGEX.test(v),
+		"DeviceId",
+		ID_FORMAT,
+	) as DeviceId;
 /** Brand a string as a {@link ScriptId}. No format check (server-assigned UUIDs). */
 export const asScriptId = (s: string): ScriptId =>
-	brand<"ScriptId">(s, undefined, "ScriptId") as ScriptId;
+	brand<"ScriptId">(s, undefined, "ScriptId", "") as ScriptId;
 /** Brand a string as a {@link TokenId}. No format check (opaque). */
 export const asTokenId = (s: string): TokenId =>
-	brand<"TokenId">(s, undefined, "TokenId") as TokenId;
+	brand<"TokenId">(s, undefined, "TokenId", "") as TokenId;
 
 /**
  * Virtual GPIO that maps to the onboard LED on every supported board.

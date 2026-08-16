@@ -24,3 +24,15 @@ export function isAllowedRedirectUrl(redirectUrl: string): boolean {
     return false;
   }
 }
+
+/**
+ * Bounce to the login page with the expired-session marker. The destination is
+ * derived from VUE_ROUTER_BASE (the same value passed to the router's
+ * createWebHistory) instead of document.baseURI, which is the *current* page
+ * URL and would produce `<current-path>/login` on non-root pages - a dead-end
+ * that hits the catch-all route.
+ */
+export function redirectToLogin(): void {
+  const base = (process.env.VUE_ROUTER_BASE ?? '').replace(/\/$/, '');
+  window.location.href = `${base}/login?expired=true`;
+}

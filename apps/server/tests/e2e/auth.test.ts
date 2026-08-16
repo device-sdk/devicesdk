@@ -350,6 +350,19 @@ describe("auth middleware: authenticateUser", () => {
 		expect(res.status).toBe(200);
 	});
 
+	test("session tokens are stored hashed, never raw", async () => {
+		const email = uniqueEmail("hashed");
+		const session = await registerFresh(srv, email);
+		const row = srv.db
+			.query(
+				"SELECT token FROM user_sessions WHERE user_id = (SELECT id FROM user WHERE email = ?)",
+			)
+			.get(email) as { token: string } | null;
+		expect(row).not.toBeNull();
+		expect(row?.token).not.toBe(session);
+		expect(row?.token).toMatch(/^[0-9a-f]{64}$/);
+	});
+
 	test("bogus dsdk_ CLI token -> 401 invalid_cli_token", async () => {
 		const res = await srv.get("/v1/user/me", {
 			token: "dsdk_deadbeefdeadbeefdeadbeefdeadbeef",
@@ -435,5 +448,109 @@ describe("auth: API token bearer path", () => {
 		});
 		expect(res.status).toBe(401);
 		expect((res.body as { code: string }).code).toBe("invalid_token");
+	});
+});
+
+describe("auth: change password", () => {
+	let srv: TestServer;
+
+	beforeAll(async () => {
+		srv = await TestServer.start();
+	});
+	afterAll(() => srv.stop());
+
+	test("change password requires auth -> 401", async () => {
+		const res = await srv.post("/v1/auth/change-password", {
+			body: { currentPassword: "x", newPassword: "y" },
+		});
+		expect(res.status).toBe(401);
+	});
+
+	test("change password: invalid payload -> 400", async () => {
+		const token = await registerFresh(srv, uniqueEmail("chpw-invalid"));
+		const res = await srv.post("/v1/auth/change-password", {
+			token,
+			body: { currentPassword: "password123", newPassword: "short" },
+		});
+		expect(res.status).toBe(400);
+		expect((res.body as { success: boolean }).success).toBe(false);
+	});
+
+	test("change password: wrong current password -> 401", async () => {
+		const token = await registerFresh(srv, uniqueEmail("chpw-wrong"));
+		const res = await srv.post("/v1/auth/change-password", {
+			token,
+			body: {
+				currentPassword: "not-the-password",
+				newPassword: "newpassword456",
+			},
+		});
+		expect(res.status).toBe(401);
+		expect((res.body as { error: string }).error).toBe(
+			"Current password is incorrect.",
+		);
+	});
+
+	test("change password: new password identical to current -> 400", async () => {
+		const token = await registerFresh(srv, uniqueEmail("chpw-same"));
+		const res = await srv.post("/v1/auth/change-password", {
+			token,
+			body: {
+				currentPassword: "password123",
+				newPassword: "password123",
+			},
+		});
+		expect(res.status).toBe(400);
+		expect((res.body as { error: string }).error).toBe(
+			"New password must differ from the current password.",
+		);
+	});
+
+	test("change password: old password stops working, new one works, other sessions revoked", async () => {
+		const email = uniqueEmail("chpw-flow");
+		// two independent sessions for the same account
+		const tokenA = await registerFresh(srv, email);
+		const loginB = await srv.post("/v1/auth/login", {
+			headers: freshIpHeaders(),
+			body: { email, password: "password123" },
+		});
+		expect(loginB.status).toBe(200);
+		const tokenB = sessionCookie(loginB.headers);
+
+		const beforeA = await srv.get("/v1/user/me", { token: tokenA });
+		const beforeB = await srv.get("/v1/user/me", { token: tokenB });
+		expect(beforeA.status).toBe(200);
+		expect(beforeB.status).toBe(200);
+
+		const res = await srv.post("/v1/auth/change-password", {
+			token: tokenA,
+			body: { currentPassword: "password123", newPassword: "newpassword456" },
+		});
+		expect(res.status).toBe(200);
+		expect((res.body as { result: { changed: boolean } }).result.changed).toBe(
+			true,
+		);
+
+		// the session that performed the change stays valid
+		const afterA = await srv.get("/v1/user/me", { token: tokenA });
+		expect(afterA.status).toBe(200);
+
+		// every other session is revoked
+		const afterB = await srv.get("/v1/user/me", { token: tokenB });
+		expect(afterB.status).toBe(401);
+
+		// the old password no longer logs in
+		const oldLogin = await srv.post("/v1/auth/login", {
+			headers: freshIpHeaders(),
+			body: { email, password: "password123" },
+		});
+		expect(oldLogin.status).toBe(401);
+
+		// the new password does
+		const newLogin = await srv.post("/v1/auth/login", {
+			headers: freshIpHeaders(),
+			body: { email, password: "newpassword456" },
+		});
+		expect(newLogin.status).toBe(200);
 	});
 });

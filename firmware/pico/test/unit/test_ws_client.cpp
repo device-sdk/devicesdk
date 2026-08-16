@@ -3,6 +3,8 @@
 #include <queue>
 #include <string>
 #include <algorithm>
+#include <cstdlib>
+#include <cstdint>
 
 // Test the buffer management logic that was added to ws_client.cpp
 // These tests verify the algorithms work correctly
@@ -151,8 +153,10 @@ protected:
         if (header_end == std::string::npos) {
             return false;
         }
+        // Mirrors the real process_rx_buffer: exact status-line match instead
+        // of a "101" substring search.
         std::string header(rx_buffer.begin(), rx_buffer.begin() + header_end);
-        return header.find("101") != std::string::npos;
+        return header.compare(0, 12, "HTTP/1.1 101") == 0;
     }
 };
 
@@ -229,6 +233,84 @@ TEST(ConstantsTest, TxQueueSizeIsReasonable) {
     EXPECT_GE(MAX_TX_QUEUE_SIZE, 5);
     // But not so many that memory is exhausted
     EXPECT_LE(MAX_TX_QUEUE_SIZE, 50);
+}
+
+// ==================== PORT PARSING TESTS ====================
+
+// Mirrors the connect() host/port heuristic: an explicit valid port selects
+// plain WS, anything else (bare hostname, empty or non-numeric port) falls
+// back to TLS on 443. The real code must never throw on malformed input.
+struct ParsedHost {
+    std::string host;
+    uint16_t port;
+    bool use_tls;
+};
+
+static ParsedHost parseHost(const std::string& host_str) {
+    ParsedHost out = { host_str, 443, true };
+    auto colon = host_str.find(':');
+    bool port_ok = false;
+    if (colon != std::string::npos) {
+        std::string port_str = host_str.substr(colon + 1);
+        port_ok = !port_str.empty();
+        for (char c : port_str) {
+            if (c < '0' || c > '9') {
+                port_ok = false;
+                break;
+            }
+        }
+        if (port_ok) {
+            long port = strtol(port_str.c_str(), nullptr, 10);
+            if (port < 1 || port > 65535) {
+                port_ok = false;
+            } else {
+                out.port = (uint16_t)port;
+            }
+        }
+    }
+    if (port_ok) {
+        out.host = host_str.substr(0, colon);
+        out.use_tls = false;
+    }
+    return out;
+}
+
+TEST(PortParsingTest, ExplicitPortSelectsPlainWs) {
+    ParsedHost p = parseHost("192.168.1.10:8080");
+    EXPECT_EQ(p.host, "192.168.1.10");
+    EXPECT_EQ(p.port, 8080);
+    EXPECT_FALSE(p.use_tls);
+}
+
+TEST(PortParsingTest, BareHostnameFallsBackToTls443) {
+    ParsedHost p = parseHost("devicesdk.local");
+    EXPECT_EQ(p.host, "devicesdk.local");
+    EXPECT_EQ(p.port, 443);
+    EXPECT_TRUE(p.use_tls);
+}
+
+TEST(PortParsingTest, EmptyPortDoesNotThrow) {
+    ParsedHost p = parseHost("192.168.1.10:");
+    EXPECT_EQ(p.port, 443);
+    EXPECT_TRUE(p.use_tls);
+}
+
+TEST(PortParsingTest, NonNumericPortFallsBackToTls) {
+    ParsedHost p = parseHost("host:abc");
+    EXPECT_EQ(p.port, 443);
+    EXPECT_TRUE(p.use_tls);
+}
+
+TEST(PortParsingTest, OutOfRangePortFallsBackToTls) {
+    ParsedHost p = parseHost("host:70000");
+    EXPECT_EQ(p.port, 443);
+    EXPECT_TRUE(p.use_tls);
+}
+
+TEST(PortParsingTest, PortWithTrailingGarbageFallsBackToTls) {
+    ParsedHost p = parseHost("host:8080junk");
+    EXPECT_EQ(p.port, 443);
+    EXPECT_TRUE(p.use_tls);
 }
 
 // ==================== FRAME BUILDER TESTS ====================

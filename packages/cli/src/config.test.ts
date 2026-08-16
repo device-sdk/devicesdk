@@ -126,6 +126,59 @@ describe("DeviceSDKConfigSchema", () => {
 		expect(result.success).toBe(false);
 	});
 
+	it("should fail validation for invalid device ids", () => {
+		const config = {
+			projectId: "my-project",
+			devices: {
+				"Bad Name": {
+					className: "SensorDevice",
+					main: "./devices/sensor.ts",
+					deviceType: "pico-w",
+					wifi: { ssid: "ssid", password: "pass" },
+				},
+			},
+		};
+		const result = DeviceSDKConfigSchema.safeParse(config);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			const messages = result.error.issues.map((i) => i.message).join(" | ");
+			expect(messages).toContain('Device id "Bad Name" is invalid');
+		}
+	});
+
+	it("should fail validation for an empty device id", () => {
+		const config = {
+			projectId: "my-project",
+			devices: {
+				"": {
+					className: "SensorDevice",
+					main: "./devices/sensor.ts",
+					deviceType: "pico-w",
+					wifi: { ssid: "ssid", password: "pass" },
+				},
+			},
+		};
+		const result = DeviceSDKConfigSchema.safeParse(config);
+		expect(result.success).toBe(false);
+	});
+
+	it("should fail validation for an over-length device id", () => {
+		const longId = "a".repeat(37);
+		const config = {
+			projectId: "my-project",
+			devices: {
+				[longId]: {
+					className: "SensorDevice",
+					main: "./devices/sensor.ts",
+					deviceType: "pico-w",
+					wifi: { ssid: "ssid", password: "pass" },
+				},
+			},
+		};
+		const result = DeviceSDKConfigSchema.safeParse(config);
+		expect(result.success).toBe(false);
+	});
+
 	it("should validate a config with an empty devices object", () => {
 		const config = {
 			projectId: "my-project",

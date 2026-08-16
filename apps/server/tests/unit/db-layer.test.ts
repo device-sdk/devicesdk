@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { FetchTypes } from "workers-qb";
 import { BunSqliteQB, type BunSqliteResult } from "../../src/db/bunSqliteQB";
 import { D1CompatDatabase } from "../../src/db/d1Compat";
@@ -376,5 +377,33 @@ CREATE TABLE b (id INTEGER PRIMARY KEY);`,
 			)
 			.all() as { name: string }[];
 		expect(tables.map((t) => t.name)).toEqual(["a", "b"]);
+	});
+
+	test("real migration set applies cleanly - rate_limits dropped, new indexes present", () => {
+		const realDir = fileURLToPath(new URL("../../migrations", import.meta.url));
+		const applied = applyMigrations(db, realDir);
+		expect(applied.length).toBeGreaterThan(0);
+		expect(applied).toContain("0028_add_indexes_drop_rate_limits.sql");
+
+		const rateLimits = db
+			.query(
+				"SELECT name FROM sqlite_master WHERE name = 'rate_limits' OR name LIKE 'idx_rate_limits%'",
+			)
+			.all();
+		expect(rateLimits).toEqual([]);
+
+		const idx = db
+			.query(
+				"SELECT name FROM sqlite_master WHERE type='index' AND name IN ('idx_tokens_token_hash','idx_tokens_user_id','idx_tokens_expires_at','idx_user_sessions_expires_at','idx_device_logs_created_at','idx_device_usage_bucket_ts') ORDER BY name",
+			)
+			.all() as { name: string }[];
+		expect(idx.map((i) => i.name)).toEqual([
+			"idx_device_logs_created_at",
+			"idx_device_usage_bucket_ts",
+			"idx_tokens_expires_at",
+			"idx_tokens_token_hash",
+			"idx_tokens_user_id",
+			"idx_user_sessions_expires_at",
+		]);
 	});
 });

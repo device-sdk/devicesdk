@@ -5,12 +5,13 @@ import {
 } from "chanfana";
 
 /**
- * Base route class that fixes ZodError instanceof failures in the Workers runtime.
+ * Base route class that normalizes Zod validation failures into chanfana's
+ * MultiException for consistent 400 response formatting.
  *
- * The Cloudflare Workers bundler can create multiple Zod module instances,
- * breaking chanfana's `instanceof ZodError` check. This override uses
- * duck-typing to catch ZodErrors regardless of which Zod instance created them,
- * converting them to chanfana's MultiException for proper 400 response formatting.
+ * The check is shape-based (duck-typed) rather than `instanceof ZodError` so
+ * it works regardless of which Zod instance produced the error - chanfana and
+ * the app may resolve separate copies of the Zod module in the dependency
+ * tree, and instanceof checks across those copies silently fail.
  */
 export class BaseRoute extends OpenAPIRoute {
 	protected handleError(error: unknown): unknown {

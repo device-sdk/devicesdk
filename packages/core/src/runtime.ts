@@ -80,8 +80,9 @@ export type UserWorkerEnv<ProjectDevices = Record<string, never>> = {
  *
  * Async methods that return `void` do not wait for the device to ack. Methods
  * returning {@link DeviceResponse} send a command and wait for the matching
- * response event. If the device is offline, the runtime queues the command and
- * delivers it when the device reconnects.
+ * response event. There is no offline command queue: if the device is not
+ * connected, void methods throw a "Device not connected" error and
+ * response-awaiting methods reject.
  *
  * @see https://docs.devicesdk.com/concepts/device-api/
  */
@@ -90,20 +91,26 @@ export interface DeviceSenderInterface {
 	 * Send an arbitrary {@link DeviceCommand} without waiting for a response.
 	 * Prefer the typed convenience methods below - use this only for custom
 	 * command types not yet wrapped.
+	 *
+	 * Throws if the device is currently offline - commands are not queued.
 	 */
 	sendCommand(command: Omit<DeviceCommand, "id">): Promise<void>;
 
 	/**
 	 * Send a command and wait for the device's matching response event.
 	 * Prefer the typed convenience methods below.
+	 *
+	 * Rejects if the device is currently offline - commands are not queued.
 	 */
 	sendCommandAndWait<T extends DeviceCommand>(
 		command: Omit<T, "id">,
 	): Promise<DeviceResponse>;
 
 	/**
-	 * Soft-reboot the device. The connection drops and the device reconnects on its own.
-	 * Do not chain commands after this - they will be queued and re-sent on reconnect.
+	 * Soft-reboot the device. The connection drops and the device reconnects on
+	 * its own. Commands sent while the device is offline throw/reject (there is
+	 * no queue), so do not chain commands after this - handle the rejection or
+	 * retry from a cron or the `onDeviceConnect` hook.
 	 */
 	reboot(): Promise<void>;
 

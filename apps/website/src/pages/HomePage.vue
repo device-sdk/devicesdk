@@ -57,8 +57,8 @@
 
   <span class="syn-kw">async</span> <span class="syn-fn">onMessage</span>(message) {
     <span class="syn-kw">if</span> (message.type === <span class="syn-str">"gpio_state_changed"</span>) {
-      <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.<span class="syn-fn">setGpioState</span>(<span class="syn-num">99</span>, <span class="syn-str">"high"</span>);
-      <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv.<span class="syn-fn">put</span>(<span class="syn-str">"count"</span>, ++<span class="syn-kw">this</span>.count);
+      <span class="syn-kw">const</span> count = <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv.<span class="syn-fn">get</span>&lt;<span class="syn-type">number</span>&gt;(<span class="syn-str">"count"</span>) ?? <span class="syn-num">0</span>;
+      <span class="syn-kw">await</span> <span class="syn-kw">this</span>.env.DEVICE.kv.<span class="syn-fn">put</span>(<span class="syn-str">"count"</span>, count + <span class="syn-num">1</span>);
     }
   }
 }</code></pre>

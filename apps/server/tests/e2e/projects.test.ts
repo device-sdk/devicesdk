@@ -301,6 +301,25 @@ describe("projects API", () => {
 			projectSlug: "cascade",
 			deviceSlug: "dd",
 		});
+		const { projectId, deviceId } = scaf;
+
+		// No-FK tables must not survive the project delete.
+		srv.db
+			.query(
+				"INSERT INTO device_kv (device_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+			)
+			.run(deviceId, "k", "1", Date.now());
+		srv.db
+			.query(
+				"INSERT INTO device_logs (id, device_id, level, message, created_at) VALUES (?, ?, 'info', 'm', ?)",
+			)
+			.run(crypto.randomUUID(), deviceId, Date.now());
+		srv.db
+			.query(
+				"INSERT INTO device_usage (device_id, project_id, bucket_ts, messages_in) VALUES (?, ?, ?, 1)",
+			)
+			.run(deviceId, projectId, Date.now());
+
 		const del = await srv.delete(`/v1/projects/${scaf.projectSlug}`, {
 			token: scaf.auth.token,
 		});
@@ -310,6 +329,47 @@ describe("projects API", () => {
 			token: scaf.auth.token,
 		});
 		expect(get.status).toBe(404);
+
+		const kvCount = srv.db
+			.query("SELECT COUNT(*) as c FROM device_kv WHERE device_id = ?")
+			.get(deviceId) as { c: number };
+		expect(kvCount.c).toBe(0);
+		const logCount = srv.db
+			.query("SELECT COUNT(*) as c FROM device_logs WHERE device_id = ?")
+			.get(deviceId) as { c: number };
+		expect(logCount.c).toBe(0);
+		const usageCount = srv.db
+			.query("SELECT COUNT(*) as c FROM device_usage WHERE device_id = ?")
+			.get(deviceId) as { c: number };
+		expect(usageCount.c).toBe(0);
+	});
+
+	test("delete drains script blobs across multiple list pages", async () => {
+		const auth = await registerUser("blobs@example.com");
+		await srv.post("/v1/projects", {
+			token: auth.token,
+			body: { project_slug: "blobs" },
+		});
+		const dev = await srv.post("/v1/projects/blobs/devices", {
+			token: auth.token,
+			body: { device_id: "dev" },
+		});
+		expect(dev.status).toBe(201);
+
+		// Seed >1000 blobs (list() pages at 1000) directly into the blob store.
+		const prefix = `${auth.user.id}/blobs/`;
+		for (let i = 0; i < 1100; i++) {
+			await srv.services.SCRIPTS.put(`${prefix}dev/v${i}.js`, "x = 1");
+		}
+		const before = await srv.services.SCRIPTS.list({ prefix });
+		expect(before.truncated).toBe(true); // proves more than one page
+
+		const del = await srv.delete("/v1/projects/blobs", { token: auth.token });
+		expect(del.status).toBe(200);
+
+		const after = await srv.services.SCRIPTS.list({ prefix });
+		expect(after.truncated).toBe(false);
+		expect(after.objects.length).toBe(0);
 	});
 
 	describe("cross-user isolation", () => {

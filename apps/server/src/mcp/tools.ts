@@ -1,3 +1,4 @@
+import { ENV_VAR_KEY_REGEX } from "@devicesdk/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
@@ -15,10 +16,14 @@ export interface LoopbackResult {
  * user that called /mcp - see `route.ts` for how this is constructed. Tools
  * never talk to the database directly; they wrap the existing REST API so
  * validation, limits, and response shapes stay in exactly one place.
+ *
+ * `segments` are the raw (unencoded) path segments; the loopback
+ * implementation URL-encodes each one itself, so no user-controlled value can
+ * introduce extra path segments, query/fragment syntax, or `..` traversal.
  */
 export type LoopbackFn = (
 	method: string,
-	path: string,
+	segments: string[],
 	opts?: {
 		query?: Record<string, string | number | undefined>;
 		body?: unknown;
@@ -63,17 +68,22 @@ function toToolResult(result: LoopbackResult): CallToolResult {
 // result payloads - NOT the internal `id` UUID also present in those list
 // responses. Every description below says so explicitly so an agent doesn't
 // feed a UUID and get 404s.
+//
+// The regexes mirror the server's own slug rules (createProject.ts /
+// createDevice.ts). They also double as a security boundary: slugs become URL
+// path segments in the in-process loopback, so anything outside the slug
+// charset (no "/", no ".", no "?") is rejected here rather than ever reaching
+// `new URL(...)`.
+const slugRegex = /^[a-z][a-z0-9-]{0,35}$/;
 const projectIdParam = z
 	.string()
-	.min(1)
-	.max(36)
+	.regex(slugRegex)
 	.describe(
 		"Project slug (the project_slug field from devicesdk_list_projects - not the id UUID).",
 	);
 const deviceIdParam = z
 	.string()
-	.min(1)
-	.max(36)
+	.regex(slugRegex)
 	.describe(
 		"Device slug (the device_id field from devicesdk_list_devices - not the id UUID).",
 	);
@@ -130,7 +140,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 			inputSchema: {},
 			annotations: { readOnlyHint: true, title: "Who am I" },
 		},
-		async () => toToolResult(await loopback("GET", "/v1/user/me")),
+		async () => toToolResult(await loopback("GET", ["v1", "user", "me"])),
 	);
 
 	server.registerTool(
@@ -149,7 +159,9 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 		},
 		async ({ page, per_page }) =>
 			toToolResult(
-				await loopback("GET", "/v1/projects", { query: { page, per_page } }),
+				await loopback("GET", ["v1", "projects"], {
+					query: { page, per_page },
+				}),
 			),
 	);
 
@@ -170,7 +182,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 		},
 		async ({ projectId, page, per_page }) =>
 			toToolResult(
-				await loopback("GET", `/v1/projects/${projectId}/devices`, {
+				await loopback("GET", ["v1", "projects", projectId, "devices"], {
 					query: { page, per_page },
 				}),
 			),
@@ -188,10 +200,14 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 		},
 		async ({ projectId, deviceId }) =>
 			toToolResult(
-				await loopback(
-					"GET",
-					`/v1/projects/${projectId}/devices/${deviceId}/status`,
-				),
+				await loopback("GET", [
+					"v1",
+					"projects",
+					projectId,
+					"devices",
+					deviceId,
+					"status",
+				]),
 			),
 	);
 
@@ -217,7 +233,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 			toToolResult(
 				await loopback(
 					"GET",
-					`/v1/projects/${projectId}/devices/${deviceId}/logs`,
+					["v1", "projects", projectId, "devices", deviceId, "logs"],
 					{ query: { cursor, limit, level } },
 				),
 			),
@@ -240,7 +256,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 			toToolResult(
 				await loopback(
 					"GET",
-					`/v1/projects/${projectId}/devices/${deviceId}/metrics`,
+					["v1", "projects", projectId, "devices", deviceId, "metrics"],
 					{ query: { window } },
 				),
 			),
@@ -257,7 +273,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 		},
 		async ({ projectId, window }) =>
 			toToolResult(
-				await loopback("GET", `/v1/projects/${projectId}/metrics`, {
+				await loopback("GET", ["v1", "projects", projectId, "metrics"], {
 					query: { window },
 				}),
 			),
@@ -274,7 +290,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 			annotations: { readOnlyHint: true, title: "List env var keys" },
 		},
 		async ({ projectId }) =>
-			toToolResult(await loopback("GET", `/v1/projects/${projectId}/env`)),
+			toToolResult(await loopback("GET", ["v1", "projects", projectId, "env"])),
 	);
 
 	server.registerTool(
@@ -289,10 +305,15 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 		},
 		async ({ projectId, deviceId }) =>
 			toToolResult(
-				await loopback(
-					"GET",
-					`/v1/projects/${projectId}/devices/${deviceId}/script/versions`,
-				),
+				await loopback("GET", [
+					"v1",
+					"projects",
+					projectId,
+					"devices",
+					deviceId,
+					"script",
+					"versions",
+				]),
 			),
 	);
 
@@ -335,7 +356,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 		},
 		async ({ projectId, vars }) =>
 			toToolResult(
-				await loopback("PUT", `/v1/projects/${projectId}/env`, {
+				await loopback("PUT", ["v1", "projects", projectId, "env"], {
 					body: { vars },
 				}),
 			),
@@ -346,15 +367,19 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 		{
 			title: "Delete an env var",
 			description: "Delete a single environment variable key from a project.",
-			inputSchema: { projectId: projectIdParam, key: z.string().min(1) },
+			inputSchema: {
+				projectId: projectIdParam,
+				// Same charset the REST endpoint enforces (ENV_VAR_KEY_REGEX in
+				// @devicesdk/core); the key is a URL path segment in the loopback,
+				// so anything outside it is rejected here, before it can reach
+				// `new URL(...)`.
+				key: z.string().regex(ENV_VAR_KEY_REGEX),
+			},
 			annotations: { destructiveHint: true, title: "Delete an env var" },
 		},
 		async ({ projectId, key }) =>
 			toToolResult(
-				await loopback(
-					"DELETE",
-					`/v1/projects/${projectId}/env/${encodeURIComponent(key)}`,
-				),
+				await loopback("DELETE", ["v1", "projects", projectId, "env", key]),
 			),
 	);
 
@@ -383,7 +408,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 			toToolResult(
 				await loopback(
 					"POST",
-					`/v1/projects/${projectId}/devices/${deviceId}/command`,
+					["v1", "projects", projectId, "devices", deviceId, "command"],
 					{ body: { type, payload: payload ?? {} } },
 				),
 			),
@@ -423,7 +448,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 			toToolResult(
 				await loopback(
 					"PUT",
-					`/v1/projects/${projectId}/devices/${deviceId}/script`,
+					["v1", "projects", projectId, "devices", deviceId, "script"],
 					{ body: { script, entrypoint, message } },
 				),
 			),
@@ -439,16 +464,28 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 			inputSchema: {
 				projectId: projectIdParam,
 				deviceId: deviceIdParam,
-				versionId: z.string().min(1).max(36),
+				// Version ids are server-minted UUIDs (crypto.randomUUID()).
+				versionId: z
+					.string()
+					.regex(
+						/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+					),
 			},
 			annotations: { title: "Deploy a script version" },
 		},
 		async ({ projectId, deviceId, versionId }) =>
 			toToolResult(
-				await loopback(
-					"POST",
-					`/v1/projects/${projectId}/devices/${deviceId}/script/versions/${versionId}/deploy`,
-				),
+				await loopback("POST", [
+					"v1",
+					"projects",
+					projectId,
+					"devices",
+					deviceId,
+					"script",
+					"versions",
+					versionId,
+					"deploy",
+				]),
 			),
 	);
 }

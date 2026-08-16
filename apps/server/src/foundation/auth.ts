@@ -5,15 +5,16 @@ import type { AppContext, tableUser, tableUserSessions } from "../types";
 import { SESSION_COOKIE_NAME, SESSION_DURATION_MS } from "./consts";
 import { hashToken } from "./tokenHash";
 
-function getToken(c: AppContext): null | string {
+export function getToken(c: AppContext): null | string {
 	const authHeader = c.req.header("Authorization");
 	const authCookie = getCookie(c, SESSION_COOKIE_NAME);
 
 	if (authHeader) {
-		if (authHeader.toLowerCase().substring(0, 6) !== "bearer") {
-			return null;
-		}
-		return authHeader.substring(6).trim();
+		// RFC 7235 scheme syntax: whitespace between the scheme and the
+		// credentials is required, so "Bearerfoo" is not a bearer credential.
+		const match = authHeader.match(/^Bearer\s+(\S+)$/i);
+		if (!match) return null;
+		return match[1];
 	}
 
 	if (!authCookie) {
@@ -36,13 +37,18 @@ export async function createSession(
 ): Promise<{ token: string; expiresAt: number }> {
 	const now = Date.now();
 	const expiresAt = now + SESSION_DURATION_MS;
+	const rawToken = generateSessionToken();
+	// Store only an HMAC-SHA256 hash, like CLI and API tokens, so a DB dump
+	// can't be replayed as sessions. The raw token only ever lives in the
+	// user's cookie.
+	const tokenHash = await hashToken(rawToken, c.env.config.apiTokenSecret);
 	const session = await c
 		.get("qb")
 		.insert<tableUserSessions>({
 			tableName: "user_sessions",
 			data: {
 				user_id: userId,
-				token: generateSessionToken(),
+				token: tokenHash,
 				expires_at: expiresAt,
 				created_at: now,
 			},
@@ -53,7 +59,7 @@ export async function createSession(
 	if (!session.results) {
 		throw new Error("unable to create a new user session");
 	}
-	return { token: session.results.token, expiresAt };
+	return { token: rawToken, expiresAt };
 }
 
 export function setSessionCookie(
@@ -178,8 +184,9 @@ export async function authenticateUser(c: AppContext, next: Next) {
 				verified_email: number;
 				onboarding_completed: number;
 				user_created_at: number;
+				last_used_at: number | null;
 			}>({
-				query: `SELECT ct.id, u.id as user_id, u.name, u.email, u.picture, u.verified_email, u.onboarding_completed, u.created_at as user_created_at
+				query: `SELECT ct.id, u.id as user_id, u.name, u.email, u.picture, u.verified_email, u.onboarding_completed, u.created_at as user_created_at, ct.last_used_at
 				 FROM cli_tokens ct
 				 JOIN user u ON ct.user_id = u.id
 				 WHERE ct.access_token_hash = ?1 AND ct.expires_at > ?2`,
@@ -203,13 +210,20 @@ export async function authenticateUser(c: AppContext, next: Next) {
 			);
 		}
 
-		await c
-			.get("qb")
-			.raw({
-				query: "UPDATE cli_tokens SET last_used_at = ?1 WHERE id = ?2",
-				args: [Date.now(), cliToken.results.id],
-			})
-			.execute();
+		// Throttle the last_used_at write to at most once per 5 minutes - an
+		// unconditional UPDATE would fire on every authenticated CLI request.
+		if (
+			cliToken.results.last_used_at === null ||
+			Date.now() - cliToken.results.last_used_at > 5 * 60 * 1000
+		) {
+			await c
+				.get("qb")
+				.raw({
+					query: "UPDATE cli_tokens SET last_used_at = ?1 WHERE id = ?2",
+					args: [Date.now(), cliToken.results.id],
+				})
+				.execute();
+		}
 
 		const cliUser: tableUser = {
 			id: cliToken.results.user_id,
@@ -227,6 +241,7 @@ export async function authenticateUser(c: AppContext, next: Next) {
 		return;
 	}
 
+	const sessionTokenHash = await hashToken(token, c.env.config.apiTokenSecret);
 	const session = await c
 		.get("qb")
 		.fetchOne<tableUser>({
@@ -238,14 +253,15 @@ export async function authenticateUser(c: AppContext, next: Next) {
 			},
 			where: {
 				conditions: ["us.token = ?1", "us.expires_at > ?2"],
-				params: [token, Date.now()],
+				params: [sessionTokenHash, Date.now()],
 			},
 		})
 		.execute();
 
 	if (!session.results) {
-		const secret = c.env.config.apiTokenSecret;
-		const apiTokenHash = await hashToken(token, secret);
+		// Same token, same secret: the session lookup already computed this
+		// digest - reuse it instead of hashing twice per request.
+		const apiTokenHash = sessionTokenHash;
 
 		const tokenUser = await c
 			.get("qb")
@@ -293,16 +309,17 @@ export async function authenticateUser(c: AppContext, next: Next) {
 }
 
 export async function handleLogout(c: AppContext) {
-	// Delete session from database
+	// Delete session from database (sessions are stored hashed).
 	const token = getCookie(c, SESSION_COOKIE_NAME);
 	if (token) {
+		const tokenHash = await hashToken(token, c.env.config.apiTokenSecret);
 		await c
 			.get("qb")
 			.delete({
 				tableName: "user_sessions",
 				where: {
 					conditions: ["token = ?1"],
-					params: [token],
+					params: [tokenHash],
 				},
 			})
 			.execute();

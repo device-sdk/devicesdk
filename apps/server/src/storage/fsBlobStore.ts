@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 export interface BlobObject {
@@ -60,15 +60,25 @@ export class FsBlobStore {
 	): Promise<void> {
 		const path = this.filePath(key);
 		await mkdir(dirname(path), { recursive: true });
-		if (typeof value === "string") {
-			await writeFile(path, value, "utf-8");
-		} else if (value instanceof ArrayBuffer) {
-			await writeFile(path, new Uint8Array(value));
-		} else {
-			await writeFile(
-				path,
-				new Uint8Array(value.buffer, value.byteOffset, value.byteLength),
-			);
+		// Write to a temp file in the same directory, then rename: on POSIX
+		// rename is atomic, so a crash or ENOSPC mid-write can never leave a
+		// truncated `latest.js` served to devices.
+		const tmpPath = `${path}.${crypto.randomUUID()}.tmp`;
+		try {
+			if (typeof value === "string") {
+				await writeFile(tmpPath, value, "utf-8");
+			} else if (value instanceof ArrayBuffer) {
+				await writeFile(tmpPath, new Uint8Array(value));
+			} else {
+				await writeFile(
+					tmpPath,
+					new Uint8Array(value.buffer, value.byteOffset, value.byteLength),
+				);
+			}
+			await rename(tmpPath, path);
+		} catch (error) {
+			await rm(tmpPath, { force: true }).catch(() => {});
+			throw error;
 		}
 	}
 
@@ -83,25 +93,29 @@ export class FsBlobStore {
 	}): Promise<BlobListResult> {
 		const prefix = options?.prefix ?? "";
 		const limit = options?.limit ?? 1000;
-		const offset = options?.cursor ? Number.parseInt(options.cursor, 10) : 0;
+		// The cursor is the last returned key (an R2-style continuation token),
+		// not an offset: paginating callers delete already-returned keys between
+		// pages (purge/delete paths), and an offset would skip keys once the
+		// list shrinks under them.
+		const after = options?.cursor ?? "";
 
-		const keys = (await this.walk(this.root)).filter((k) =>
-			k.startsWith(prefix),
+		const keys = (await this.walk(this.root)).filter(
+			(k) => k.startsWith(prefix) && k > after,
 		);
 		keys.sort();
 
-		const page = keys.slice(offset, offset + limit);
+		const page = keys.slice(0, limit);
 		const objects = await Promise.all(
 			page.map(async (key) => ({
 				key,
 				size: (await stat(this.filePath(key))).size,
 			})),
 		);
-		const truncated = offset + limit < keys.length;
+		const truncated = keys.length > limit;
 		return {
 			objects,
 			truncated,
-			cursor: truncated ? String(offset + limit) : undefined,
+			cursor: truncated ? page[page.length - 1] : undefined,
 		};
 	}
 

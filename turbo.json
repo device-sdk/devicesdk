@@ -16,8 +16,8 @@
 		},
 		"@devicesdk/server#build": {
 			"dependsOn": ["^build"],
-			"inputs": ["$TURBO_DEFAULT$", ".env*"],
-			"outputs": ["openapi.json"]
+			"inputs": ["$TURBO_DEFAULT$", ".env*", "../../apps/docs/src/content/docs/**"],
+			"outputs": ["openapi.json", "dist/docs-index.sqlite"]
 		},
 		"@devicesdk/website#build": {
 			"dependsOn": ["^build", "@devicesdk/server#build"],

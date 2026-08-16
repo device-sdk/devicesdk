@@ -7,22 +7,43 @@ import * as esbuild from "esbuild";
 import { type ExecaChildProcess, type ExecaError, execa } from "execa";
 import type { DeviceConfig } from "../config.js";
 import { EXIT } from "../exitCodes.js";
-import { loadConfig } from "../utils.js";
+import { getConfigDir, loadConfig } from "../utils.js";
 import { generateDeviceTypes } from "./build.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const isPortAvailable = (port: number): Promise<boolean> => {
-	return new Promise((resolve) => {
+const DEFAULT_PORT = 8181;
+
+type PortProbeResult = "available" | "in_use" | "denied";
+
+/**
+ * Probes whether a port can be bound. Distinguishes EADDRINUSE (fall back to
+ * the next free port) from every other bind failure (EACCES on privileged
+ * ports, firewalls, etc.) which is reported and fatal.
+ */
+export const probePort = (port: number): Promise<PortProbeResult> =>
+	new Promise((resolve) => {
 		const server = net.createServer();
-		server.once("error", () => resolve(false));
+		server.once("error", (err: NodeJS.ErrnoException) => {
+			resolve(err.code === "EADDRINUSE" ? "in_use" : "denied");
+		});
 		server.once("listening", () => {
 			server.close();
-			resolve(true);
+			resolve("available");
 		});
 		server.listen(port);
 	});
+
+export const isPortAvailable = (port: number): Promise<boolean> =>
+	probePort(port).then((result) => result === "available");
+
+/** Parses --port; NaN when the value is not an integer in 1..65535. */
+export const parseDevPort = (raw: string | undefined): number => {
+	if (raw === undefined) return DEFAULT_PORT;
+	const port = Number(raw);
+	if (!Number.isInteger(port) || port < 1 || port > 65535) return Number.NaN;
+	return port;
 };
 
 interface DeviceWithClass extends DeviceConfig {
@@ -32,6 +53,55 @@ interface DeviceWithClass extends DeviceConfig {
 
 function sanitizeCapnpId(s: string): string {
 	return s.replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+// workerd's `process.env` is populated from the worker's TEXT bindings, never
+// from the workerd process's own environment. The CLI's env vars are
+// enumerated here into per-var text bindings (binding name = env var name) on
+// the dev worker so the device bridge AND `process.env` (via
+// nodejs_compat_populate_process_env) both see them in `devicesdk dev`. A
+// marker binding lists the carried keys so the bridge can enumerate them; the
+// count is capped so the generated config stays small and predictable.
+const MAX_SIMULATED_ENV_VARS = 100;
+const VARS_KEYS_BINDING = "DEVICESDK_VARS_KEYS";
+
+// capnp text literals use C-style escapes. JSON-escaped strings only contain
+// `\` and `"`, but raw env values may contain control characters too.
+function escapeCapnpText(s: string): string {
+	let out = "";
+	for (const ch of s) {
+		if (ch === "\\") out += "\\\\";
+		else if (ch === '"') out += '\\"';
+		else if (ch === "\n") out += "\\n";
+		else if (ch === "\r") out += "\\r";
+		else if (ch === "\t") out += "\\t";
+		else if (ch.charCodeAt(0) < 0x20) {
+			out += `\\x${ch.charCodeAt(0).toString(16).padStart(2, "0")}`;
+		} else {
+			out += ch;
+		}
+	}
+	return out;
+}
+
+function buildEnvVarBindings(): string {
+	// A user env var named exactly like the marker would be ambiguous with
+	// the keys list - it is excluded from the simulated VARS view.
+	const entries = Object.entries(process.env).filter(
+		(entry): entry is [string, string] =>
+			entry[1] !== undefined && entry[0] !== VARS_KEYS_BINDING,
+	);
+	const keys = entries.slice(0, MAX_SIMULATED_ENV_VARS).map(([key]) => key);
+	const bindings = [
+		`(name = "${VARS_KEYS_BINDING}", text = "${escapeCapnpText(JSON.stringify(keys))}")`,
+		...entries
+			.slice(0, MAX_SIMULATED_ENV_VARS)
+			.map(
+				([key, value]) =>
+					`(name = "${escapeCapnpText(key)}", text = "${escapeCapnpText(value)}")`,
+			),
+	];
+	return bindings.join(",");
 }
 
 const generateCapnpConfig = (
@@ -75,10 +145,14 @@ const config :Workerd.Config = (
 
 const devWorker :Workerd.Worker = (
   compatibilityDate = "2025-01-01",
-
+  # nodejs_compat_populate_process_env fills process.env from the worker
+  # text bindings (the compat date 2025-01-01 predates that default).
+  compatibilityFlags = [ "nodejs_compat", "nodejs_compat_populate_process_env" ],
   modules = [
     (name = "entry.js", esModule = embed "${entrypointPath}"),
   ],
+
+  bindings = [${buildEnvVarBindings()}],
 
   durableObjectNamespaces = [${durableObjects}],
   durableObjectStorage = (inMemory = void),
@@ -150,43 +224,99 @@ const buildEntryPoint = async (
 	});
 };
 
-const dev = async (options: { config?: string; port?: string }) => {
-	const configPathOption = options.config || ".";
-	let configPath = path.resolve(process.cwd(), configPathOption);
+// Files `dev` writes into the shared .devicesdk dir. build/deploy own
+// .devicesdk/build/ (bundles + compiled configs) and flash owns
+// .devicesdk/firmware/ - Ctrl-C on dev must never delete those.
+const DEV_TMP_FILES = [
+	"bundle.js",
+	"config.capnp",
+	"simulator.js",
+	"_workerd_entry.ts",
+];
 
-	try {
-		const stats = await fs.stat(configPath);
-		if (stats.isDirectory()) {
-			configPath = path.join(configPath, "devicesdk.ts");
+export const removeDevFiles = async (tmpDir: string): Promise<void> => {
+	await Promise.all(
+		DEV_TMP_FILES.map((file) =>
+			fs.rm(path.join(tmpDir, file), { force: true }).catch(() => {}),
+		),
+	);
+};
+
+const MAX_RESTART_ATTEMPTS = 5;
+const RESTART_BASE_DELAY_MS = 1_000;
+const RESTART_MAX_DELAY_MS = 30_000;
+const RESTART_MIN_UPTIME_MS = 10_000;
+
+const dev = async (options: { config?: string; port?: string }) => {
+	// Resolve the config directory with the same parent-walk discovery the
+	// other commands use (utils.getConfigDir), so running from a project
+	// subdirectory finds the project root instead of erroring with "Main file
+	// not found" and writing devicesdk-env.d.ts into the subdir. An explicit
+	// --config keeps its own existence check for a clearer error.
+	let configDir: string;
+	if (options.config) {
+		let configPath = path.resolve(process.cwd(), options.config);
+		try {
+			const stats = await fs.stat(configPath);
+			if (stats.isDirectory()) {
+				configPath = path.join(configPath, "devicesdk.ts");
+			}
+		} catch {
+			console.error(
+				`Error: Could not find ${configPath}. Make sure the file or directory exists.`,
+			);
+			process.exit(EXIT.CONFIG_LOAD_FAILED);
 		}
-	} catch (error) {
-		console.error(
-			`Error: Could not find ${configPath}. Make sure the file or directory exists.`,
-		);
-		process.exit(EXIT.CONFIG_LOAD_FAILED);
+		configDir = path.dirname(configPath);
+	} else {
+		configDir = getConfigDir();
 	}
-	const tmpDir = path.join(path.dirname(configPath), ".devicesdk");
+	const tmpDir = path.join(configDir, ".devicesdk");
 
 	let workerdProcess: ExecaChildProcess | null = null;
+	let workerdStartedAt: number | null = null;
 	let isRestarting = false;
+	let isExiting = false;
+	let restartAttempts = 0;
+	let restartTimer: ReturnType<typeof setTimeout> | null = null;
+	let rebuildQueued = false;
 
 	const cleanup = async () => {
+		isExiting = true;
+		if (restartTimer) {
+			clearTimeout(restartTimer);
+			restartTimer = null;
+		}
 		if (workerdProcess) {
+			// Kill before nulling: once workerdProcess is null, cleanup can no
+			// longer reach the process, and a SIGINT landing mid-restart
+			// would orphan the old workerd on the port.
 			workerdProcess.kill("SIGTERM");
+			try {
+				await workerdProcess;
+			} catch {
+				// Expected - process was killed
+			}
 			workerdProcess = null;
 		}
-		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+		await removeDevFiles(tmpDir);
 	};
 
-	process.on("SIGINT", async () => {
+	const shutdown = async () => {
 		console.log("\nShutting down devicesdk...");
 		await cleanup();
 		process.exit(EXIT.SUCCESS);
+	};
+
+	process.on("SIGINT", () => {
+		void shutdown();
+	});
+	process.on("SIGTERM", () => {
+		void shutdown();
 	});
 
 	try {
 		const config = await loadConfig(options.config);
-		const configDir = path.dirname(configPath);
 
 		// Generate inter-device RPC type definitions
 		await generateDeviceTypes(config, configDir);
@@ -243,32 +373,56 @@ const dev = async (options: { config?: string; port?: string }) => {
 			}
 		}
 
-		let port = options.port ? Number.parseInt(options.port, 10) : 8181;
-		if (!(await isPortAvailable(port))) {
+		const port = parseDevPort(options.port);
+		if (Number.isNaN(port)) {
+			console.error(
+				`Error: --port must be an integer between 1 and 65535 (got "${options.port}").`,
+			);
+			process.exit(EXIT.CONFIG_INVALID);
+		}
+
+		const initialProbe = await probePort(port);
+		if (initialProbe === "denied") {
+			console.error(
+				`Error: cannot bind to port ${port} - permission denied. Privileged ports (below 1024) need root; check firewall rules.`,
+			);
+			process.exit(EXIT.GENERIC);
+		}
+		let resolvedPort = port;
+		if (initialProbe === "in_use") {
 			const original = port;
 			// Scan upward for the next genuinely-free port. A single random pick
 			// can itself be in use, which would crash `workerd serve` on bind.
 			let candidate = -1;
 			for (let p = original + 1; p <= 65535; p++) {
-				if (await isPortAvailable(p)) {
+				const result = await probePort(p);
+				if (result === "available") {
 					candidate = p;
 					break;
+				}
+				if (result === "denied") {
+					console.error(
+						`Error: cannot bind to port ${p} - permission denied. Privileged ports (below 1024) need root; check firewall rules.`,
+					);
+					process.exit(EXIT.GENERIC);
 				}
 			}
 			if (candidate === -1) {
 				console.error(`Error: no free port available above ${original}.`);
 				process.exit(EXIT.GENERIC);
 			}
-			port = candidate;
-			console.log(`Port ${original} is in use, using ${port} instead.`);
+			resolvedPort = candidate;
+			console.log(`Port ${original} is in use, using ${resolvedPort} instead.`);
 		}
 
 		const buildAndStart = async () => {
 			// Kill existing workerd process and wait for it to exit
 			if (workerdProcess) {
+				// Kill before clearing the reference so a SIGINT landing in
+				// this window can still reach the process via cleanup.
+				workerdProcess.kill("SIGTERM");
 				const proc = workerdProcess;
 				workerdProcess = null;
-				proc.kill("SIGTERM");
 				try {
 					await proc;
 				} catch {
@@ -323,12 +477,14 @@ const dev = async (options: { config?: string; port?: string }) => {
 				devicesWithClass,
 				"bundle.js",
 				simulatorAssetsPath,
-				port,
+				resolvedPort,
 			);
 			const capnpPath = path.join(tmpDir, "config.capnp");
 			await fs.writeFile(capnpPath, capnpConfig);
 
-			console.log(`\nStarting devicesdk on http://localhost:${port}...\n`);
+			console.log(
+				`\nStarting devicesdk on http://localhost:${resolvedPort}...\n`,
+			);
 
 			workerdProcess = execa(
 				"workerd",
@@ -338,8 +494,10 @@ const dev = async (options: { config?: string; port?: string }) => {
 					cwd: tmpDir,
 				},
 			);
+			workerdStartedAt = Date.now();
 
 			workerdProcess.catch((error: ExecaError) => {
+				if (isExiting) return;
 				if (error.signal === "SIGTERM" && isRestarting) {
 					// Expected during restart
 					return;
@@ -349,11 +507,64 @@ const dev = async (options: { config?: string; port?: string }) => {
 					return;
 				}
 				console.error("\nworkerd exited unexpectedly:", error.message);
+				scheduleRestart();
 			});
 		};
 
+		// Bounded restart with exponential backoff. A workerd process that
+		// crashes (runtime script error, workerd bug) is restarted instead of
+		// leaving `dev` running dead - but never more than a few times in a
+		// row. A process that ran for a while before dying resets the budget.
+		const scheduleRestart = () => {
+			if (isExiting) return;
+			if (
+				workerdStartedAt !== null &&
+				Date.now() - workerdStartedAt >= RESTART_MIN_UPTIME_MS
+			) {
+				restartAttempts = 0;
+			}
+			restartAttempts++;
+			if (restartAttempts > MAX_RESTART_ATTEMPTS) {
+				console.error(
+					`\nworkerd exited unexpectedly ${MAX_RESTART_ATTEMPTS} times in a row. ` +
+						"Check the errors above and run `devicesdk dev` again.",
+				);
+				process.exit(EXIT.GENERIC);
+			}
+			const delay = Math.min(
+				RESTART_BASE_DELAY_MS * 2 ** (restartAttempts - 1),
+				RESTART_MAX_DELAY_MS,
+			);
+			console.log(
+				`\nRestarting workerd in ${Math.round(delay / 1000)}s (attempt ${restartAttempts}/${MAX_RESTART_ATTEMPTS})...`,
+			);
+			restartTimer = setTimeout(() => {
+				restartTimer = null;
+				void startDevServer();
+			}, delay);
+		};
+
+		// Shared build+start with the isRestarting guard. Both the watcher and
+		// the crash-restart timer go through here, so a syntax error in the
+		// user's script at any point (initial start included) prints the real
+		// error and keeps watching for fixes instead of killing `dev`.
+		const startDevServer = async () => {
+			if (isRestarting) {
+				rebuildQueued = true;
+				return;
+			}
+			isRestarting = true;
+			try {
+				await buildAndStart();
+			} catch (error) {
+				console.error("Build failed:", (error as Error).message);
+			} finally {
+				isRestarting = false;
+			}
+		};
+
 		// Initial build and start
-		await buildAndStart();
+		await startDevServer();
 
 		// Watch user source files for changes
 		const watchPaths = Object.values(devicesWithClass).map(
@@ -361,9 +572,10 @@ const dev = async (options: { config?: string; port?: string }) => {
 		);
 		const watchDirs = [...new Set(watchPaths.map((p) => path.dirname(p)))];
 
-		let rebuildQueued = false;
 		const watcher = chokidar.watch(watchDirs, {
-			ignored: /(^|[/\\])\.|node_modules|\.devicesdk/,
+			// devicesdk-env.d.ts is regenerated by every build/dev run into a
+			// watched dir - ignore it or each rebuild would re-trigger itself.
+			ignored: /(^|[/\\])\.|node_modules|\.devicesdk|devicesdk-env\.d\.ts/,
 			ignoreInitial: true,
 		});
 
@@ -375,16 +587,11 @@ const dev = async (options: { config?: string; port?: string }) => {
 				return;
 			}
 
-			isRestarting = true;
 			console.log("Rebuilding...\n");
-
-			try {
-				await buildAndStart();
-			} catch (error) {
-				console.error("Rebuild failed:", (error as Error).message);
-			} finally {
-				isRestarting = false;
-			}
+			// The user edited something - give the restart budget a fresh
+			// start (the crash cause may be fixed now).
+			restartAttempts = 0;
+			await startDevServer();
 
 			// If changes came in during rebuild, rebuild again
 			if (rebuildQueued) {

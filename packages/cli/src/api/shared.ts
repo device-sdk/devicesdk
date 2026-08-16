@@ -1,12 +1,24 @@
 import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { EXIT } from "../exitCodes.js";
+import { emitJsonError, isJsonMode } from "../output.js";
 import { discoverMdnsHost } from "./mdnsDiscovery.js";
+
+/** Default per-request timeout: a stalled server must not hang the CLI. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
+
+const MAX_FETCH_PAGES = 100;
 
 let verboseLogging = false;
 
 export function setVerbose(verbose: boolean): void {
 	verboseLogging = verbose;
+}
+
+/** True once any command turned on verbose logging (via setVerbose). */
+export function isVerboseLogging(): boolean {
+	return verboseLogging;
 }
 
 // DeviceSDK is self-hosted: there is no default cloud endpoint. The server
@@ -44,7 +56,9 @@ function readStoredHost(): string | null {
 
 export async function getApiUrl(): Promise<string> {
 	if (process.env.DEVICESDK_API_URL) {
-		return process.env.DEVICESDK_API_URL.replace(/\/+$/, "");
+		// Normalize the env var the same way as --host / stored hosts so a bare
+		// "192.168.1.5:8080" does not produce cryptic fetch failures.
+		return normalizeHost(process.env.DEVICESDK_API_URL);
 	}
 	if (apiUrlOverride) return apiUrlOverride;
 	if (storedHostCache === undefined) storedHostCache = readStoredHost();
@@ -63,13 +77,23 @@ export async function getApiUrl(): Promise<string> {
 	}
 	if (mdnsHostCache) return mdnsHostCache;
 
-	console.error("✗ Error: No DeviceSDK server configured.\n");
-	console.error(
-		"  Connect this CLI to your self-hosted server with:\n" +
-			"    devicesdk login --host http://<server>:8080\n\n" +
-			"  Or set the DEVICESDK_API_URL environment variable.",
-	);
-	process.exit(1);
+	if (isJsonMode()) {
+		emitJsonError(
+			"No DeviceSDK server configured. Run `devicesdk login --host http://<server>:8080` or set DEVICESDK_API_URL.",
+			{
+				code: "no_server_configured",
+				docs: "https://docs.devicesdk.com/cli/login/",
+			},
+		);
+	} else {
+		console.error("✗ Error: No DeviceSDK server configured.\n");
+		console.error(
+			"  Connect this CLI to your self-hosted server with:\n" +
+				"    devicesdk login --host http://<server>:8080\n\n" +
+				"  Or set the DEVICESDK_API_URL environment variable.",
+		);
+	}
+	process.exit(EXIT.GENERIC);
 }
 
 export interface ApiResponse<T> {
@@ -217,78 +241,181 @@ export function dumpResponseBodyIfVerbose(
 	}
 }
 
+/**
+ * Thrown when an API request is aborted by the client-side timeout. Distinct
+ * from {@link DeviceSDKApiError} (HTTP failures) and raw network errors, so
+ * callers can tell "server is unreachable / not responding" apart from "the
+ * server answered with an error".
+ */
+export class DeviceSDKTimeoutError extends Error {
+	constructor(timeoutMs: number) {
+		super(`Server not responding after ${Math.round(timeoutMs / 1000)}s`);
+		this.name = "DeviceSDKTimeoutError";
+	}
+}
+
+export interface RequestOptions extends RequestInit {
+	/** Abort the request after this many ms. Defaults to 60_000. */
+	timeoutMs?: number;
+}
+
+function isAbortError(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		(error as { name?: unknown }).name === "AbortError"
+	);
+}
+
+/**
+ * Runs `run` with an abort signal that fires after `timeoutMs`. If the timeout
+ * fires first, rejects with {@link DeviceSDKTimeoutError}; aborts requested by
+ * the caller (via a signal they pass through) propagate unchanged.
+ */
+export async function runWithTimeout<T>(
+	run: (signal: AbortSignal) => Promise<T>,
+	timeoutMs: number,
+): Promise<T> {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), timeoutMs);
+	try {
+		return await run(controller.signal);
+	} catch (error) {
+		if (controller.signal.aborted && isAbortError(error)) {
+			throw new DeviceSDKTimeoutError(timeoutMs);
+		}
+		throw error;
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/**
+ * Composes multiple abort signals into a single one. Uses `AbortSignal.any`
+ * when available; otherwise a tiny fallback forwards each signal's abort
+ * (including already-aborted inputs) to a fresh controller - so a timeout and
+ * a caller-supplied signal are BOTH honored on every supported engine. Call
+ * `dispose()` once the composed signal is no longer needed to drop listeners.
+ */
+function composeAbortSignals(signals: AbortSignal[]): {
+	signal: AbortSignal;
+	dispose: () => void;
+} {
+	if (typeof AbortSignal.any === "function") {
+		return { signal: AbortSignal.any(signals), dispose: () => {} };
+	}
+	const controller = new AbortController();
+	const abort = () => controller.abort();
+	const live = signals.filter((s) => !s.aborted);
+	for (const s of live) s.addEventListener("abort", abort);
+	// An input that is already aborted must abort the composed signal
+	// immediately (fetch should fail fast, not wait for the timeout).
+	if (signals.some((s) => s.aborted)) controller.abort();
+	return {
+		signal: controller.signal,
+		dispose: () => {
+			for (const s of live) s.removeEventListener("abort", abort);
+		},
+	};
+}
+
+/**
+ * Combines the caller's abort signal with the runWithTimeout timeout signal.
+ * Returns the composed signal plus a dispose() that releases the listeners.
+ */
+function combineSignals(
+	callerSignal: AbortSignal | null | undefined,
+	timeoutSignal: AbortSignal,
+): { signal: AbortSignal; dispose: () => void } {
+	if (!callerSignal) {
+		return { signal: timeoutSignal, dispose: () => {} };
+	}
+	return composeAbortSignals([callerSignal, timeoutSignal]);
+}
+
 export async function request<T>(
 	endpoint: string,
-	options: RequestInit = {},
+	options: RequestOptions = {},
 	token?: string,
 	unwrapResult: boolean = true,
 ): Promise<T> {
 	const url = `${await getApiUrl()}${endpoint}`;
-	const method = options.method || "GET";
-	const headers: Record<string, string> = {
-		"Content-Type": "application/json",
-		...(options.headers as Record<string, string>),
-	};
+	const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, ...fetchOptions } = options;
+	const method = fetchOptions.method || "GET";
+	// `new Headers(...)` accepts both plain objects and Headers instances, so
+	// callers passing a real Headers object no longer lose it.
+	const headers = new Headers(fetchOptions.headers);
+	if (!headers.has("Content-Type")) {
+		headers.set("Content-Type", "application/json");
+	}
 
 	if (token) {
-		headers.Authorization = `Bearer ${token}`;
+		headers.set("Authorization", `Bearer ${token}`);
 	}
 
 	if (verboseLogging) {
 		console.log(`[request] ${method} ${url}`);
 	}
 
-	const response = await fetch(url, {
-		...options,
-		headers,
-	});
+	return runWithTimeout(async (timeoutSignal) => {
+		const combined = combineSignals(fetchOptions.signal, timeoutSignal);
+		try {
+			const response = await fetch(url, {
+				...fetchOptions,
+				headers,
+				signal: combined.signal,
+			});
 
-	if (verboseLogging) {
-		console.log(`[request] Response status: ${response.status}`);
-	}
+			if (verboseLogging) {
+				console.log(`[request] Response status: ${response.status}`);
+			}
 
-	const responseText = await response.text();
-	let data: unknown = null;
-	try {
-		data = responseText ? JSON.parse(responseText) : null;
-	} catch {
-		// response is not JSON
-	}
+			const responseText = await response.text();
+			let data: unknown = null;
+			try {
+				data = responseText ? JSON.parse(responseText) : null;
+			} catch {
+				// response is not JSON
+			}
 
-	if (!response.ok) {
-		const parsed = parseErrorBody(data);
-		dumpResponseBodyIfVerbose(response.status, data, responseText);
-		throw new DeviceSDKApiError(
-			buildErrorMessage(response.status, parsed),
-			response.status,
-			parsed.code,
-			parsed.docs,
-			data ?? responseText,
-		);
-	}
+			if (!response.ok) {
+				const parsed = parseErrorBody(data);
+				dumpResponseBodyIfVerbose(response.status, data, responseText);
+				throw new DeviceSDKApiError(
+					buildErrorMessage(response.status, parsed),
+					response.status,
+					parsed.code,
+					parsed.docs,
+					data ?? responseText,
+				);
+			}
 
-	// Some endpoints return data directly, others wrap in { success, result }
-	const envelope =
-		data && typeof data === "object"
-			? (data as { success?: boolean; result?: unknown })
-			: null;
+			// Some endpoints return data directly, others wrap in { success, result }
+			const envelope =
+				data && typeof data === "object"
+					? (data as { success?: boolean; result?: unknown })
+					: null;
 
-	if (unwrapResult && envelope?.success === false) {
-		const parsed = parseErrorBody(data);
-		throw new DeviceSDKApiError(
-			parsed.message || "Request failed",
-			response.status,
-			parsed.code,
-			parsed.docs,
-			data,
-		);
-	}
+			if (unwrapResult && envelope?.success === false) {
+				const parsed = parseErrorBody(data);
+				throw new DeviceSDKApiError(
+					parsed.message || "Request failed",
+					response.status,
+					parsed.code,
+					parsed.docs,
+					data,
+				);
+			}
 
-	return (
-		unwrapResult && envelope?.result !== undefined
-			? envelope.result
-			: (data ?? responseText)
-	) as T;
+			return (
+				unwrapResult && envelope?.result !== undefined
+					? envelope.result
+					: (data ?? responseText)
+			) as T;
+		} finally {
+			combined.dispose();
+		}
+	}, timeoutMs);
 }
 
 export async function fetchAllPages<T>(
@@ -300,6 +427,11 @@ export async function fetchAllPages<T>(
 	const per_page = 100;
 	let hasMore = true;
 	while (hasMore) {
+		if (page > MAX_FETCH_PAGES) {
+			throw new Error(
+				`Server returned more than ${MAX_FETCH_PAGES} pages for ${endpoint}; refusing to page further.`,
+			);
+		}
 		const result = await request<{
 			items: T[];
 			page: number;

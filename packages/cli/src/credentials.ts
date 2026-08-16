@@ -27,18 +27,47 @@ export async function getCredentialsPath(): Promise<string> {
 }
 
 export async function saveCredentials(credentials: Credentials): Promise<void> {
-	await fs.mkdir(CREDENTIALS_DIR, { recursive: true });
-	await fs.writeFile(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2), {
+	await fs.mkdir(CREDENTIALS_DIR, { recursive: true, mode: 0o700 });
+	// Write to a temp file and rename so a crash mid-write cannot truncate the
+	// real file (a corrupt credentials.json would silently log the user out).
+	const tmpFile = `${CREDENTIALS_FILE}.tmp`;
+	await fs.writeFile(tmpFile, JSON.stringify(credentials, null, 2), {
 		mode: 0o600,
 	});
+	// chmod after write too: writeFile mode is masked by the umask, so the
+	// file may be more permissive than 0600 without this.
+	await fs.chmod(tmpFile, 0o600);
+	await fs.rename(tmpFile, CREDENTIALS_FILE);
 }
 
 export async function loadCredentials(): Promise<Credentials | null> {
+	let raw: string;
 	try {
-		const data = await fs.readFile(CREDENTIALS_FILE, "utf-8");
-		return JSON.parse(data) as Credentials;
+		raw = await fs.readFile(CREDENTIALS_FILE, "utf-8");
 	} catch {
+		// File missing or unreadable - treat as not logged in.
 		return null;
+	}
+	try {
+		return JSON.parse(raw) as Credentials;
+	} catch {
+		// A truncated/corrupt file must not masquerade as "not logged in" -
+		// that produces a confusing "Authentication required". Surface the
+		// real problem instead.
+		if (isJsonMode()) {
+			emitJsonError(
+				"Credentials file is corrupt - run `devicesdk login` to re-authenticate.",
+				{
+					code: "credentials_corrupt",
+					docs: "https://docs.devicesdk.com/cli/login/",
+				},
+			);
+		} else {
+			console.error(
+				"✗ Error: Credentials file is corrupt - run `devicesdk login` to re-authenticate.",
+			);
+		}
+		process.exit(EXIT.NOT_AUTHENTICATED);
 	}
 }
 
@@ -65,9 +94,16 @@ export async function getToken(): Promise<
 		return null;
 	}
 
-	// Check if token is expired (with 5 minute buffer)
+	// Check if token is expired (with 5 minute buffer). A missing or
+	// non-numeric expiresAt (old credential files predate the field) is
+	// treated as expired so the CLI refreshes proactively instead of only
+	// noticing when the server rejects the token.
 	const now = Date.now();
-	const expiresAt = credentials.expiresAt;
+	const rawExpiresAt = credentials.expiresAt;
+	const expiresAt =
+		typeof rawExpiresAt === "number" && Number.isFinite(rawExpiresAt)
+			? rawExpiresAt
+			: 0;
 	const buffer = 5 * 60 * 1000; // 5 minutes
 
 	if (now >= expiresAt - buffer) {
@@ -84,15 +120,19 @@ export async function getToken(): Promise<
 			await saveCredentials(newCredentials);
 			return newCredentials.accessToken;
 		} catch (error) {
-			// 4xx from the refresh endpoint means the stored token is no longer
-			// honoured by the server - surface "Session expired" so the CLI can
-			// print one line instead of the generic "Authentication required".
+			// Only a 401 (or a 400 with an auth-shaped code) means the stored
+			// refresh token is no longer honoured - surface "Session expired"
+			// so the CLI prints one line instead of the generic "Authentication
+			// required". Rate limits (429), missing endpoints (404), and other
+			// failures are real errors and must propagate, not be masked.
 			if (
 				error instanceof DeviceSDKApiError &&
-				error.statusCode >= 400 &&
-				error.statusCode < 500
+				isSessionExpiryError(error.statusCode, error.code)
 			) {
 				return SESSION_EXPIRED;
+			}
+			if (error instanceof DeviceSDKApiError) {
+				throw error;
 			}
 			// Network errors and other failures: keep the prior behaviour of
 			// treating the credentials as missing.
@@ -101,6 +141,18 @@ export async function getToken(): Promise<
 	}
 
 	return credentials.accessToken;
+}
+
+function isSessionExpiryError(status: number, code?: string): boolean {
+	if (status === 401) return true;
+	const authCodes = new Set([
+		"invalid_refresh_token",
+		"invalid_token",
+		"invalid_cli_token",
+		"missing_credentials",
+		"unauthorized",
+	]);
+	return status === 400 && code !== undefined && authCodes.has(code);
 }
 
 export async function requireAuth(): Promise<string> {

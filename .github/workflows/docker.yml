@@ -6,6 +6,10 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+concurrency:
+  group: docker-build
+  cancel-in-progress: false
+
 jobs:
   wait-for-firmware:
     name: Wait for the pinned firmware releases
@@ -85,11 +89,13 @@ jobs:
   build-and-push:
     needs: wait-for-firmware
     # On branch pushes, only build and push when the changeset release PR is
-    # merged. Tag pushes and manual dispatches always run.
+    # merged. Tag pushes and manual dispatches always run. `contains` (not
+    # `startsWith`) so a merge-commit style ("Merge pull request ..." subject
+    # with the PR title in the body) still matches.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.ref, 'refs/tags/') ||
-      startsWith(github.event.head_commit.message, 'chore: version packages')
+      contains(github.event.head_commit.message, 'version packages')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -135,7 +141,10 @@ jobs:
           context: .
           # amd64 for servers/NUCs, arm64 for Raspberry Pi 4/5.
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          # The job-level `if:` above gates every run (workflow_dispatch, tag
+          # push, or the "chore: version packages" merge commit), so every
+          # build that reaches this step must be pushed.
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

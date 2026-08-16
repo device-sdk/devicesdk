@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DeviceSDKApiError, getMe, setVerbose } from "./api.js";
+import {
+	DeviceSDKApiError,
+	DeviceSDKTimeoutError,
+	getMe,
+	request,
+	setVerbose,
+} from "./api.js";
 
 // Test the error-parsing surface of `request<T>` indirectly by mocking
 // `fetch` and asserting the thrown DeviceSDKApiError. These exercise the
@@ -148,5 +154,177 @@ describe("request error parsing", () => {
 		expect(printed).toContain("Response body (500)");
 		expect(printed).toContain("boom");
 		consoleErrorSpy.mockRestore();
+	});
+});
+
+describe("request timeout", () => {
+	it("rejects with DeviceSDKTimeoutError when the server never responds", async () => {
+		process.env.DEVICESDK_API_URL = "http://localhost:1";
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		try {
+			// A fetch that hangs forever until the abort signal fires.
+			fetchMock.mockImplementation(
+				(_url: string, init: RequestInit | undefined) =>
+					new Promise((_resolve, reject) => {
+						const signal = init?.signal as AbortSignal | undefined;
+						const abortError = new DOMException("Aborted", "AbortError");
+						if (signal?.aborted) {
+							reject(abortError);
+							return;
+						}
+						signal?.addEventListener("abort", () => reject(abortError));
+					}),
+			);
+
+			const promise = request("/v1/user/me", { timeoutMs: 1000 });
+			// Attach the rejection handler before advancing so the timeout
+			// rejection is not reported as unhandled.
+			const result = promise.then(
+				() => "resolved",
+				(err: unknown) => err,
+			);
+			await vi.advanceTimersByTimeAsync(1100);
+			const err = (await result) as DeviceSDKTimeoutError;
+			expect(err).toBeInstanceOf(DeviceSDKTimeoutError);
+			expect(err.message).toBe("Server not responding after 1s");
+			// The timeout signal must actually be wired to fetch.
+			const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+			expect(init.signal).toBeInstanceOf(AbortSignal);
+		} finally {
+			vi.useRealTimers();
+			delete process.env.DEVICESDK_API_URL;
+		}
+	});
+
+	it("does not apply a timeout when the request completes normally", async () => {
+		process.env.DEVICESDK_API_URL = "http://localhost:1";
+		fetchMock.mockResolvedValueOnce(
+			jsonResponse(200, { success: true, result: { id: "u1" } }),
+		);
+
+		const me = await request<{ id: string }>("/v1/user/me");
+		expect(me).toEqual({ id: "u1" });
+		delete process.env.DEVICESDK_API_URL;
+	});
+
+	it("fallback (no AbortSignal.any): the timeout still fires when a caller signal is combined", async () => {
+		// Simulate Node <20.3 where AbortSignal.any does not exist. The old
+		// combineSignals fallback returned only the caller's signal, silently
+		// dropping the timeout for that request - this regression asserts the
+		// composed signal aborts when the timeout fires, without touching the
+		// caller's signal.
+		const originalAny = AbortSignal.any;
+		Object.defineProperty(AbortSignal, "any", {
+			value: undefined as unknown as typeof AbortSignal.any,
+			configurable: true,
+		});
+		process.env.DEVICESDK_API_URL = "http://localhost:1";
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		try {
+			const callerController = new AbortController();
+			fetchMock.mockImplementation(
+				(_url: string, init: RequestInit | undefined) =>
+					new Promise((_resolve, reject) => {
+						const signal = init?.signal as AbortSignal | undefined;
+						const abortError = new DOMException("Aborted", "AbortError");
+						if (signal?.aborted) {
+							reject(abortError);
+							return;
+						}
+						signal?.addEventListener("abort", () => reject(abortError));
+					}),
+			);
+
+			const promise = request("/v1/user/me", {
+				timeoutMs: 1000,
+				signal: callerController.signal,
+			});
+			const result = promise.then(
+				() => "resolved",
+				(err: unknown) => err,
+			);
+			await vi.advanceTimersByTimeAsync(1100);
+			const err = (await result) as DeviceSDKTimeoutError;
+			expect(err).toBeInstanceOf(DeviceSDKTimeoutError);
+			// The timeout (not the caller) aborted the request.
+			expect(callerController.signal.aborted).toBe(false);
+		} finally {
+			vi.useRealTimers();
+			delete process.env.DEVICESDK_API_URL;
+			Object.defineProperty(AbortSignal, "any", {
+				value: originalAny,
+				configurable: true,
+			});
+		}
+	});
+
+	it("fallback (no AbortSignal.any): an already-aborted caller signal fails fast, not as a timeout", async () => {
+		const originalAny = AbortSignal.any;
+		Object.defineProperty(AbortSignal, "any", {
+			value: undefined as unknown as typeof AbortSignal.any,
+			configurable: true,
+		});
+		process.env.DEVICESDK_API_URL = "http://localhost:1";
+		try {
+			const callerController = new AbortController();
+			callerController.abort();
+			fetchMock.mockImplementation(
+				(_url: string, init: RequestInit | undefined) =>
+					new Promise((_resolve, reject) => {
+						const signal = init?.signal as AbortSignal | undefined;
+						const abortError = new DOMException("Aborted", "AbortError");
+						if (signal?.aborted) {
+							reject(abortError);
+							return;
+						}
+						signal?.addEventListener("abort", () => reject(abortError));
+					}),
+			);
+
+			const err = (await request("/v1/user/me", {
+				signal: callerController.signal,
+			}).catch((e: unknown) => e)) as DOMException;
+			expect(err.name).toBe("AbortError");
+			expect(err).not.toBeInstanceOf(DeviceSDKTimeoutError);
+		} finally {
+			delete process.env.DEVICESDK_API_URL;
+			Object.defineProperty(AbortSignal, "any", {
+				value: originalAny,
+				configurable: true,
+			});
+		}
+	});
+
+	it("forwards the caller's abort in the AbortSignal.any path (no timeout mask)", async () => {
+		process.env.DEVICESDK_API_URL = "http://localhost:1";
+		try {
+			const callerController = new AbortController();
+			fetchMock.mockImplementation(
+				(_url: string, init: RequestInit | undefined) =>
+					new Promise((_resolve, reject) => {
+						const signal = init?.signal as AbortSignal | undefined;
+						const abortError = new DOMException("Aborted", "AbortError");
+						if (signal?.aborted) {
+							reject(abortError);
+							return;
+						}
+						signal?.addEventListener("abort", () => reject(abortError));
+					}),
+			);
+
+			const promise = request("/v1/user/me", {
+				signal: callerController.signal,
+			});
+			const settled = promise.then(
+				() => "resolved",
+				(err: unknown) => err,
+			);
+			callerController.abort();
+			const err = (await settled) as DOMException;
+			expect(err.name).toBe("AbortError");
+			expect(err).not.toBeInstanceOf(DeviceSDKTimeoutError);
+		} finally {
+			delete process.env.DEVICESDK_API_URL;
+		}
 	});
 });

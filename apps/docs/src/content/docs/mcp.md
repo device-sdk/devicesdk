@@ -92,6 +92,8 @@ The first connection triggers OAuth automatically: your MCP host opens a browser
 
 Hosts with native MCP OAuth support (Claude Code, Cursor, VS Code, OpenCode, and others) handle the whole flow without any extra configuration - the plain `.mcp.json` blocks above are enough.
 
+**Redirect URIs**: dynamic client registration accepts `https` URIs on any host, `http` URIs on loopback or private-LAN hosts (`127.0.0.1`, `localhost`, RFC1918/link-local addresses, `*.local` mDNS names), and native-app custom schemes such as `cursor://`. Scriptable schemes (`javascript:`, `data:`, `vbscript:`, `file:`) and `http` on public hosts are rejected so an authorization code can never be delivered to a browser-execution context or a remote server.
+
 ### API token (alternative - e.g. headless setups)
 
 If your host doesn't support OAuth, or you want a static credential (CI, headless agents, hosts without a browser), create an API token in the dashboard's Tokens page - unlike OAuth-minted tokens, these never expire - and pass it as a Bearer header:
@@ -155,4 +157,4 @@ Every tool returns the same `{ success, result | error, code? }` shape the REST 
 - [Cookbook](/recipes/) - task-shaped recipes an agent can crib from.
 - [Error reference](/errors/) - the codes REST responses (and therefore MCP tool results) surface.
 - [Self-hosting guide](/guides/self-hosting/) - TLS, `MDNS_HOSTNAME`, and other server config that affects how agents reach `/mcp`.
-- [Agent skills manifest](/.well-known/agent-skills/index.json) - for hosts that consume the [agentskills.io](https://schemas.agentskills.io/) discovery schema.
+- [Agent skills manifest](https://devicesdk.com/.well-known/agent-skills/index.json) - for hosts that consume the [agentskills.io](https://schemas.agentskills.io/) discovery schema.

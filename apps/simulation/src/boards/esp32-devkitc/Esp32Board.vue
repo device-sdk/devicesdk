@@ -283,6 +283,7 @@ function onPinPointerLeave(pin: PinDef, event: PointerEvent) {
 
 			<!-- Pin hole / pad -->
 			<circle
+				class="pin-hole"
 				:cx="pinCX(pin.side)"
 				:cy="pinY(pin.row)"
 				:r="PIN_HOLE_R"
@@ -346,7 +347,7 @@ function onPinPointerLeave(pin: PinDef, event: PointerEvent) {
 	filter: brightness(1.15);
 }
 
-.pin-valid circle:first-of-type + circle {
+.pin-valid circle.pin-hole {
 	stroke: #4ade80 !important;
 	stroke-width: 3 !important;
 	filter: drop-shadow(0 0 6px #4ade80);

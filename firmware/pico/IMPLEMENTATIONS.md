@@ -126,12 +126,12 @@ if (cyw43_arch_wifi_connect_timeout_ms(
 
 ```cpp
 WebsocketClient client;
-client.connect("your-server.local", 8080, "/v1/projects/<project-id>/devices/<device-id>/connect/websocket", WEBSOCKET_TOKEN);
+client.connect("your-server.local:8080", "/v1/projects/<project-id>/devices/<device-id>/connect/websocket", WEBSOCKET_TOKEN);
 ```
 
-Initiates DNS lookup and TCP connection to the self-hosted DeviceSDK server.
-Replace `your-server.local` and `8080` with the host and port of your server; on
-a bare hostname (no explicit port) the firmware uses TLS on 443 instead.
+Initiates DNS lookup and TCP/TLS connection to the self-hosted DeviceSDK server.
+Replace `your-server.local:8080` with the host of your server; an explicit port
+selects plain WS, and a bare hostname (no explicit port) uses TLS on 443 instead.
 
 ### 5. Main Event Loop (`main.cpp:47-70`)
 
@@ -142,7 +142,8 @@ while (true) {
     
     if (client.is_connected()) {
         // Send initial message once
-        // Send periodic pings (every 60s)
+        // Send periodic pings (every 300s)
+        // Send protocol-level PING (every 60s)
     }
     
     sleep_ms(1);            // Prevent busy-waiting
@@ -153,6 +154,9 @@ while (true) {
 - 1ms sleep to yield CPU and save power
 - Continuous polling for network events
 - State management for connection status
+- Raw WS messages are queued by the recv callback and parsed here on the main
+  loop, so the CYW43 background task never does heavy JSON work on its small
+  stack
 
 ---
 
@@ -183,23 +187,24 @@ if (err == ERR_OK) {
 
 ### TCP Connection (`ws_client.cpp:63-85`)
 
-Once DNS resolves, a TCP connection is established:
+Once DNS resolves, a TCP connection is established (via `altcp` so TLS is
+transparent for bare-hostname connections):
 
 ```cpp
-tcp_pcb = tcp_new_ip_type(IP_GET_TYPE(&remote_addr));
-tcp_arg(tcp_pcb, this);
-tcp_poll(tcp_pcb, tcp_poll_callback, 1);
-tcp_sent(tcp_pcb, tcp_sent_callback);
-tcp_recv(tcp_pcb, tcp_recv_callback);
-tcp_err(tcp_pcb, tcp_err_callback);
-tcp_connect(tcp_pcb, &remote_addr, 80, tcp_connected_callback);
+altcp_arg(tls_pcb, this);
+altcp_poll(tls_pcb, tcp_poll_callback, 1);
+altcp_sent(tls_pcb, tcp_sent_callback);
+altcp_recv(tls_pcb, tcp_recv_callback);
+altcp_err(tls_pcb, tcp_err_callback);
+altcp_connect(tls_pcb, &remote_addr, port, tcp_connected_callback);
 ```
 
 **Key Points:**
-- Uses lwIP's raw TCP API (not sockets)
+- Uses lwIP's raw ALTCP API (not sockets), with `altcp_tls_new()` for TLS
 - All operations are callback-based
 - Callbacks are registered before connecting
 - Connection is non-blocking
+- TLS config pins the embedded CA bundle and the configured hostname
 
 **ESP32 Equivalent:**
 - Use standard BSD sockets: `socket()`, `connect()`
@@ -223,7 +228,16 @@ cyw43_arch_lwip_end();
 
 ## WebSocket Protocol Implementation
 
-The WebSocket client implements the core WebSocket protocol (RFC 6455) over a plain TCP connection.
+The WebSocket client implements the WebSocket protocol (RFC 6455) over TCP, with optional TLS via lwIP ALTCP.
+
+### Transport Selection & TLS
+
+The connection heuristic mirrors the ESP32 client: a host with an explicit
+port (`devicesdk.local:8080`) selects plain `ws://` for self-hosted LAN
+servers; a bare hostname selects TLS on 443. TLS uses `altcp_tls` with the
+embedded root CA (`ca_cert.h`) for certificate verification, and
+`altcp_tls_set_hostname()` pins the chain to the configured hostname so a
+certificate for any other name is rejected.
 
 ### HTTP Upgrade Handshake (`ws_client.cpp:87-111`)
 
@@ -234,19 +248,23 @@ GET /v1/projects/<project-id>/devices/<device-id>/connect/websocket HTTP/1.1
 Host: your-server.local:8080
 Upgrade: websocket
 Connection: Upgrade
-Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Key: <random 16 bytes, base64>
 Sec-WebSocket-Version: 13
 Authorization: Bearer {token}
 ```
 
 **Key Points:**
-- Uses a fixed WebSocket key (not cryptographically secure, but functional)
+- A fresh random 16-byte `Sec-WebSocket-Key` is generated per connection from
+  the hardware RNG (`get_rand_32()`) and base64-encoded
 - Authorization via Bearer token in HTTP header
-- Connection state transitions to `connected_state = 2` after sending
+- Connection state transitions to `connected_state = 2` only after the server
+  answers with `HTTP/1.1 101` (exact status-line match) **and** a valid
+  `Sec-WebSocket-Accept` (SHA1 of key + RFC 6455 GUID, base64-encoded)
+- A non-101 response records the HTTP status (e.g. 401 for a rejected token)
+  so the caller can stop the reconnect loop on auth failures
 
 **Limitations:**
-- Does not validate the server's handshake response
-- Assumes the first non-WebSocket frame is the HTTP response and ignores it
+- The handshake response is parsed once; HTTP bodies are not consumed
 
 ### Frame Building (Client → Server) (`ws_client.cpp:139-166`)
 
@@ -262,29 +280,33 @@ Bytes 6+: Masked Payload Data
 **Implementation:**
 
 ```cpp
-buffer[0] = 0x80 | WEBSOCKET_OPCODE_TEXT; // FIN=1, Opcode=1 (text)
+buffer[0] = 0x80 | opcode; // FIN=1, opcode (text/ping/pong)
 buffer[1] = payload_len | 0x80;            // MASK=1
 // Generate random 4-byte mask
-uint32_t mask_key = rand();
+uint32_t mask_key = get_rand_32();
 // Copy mask to frame
 // XOR payload with mask
-for (size_t i = 0; i < payload_len; ++i) {
-    buffer[header_len + i] = payload[i] ^ mask_bytes[i % 4];
-}
 ```
 
 **Key Points:**
 - All client-to-server frames MUST be masked (per RFC 6455)
-- Only supports payload length < 126 bytes (no extended length)
-- Uses `rand()` for mask key (requires `pico_rand` library)
+- 7-bit lengths for payloads < 126 bytes, 16-bit extended lengths (126 marker)
+  for payloads up to `BUF_SIZE` (4096) - a command_ack carrying the server's
+  command id exceeds 126 bytes and must not be dropped
+- 64-bit lengths are unsupported (frames never approach 4 GB)
+- Uses `get_rand_32()` (pico_rand, hardware RNG) for mask keys
 - FIN bit always set (no fragmentation support)
 
 **Limitations:**
-- No support for payloads ≥ 126 bytes
 - No fragmentation
-- Only TEXT frames (opcode 0x1)
+- Outbound frames are capped at `BUF_SIZE`
 
 ### Frame Parsing (Server → Client) (`ws_client.cpp:168-195`)
+
+Incoming bytes accumulate in a heap-backed `rx_buffer` (up to
+`MAX_RX_BUFFER_SIZE` = 16384) until a complete frame is available; this
+buffering reassembles frames that arrive split across TCP segments or pbufs
+(including frames up to 4 KB).
 
 ```cpp
 uint8_t opcode = buffer[0] & 0x0F;
@@ -292,22 +314,26 @@ size_t payload_len = buffer[1] & 0x7F;
 size_t payload_offset = 2;
 
 if (opcode == WEBSOCKET_OPCODE_TEXT) {
-    std::string payload(buffer + payload_offset, payload_len);
-    // Parse JSON and handle message
+    // Queue the raw payload for the main-loop consumer
 }
 ```
 
 **Key Points:**
 - Assumes server frames are NOT masked (per RFC 6455)
-- Only handles TEXT frames (0x1)
-- Ignores extended payload length (126/127 markers)
-- Ignores HTTP upgrade response by checking for "HT" prefix
+- TEXT frames (0x1): the raw payload is queued (heap copy, bounded queue) and
+  parsed by the main loop - the recv callback never parses JSON or runs
+  command handlers, keeping the CYW43 background task's stack small
+- PING frames (0x9) are answered with a PONG (echoing the payload), so the
+  server's liveness checks pass
+- CLOSE frames (0x8) record the close code and tear the connection down
+- PONG frames (0xA) are acknowledged implicitly; any complete frame refreshes
+  the dead-socket timer in `poll()`
 
-**Limitations:**
-- No PING/PONG handling
-- No CLOSE frame handling
-- No binary frame support
-- No fragmentation handling
+**Dead-socket detection:** the client sends a protocol-level PING every 60s;
+the server's WebSocket stack PONGs it automatically. If no frame arrives for
+180s (3x the ping interval), `poll()` closes the connection so the caller
+reconnects - a silent NAT idle-drop can no longer leave the device
+permanently "connected" with server crons cancelled.
 
 ---
 
@@ -326,23 +352,28 @@ All messages are JSON objects with a `type` field and optional `payload` field:
 
 ### Outgoing Messages (`main.cpp:54, 62`)
 
-#### Device Connect (Sent once on connection)
+#### Device Connected (Sent once on connection)
 
 ```json
-{"type": "device connect"}
+{"type": "device_connected"}
 ```
 
-#### Ping (Sent every 60 seconds)
+#### App-Level Ping (Sent every 300 seconds)
 
 ```json
 {"type": "ping"}
 ```
 
+The app-level ping is fire-and-forget (the server never replies to it) and is
+kept at 300s to match the ESP32 client. Liveness actually comes from the
+protocol-level PING frame every 60s (`client.send_ping()`), which the server
+PONGs automatically.
+
 **Implementation:**
 
 ```cpp
 uint32_t now = to_ms_since_boot(get_absolute_time());
-if (now - last_ping_time > 60000) {
+if (now - last_ping_time > DEVICESDK_PING_INTERVAL_MS) {
     client.send_text("{\"type\": \"ping\"}");
     last_ping_time = now;
 }
@@ -588,11 +619,12 @@ Key settings:
 ```c
 #define NO_SYS                      1      // No RTOS
 #define LWIP_SOCKET                 0      // No sockets
-#define MEM_SIZE                    4000   // Heap size
+#define MEM_SIZE                    16000  // Heap size
 #define TCP_MSS                     1460   // Maximum segment size
 #define TCP_WND                     (8 * TCP_MSS)  // Window size
 #define LWIP_DHCP                   1      // DHCP client
 #define LWIP_DNS                    1      // DNS resolver
+#define LWIP_ALTCP_TLS_MBEDTLS      1      // TLS via mbedTLS
 #define LWIP_TCP_KEEPALIVE          1      // TCP keepalive
 ```
 
@@ -603,17 +635,21 @@ Key settings:
 
 ### mbedTLS Configuration (`mbedtls_config.h`)
 
-Required for WPA2 Wi-Fi authentication:
+Required for both WPA2 Wi-Fi authentication and TLS client connections:
 
 ```c
 #define MBEDTLS_NO_PLATFORM_ENTROPY
 #define MBEDTLS_ENTROPY_HARDWARE_ALT
 #define MBEDTLS_AES_C
+#define MBEDTLS_SHA1_C            // needed for Sec-WebSocket-Accept validation
 #define MBEDTLS_SHA256_C
-// ... many more crypto primitives
+// ... more crypto primitives
 ```
 
-**Note:** While TLS is configured, the WebSocket connection uses plain HTTP (port 80), not HTTPS/WSS. The mbedTLS configuration is primarily for WPA2 Wi-Fi encryption.
+**Note:** TLS is used for real: bare-hostname hosts connect with WSS on 443
+via `altcp_tls` using the embedded CA bundle, with the hostname pinned via
+`altcp_tls_set_hostname()`. mbedTLS also provides `mbedtls_sha1()` for
+validating the handshake's `Sec-WebSocket-Accept`.
 
 **ESP32 Equivalent:**
 - ESP-IDF includes mbedTLS by default
@@ -649,7 +685,7 @@ Required for WPA2 Wi-Fi authentication:
 
 - **Flash**: 2MB (RP2040)
 - **RAM**: 264KB (RP2040)
-- **lwIP heap**: 4KB (`MEM_SIZE`)
+- **lwIP heap**: 16KB (`MEM_SIZE`)
 
 ---
 
@@ -838,10 +874,10 @@ idf.py monitor
 1. **Boot** → Initialize systems
 2. **Wi-Fi Connect** → Block until connected (30s timeout)
 3. **DNS Lookup** → Resolve server hostname (async)
-4. **TCP Connect** → Establish TCP connection
-5. **WebSocket Handshake** → Send HTTP Upgrade request
-6. **Connected** → Send initial "device connect" message
-7. **Steady State** → Poll for messages, send pings every 60s
+4. **TCP/TLS Connect** → Establish connection (TLS with pinned CA + hostname check for bare hostnames)
+5. **WebSocket Handshake** → Send HTTP Upgrade request, validate status line + Sec-WebSocket-Accept
+6. **Connected** → Send initial `device_connected` message
+7. **Steady State** → Poll for messages (parsed on the main loop), send protocol PING every 60s, app ping every 300s; close and reconnect if no frame arrives for 180s
 
 ### Error Handling
 
@@ -849,23 +885,29 @@ idf.py monitor
 - Wi-Fi failure: Return from `main()` with error code
 - DNS/TCP failure: Log to console, connection remains in disconnected state
 - WebSocket message parse failure: Log error, continue
-
-**Missing Error Handling:**
-- No automatic reconnection
-- No retry logic
-- No timeout handling for WebSocket ping/pong
-- No handling of connection drops after initial connection
+- Automatic reconnection every 5s after a disconnect (or the rate-limit
+  `retry_after` delay when the server rate-limits)
+- Handshake rejection with HTTP 401 (invalid API token): stops reconnecting
+  after 5 consecutive rejections with a clear log - a wrong token no longer
+  loops forever
+- Dead-socket detection: protocol PING/PONG liveness closes connections that
+  survived a silent NAT idle-drop
 
 ### Message Flow
 
 ```
-Device → Server: {"type": "device connect"}
-Device → Server: {"type": "ping"} (every 60s)
+Device → Server: {"type": "device_connected"}
+Device → Server: {"type": "ping"} (every 300s) + protocol PING (every 60s)
 Server → Device: {"type": "set_gpio_state", "payload": {...}}
-Device: Executes command silently
+Device → Server: {"type": "command_ack"|"command_error"|...} with the command id
 ```
 
-No acknowledgment or error responses are sent back to the server.
+Commands are answered with typed responses (`command_ack`, `command_error`,
+`pin_state_update`, `i2c_scan_result`, `spi_transfer_result`, `uart_read_result`,
+etc.) carrying the server's command id so pending commands resolve instead of
+timing out after 5s. Most commands run on Core 1 via the command queue; heavy
+JSON parsing runs on the main loop, never on the small CYW43 background-task
+stack of the recv callback.
 
 ### Threading Model
 

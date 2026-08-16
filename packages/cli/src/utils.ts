@@ -82,7 +82,13 @@ export async function loadConfig(
 		if (resolvedPath.endsWith(".ts")) {
 			const result = await esbuild.build({
 				entryPoints: [resolvedPath],
-				bundle: false,
+				// Bundle relative imports: the compiled config is relocated to
+				// .devicesdk/build/configs/, so an un-bundled `import { x } from
+				// "./helpers.ts"` would break at import time. @devicesdk/cli
+				// stays external - bundling it would inline the CLI binary's
+				// `program.parse(process.argv)` side effect.
+				bundle: true,
+				external: ["@devicesdk/cli"],
 				format: "esm",
 				target: "es2022",
 				write: false,
@@ -95,7 +101,10 @@ export async function loadConfig(
 			await fs.mkdir(tempDir, { recursive: true });
 			const tempFile = path.join(tempDir, "config.mjs");
 			await fs.writeFile(tempFile, code);
-			configUrl = pathToFileURL(tempFile).href;
+			// Cache-bust the import: the compiled file path is stable, so a
+			// second loadConfig in the same process would otherwise return the
+			// previously cached (possibly stale) module.
+			configUrl = `${pathToFileURL(tempFile).href}?v=${Date.now()}`;
 		} else {
 			configUrl = pathToFileURL(resolvedPath).href;
 		}

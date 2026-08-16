@@ -1,6 +1,12 @@
+import { z } from "zod";
+import { CLI_TOKEN_TTL_SECONDS } from "../../foundation/consts";
 import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext } from "../../types";
 import { generateAccessToken, generateRefreshToken } from "./utils";
+
+const RefreshSchema = z.object({
+	refresh_token: z.string().min(1).max(200),
+});
 
 type CliToken = {
 	id: string;
@@ -13,12 +19,11 @@ type CliToken = {
 };
 
 export async function refreshToken(c: AppContext) {
-	const body = await c.req.json<{ refresh_token?: string }>();
-	const { refresh_token } = body;
-
-	if (!refresh_token) {
-		return c.json({ success: false, error: "missing_refresh_token" }, 400);
+	const body = RefreshSchema.safeParse(await c.req.json().catch(() => null));
+	if (!body.success) {
+		return c.json({ success: false, error: "Invalid request body." }, 400);
 	}
+	const { refresh_token } = body.data;
 
 	const secret = c.env.config.apiTokenSecret;
 	const tokenHash = await hashToken(refresh_token, secret);
@@ -35,8 +40,7 @@ export async function refreshToken(c: AppContext) {
 
 	const newAccessToken = generateAccessToken();
 	const newRefreshToken = generateRefreshToken();
-	const expiresIn = 86400; // 24 hours
-	const refreshExpiresIn = 30 * 24 * 60 * 60; // 30 days
+	const expiresIn = CLI_TOKEN_TTL_SECONDS; // 30 days - matches cli_tokens.expires_at
 	const currentMs = Date.now();
 
 	await c.env.DB.batch([
@@ -50,7 +54,7 @@ export async function refreshToken(c: AppContext) {
 			await hashToken(newAccessToken, secret),
 			await hashToken(newRefreshToken, secret),
 			currentMs,
-			currentMs + refreshExpiresIn * 1000,
+			currentMs + expiresIn * 1000,
 		),
 	]);
 

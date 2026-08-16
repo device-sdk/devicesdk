@@ -16,6 +16,15 @@
     </div>
 
     <q-card class="modern-card" flat bordered>
+      <q-banner v-if="tokensError" class="q-mb-none" rounded type="warning">
+        <template v-slot:avatar>
+          <q-icon name="error_outline" color="warning" />
+        </template>
+        Couldn't load API tokens: {{ tokensError }}
+        <template v-slot:action>
+          <q-btn flat color="warning" label="Retry" icon="refresh" @click="fetchTokens" />
+        </template>
+      </q-banner>
       <q-card-section class="q-pa-none">
         <q-table
           :rows="tokens"
@@ -104,7 +113,7 @@
           </template>
 
           <template #no-data>
-            <div class="full-width row flex-center q-pa-xl text-grey-7">
+            <div v-if="!tokensError" class="full-width row flex-center q-pa-xl text-grey-7">
               <div class="text-center empty-state">
                 <q-icon name="vpn_key" size="80px" class="q-mb-md empty-icon" />
                 <div class="text-h6 text-weight-medium q-mb-sm">No API tokens yet</div>
@@ -140,6 +149,15 @@
     </div>
 
     <q-card class="modern-card" flat bordered>
+      <q-banner v-if="cliTokensError" class="q-mb-none" rounded type="warning">
+        <template v-slot:avatar>
+          <q-icon name="error_outline" color="warning" />
+        </template>
+        Couldn't load CLI sessions: {{ cliTokensError }}
+        <template v-slot:action>
+          <q-btn flat color="warning" label="Retry" icon="refresh" @click="loadCliTokens" />
+        </template>
+      </q-banner>
       <q-card-section class="q-pa-none">
         <q-table
           :rows="cliTokens"
@@ -209,7 +227,7 @@
           </template>
 
           <template #no-data>
-            <div class="full-width row flex-center q-pa-xl text-grey-7">
+            <div v-if="!cliTokensError" class="full-width row flex-center q-pa-xl text-grey-7">
               <div class="text-center empty-state">
                 <q-icon name="terminal" size="80px" class="q-mb-md empty-icon" />
                 <div class="text-h6 text-weight-medium q-mb-sm">No CLI sessions</div>
@@ -273,6 +291,8 @@ const tokens = ref<Token[]>([]);
 const cliTokens = ref<CliToken[]>([]);
 const loading = ref(false);
 const cliLoading = ref(false);
+const tokensError = ref<string | null>(null);
+const cliTokensError = ref<string | null>(null);
 const deleting = ref(false);
 const showCreateDialog = ref(false);
 const deleteDialog = ref(false);
@@ -342,9 +362,12 @@ const cliColumns = [
 const fetchTokens = async () => {
   try {
     loading.value = true;
+    tokensError.value = null;
     tokens.value = await tokenService.getAll();
   } catch (error) {
     console.error('Error fetching tokens:', error);
+    tokensError.value =
+      error instanceof Error ? error.message : 'Failed to load tokens';
   } finally {
     loading.value = false;
   }
@@ -353,9 +376,12 @@ const fetchTokens = async () => {
 const loadCliTokens = async () => {
   try {
     cliLoading.value = true;
+    cliTokensError.value = null;
     cliTokens.value = await tokenService.getCliTokens();
   } catch (error) {
     console.error('Error fetching CLI tokens:', error);
+    cliTokensError.value =
+      error instanceof Error ? error.message : 'Failed to load CLI sessions';
   } finally {
     cliLoading.value = false;
   }

@@ -211,14 +211,27 @@ const createToken = async () => {
   }
 };
 
-const copyToClipboard = (text: string, type: string) => {
-  void navigator.clipboard.writeText(text);
-  if (type === 'token') copied.value = true;
-  $q.notify({
-    type: 'positive',
-    message: `${type === 'token' ? 'Token' : 'Snippet'} copied to clipboard`,
-    position: 'top',
-  });
+const copyToClipboard = async (text: string, type: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    if (type === 'token') copied.value = true;
+    $q.notify({
+      type: 'positive',
+      message: `${type === 'token' ? 'Token' : 'Snippet'} copied to clipboard`,
+      position: 'top',
+    });
+  } catch {
+    // Keep the token visible and the warning in place so the user can select
+    // it and copy manually instead of losing it forever.
+    $q.notify({
+      type: 'negative',
+      message:
+        type === 'token'
+          ? 'Failed to copy the token. Select it in the field and copy manually.'
+          : 'Failed to copy the snippet.',
+      position: 'top',
+    });
+  }
 };
 
 // Guard the close path: if a token was generated but never copied, confirm

@@ -2,6 +2,11 @@ import { getCookie, setCookie } from "hono/cookie";
 import { html, raw } from "hono/html";
 import type { AppContext } from "../../types";
 
+// Set on the code-entry page; the approval page (which binds a pending code
+// to the logged-in session) only renders when this cookie is present, so a
+// code can never be acted on from a bare query-string link.
+const ENTRY_COOKIE_NAME = "cli_entry";
+
 function escapeHtml(s: string): string {
 	return s
 		.replace(/&/g, "&amp;")
@@ -166,7 +171,7 @@ function renderCodeEntryPage() {
 		"CLI Login",
 		`
     <h1>DeviceSDK CLI Login</h1>
-    <p class="subtitle">Enter the code shown in your terminal</p>
+    <p class="subtitle">Enter the code shown in your terminal by the <code>devicesdk login</code> command</p>
     <form method="GET" action="/cli/auth">
       <input type="text" name="code" placeholder="XXXX-0000" maxlength="9" required autocomplete="off" autofocus />
       <div class="actions">
@@ -235,9 +240,22 @@ function renderErrorPage(message: string) {
 
 export async function getApprovalPage(c: AppContext) {
 	const code = c.req.query("code");
-	const user = c.get("user");
+	const entered = getCookie(c, ENTRY_COOKIE_NAME);
 
-	if (!code) {
+	// Phishing defense: never jump straight to the approval page from a query
+	// string. An attacker could send a logged-in victim a link carrying their
+	// own pending code and get it bound to the victim's session via a
+	// same-navigation CSRF cookie. The approval page is only reachable after
+	// the user typed the code themselves on the entry page (the entry cookie
+	// is set there and expires after 10 minutes).
+	if (!code || !entered) {
+		setCookie(c, ENTRY_COOKIE_NAME, "1", {
+			path: "/cli/auth",
+			httpOnly: true,
+			sameSite: "Strict",
+			secure: c.env.config.secureCookies,
+			maxAge: 600,
+		});
 		return c.html(renderCodeEntryPage());
 	}
 
@@ -256,7 +274,7 @@ export async function getApprovalPage(c: AppContext) {
 		path: "/cli/auth",
 		httpOnly: true,
 		sameSite: "Strict",
-		secure: c.env.ENV !== "local",
+		secure: c.env.config.secureCookies,
 		maxAge: 600,
 	});
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { findPinByGpio } from "@/boards";
 import { usePinStateStore } from "@/stores/pinState";
 import { useSimulatorStore } from "@/stores/simulator";
@@ -56,14 +56,16 @@ function endPress() {
 	);
 }
 
+const releaseTimers: ReturnType<typeof setTimeout>[] = [];
+
 function clickOnce() {
 	startPress();
-	setTimeout(() => endPress(), 120);
+	releaseTimers.push(setTimeout(() => endPress(), 120));
 }
 
 function doubleClick() {
 	clickOnce();
-	setTimeout(() => clickOnce(), 240);
+	releaseTimers.push(setTimeout(() => clickOnce(), 240));
 }
 
 function toggleActiveLow() {
@@ -77,6 +79,10 @@ function toggleActiveLow() {
 onMounted(() => {
 	// Set initial idle state on the pin so user code reads a sensible default
 	if (gpio.value !== undefined) driveState(idleState.value);
+});
+
+onUnmounted(() => {
+	for (const timer of releaseTimers) clearTimeout(timer);
 });
 </script>
 

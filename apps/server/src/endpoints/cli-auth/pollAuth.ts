@@ -1,6 +1,12 @@
+import { z } from "zod";
+import { CLI_TOKEN_TTL_SECONDS } from "../../foundation/consts";
 import { hashToken } from "../../foundation/tokenHash";
 import type { AppContext } from "../../types";
 import { generateAccessToken, generateRefreshToken } from "./utils";
+
+const PollSchema = z.object({
+	device_code: z.string().min(1).max(200),
+});
 
 type CliAuthCode = {
 	id: string;
@@ -19,12 +25,11 @@ type User = {
 };
 
 export async function pollAuth(c: AppContext) {
-	const body = await c.req.json<{ device_code?: string }>();
-	const { device_code } = body;
-
-	if (!device_code) {
-		return c.json({ success: false, error: "missing_device_code" }, 400);
+	const body = PollSchema.safeParse(await c.req.json().catch(() => null));
+	if (!body.success) {
+		return c.json({ success: false, error: "Invalid request body." }, 400);
 	}
+	const { device_code } = body.data;
 
 	const authCode = await c.env.DB.prepare(
 		"SELECT * FROM cli_auth_codes WHERE device_code = ?",
@@ -57,8 +62,7 @@ export async function pollAuth(c: AppContext) {
 	if (authCode.status === "approved" && authCode.user_id) {
 		const accessToken = generateAccessToken();
 		const refreshToken = generateRefreshToken();
-		const expiresIn = 86400; // 24 hours
-		const refreshExpiresIn = 30 * 24 * 60 * 60; // 30 days
+		const expiresIn = CLI_TOKEN_TTL_SECONDS; // 30 days - matches cli_tokens.expires_at
 		const currentMs = Date.now();
 		const secret = c.env.config.apiTokenSecret;
 
@@ -72,7 +76,7 @@ export async function pollAuth(c: AppContext) {
 				await hashToken(accessToken, secret),
 				await hashToken(refreshToken, secret),
 				currentMs,
-				currentMs + refreshExpiresIn * 1000,
+				currentMs + expiresIn * 1000,
 			)
 			.run();
 

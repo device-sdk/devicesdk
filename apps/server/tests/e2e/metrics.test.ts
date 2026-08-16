@@ -139,6 +139,45 @@ describe("device metrics endpoint", () => {
 		expect(r.series[0].messages_in).toBe(5);
 	});
 
+	test("connected_seconds deltas land in the bucket current at flush time", async () => {
+		const { projectId, deviceId } = await srv.scaffold({
+			projectSlug: "m-spread",
+			deviceSlug: "dev",
+		});
+		const bucket1 = alignBucket(Date.now());
+		const bucket2 = bucket1 - 300_000; // a different 5-minute bucket
+
+		// Clock-injected flushes (the session accrual tick calls
+		// recordDeviceUsage at wall-clock tick times, so each delta lands in
+		// the bucket current then - a long session spreads across buckets).
+		recordDeviceUsage(
+			srv.db,
+			{ deviceId, projectId, connectedSeconds: 60 },
+			bucket1 + 60_000,
+		);
+		recordDeviceUsage(
+			srv.db,
+			{ deviceId, projectId, connectedSeconds: 30 },
+			bucket1 + 120_000,
+		);
+		recordDeviceUsage(
+			srv.db,
+			{ deviceId, projectId, connectedSeconds: 45 },
+			bucket2 + 10_000,
+		);
+
+		const rows = srv.db
+			.query(
+				"SELECT bucket_ts AS ts, connected_seconds AS s FROM device_usage WHERE device_id = ?1 ORDER BY bucket_ts",
+			)
+			.all(deviceId) as { ts: number; s: number }[];
+		// Same-bucket flushes accumulate; cross-bucket flushes split.
+		expect(rows).toEqual([
+			{ ts: bucket2, s: 45 },
+			{ ts: bucket1, s: 90 },
+		]);
+	});
+
 	test("window selection controls look-back span and bucket width", async () => {
 		const { auth, projectSlug, deviceSlug, projectId, deviceId } =
 			await srv.scaffold({ projectSlug: "m-window", deviceSlug: "dev" });
@@ -188,6 +227,16 @@ describe("device metrics endpoint", () => {
 		).result;
 		expect(d7.bucket_seconds).toBe(21600);
 		expect(d7.totals.messages_in).toBe(70); // all three
+
+		// Series must start on a storage-grid bucket boundary (the first
+		// bucket may be partial), so bucket ts labels are always grid-aligned
+		// and the span holds at most one straddling partial bucket.
+		for (const b of h1.series) expect(b.ts % 300_000).toBe(0);
+		for (const b of h12.series) expect(b.ts % 1_800_000).toBe(0);
+		for (const b of d7.series) expect(b.ts % 21_600_000).toBe(0);
+		expect(h1.series.length).toBeLessThanOrEqual(13);
+		expect(h12.series.length).toBeLessThanOrEqual(25);
+		expect(d7.series.length).toBeLessThanOrEqual(29);
 	});
 
 	test("unknown device returns 404", async () => {
@@ -282,7 +331,49 @@ describe("project metrics endpoint", () => {
 		expect(byId.get("dev-b")?.name).toBe("Device B");
 	});
 
-	test("default window is 12h", async () => {
+	test("project totals exclude usage from deleted devices", async () => {
+		const { auth, projectSlug, projectId, deviceId } = await srv.scaffold({
+			projectSlug: "pm-ghost",
+			deviceSlug: "ghost",
+		});
+		const now = Date.now();
+		seedBucket(srv, deviceId, projectId, alignBucket(now - 60_000), {
+			messages_in: 9,
+		});
+
+		// while the device exists the totals include its usage
+		const before = await srv.get(`/v1/projects/${projectSlug}/metrics`, {
+			token: auth.token,
+			query: { window: "1h" },
+		});
+		expect(
+			(before.body as { result: { totals: { messages_in: number } } }).result
+				.totals.messages_in,
+		).toBe(9);
+
+		const del = await srv.delete(`/v1/projects/${projectSlug}/devices/ghost`, {
+			token: auth.token,
+		});
+		expect(del.status).toBe(200);
+
+		// device_usage has no FK - the metrics query must scope to live devices
+		const after = await srv.get(`/v1/projects/${projectSlug}/metrics`, {
+			token: auth.token,
+			query: { window: "1h" },
+		});
+		const r = (
+			after.body as {
+				result: {
+					devices: unknown[];
+					totals: { messages_in: number };
+				};
+			}
+		).result;
+		expect(r.devices.length).toBe(0);
+		expect(r.totals.messages_in).toBe(0);
+	});
+
+	test("default window is 1h", async () => {
 		const { auth, projectSlug } = await srv.scaffold({
 			projectSlug: "pm-default",
 			deviceSlug: "dev",
@@ -294,8 +385,8 @@ describe("project metrics endpoint", () => {
 		const r = (
 			res.body as { result: { window: string; bucket_seconds: number } }
 		).result;
-		expect(r.window).toBe("12h");
-		expect(r.bucket_seconds).toBe(1800);
+		expect(r.window).toBe("1h");
+		expect(r.bucket_seconds).toBe(300);
 	});
 
 	test("unknown project returns 404", async () => {

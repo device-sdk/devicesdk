@@ -9,6 +9,12 @@ import { z } from "zod";
 // configs) can continue to `import { DeviceType, HaEntityDeclaration } from "@devicesdk/cli"`.
 export type { DeviceType, HaEntityDeclaration } from "@devicesdk/core";
 
+// Slug shape shared by project IDs and device IDs: a lowercase letter, then
+// lowercase letters, digits, and hyphens, max 36 chars. Mirrors the server's
+// RESOURCE_LIMITS slug validation - the CLI rejects early so a bad config
+// never survives to deploy.
+export const ID_SLUG_REGEX = /^[a-z][a-z0-9-]{0,35}$/;
+
 const deviceTypeSchema: z.ZodType<DeviceType> = z.enum(DEVICE_TYPES);
 
 // Zod schema must stay in the CLI (core has no runtime deps). The type assertion
@@ -91,14 +97,25 @@ export const DeviceConfigSchema = z.object({
 		.optional(),
 });
 
-export const DeviceSDKConfigSchema = z.object({
-	projectId: z
-		.string()
-		.min(1)
-		.max(36)
-		.regex(/^[a-z][a-z0-9-]{0,35}$/),
-	devices: z.record(z.string(), DeviceConfigSchema),
-});
+export const DeviceSDKConfigSchema = z
+	.object({
+		projectId: z.string().min(1).max(36).regex(ID_SLUG_REGEX),
+		devices: z.record(z.string(), DeviceConfigSchema),
+	})
+	.superRefine((config, ctx) => {
+		// `z.record` keys are arbitrary strings - validate them against the
+		// same slug shape as projectId so a bad device id fails at build time
+		// with a message naming the offending key instead of at deploy time.
+		for (const deviceId of Object.keys(config.devices)) {
+			if (!ID_SLUG_REGEX.test(deviceId)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["devices", deviceId],
+					message: `Device id "${deviceId}" is invalid - use lowercase letters, digits, and hyphens, starting with a letter (max 36 chars)`,
+				});
+			}
+		}
+	});
 
 export type DeviceSDKConfig = z.infer<typeof DeviceSDKConfigSchema>;
 export type DeviceConfig = Omit<

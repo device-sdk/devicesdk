@@ -4,11 +4,11 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { execa } from "execa";
 import { createProject, DeviceSDKApiError, getApiUrl } from "../api.js";
+import { ID_SLUG_REGEX } from "../config.js";
 import { requireAuth } from "../credentials.js";
 import { EXIT } from "../exitCodes.js";
 
 interface InitOptions {
-	yes?: boolean;
 	template?: string;
 	noGit?: boolean;
 }
@@ -453,6 +453,19 @@ export default async function init(
 		? path.resolve(process.cwd(), projectId)
 		: process.cwd();
 	const configPath = path.join(projectDir, "devicesdk.ts");
+
+	// Validate the project id against the config schema's slug shape before
+	// creating anything: the server accepts 1-36 chars, but the CLI's own
+	// devicesdk.ts schema rejects ids with uppercase/spaces/underscores, so an
+	// invalid id would scaffold a project the CLI then refuses to load.
+	if (projectIdArg && !ID_SLUG_REGEX.test(projectIdArg)) {
+		console.error(`✗ Error: Invalid project id "${projectIdArg}"\n`);
+		console.error(
+			"  Project ids must start with a lowercase letter and contain only",
+		);
+		console.error("  lowercase letters, digits, and hyphens (max 36 chars).");
+		process.exit(EXIT.CONFIG_INVALID);
+	}
 
 	// Check if config already exists
 	const configExists = await fs

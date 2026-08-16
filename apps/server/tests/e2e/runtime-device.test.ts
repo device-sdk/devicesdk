@@ -76,7 +76,7 @@ export class Rig {
 let srv: TestServer;
 
 beforeAll(async () => {
-	srv = await TestServer.start();
+	srv = await TestServer.start({ USAGE_TICK_MS: "1000" });
 });
 afterAll(() => srv.stop());
 
@@ -469,5 +469,136 @@ describe("device session runtime", () => {
 		await expect(
 			srv.connectDevice(token, "scope", "other", otherVersionId),
 		).rejects.toThrow();
+	});
+
+	test("connected_seconds accrue incrementally while connected and flush at teardown", async () => {
+		const token = await setupRig("usage");
+		const deviceRow = srv.db
+			.query(
+				`SELECT d.id FROM devices d
+				 JOIN projects p ON p.id = d.project_id
+				 WHERE d.device_slug = 'dev' AND p.project_slug = 'usage'`,
+			)
+			.get() as { id: string };
+
+		const device = await srv.connectDevice(token, "usage", "dev");
+		device.sendConnected();
+		await Bun.sleep(3200); // several 1 s accrual ticks
+
+		// Usage is persisted long before teardown (crash-safe), not dumped
+		// into the disconnect bucket.
+		const during = srv.db
+			.query(
+				"SELECT COALESCE(SUM(connected_seconds), 0) AS s FROM device_usage WHERE device_id = ?1",
+			)
+			.get(deviceRow.id) as { s: number };
+		expect(during.s).toBeGreaterThanOrEqual(2);
+
+		const openAt = (
+			srv.db
+				.query("SELECT last_connected_at AS t FROM devices WHERE id = ?1")
+				.get(deviceRow.id) as { t: number }
+		).t;
+
+		await device.close();
+		await Bun.sleep(200); // teardown flush runs
+
+		const after = srv.db
+			.query(
+				"SELECT COALESCE(SUM(connected_seconds), 0) AS s FROM device_usage WHERE device_id = ?1",
+			)
+			.get(deviceRow.id) as { s: number };
+		// Delta accounting: each flush counts whole seconds and drops the
+		// sub-second remainder, so the total is bounded by the wall-clock
+		// elapsed and can trail it by at most one truncation per flush.
+		const elapsed = Math.floor((Date.now() - openAt) / 1000);
+		expect(after.s).toBeLessThanOrEqual(elapsed);
+		expect(after.s).toBeGreaterThanOrEqual(elapsed - 5);
+	}, 15000);
+
+	test("kv put rejects oversized keys and values without writing", async () => {
+		const auth = await srv.register({
+			email: `kvsizes-${crypto.randomUUID()}@example.com`,
+		});
+		await srv.post("/v1/projects", {
+			token: auth.token,
+			body: { project_slug: "kvsizes" },
+		});
+		await srv.post("/v1/projects/kvsizes/devices", {
+			token: auth.token,
+			body: { device_id: "dev" },
+		});
+		await srv.put("/v1/projects/kvsizes/devices/dev/script", {
+			token: auth.token,
+			body: {
+				script: `
+export class KvLimits {
+	constructor(ctx, env) { this.env = env; }
+	async onMessage(message) {
+		try {
+			if (message.type === "big_key") {
+				await this.env.DEVICE.kv.put("x".repeat(200), 1);
+			} else if (message.type === "big_value") {
+				await this.env.DEVICE.kv.put("k", "x".repeat(5000));
+			} else if (message.type === "ok") {
+				await this.env.DEVICE.kv.put("k", "v");
+			}
+			console.log("kv ok", message.type);
+		} catch (e) {
+			console.error("kv error", String(e && e.message));
+		}
+	}
+}`,
+				entrypoint: "KvLimits",
+			},
+		});
+
+		const watcher = await srv.connectWatcher(auth.token, "kvsizes", "dev");
+		const device = await srv.connectDevice(auth.token, "kvsizes", "dev");
+		device.sendConnected();
+		await watcher.waitFor((e) => e.event === "status");
+
+		device.send({ type: "big_key", payload: {} });
+		const keyErr = await watcher.waitFor(
+			(e) =>
+				e.event === "log" &&
+				(e.data as { message: string }).message.includes("kv error") &&
+				(e.data as { message: string }).message.includes("128"),
+		);
+		expect(keyErr).toBeTruthy();
+
+		device.send({ type: "big_value", payload: {} });
+		const valErr = await watcher.waitFor(
+			(e) =>
+				e.event === "log" &&
+				(e.data as { message: string }).message.includes("kv error") &&
+				(e.data as { message: string }).message.includes("4096"),
+		);
+		expect(valErr).toBeTruthy();
+
+		device.send({ type: "ok", payload: {} });
+		await watcher.waitFor(
+			(e) =>
+				e.event === "log" &&
+				(e.data as { message: string }).message.includes("kv ok"),
+		);
+
+		// Only the accepted write landed in device_kv.
+		const kvDeviceRow = srv.db
+			.query(
+				`SELECT d.id FROM devices d
+				 JOIN projects p ON p.id = d.project_id
+				 WHERE d.device_slug = 'dev' AND p.project_slug = 'kvsizes'`,
+			)
+			.get() as { id: string };
+		const keys = (
+			srv.db
+				.query("SELECT key FROM device_kv WHERE device_id = ?1")
+				.all(kvDeviceRow.id) as { key: string }[]
+		).map((r) => r.key);
+		expect(keys).toEqual(["k"]);
+
+		watcher.close();
+		await device.close();
 	});
 });

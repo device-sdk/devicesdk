@@ -29,16 +29,18 @@ import {
 	rmSync,
 } from "node:fs";
 import { dirname, extname, join, parse, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /** apps/server/scripts/ -> apps/docs/src/content/docs (three levels up, then apps/docs/...). */
 function defaultInputDir(): string {
-	return new URL("../../../apps/docs/src/content/docs", import.meta.url)
-		.pathname;
+	return fileURLToPath(
+		new URL("../../../apps/docs/src/content/docs", import.meta.url),
+	);
 }
 
 /** apps/server/scripts/ -> apps/server/dist/docs-index.sqlite (one level up). */
 function defaultOutputPath(): string {
-	return new URL("../dist/docs-index.sqlite", import.meta.url).pathname;
+	return fileURLToPath(new URL("../dist/docs-index.sqlite", import.meta.url));
 }
 
 const inputDir = process.argv[2]
@@ -190,16 +192,16 @@ function shouldSkipPage(fm: Frontmatter): boolean {
 }
 
 /** Mirrors the new docs app: src/content/docs/* maps to the root of docs.devicesdk.com. */
-function routePathFromRel(relPath: string, prefix: string): string {
+function routePathFromRel(relPath: string): string {
 	const parsed = parse(relPath);
 	const dir = parsed.dir ? parsed.dir.replace(/\\/g, "/") : "";
 	const name = parsed.name;
 	if (name === "_index" || name === "index") {
-		if (!dir) return prefix ? `${prefix.replace(/\/+$/, "")}/` : "/";
-		return `${prefix}/${dir}/`.replace(/\/+/g, "/");
+		if (!dir) return "/";
+		return `/${dir}/`.replace(/\/+/g, "/");
 	}
-	if (!dir) return `${prefix}/${name}/`.replace(/\/+/g, "/");
-	return `${prefix}/${dir}/${name}/`.replace(/\/+/g, "/");
+	if (!dir) return `/${name}/`.replace(/\/+/g, "/");
+	return `/${dir}/${name}/`.replace(/\/+/g, "/");
 }
 
 function normalizeRoutePath(value: string): string {
@@ -209,21 +211,23 @@ function normalizeRoutePath(value: string): string {
 	return p.replace(/\/+/g, "/");
 }
 
-/** Mirrors build-content.ts's resolveRoutePath: url > slug > filename. */
-function resolveRoutePath(
-	relPath: string,
-	prefix: string,
-	fm: Frontmatter,
-): string {
+/**
+ * Mirrors build-content.ts's resolveRoutePath: url > slug > filename. The
+ * frontmatter here is build-time, repo-trusted content, so `url:` values are
+ * not sanitized against path traversal ("../"); the docs repo itself is
+ * reviewed like any other source. Keep that property in mind if this script
+ * ever starts consuming untrusted input.
+ */
+function resolveRoutePath(relPath: string, fm: Frontmatter): string {
 	if (fm.url) return normalizeRoutePath(fm.url);
 	if (fm.slug) {
 		const parsed = parse(relPath);
 		const dir = parsed.dir ? parsed.dir.replace(/\\/g, "/") : "";
 		const safeSlug = fm.slug.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "-");
 		const sluggedRel = dir ? `${dir}/${safeSlug}.md` : `${safeSlug}.md`;
-		return routePathFromRel(sluggedRel, prefix);
+		return routePathFromRel(sluggedRel);
 	}
-	return routePathFromRel(relPath, prefix);
+	return routePathFromRel(relPath);
 }
 
 /**
@@ -284,7 +288,7 @@ function main(): void {
 
 			const title = fm.title || parse(relPath).name;
 			const description = fm.description ?? "";
-			const path = resolveRoutePath(relPath, "", fm);
+			const path = resolveRoutePath(relPath, fm);
 			const content = stripMarkdown(body);
 
 			insert.run(path, title, description, content);

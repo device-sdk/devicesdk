@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { deviceScriptSource, TestServer } from "../harness";
 
 // Batch upload is mounted at PUT /v1/projects/:projectId/scripts and resolves
@@ -7,9 +9,13 @@ import { deviceScriptSource, TestServer } from "../harness";
 // Devices are auto-created when they don't already exist (status "created" vs
 // "success"). Validation of every script runs BEFORE the project lookup, so a
 // validation failure short-circuits with 400 even for a missing project.
+// Since the per-device rework, a runtime failure for one device (blob write,
+// insert) is isolated: the response is 201 with result.status "partial" and
+// per-device error entries instead of an aborted 500.
 
 let srv: TestServer;
 let token: string;
+let userId: string;
 let projectSlug: string;
 
 function batchPath(p = projectSlug): string {
@@ -20,6 +26,7 @@ beforeAll(async () => {
 	srv = await TestServer.start();
 	const auth = await srv.register();
 	token = auth.token;
+	userId = auth.user.id;
 	projectSlug = "batch-proj";
 	const proj = await srv.post("/v1/projects", {
 		token,
@@ -46,6 +53,7 @@ describe("batch upload - happy path", () => {
 		const result = (
 			res.body as {
 				result: {
+					status: "success" | "partial" | "failed";
 					versions: Array<{
 						device_id: string;
 						version_id: string;
@@ -57,6 +65,7 @@ describe("batch upload - happy path", () => {
 				};
 			}
 		).result;
+		expect(result.status).toBe("success");
 		expect(result.message).toBe("batch deploy");
 		expect(result.versions.length).toBe(2);
 		const byDevice = new Map(result.versions.map((v) => [v.device_id, v]));
@@ -97,6 +106,104 @@ describe("batch upload - happy path", () => {
 		).result.versions;
 		expect(versions[0].device_id).toBe("alpha");
 		expect(versions[0].status).toBe("success");
+	});
+});
+
+describe("batch upload - partial failures (per-device isolation)", () => {
+	test("one device failing to write its blob reports an error result, the rest succeed (partial)", async () => {
+		// Make the blob store fail for exactly one device: a directory parked
+		// at its `latest.js` key makes the rename in put() fail (EISDIR), so
+		// only that device's upload errors out.
+		const scriptsRoot = (srv.services.SCRIPTS as unknown as { root: string })
+			.root;
+		const prefix = `${userId}/${projectSlug}`;
+		await srv.services.SCRIPTS.put(`${prefix}/clash/.keep`, "x");
+		mkdirSync(join(scriptsRoot, prefix, "clash", "latest.js"));
+
+		const res = await srv.put(batchPath(), {
+			token,
+			body: {
+				devices: {
+					ok1: { script: deviceScriptSource("Entry"), entrypoint: "Entry" },
+					clash: { script: deviceScriptSource("Entry"), entrypoint: "Entry" },
+				},
+			},
+		});
+		expect(res.status).toBe(201);
+		const body = res.body as {
+			success: boolean;
+			result: {
+				status: string;
+				versions: Array<{
+					device_id: string;
+					version_id: string;
+					status: "success" | "created" | "error";
+					error?: string;
+					device_rebooted: boolean;
+					reboot_reason: string;
+				}>;
+			};
+		};
+		expect(body.success).toBe(true);
+		expect(body.result.status).toBe("partial");
+		const byDevice = new Map(body.result.versions.map((v) => [v.device_id, v]));
+		// the healthy device was deployed despite the sibling failure
+		expect(byDevice.get("ok1")?.status).toBe("created");
+		expect(byDevice.get("ok1")?.version_id).toBeTruthy();
+		// the failing device is reported per-device, not as a 500 abort
+		expect(byDevice.get("clash")?.status).toBe("error");
+		expect(byDevice.get("clash")?.error).toContain("Failed to store script");
+
+		// and the healthy device is actually usable
+		const okScript = await srv.get(
+			`/v1/projects/${projectSlug}/devices/ok1/script`,
+			{ token },
+		);
+		expect(okScript.status).toBe(200);
+	});
+
+	test("every device failing is reported as status 'failed' (not 'partial'), never a bare 500", async () => {
+		// Same blob-store conflict as the partial test, but for EVERY device:
+		// a directory parked at each `latest.js` key makes the rename in put()
+		// fail (EISDIR) for every upload in the batch.
+		const scriptsRoot = (srv.services.SCRIPTS as unknown as { root: string })
+			.root;
+		const prefix = `${userId}/${projectSlug}`;
+		for (const slug of ["fail1", "fail2"]) {
+			await srv.services.SCRIPTS.put(`${prefix}/${slug}/.keep`, "x");
+			mkdirSync(join(scriptsRoot, prefix, slug, "latest.js"));
+		}
+
+		const res = await srv.put(batchPath(), {
+			token,
+			body: {
+				devices: {
+					fail1: { script: deviceScriptSource("Entry"), entrypoint: "Entry" },
+					fail2: { script: deviceScriptSource("Entry"), entrypoint: "Entry" },
+				},
+			},
+		});
+		expect(res.status).toBe(201);
+		const body = res.body as {
+			success: boolean;
+			result: {
+				status: "success" | "partial" | "failed";
+				versions: Array<{
+					device_id: string;
+					status: "success" | "created" | "error";
+					error?: string;
+				}>;
+			};
+		};
+		// total failure is distinguishable from partial failure without
+		// scanning the per-device entries
+		expect(body.success).toBe(true);
+		expect(body.result.status).toBe("failed");
+		expect(body.result.versions.length).toBe(2);
+		for (const v of body.result.versions) {
+			expect(v.status).toBe("error");
+			expect(v.error).toContain("Failed to store script");
+		}
 	});
 });
 
@@ -164,6 +271,22 @@ describe("batch upload - validation failures (per-item reporting)", () => {
 		});
 		expect(res.status).toBe(400);
 		expect(res.ok).toBe(false);
+	});
+
+	test("an empty devices object is rejected (400), not reported as an empty successful batch", async () => {
+		const res = await srv.put(batchPath(), {
+			token,
+			body: { devices: {} },
+		});
+		expect(res.status).toBe(400);
+		expect(res.ok).toBe(false);
+		const body = res.body as {
+			success: boolean;
+			errors?: Array<{ message: string }>;
+		};
+		expect(body.success).toBe(false);
+		const messages = (body.errors ?? []).map((e) => e.message.toLowerCase());
+		expect(messages.some((m) => m.includes("at least one device"))).toBe(true);
 	});
 });
 

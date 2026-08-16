@@ -38,6 +38,8 @@ jobs:
         with:
           path: firmware/pico/test/build/_deps
           key: pico-gtest-${{ hashFiles('firmware/pico/test/CMakeLists.txt') }}
+          restore-keys: |
+            pico-gtest-
 
       - name: Build and run tests
         working-directory: firmware/pico/test

@@ -14,6 +14,7 @@
 #include "lwip/ip4_addr.h"
 #include "backoff.h"
 #include <cstring>
+#include <cstdlib>
 
 // mbedTLS platform time function (required by MBEDTLS_PLATFORM_MS_TIME_ALT)
 extern "C" {
@@ -27,6 +28,19 @@ mbedtls_ms_time_t mbedtls_ms_time(void) {
 queue_t g_command_queue;
 queue_t g_response_queue;
 queue_t g_gpio_notification_queue;
+
+// Raw WS message queue (producer: WS recv callback on the CYW43 background
+// task; consumer: the main loop below). Bounded at 4 in-flight messages of up
+// to 4 KB - roughly half the heap the 8-entry command queue occupies.
+queue_t g_ws_message_queue;
+
+// Ping intervals. The app-level {"type":"ping"} JSON frame is fire-and-forget
+// (the server never replies to it) - it is kept at 300s to match the ESP32.
+// The protocol-level PING frame is the real keepalive: the server's WebSocket
+// stack PONGs it automatically, which both keeps NAT mappings warm and feeds
+// the dead-socket detection in WebsocketClient::poll().
+#define DEVICESDK_PING_INTERVAL_MS 300000
+#define WS_PING_INTERVAL_MS 60000
 
 // Global WebSocket client pointer for sending responses
 static WebsocketClient* g_client = nullptr;
@@ -43,6 +57,33 @@ void send_gpio_state_notification(uint8_t pin, bool state) {
         "{\"type\":\"gpio_state_changed\",\"payload\":{\"pin\":%d,\"state\":\"%s\"}}",
         pin, state ? "high" : "low");
     ws_send_response(json);
+}
+
+// Process raw WS messages queued by the recv callback (see queue_ws_message).
+// Parsing + dispatch run here on the main loop so the CYW43 background task
+// never does heavy JSON work on its small stack. Responses sent from here go
+// through the same single-threaded core0 send path as poll().
+static void process_ws_messages(WebsocketClient& client) {
+    ws_message_t msg;
+    while (queue_try_remove(&g_ws_message_queue, &msg)) {
+        if (!msg.data) continue;
+
+        picojson::value v;
+        std::string err = picojson::parse(v, msg.data);
+        free(msg.data);
+        if (!err.empty()) {
+            printf("[Main] Failed to parse WS message: %s\n", err.c_str());
+            continue;
+        }
+        if (!v.is<picojson::object>()) continue;
+
+        const picojson::object& obj = v.get<picojson::object>();
+        auto type_it = obj.find("type");
+        if (type_it == obj.end() || !type_it->second.is<std::string>()) continue;
+        const std::string& type = type_it->second.get<std::string>();
+
+        handle_websocket_message(v);
+    }
 }
 
 // Process responses from Core 1 and send via WebSocket
@@ -87,6 +128,13 @@ static void process_worker_responses() {
                     payload["command"] = picojson::value("configure_gpio_input_monitoring");
                     payload["pin"] = picojson::value((double)resp.data.gpio.pin);
                     payload["status"] = picojson::value("monitoring_enabled");
+                    break;
+                }
+                case CMD_GPIO_DISABLE_MONITORING: {
+                    response["type"] = picojson::value("command_ack");
+                    payload["command"] = picojson::value("configure_gpio_input_monitoring");
+                    payload["pin"] = picojson::value((double)resp.data.gpio.pin);
+                    payload["status"] = picojson::value("monitoring_disabled");
                     break;
                 }
                 case CMD_PWM_SET: {
@@ -200,7 +248,9 @@ static void process_worker_responses() {
                     break;
                 }
                 case CMD_SPI_TRANSFER: {
+                    // Contract (responses.ts SpiTransferResult): { bus, data }
                     response["type"] = picojson::value("spi_transfer_result");
+                    payload["bus"] = picojson::value((double)resp.data.spi.bus);
                     picojson::array data_arr;
                     for (size_t i = 0; i < resp.data.spi.data_len; i++) {
                         char hex[8];
@@ -208,7 +258,6 @@ static void process_worker_responses() {
                         data_arr.push_back(picojson::value(hex));
                     }
                     payload["data"] = picojson::value(data_arr);
-                    payload["length"] = picojson::value((double)resp.data.spi.data_len);
                     break;
                 }
                 case CMD_SPI_WRITE: {
@@ -218,7 +267,9 @@ static void process_worker_responses() {
                     break;
                 }
                 case CMD_SPI_READ: {
+                    // Contract (responses.ts SpiReadResult): { bus, data }
                     response["type"] = picojson::value("spi_read_result");
+                    payload["bus"] = picojson::value((double)resp.data.spi.bus);
                     picojson::array data_arr;
                     for (size_t i = 0; i < resp.data.spi.data_len; i++) {
                         char hex[8];
@@ -226,7 +277,6 @@ static void process_worker_responses() {
                         data_arr.push_back(picojson::value(hex));
                     }
                     payload["data"] = picojson::value(data_arr);
-                    payload["length"] = picojson::value((double)resp.data.spi.data_len);
                     break;
                 }
                 case CMD_UART_CONFIGURE: {
@@ -242,7 +292,9 @@ static void process_worker_responses() {
                     break;
                 }
                 case CMD_UART_READ: {
+                    // Contract (responses.ts UartReadResult): { port, data, bytes_read }
                     response["type"] = picojson::value("uart_read_result");
+                    payload["port"] = picojson::value((double)resp.data.uart_read.port);
                     picojson::array data_arr;
                     for (size_t i = 0; i < resp.data.uart_read.data_len; i++) {
                         char hex[8];
@@ -409,6 +461,9 @@ int main() {
     queue_init(&g_command_queue, sizeof(worker_command_t), 8);
     queue_init(&g_response_queue, sizeof(worker_response_t), 16);
     queue_init(&g_gpio_notification_queue, sizeof(gpio_notification_t), 32);
+    // Raw WS message queue: 4 in-flight messages of up to 4 KB (~16 KB heap,
+    // about half of the command queue's 8 x 4.2 KB).
+    queue_init(&g_ws_message_queue, sizeof(ws_message_t), 4);
 
     // Initialize shared buffers
     shared_buffers_init();
@@ -424,8 +479,11 @@ int main() {
 
     bool initial_message_sent = false;
     bool was_connected = false;
-    bool rate_limit_logged = false;
+    bool auth_stopped = false;
+    int auth_failure_count = 0;
+    const int MAX_AUTH_FAILURES = 5;
     uint32_t last_ping_time = 0;
+    uint32_t last_ws_ping_time = 0;
     uint32_t last_reconnect_attempt = 0;
     uint32_t wifi_retry_count = 0;
     uint32_t last_wifi_reconnect_at = 0;
@@ -464,6 +522,9 @@ int main() {
         cyw43_arch_poll();
         client.poll(); // Poll for WebSocket events
 
+        // Process raw WS messages (parsed here, off the recv callback)
+        process_ws_messages(client);
+
         // Process responses from Core 1
         process_worker_responses();
 
@@ -474,6 +535,7 @@ int main() {
 
         if (client.is_connected()) {
             was_connected = true;
+            auth_failure_count = 0;
 
             if (!initial_message_sent) {
                 blink(3); // 3. WebSocket connected blink
@@ -484,11 +546,19 @@ int main() {
                 client.send_text(conn_msg);
                 initial_message_sent = true;
                 last_ping_time = now;
+                last_ws_ping_time = now;
             }
 
-            if (now - last_ping_time > 60000) {
+            if (now - last_ping_time > DEVICESDK_PING_INTERVAL_MS) {
                 client.send_text("{\"type\": \"ping\"}");
                 last_ping_time = now;
+            }
+
+            // Protocol-level PING: the server PONGs it, which keeps NAT
+            // mappings warm and feeds the dead-socket detection in poll().
+            if (now - last_ws_ping_time > WS_PING_INTERVAL_MS) {
+                client.send_ping();
+                last_ws_ping_time = now;
             }
         } else {
             // Connection lost or not yet established
@@ -499,30 +569,43 @@ int main() {
 
             initial_message_sent = false;
 
-            // Determine reconnect delay: use rate limit retry_after if set, otherwise default 5s
-            uint32_t reconnect_delay_ms = 5000;
-            if (client.rate_limit_retry_after_ms > 0) {
-                reconnect_delay_ms = client.rate_limit_retry_after_ms;
-                if (!rate_limit_logged) {
-                    printf("[Main] Rate limited (close code %u): waiting %u ms before reconnect\n",
-                           client.last_close_code, reconnect_delay_ms);
-                    rate_limit_logged = true;
-                }
-            }
+            // Fixed reconnect delay - the server sends no backoff frames, so
+            // there is no dynamic delay to honor.
+            const uint32_t reconnect_delay_ms = 5000;
 
-            if (cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA) == CYW43_LINK_UP &&
+            if (!auth_stopped &&
+                cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA) == CYW43_LINK_UP &&
                 now - last_reconnect_attempt >= reconnect_delay_ms) {
-                // Reset rate limit state before reconnecting
-                client.rate_limit_retry_after_ms = 0;
-                client.last_close_code = 0;
-                rate_limit_logged = false;
+                // The server answers the upgrade request with HTTP 401 when the
+                // API token is invalid or the device was revoked. Count
+                // consecutive rejections and stop retrying once the limit is
+                // hit, so a wrong token can't reconnect forever (draining the
+                // battery and hammering the server).
+                if (client.last_http_status == 401) {
+                    auth_failure_count++;
+                    printf("[Main] Handshake rejected with HTTP 401 (attempt %d/%d)\n",
+                           auth_failure_count, MAX_AUTH_FAILURES);
+                    if (auth_failure_count >= MAX_AUTH_FAILURES) {
+                        auth_stopped = true;
+                        printf("[Main] Invalid API token: stopping reconnect attempts. "
+                               "Re-flash this device with a valid token.\n");
+                    }
+                } else {
+                    auth_failure_count = 0;
+                }
 
-                client.close_connection();
-                client.connect(api_host, ws_path, WEBSOCKET_TOKEN);
-                last_reconnect_attempt = now;
+                if (!auth_stopped) {
+                    // Reset close/status state before reconnecting
+                    client.last_close_code = 0;
+                    client.last_http_status = 0;
 
-                // Blink twice to indicate reconnection attempt
-                blink(2);
+                    client.close_connection();
+                    client.connect(api_host, ws_path, WEBSOCKET_TOKEN);
+                    last_reconnect_attempt = now;
+
+                    // Blink twice to indicate reconnection attempt
+                    blink(2);
+                }
             }
         }
 

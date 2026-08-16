@@ -1,9 +1,4 @@
-import type {
-	DeviceCommand,
-	DeviceResponse,
-	DisplayUpdateCommand,
-} from "@devicesdk/core";
-import { ref } from "vue";
+import type { DeviceCommand, DeviceResponse } from "@devicesdk/core";
 import { usePinStateStore } from "@/stores/pinState";
 import { useSimulatorStore } from "@/stores/simulator";
 import { useUartStore } from "@/stores/uart";
@@ -19,8 +14,6 @@ export function useSimulator() {
 	const pinState = usePinStateStore();
 	const widgets = useWidgetsStore();
 	const uart = useUartStore();
-
-	const latestDisplayUpdate = ref<DisplayUpdateCommand>();
 
 	function handleDeviceCommand(command: DeviceCommand): DeviceResponse | null {
 		switch (command.type) {
@@ -88,7 +81,6 @@ export function useSimulator() {
 			}
 
 			case "display_update": {
-				latestDisplayUpdate.value = command;
 				simulator.addLog(
 					`Display update: ${command.payload.width}x${command.payload.height} (${command.payload.segments.length} segments)`,
 					"display_update",
@@ -154,7 +146,6 @@ export function useSimulator() {
 
 			case "reboot": {
 				pinState.resetAll();
-				latestDisplayUpdate.value = undefined;
 				uart.reset();
 				simulator.addLog("Device rebooted", "reboot");
 				return ack(command);
@@ -351,7 +342,6 @@ export function useSimulator() {
 	}
 
 	return {
-		latestDisplayUpdate,
 		handleDeviceCommand,
 		widgets,
 	};

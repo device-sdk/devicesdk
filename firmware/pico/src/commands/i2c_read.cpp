@@ -1,6 +1,7 @@
 #include "i2c_read.h"
 #include "i2c_command_handler.h"
 #include "hal.h"
+#include "hex.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -34,7 +35,11 @@ void handle_i2c_read(const picojson::object& payload) {
         return;
     }
 
-    uint8_t address = (uint8_t)strtol(addr_str.c_str(), nullptr, 16);
+    uint8_t address;
+    if (!parse_hex_byte(addr_str, &address)) {
+        i2c_cmd_send_error("Invalid I2C address (must be 0x08-0x77)");
+        return;
+    }
 
     // Validate address range
     if (address < 0x08 || address > 0x77) {
@@ -44,7 +49,12 @@ void handle_i2c_read(const picojson::object& payload) {
 
     int reg = -1;
     if (reg_it != payload.end() && reg_it->second.is<std::string>()) {
-        reg = (int)strtol(reg_it->second.get<std::string>().c_str(), nullptr, 16);
+        uint8_t reg_byte;
+        if (!parse_hex_byte(reg_it->second.get<std::string>(), &reg_byte)) {
+            i2c_cmd_send_error("Invalid register (expected hex byte)");
+            return;
+        }
+        reg = (int)reg_byte;
     }
 
     uint8_t buffer[128];

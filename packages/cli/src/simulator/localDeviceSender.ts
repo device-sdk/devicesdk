@@ -49,6 +49,13 @@ export class LocalDeviceSender implements DeviceSenderInterface {
 			...command,
 			id: crypto.randomUUID(),
 		} as DeviceCommand;
+		if (this.ws.readyState !== WebSocket.OPEN) {
+			// A fire-and-forget send after the UI disconnected must surface as
+			// a clear error in user code, not an opaque throw from ws.send.
+			throw new Error(
+				"Device simulator connection is closed - the UI disconnected. Cannot send command.",
+			);
+		}
 		this.ws.send(JSON.stringify(fullCommand));
 	}
 
@@ -61,6 +68,14 @@ export class LocalDeviceSender implements DeviceSenderInterface {
 		} as DeviceCommand;
 
 		return new Promise((resolve, reject) => {
+			if (this.ws.readyState !== WebSocket.OPEN) {
+				reject(
+					new Error(
+						"Device simulator connection is closed - the UI disconnected. Cannot send command.",
+					),
+				);
+				return;
+			}
 			const timeoutId = setTimeout(() => {
 				this.pendingCommands.delete(fullCommand.id);
 				reject(

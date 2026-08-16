@@ -1,10 +1,12 @@
 import {
 	buildErrorMessage,
+	DEFAULT_REQUEST_TIMEOUT_MS,
 	DeviceSDKApiError,
 	dumpResponseBodyIfVerbose,
 	getApiUrl,
 	parseErrorBody,
 	request,
+	runWithTimeout,
 } from "./shared.js";
 
 // User endpoints
@@ -34,42 +36,48 @@ export interface AuthStartResponse {
 export async function startAuth(): Promise<AuthStartResponse> {
 	const url = `${await getApiUrl()}/v1/cli/auth/start`;
 
-	try {
+	const responseText = await runWithTimeout(async (signal) => {
 		const response = await fetch(url, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({}),
+			signal,
 		});
 
-		const responseText = await response.text();
-		let data: unknown = null;
-		try {
-			data = responseText ? JSON.parse(responseText) : null;
-		} catch {
-			// non-JSON response body
-		}
-
 		if (!response.ok) {
+			const rawText = await response.text();
+			let data: unknown = null;
+			try {
+				data = rawText ? JSON.parse(rawText) : null;
+			} catch {
+				// non-JSON response body
+			}
 			const parsed = parseErrorBody(data);
-			dumpResponseBodyIfVerbose(response.status, data, responseText);
+			dumpResponseBodyIfVerbose(response.status, data, rawText);
 			throw new DeviceSDKApiError(
 				buildErrorMessage(response.status, parsed),
 				response.status,
 				parsed.code,
 				parsed.docs,
-				data ?? responseText,
+				data ?? rawText,
 			);
 		}
 
-		// Unwrap the result
-		const obj = data as { result?: AuthStartResponse } | null;
-		return obj?.result ?? (data as AuthStartResponse);
-	} catch (error) {
-		console.error("startAuth error:", error);
-		throw error;
+		return response.text();
+	}, DEFAULT_REQUEST_TIMEOUT_MS);
+
+	let data: unknown = null;
+	try {
+		data = responseText ? JSON.parse(responseText) : null;
+	} catch {
+		// non-JSON response body
 	}
+
+	// Unwrap the result
+	const obj = data as { result?: AuthStartResponse } | null;
+	return obj?.result ?? (data as AuthStartResponse);
 }
 
 export interface AuthPollResponse {
@@ -79,9 +87,14 @@ export interface AuthPollResponse {
 	token_type: string;
 }
 
-export async function pollAuth(
-	deviceCode: string,
-): Promise<AuthPollResponse | null> {
+export type AuthPollResult = AuthPollResponse | "pending" | "denied";
+
+/**
+ * Polls the device-code flow. Returns the token response once the user
+ * approved, "pending" while they are still deciding (or the server 401s a
+ * not-yet-active code), and "denied" if they rejected the request.
+ */
+export async function pollAuth(deviceCode: string): Promise<AuthPollResult> {
 	try {
 		const result = await request<AuthPollResponse | { status: string }>(
 			"/v1/cli/auth/poll",
@@ -93,21 +106,20 @@ export async function pollAuth(
 			true,
 		);
 
-		// Check if the response indicates pending status
-		if (
-			result &&
-			typeof result === "object" &&
-			"status" in result &&
-			result.status === "pending"
-		) {
-			return null;
+		if (result && typeof result === "object" && "status" in result) {
+			// Still waiting for the user to approve/reject the request.
+			if (result.status === "pending") return "pending";
+			// The user actively rejected the request - do NOT fall through to
+			// the token path (a "denied" payload would otherwise be treated as
+			// an approved AuthPollResponse and fail confusingly in getMe).
+			if (result.status === "denied") return "denied";
 		}
 
 		return result as AuthPollResponse;
 	} catch (error) {
 		// If it's a 401 error, return null (user hasn't approved yet)
 		if (error instanceof DeviceSDKApiError && error.statusCode === 401) {
-			return null;
+			return "pending";
 		}
 		throw error;
 	}

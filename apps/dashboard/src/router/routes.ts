@@ -18,7 +18,6 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/projects',
     component: () => import('layouts/MainLayout.vue'),
-    meta: { requiresAuth: true },
     children: [
       { path: '', component: () => import('pages/ProjectsPage.vue'), meta: { title: 'Projects' } },
     ],
@@ -26,7 +25,6 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/projects/:projectId',
     component: () => import('layouts/MainLayout.vue'),
-    meta: { requiresAuth: true },
     children: [
       { path: '', component: () => import('pages/ProjectDetailsPage.vue'), meta: { title: 'Project' } },
     ],
@@ -34,7 +32,6 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/projects/:projectId/devices/:deviceId',
     component: () => import('layouts/MainLayout.vue'),
-    meta: { requiresAuth: true },
     children: [
       { path: '', component: () => import('pages/DeviceDetailsPage.vue'), meta: { title: 'Device' } },
     ],
@@ -42,7 +39,6 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/tokens',
     component: () => import('layouts/MainLayout.vue'),
-    meta: { requiresAuth: true },
     children: [
       { path: '', component: () => import('pages/TokensPage.vue'), meta: { title: 'API Tokens' } },
     ],
@@ -50,7 +46,6 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/account',
     component: () => import('layouts/MainLayout.vue'),
-    meta: { requiresAuth: true },
     children: [
       { path: '', component: () => import('pages/AccountPage.vue'), meta: { title: 'Account' } },
     ],

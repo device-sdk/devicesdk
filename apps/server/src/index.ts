@@ -6,6 +6,7 @@ import { secureHeaders } from "hono/secure-headers";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import {
 	handleAuthStatus,
+	handleChangePassword,
 	handleLogin,
 	handleRegister,
 } from "./endpoints/auth/localAuth";
@@ -143,7 +144,16 @@ app.use("/v1/cli/auth/refresh", rateLimitMiddleware(10, 60_000)); // 10 req/min
 
 app.route("/v1/cli/auth", cliAuthRouterPreAuth);
 
+// Change-password and account deletion verify the current password (argon2id),
+// so they need the same brute-force throttling as login - a stolen session
+// alone must not turn into an unlimited password-guessing oracle.
+app.use("/v1/auth/change-password", rateLimitMiddleware(10, 60_000)); // 10 req/min
+// GET /v1/user/me is called on every dashboard page load, so scope the limit
+// to the DELETE method only.
+app.use("/v1/user/me", rateLimitMiddleware(10, 60_000, ["DELETE"])); // 10 req/min
+
 // CLI approval page (requires auth - redirects to dashboard login if not authenticated)
+app.use("/cli/auth", rateLimitMiddleware(10, 60_000)); // 10 req/min
 app.get("/cli/auth", cliAuthUser, getApprovalPage);
 app.post("/cli/auth", cliAuthUser, handleApproval);
 
@@ -212,6 +222,7 @@ app.use("/v1/*", authenticateUser);
 registerDeviceWsRoutes(app);
 app.route("/v1/cli/auth", cliAuthRouterPostAuth);
 app.post("/v1/auth/logout", handleLogout);
+app.post("/v1/auth/change-password", handleChangePassword);
 app.route("/v1/user", userRouter);
 app.route("/v1/projects", projectsRouter);
 app.route("/v1/tokens", tokensRouter);

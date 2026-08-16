@@ -127,24 +127,84 @@ Then reference the generated files from your nginx/Apache config. Certbot renews
 
 ## Backups
 
-All persistent state lives in `DATA_DIR` (default `./data`). A hot SQLite backup is safe to take while the server is running. The commands below assume the `docker run` example above, which mounts `~/devicesdk-data:/data`; with the compose file's named volume, use the volume's host path under `/var/lib/docker/volumes/devicesdk-data/_data` instead:
+All persistent state lives in the `devicesdk-data` volume mounted at `/data` in the container. A hot SQLite backup is safe to take while the server is running. The one-off helper containers below run as root so the backup files on the host are host-readable (the volume itself is owned by the container's uid 1000).
+
+If you used a host bind mount instead (`-v ~/devicesdk-data:/data`, `chown`ed as shown in the quick start), the container networking is unnecessary: run the `sqlite3` commands directly against `~/devicesdk-data` on the host (`sqlite3 ~/devicesdk-data/devicesdk.sqlite ".backup ..."`), or `cp -r ~/devicesdk-data` after stopping the container.
+
+### Hot backup (online, safe while running)
 
 ```bash
-# Backup using SQLite's online backup API (safe while running)
-sqlite3 ~/devicesdk-data/devicesdk.sqlite ".backup /backups/devicesdk-$(date +%Y%m%d-%H%M%S).sqlite"
+mkdir -p ./backups
 
-# Or stop the container and copy the entire data dir
+# VACUUM INTO writes a consistent database snapshot even with WAL active.
+docker run --rm -u root \
+  -v devicesdk-data:/data \
+  -v "$PWD/backups:/backups" \
+  ghcr.io/device-sdk/devicesdk:latest \
+  bun -e 'const { Database } = require("bun:sqlite"); const d = new Database("/data/devicesdk.sqlite"); const out = "/backups/devicesdk-" + process.argv[1] + ".sqlite"; d.query("VACUUM INTO ?1").get(out); console.log("Backup written to " + out);' \
+  "$(date +%Y%m%d-%H%M%S)"
+```
+
+### Cold backup (stop the container, copy the whole data directory)
+
+```bash
+mkdir -p ./backups
 docker stop devicesdk
-cp -r ~/devicesdk-data /backups/devicesdk-data-$(date +%Y%m%d)
+
+docker run --rm -u root \
+  -v devicesdk-data:/data \
+  -v "$PWD/backups:/backups" \
+  ghcr.io/device-sdk/devicesdk:latest \
+  cp -r /data "/backups/devicesdk-data-$(date +%Y%m%d)"
+
 docker start devicesdk
 ```
 
-To restore, stop the container, replace `~/devicesdk-data/devicesdk.sqlite` with the backup, and restart.
+### Restore
 
-Schedule regular backups with cron:
+Stop the container, replace the volume contents with the backup, and restart. Replacing the whole data directory (not just the SQLite file) also restores `DATA_DIR/.api-token-secret`, so previously minted tokens stay valid.
+
+```bash
+docker stop devicesdk
+
+# From a hot backup (single SQLite file)
+docker run --rm -u root \
+  -v devicesdk-data:/data \
+  -v "$PWD/backups:/backups" \
+  ghcr.io/device-sdk/devicesdk:latest \
+  sh -c 'rm -f /data/devicesdk.sqlite /data/devicesdk.sqlite-wal /data/devicesdk.sqlite-shm && cp /backups/devicesdk-20240101-020000.sqlite /data/devicesdk.sqlite && chown bun:bun /data/devicesdk.sqlite'
+
+# From a cold backup (whole data directory)
+docker run --rm -u root \
+  -v devicesdk-data:/data \
+  -v "$PWD/backups:/backups" \
+  ghcr.io/device-sdk/devicesdk:latest \
+  sh -c 'find /data -mindepth 1 -delete && cp -a /backups/devicesdk-data-20240101/. /data/ && chown -R bun:bun /data'
+
+docker start devicesdk
+```
+
+Replace `devicesdk-20240101-020000.sqlite` / `devicesdk-data-20240101` with the actual backup names.
+
+### Schedule with cron
+
+Save the hot-backup command as a script so the cron line stays readable:
+
+```bash
+cat > /usr/local/bin/devicesdk-backup.sh <<'EOF'
+#!/bin/sh
+docker run --rm -u root \
+  -v devicesdk-data:/data \
+  -v /backups:/backups \
+  ghcr.io/device-sdk/devicesdk:latest \
+  bun -e 'const { Database } = require("bun:sqlite"); const d = new Database("/data/devicesdk.sqlite"); const out = "/backups/devicesdk-" + process.argv[1] + ".sqlite"; d.query("VACUUM INTO ?1").get(out);' \
+  "$(date +%Y%m%d-%H%M%S)"
+EOF
+chmod +x /usr/local/bin/devicesdk-backup.sh
+```
 
 ```cron
-0 3 * * * sqlite3 /path/to/data/devicesdk.sqlite ".backup /backups/devicesdk-$(date +\%Y\%m\%d).sqlite"
+0 3 * * * /usr/local/bin/devicesdk-backup.sh
 ```
 
 ## Multi-server LAN considerations

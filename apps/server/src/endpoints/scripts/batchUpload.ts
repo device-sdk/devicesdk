@@ -31,20 +31,24 @@ export class BatchUploadScripts extends BaseRoute {
 			}),
 			body: contentJson(
 				z.object({
-					devices: z.record(
-						z.string(),
-						z.object({
-							script: z.string().max(MAX_SCRIPT_SIZE_BYTES),
-							entrypoint: z
-								.string()
-								.min(1)
-								.max(255)
-								.regex(
-									JS_IDENTIFIER_REGEX,
-									"Entrypoint must be a valid JavaScript identifier",
-								),
+					devices: z
+						.record(
+							z.string(),
+							z.object({
+								script: z.string().max(MAX_SCRIPT_SIZE_BYTES),
+								entrypoint: z
+									.string()
+									.min(1)
+									.max(255)
+									.regex(
+										JS_IDENTIFIER_REGEX,
+										"Entrypoint must be a valid JavaScript identifier",
+									),
+							}),
+						)
+						.refine((devices) => Object.keys(devices).length > 0, {
+							message: "devices must contain at least one device",
 						}),
-					),
 					message: z.string().max(500).optional(),
 				}),
 			),

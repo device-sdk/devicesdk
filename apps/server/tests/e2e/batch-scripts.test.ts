@@ -272,6 +272,22 @@ describe("batch upload - validation failures (per-item reporting)", () => {
 		expect(res.status).toBe(400);
 		expect(res.ok).toBe(false);
 	});
+
+	test("an empty devices object is rejected (400), not reported as an empty successful batch", async () => {
+		const res = await srv.put(batchPath(), {
+			token,
+			body: { devices: {} },
+		});
+		expect(res.status).toBe(400);
+		expect(res.ok).toBe(false);
+		const body = res.body as {
+			success: boolean;
+			errors?: Array<{ message: string }>;
+		};
+		expect(body.success).toBe(false);
+		const messages = (body.errors ?? []).map((e) => e.message.toLowerCase());
+		expect(messages.some((m) => m.includes("at least one device"))).toBe(true);
+	});
 });
 
 describe("batch upload - device slug format validation", () => {

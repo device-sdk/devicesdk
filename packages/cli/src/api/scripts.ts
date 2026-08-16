@@ -103,8 +103,8 @@ export async function deployScriptVersion(
 }
 
 export interface BatchUploadResult {
-	/** "partial" when some devices failed; "success" only when all succeeded. */
-	status: "success" | "partial";
+	/** "failed" when every device failed, "partial" when some failed, "success" only when all succeeded. */
+	status: "success" | "partial" | "failed";
 	versions: Array<{
 		device_id: string;
 		version_id: string;

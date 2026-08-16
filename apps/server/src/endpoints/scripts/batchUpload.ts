@@ -51,14 +51,18 @@ export class BatchUploadScripts extends BaseRoute {
 		},
 		responses: {
 			"201": {
-				description: "Returns the created script versions",
+				description:
+					"Returns the created script versions. result.status is 'success' when every device deployed, 'partial' when some devices failed, and 'failed' when every device failed (per-device status/error entries name the failures).",
 				...contentJson(
 					z.object({
 						success: z.boolean(),
 						result: z.object({
-							// "partial" when some devices failed but others
-							// succeeded; "success" only when all succeeded.
-							status: z.enum(["success", "partial"]),
+							// "success" only when all devices deployed;
+							// "partial" when some failed but others succeeded;
+							// "failed" when every device failed (total failure
+							// is distinguishable from partial without scanning
+							// the versions array).
+							status: z.enum(["success", "partial", "failed"]),
 							versions: z.array(
 								z.object({
 									device_id: z.string(),
@@ -337,11 +341,17 @@ export class BatchUploadScripts extends BaseRoute {
 		}
 
 		const failedCount = results.filter((r) => r.status === "error").length;
+		const status =
+			failedCount === 0
+				? "success"
+				: failedCount === results.length
+					? "failed"
+					: "partial";
 		return c.json(
 			{
 				success: true,
 				result: {
-					status: failedCount > 0 ? "partial" : "success",
+					status,
 					versions: results,
 					message: message,
 				},

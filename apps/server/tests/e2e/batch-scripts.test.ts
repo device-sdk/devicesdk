@@ -53,6 +53,7 @@ describe("batch upload - happy path", () => {
 		const result = (
 			res.body as {
 				result: {
+					status: "success" | "partial" | "failed";
 					versions: Array<{
 						device_id: string;
 						version_id: string;
@@ -64,6 +65,7 @@ describe("batch upload - happy path", () => {
 				};
 			}
 		).result;
+		expect(result.status).toBe("success");
 		expect(result.message).toBe("batch deploy");
 		expect(result.versions.length).toBe(2);
 		const byDevice = new Map(result.versions.map((v) => [v.device_id, v]));
@@ -158,6 +160,50 @@ describe("batch upload - partial failures (per-device isolation)", () => {
 			{ token },
 		);
 		expect(okScript.status).toBe(200);
+	});
+
+	test("every device failing is reported as status 'failed' (not 'partial'), never a bare 500", async () => {
+		// Same blob-store conflict as the partial test, but for EVERY device:
+		// a directory parked at each `latest.js` key makes the rename in put()
+		// fail (EISDIR) for every upload in the batch.
+		const scriptsRoot = (srv.services.SCRIPTS as unknown as { root: string })
+			.root;
+		const prefix = `${userId}/${projectSlug}`;
+		for (const slug of ["fail1", "fail2"]) {
+			await srv.services.SCRIPTS.put(`${prefix}/${slug}/.keep`, "x");
+			mkdirSync(join(scriptsRoot, prefix, slug, "latest.js"));
+		}
+
+		const res = await srv.put(batchPath(), {
+			token,
+			body: {
+				devices: {
+					fail1: { script: deviceScriptSource("Entry"), entrypoint: "Entry" },
+					fail2: { script: deviceScriptSource("Entry"), entrypoint: "Entry" },
+				},
+			},
+		});
+		expect(res.status).toBe(201);
+		const body = res.body as {
+			success: boolean;
+			result: {
+				status: "success" | "partial" | "failed";
+				versions: Array<{
+					device_id: string;
+					status: "success" | "created" | "error";
+					error?: string;
+				}>;
+			};
+		};
+		// total failure is distinguishable from partial failure without
+		// scanning the per-device entries
+		expect(body.success).toBe(true);
+		expect(body.result.status).toBe("failed");
+		expect(body.result.versions.length).toBe(2);
+		for (const v of body.result.versions) {
+			expect(v.status).toBe("error");
+			expect(v.error).toContain("Failed to store script");
+		}
 	});
 });
 

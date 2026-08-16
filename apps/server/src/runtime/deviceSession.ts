@@ -714,6 +714,13 @@ export class DeviceSession {
 
 		this.watchers.add(ws);
 
+		// Registration through first-frame sends is one best-effort sequence:
+		// a watcher that disconnects between registration and the replay makes
+		// ws.send throw, and that must not escape attachWatcher (the watch
+		// route's onOpen handler) or leave a dead socket registered. The
+		// initial status, oldest-first replay, and the completion marker are
+		// guarded together so a dead socket aborts mid-sequence and is
+		// detached instead of erroring per-frame.
 		try {
 			ws.send(
 				JSON.stringify({
@@ -721,24 +728,25 @@ export class DeviceSession {
 					data: this.buildStatusEvent(),
 				}),
 			);
+			// Send oldest first so the client can append in display order.
+			// Single scan per connect - never per poll - so cost is bounded by
+			// reconnect rate, not client activity.
+			for (let i = replayLogs.length - 1; i >= 0; i--) {
+				ws.send(
+					JSON.stringify({ event: "log", data: replayLogs[i], replay: true }),
+				);
+			}
+			// The completion marker is part of the backfill contract: send it
+			// whenever backfill was requested (even when clamped to 0 or the
+			// scan failed) so clients never wait forever; clients infer
+			// no-replay from the absence of the marker when no backfill was
+			// requested.
+			if (wantBackfill) {
+				ws.send(JSON.stringify({ event: "history_complete" }));
+			}
 		} catch (error) {
-			this.deps.logger.error(error, "Failed to send initial status to watcher");
-		}
-
-		// Send oldest first so the client can append in display order. Single
-		// scan per connect - never per poll - so cost is bounded by reconnect
-		// rate, not client activity.
-		for (let i = replayLogs.length - 1; i >= 0; i--) {
-			ws.send(
-				JSON.stringify({ event: "log", data: replayLogs[i], replay: true }),
-			);
-		}
-		// The completion marker is part of the backfill contract: send it
-		// whenever backfill was requested (even when clamped to 0 or the scan
-		// failed) so clients never wait forever; clients infer no-replay from
-		// the absence of the marker when no backfill was requested.
-		if (wantBackfill) {
-			ws.send(JSON.stringify({ event: "history_complete" }));
+			this.deps.logger.error(error, "Failed to send watcher frames");
+			this.watchers.delete(ws);
 		}
 	}
 

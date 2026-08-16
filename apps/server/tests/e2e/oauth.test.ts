@@ -253,6 +253,14 @@ describe("oauth: dynamic client registration", () => {
 			"http://172.32.0.1/cb",
 			// userinfo in an http URI is rejected regardless of host
 			"http://example.com@localhost/cb",
+			// DNS names that merely start with a private prefix are NOT private
+			// addresses - the range checks must apply to IP literals only
+			"http://10.evil.com/cb",
+			"http://192.168.evil.com/cb",
+			"http://172.16.evil.com/cb",
+			"http://169.254.evil.com/cb",
+			"http://fca.example.com/cb",
+			"http://fe8b.example.com/cb",
 		]) {
 			const res = await srv.post("/oauth/register", {
 				body: { client_name: "http client", redirect_uris: [uri] },
@@ -261,6 +269,34 @@ describe("oauth: dynamic client registration", () => {
 			expect((res.body as { error: string }).error).toBe(
 				"invalid_client_metadata",
 			);
+		}
+	});
+
+	test("private IPv6 literal lookalikes that are actually public are rejected, mapped forms follow their IPv4", async () => {
+		// 0fe8::1 and fd::2 are NOT fe80::/10 or fc00::/7 after expansion...
+		for (const uri of [
+			"http://[0fe8::1]/cb",
+			"http://[fd::2]:8080/cb",
+			"http://[::ffff:8.8.8.8]/cb",
+		]) {
+			const res = await srv.post("/oauth/register", {
+				body: { client_name: "mapped client", redirect_uris: [uri] },
+			});
+			expect(res.status).toBe(400);
+			expect((res.body as { error: string }).error).toBe(
+				"invalid_client_metadata",
+			);
+		}
+		// ...while an IPv4-mapped ULA/IPv4 literal resolves to the same private
+		// LAN host and stays accepted.
+		for (const uri of [
+			"http://[fd00::1]:8080/cb",
+			"http://[::ffff:192.168.1.1]/cb",
+		]) {
+			const res = await srv.post("/oauth/register", {
+				body: { client_name: "mapped client", redirect_uris: [uri] },
+			});
+			expect(res.status).toBe(201);
 		}
 	});
 

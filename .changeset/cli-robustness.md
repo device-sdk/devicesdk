@@ -6,7 +6,10 @@ Robustness and correctness fixes:
 
 - Every API request now has a timeout (60s default, 300s for uploads) instead
   of hanging forever on a stalled server; the watcher WebSocket has a
-  handshake timeout
+  handshake timeout. When a command passes its own abort signal on a Node
+  version without `AbortSignal.any`, the request timeout is honored too
+  (previously the caller's signal silently replaced the timeout, so a stalled
+  server could still hang those requests)
 - `devicesdk dev`: cleanup only removes dev's own files (shared
   `.devicesdk/build` and `.devicesdk/firmware` state is preserved), config is
   found in parent directories, workerd crashes restart with bounded backoff,

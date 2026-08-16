@@ -290,15 +290,47 @@ export async function runWithTimeout<T>(
 	}
 }
 
+/**
+ * Composes multiple abort signals into a single one. Uses `AbortSignal.any`
+ * when available; otherwise a tiny fallback forwards each signal's abort
+ * (including already-aborted inputs) to a fresh controller - so a timeout and
+ * a caller-supplied signal are BOTH honored on every supported engine. Call
+ * `dispose()` once the composed signal is no longer needed to drop listeners.
+ */
+function composeAbortSignals(signals: AbortSignal[]): {
+	signal: AbortSignal;
+	dispose: () => void;
+} {
+	if (typeof AbortSignal.any === "function") {
+		return { signal: AbortSignal.any(signals), dispose: () => {} };
+	}
+	const controller = new AbortController();
+	const abort = () => controller.abort();
+	const live = signals.filter((s) => !s.aborted);
+	for (const s of live) s.addEventListener("abort", abort);
+	// An input that is already aborted must abort the composed signal
+	// immediately (fetch should fail fast, not wait for the timeout).
+	if (signals.some((s) => s.aborted)) controller.abort();
+	return {
+		signal: controller.signal,
+		dispose: () => {
+			for (const s of live) s.removeEventListener("abort", abort);
+		},
+	};
+}
+
+/**
+ * Combines the caller's abort signal with the runWithTimeout timeout signal.
+ * Returns the composed signal plus a dispose() that releases the listeners.
+ */
 function combineSignals(
 	callerSignal: AbortSignal | null | undefined,
 	timeoutSignal: AbortSignal,
-): AbortSignal | undefined {
-	if (!callerSignal) return timeoutSignal;
-	if (typeof AbortSignal.any === "function") {
-		return AbortSignal.any([callerSignal, timeoutSignal]);
+): { signal: AbortSignal; dispose: () => void } {
+	if (!callerSignal) {
+		return { signal: timeoutSignal, dispose: () => {} };
 	}
-	return callerSignal;
+	return composeAbortSignals([callerSignal, timeoutSignal]);
 }
 
 export async function request<T>(
@@ -326,58 +358,63 @@ export async function request<T>(
 	}
 
 	return runWithTimeout(async (timeoutSignal) => {
-		const response = await fetch(url, {
-			...fetchOptions,
-			headers,
-			signal: combineSignals(fetchOptions.signal, timeoutSignal),
-		});
-
-		if (verboseLogging) {
-			console.log(`[request] Response status: ${response.status}`);
-		}
-
-		const responseText = await response.text();
-		let data: unknown = null;
+		const combined = combineSignals(fetchOptions.signal, timeoutSignal);
 		try {
-			data = responseText ? JSON.parse(responseText) : null;
-		} catch {
-			// response is not JSON
+			const response = await fetch(url, {
+				...fetchOptions,
+				headers,
+				signal: combined.signal,
+			});
+
+			if (verboseLogging) {
+				console.log(`[request] Response status: ${response.status}`);
+			}
+
+			const responseText = await response.text();
+			let data: unknown = null;
+			try {
+				data = responseText ? JSON.parse(responseText) : null;
+			} catch {
+				// response is not JSON
+			}
+
+			if (!response.ok) {
+				const parsed = parseErrorBody(data);
+				dumpResponseBodyIfVerbose(response.status, data, responseText);
+				throw new DeviceSDKApiError(
+					buildErrorMessage(response.status, parsed),
+					response.status,
+					parsed.code,
+					parsed.docs,
+					data ?? responseText,
+				);
+			}
+
+			// Some endpoints return data directly, others wrap in { success, result }
+			const envelope =
+				data && typeof data === "object"
+					? (data as { success?: boolean; result?: unknown })
+					: null;
+
+			if (unwrapResult && envelope?.success === false) {
+				const parsed = parseErrorBody(data);
+				throw new DeviceSDKApiError(
+					parsed.message || "Request failed",
+					response.status,
+					parsed.code,
+					parsed.docs,
+					data,
+				);
+			}
+
+			return (
+				unwrapResult && envelope?.result !== undefined
+					? envelope.result
+					: (data ?? responseText)
+			) as T;
+		} finally {
+			combined.dispose();
 		}
-
-		if (!response.ok) {
-			const parsed = parseErrorBody(data);
-			dumpResponseBodyIfVerbose(response.status, data, responseText);
-			throw new DeviceSDKApiError(
-				buildErrorMessage(response.status, parsed),
-				response.status,
-				parsed.code,
-				parsed.docs,
-				data ?? responseText,
-			);
-		}
-
-		// Some endpoints return data directly, others wrap in { success, result }
-		const envelope =
-			data && typeof data === "object"
-				? (data as { success?: boolean; result?: unknown })
-				: null;
-
-		if (unwrapResult && envelope?.success === false) {
-			const parsed = parseErrorBody(data);
-			throw new DeviceSDKApiError(
-				parsed.message || "Request failed",
-				response.status,
-				parsed.code,
-				parsed.docs,
-				data,
-			);
-		}
-
-		return (
-			unwrapResult && envelope?.result !== undefined
-				? envelope.result
-				: (data ?? responseText)
-		) as T;
 	}, timeoutMs);
 }
 

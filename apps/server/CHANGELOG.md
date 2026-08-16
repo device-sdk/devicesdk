@@ -1,5 +1,21 @@
 # @devicesdk/server
 
+## 0.5.3
+
+### Patch Changes
+
+- 1723343: Fix firmware version extraction in the CMake build. The regex matched
+  whitespace with the POSIX `[[:space:]]` character class, which CMake's regex
+  engine does not support, so every binary silently compiled the `0.0.0-dev`
+  fallback and devices reported `0.0.0-dev` in the device_connected handshake and
+  the server firmware column. Whitespace is now matched with escape sequences
+  (`[ \t\r\n]`), an extraction failure is a hard build error, and a
+  cmake-only regression check (firmware/scripts/check_version.cmake) fails if the
+  real package.json version is no longer extracted.
+- Updated dependencies [1723343]
+  - @devicesdk/firmware-esp32@0.3.3
+  - @devicesdk/firmware-pico@0.3.2
+
 ## 0.5.2
 
 ### Patch Changes

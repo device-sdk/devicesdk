@@ -3,10 +3,10 @@ name: Firmware — Pico
 on:
   push:
     branches: [main]
-    paths: [firmware/pico/**]
+    paths: [firmware/pico/**, firmware/scripts/**]
   pull_request:
     branches: [main]
-    paths: [firmware/pico/**]
+    paths: [firmware/pico/**, firmware/scripts/**]
   workflow_dispatch:
 
 concurrency:
@@ -28,6 +28,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Verify firmware version extraction (CMake regex regression)
+        working-directory: firmware/pico
+        run: cmake -DPACKAGE_JSON=package.json -P ../scripts/check_version.cmake
 
       - name: Restore gtest build cache
         uses: actions/cache@v6

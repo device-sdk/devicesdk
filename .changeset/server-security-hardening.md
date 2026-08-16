@@ -18,18 +18,25 @@ Security and correctness hardening across the server:
   segments with a normalization check (a tool call could previously address
   unrelated routes, e.g. deleting a project via an env-var key of `..`)
 - OAuth auth codes are consumed atomically (concurrent double-exchange can no
-  longer mint two tokens); redirect URIs are allowlisted; consent page shows
-  client id + redirect URI; `code_verifier` length enforced
+  longer mint two tokens); redirect URIs are allowlisted
+  (https any host, http on loopback or private-LAN hosts, native-app custom
+  schemes like `cursor://`; scriptable schemes and http on public hosts are
+  rejected - previously any absolute URI was accepted, so clients that
+  registered public-http redirect URIs must re-register with a loopback/LAN
+  or https URI); consent page shows client id + redirect URI;
+  `code_verifier` length enforced
 - Runtime: crons can no longer fire while the device is offline; `connected_seconds`
   accrues incrementally instead of landing in one bucket at disconnect;
   `device_kv` enforces key/value size limits; `history_complete` is always sent
-  when backfill was requested
+  when backfill was requested; a watcher that disconnects mid-backfill is
+  detached instead of leaving a dead socket registered
 - Blob deletion drains all list pages; project/device/user deletion now removes
   `device_kv`, `device_logs`, and `device_usage` orphans; `fsBlobStore.list`
   cursor is a stable last-key token
 - Metrics windows are aligned to the 5-minute bucket grid; project totals
-  exclude deleted devices; batch script uploads report per-device errors with a
-  `partial` status
+  exclude deleted devices; batch script uploads report per-device errors with
+  a result.status of `success`/`partial`/`failed` (all-failed batches are
+  distinguishable from partial without scanning per-device entries)
 - Firmware-token rotation is scoped by project+device UUID (same device slug in
   two projects no longer invalidates each other's tokens)
 - Missing DB indexes (`tokens`, `device_logs`, `device_usage`, sessions),

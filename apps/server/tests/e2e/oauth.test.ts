@@ -227,8 +227,14 @@ describe("oauth: dynamic client registration", () => {
 		);
 	});
 
-	test("scriptable schemes (javascript:, data:) -> 400 invalid_client_metadata", async () => {
-		for (const uri of ["javascript:alert(1)", "data:text/html,hi"]) {
+	test("scriptable/embedding schemes (javascript:, data:, vbscript:, file:, about:) -> 400 invalid_client_metadata", async () => {
+		for (const uri of [
+			"javascript:alert(1)",
+			"data:text/html,hi",
+			"vbscript:msgbox(1)",
+			"file:///etc/passwd",
+			"about:blank",
+		]) {
 			const res = await srv.post("/oauth/register", {
 				body: { client_name: "xss", redirect_uris: [uri] },
 			});
@@ -239,10 +245,13 @@ describe("oauth: dynamic client registration", () => {
 		}
 	});
 
-	test("http on a non-loopback host -> 400 invalid_client_metadata", async () => {
+	test("http on a public host -> 400 invalid_client_metadata", async () => {
 		for (const uri of [
 			"http://example.com/cb",
-			"http://192.168.1.50/cb",
+			"http://8.8.8.8/cb",
+			// above the RFC1918 172.16/12 upper bound = public
+			"http://172.32.0.1/cb",
+			// userinfo in an http URI is rejected regardless of host
 			"http://example.com@localhost/cb",
 		]) {
 			const res = await srv.post("/oauth/register", {
@@ -255,13 +264,28 @@ describe("oauth: dynamic client registration", () => {
 		}
 	});
 
-	test("https (any host) and loopback http (any port) are accepted", async () => {
+	test("https (any host), loopback http, private-LAN http, and native-app custom schemes are accepted", async () => {
 		for (const uri of [
 			"https://example.com/cb",
 			"https://example.com:8443/cb",
 			"http://localhost:9999/cb",
 			"http://127.0.0.1:8080/cb",
 			"http://[::1]:3000/cb",
+			// private-LAN http restores the released non-loopback LAN behavior
+			// in a scoped way: RFC1918 + link-local IPv4, ULA/link-local IPv6,
+			// and mDNS names only.
+			"http://10.0.0.5:8080/cb",
+			"http://192.168.1.50:8080/cb",
+			"http://172.16.0.8:8080/cb",
+			"http://172.31.255.1:8080/cb",
+			"http://169.254.10.1:8080/cb",
+			"http://[fd00::1]:8080/cb",
+			"http://[fe80::1]:8080/cb",
+			"http://mybox.local:8080/cb",
+			// custom schemes for native-app handlers (previously documented as
+			// intentional for this LAN product, e.g. Cursor's cursor://)
+			"cursor://oauth/callback",
+			"vscode://oauth/callback",
 		]) {
 			const res = await srv.post("/oauth/register", {
 				body: { client_name: "ok client", redirect_uris: [uri] },
@@ -495,6 +519,48 @@ describe("oauth: full authorization code + PKCE flow", () => {
 		});
 		expect(res.status).toBe(400);
 		expect((res.body as { error: string }).error).toBe("invalid_grant");
+	});
+
+	test("custom-scheme redirect (cursor://) runs the same authorize + exchange contract", async () => {
+		// A native-app handler URI registered under the scoped compatibility
+		// rule must flow through authorize -> redirect -> token exchange with
+		// the exact same validation as an http(s) URI (exact-match against the
+		// registered value both at authorize and at exchange).
+		const customClient = await registerClient(
+			srv,
+			"cursor://oauth/callback",
+			"cursor client",
+		);
+		const { verifier, challenge } = await generatePkcePair();
+		const auth = await driveAuthorize(srv, user.token, {
+			clientId: customClient.client_id,
+			redirectUri: "cursor://oauth/callback",
+			codeChallenge: challenge,
+			state: "cvstate",
+		});
+		expect(auth.status).toBe(302);
+		expect(auth.location).toContain("cursor://oauth/callback?");
+		expect(auth.location).toContain("state=cvstate");
+		const code = codeFromLocation(auth.location);
+
+		const res = await exchangeCode(srv, {
+			code,
+			redirectUri: "cursor://oauth/callback",
+			clientId: customClient.client_id,
+			codeVerifier: verifier,
+		});
+		expect(res.status).toBe(200);
+		expect(res.body).toHaveProperty("access_token");
+
+		const mcpRes = await srv.post("/mcp", {
+			token: (res.body as TokenResponse).access_token,
+			body: { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+			headers: {
+				"content-type": "application/json",
+				accept: "application/json, text/event-stream",
+			},
+		});
+		expect(mcpRes.status).toBe(200);
 	});
 
 	test("deny -> redirect with error=access_denied, no code minted", async () => {
